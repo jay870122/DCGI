@@ -1,290 +1,296 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Garbled 幻彩水晶商店</title>
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #2C2F33; color: white; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-    .card { background-color: #23272A; padding: 30px; border-radius: 12px; width: 100%; max-width: 450px; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.6); position: relative; }
-    .btn { color: white; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; width: 100%; display: inline-block; box-sizing: border-box; text-decoration: none; }
-    .btn-login { background-color: #5865F2; margin-top: 10px; }
-    .btn-login:hover { background-color: #4752C4; }
-    .btn-logout { background-color: #ED4245; margin-top: 20px; }
-    .btn-logout:hover { background-color: #C13537; }
-    .btn-refresh { background-color: #4F545C; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s; }
-    .btn-refresh:hover { background-color: #686D73; }
-    .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
-    
-    .avatar { width: 90px; height: 90px; border-radius: 50%; border: 4px solid #5865F2; margin-bottom: 10px; }
-    .score-box { background-color: #2C2F33; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px; }
-    .score-item { display: flex; justify-content: space-between; font-size: 16px; margin: 8px 0; padding-bottom: 6px; border-bottom: 1px solid #4F545C; }
-    .score-value { font-weight: bold; color: #58FF9C; }
-    
-    .controls-container { display: flex; gap: 10px; margin-bottom: 15px; }
-    .shop-input { flex-grow: 1; padding: 10px; border-radius: 5px; border: 1px solid #4F545C; background-color: #2C2F33; color: white; font-size: 14px; outline: none; }
-    
-    .shop-list-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-    .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px; padding: 15px; text-align: left; position: relative; }
-    .shop-item-card.disabled { opacity: 0.6; }
-    .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #40444B; padding-bottom: 8px;}
-    .item-name { font-size: 18px; font-weight: bold; color: #FFF; }
-    .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
-    .badge-avail { background-color: #43B581; color: white; }
-    .badge-unavail { background-color: #ED4245; color: white; }
-    .item-info { font-size: 14px; color: #B9BBBE; margin-bottom: 12px; line-height: 1.6; }
-    .item-price { color: #FEE75C; font-weight: bold; font-size: 16px; }
-    
-    .limit-tags { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
-    .limit-tag { font-size: 12px; padding: 4px 8px; border-radius: 4px; display: inline-block; width: fit-content; }
-    .tag-global { background-color: #4F545C; color: #FFF; }
-    .tag-personal { background-color: #5865F2; color: #FFF; }
-    .tag-total { background-color: #FEE75C; color: #000; font-weight: bold; } /* 🌟 終身限購專屬金色標籤 */
+var SHEET_ID = '1JlP7BUaD5qzN6hyunzhiuiHNII9AGA1StGL8_xRUFBU'; 
+var WEBHOOK_URL = 'https://discord.com/api/webhooks/1474932930886504533/NJKn1q2pFyLK5Z5rvWYEHulLJvnipR7ktvGzebNTi4Elk84MEsmdvbA5OlPfOivDoPlD';
 
-    .item-actions { display: flex; gap: 10px; align-items: center; }
-    .qty-input { width: 70px; padding: 8px; border-radius: 6px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 16px; text-align: center; outline: none; }
-    .btn-buy { background-color: #43B581; padding: 8px 16px; width: auto; flex-grow: 1; }
-    .btn-buy:hover { background-color: #3CA374; }
-    .btn-buy:disabled { background-color: #4F545C; cursor: not-allowed; }
+function doGet(e) {
+  var action = e.parameter.action || 'getScores';
+  var discordId = e.parameter.discordId;
+  try {
+    if (action === 'getScores') return jsonResponse(getUserScores(discordId));
+    else if (action === 'getShop') return jsonResponse(getShopItems(discordId)); 
+    else if (action === 'buy') {
+      var itemName = e.parameter.itemName;
+      var qty = parseInt(e.parameter.qty) || 1;
+      return jsonResponse(processPurchase(discordId, itemName, qty));
+    }
+  } catch (err) { return jsonResponse({ "status": "error", "message": err.toString() }); }
+}
 
-    .version-tag { font-size: 12px; color: #72767D; margin-top: 20px; text-align: center; }
-    #dashboard, #loading { display: none; }
-  </style>
-</head>
-<body>
+function jsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
 
-  <div class="card">
-    <h1 style="margin-top:0;">Garbled 幻彩水晶商店</h1>
-    
-    <div id="login-section">
-      <p style="color: #B9BBBE;">請綁定您的 Discord 帳號以查看資料與兌換</p>
-      <a href="https://discord.com/api/oauth2/authorize?client_id=1365601646448607335&redirect_uri=https%3A%2F%2Fjay870122.github.io%2FDCGI%2F&response_type=token&scope=identify" class="btn btn-login">🎮 使用 Discord 登入</a>
-    </div>
+function getUserScores(discordId) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var playerSheet = ss.getSheets()[0]; 
+  var playerData = playerSheet.getDataRange().getValues();
+  
+  var s1 = 0, s2 = 0, s3 = 0;
+  var playerRow = -1;
+  var headers = playerData[0]; 
 
-    <div id="loading">
-      <p id="loading-text">⏳ 正在連線至資料庫...</p>
-    </div>
+  for (var i = 1; i < playerData.length; i++) {
+    if (playerData[i][0].toString().replace("'", "") === discordId.toString()) {
+      playerRow = i;
+      s1 = playerData[i][1] || 0;
+      s2 = playerData[i][2] || 0;
+      s3 = playerData[i][3] || 0;
+      break;
+    }
+  }
 
-    <div id="dashboard">
-      <img id="user-avatar" class="avatar" src="" alt="Avatar">
-      <h2 id="user-name" style="margin-top:0;">玩家名稱</h2>
-      <div class="score-box">
-        <div class="score-item"><span>🌟 總獲得幻彩水晶:</span> <span class="score-value" id="score-s1">0</span></div>
-        <div class="score-item"><span>🔥 可用幻彩水晶:</span> <span class="score-value" id="score-s2">0</span></div>
-        <div class="score-item" id="score-s3-container"><span>💎 點數3:</span> <span class="score-value" id="score-s3">0</span></div>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="margin: 0;">🛒 兌換商店</h3>
-        <button id="btn-refresh" class="btn-refresh" onclick="refreshData()">🔄 重新整理</button>
-      </div>
-
-      <div class="controls-container">
-        <select id="filter-category" class="shop-input" onchange="renderShop()">
-          <option value="all">📁 所有分類</option>
-        </select>
-        <select id="sort-items" class="shop-input" onchange="renderShop()">
-          <option value="default">預設排序</option>
-          <option value="avail-first">✅ 可用優先</option>
-          <option value="a-z">🔠 名稱 A ~ Z</option>
-          <option value="z-a">🔡 名稱 Z ~ A</option>
-          <option value="price-low">💰 價格 低 ~ 高</option>
-          <option value="price-high">💰 價格 高 ~ 低</option>
-        </select>
-      </div>
-      
-      <div id="shop-list" class="shop-list-container"></div>
-      <button class="btn btn-logout" onclick="logout()">登出帳號</button>
-    </div>
-
-    <div class="version-tag">系統版本：v1.5.0 (含終身限購)</div>
-  </div>
-
-  <script>
-    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
-    let currentUser = null; 
-    let currentShopItems = []; 
-
-    window.onload = () => {
-      const hashString = window.location.hash.slice(1);
-      if (!hashString) return; 
-
-      const fragment = new URLSearchParams(hashString);
-      const accessToken = fragment.get('access_token');
-      const tokenType = fragment.get('token_type');
-
-      if (accessToken) {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
-        window.history.replaceState(null, null, window.location.pathname);
-
-        fetch('https://discord.com/api/users/@me', { headers: { authorization: `${tokenType} ${accessToken}` } })
-        .then(res => res.json())
-        .then(user => {
-          currentUser = user; 
-          document.getElementById('user-name').innerText = user.global_name || user.username;
-          document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
-          fetchScoresAndShop(user.id);
-        }).catch(err => {
-          alert("登入逾時，請重新登入！");
-          window.location.reload();
-        });
+  var customVars = [];
+  if (ss.getSheets().length >= 4) {
+    var varSheet = ss.getSheets()[3];
+    var varData = varSheet.getDataRange().getValues();
+    for (var v = 1; v < varData.length; v++) {
+      var display = varData[v][0];
+      var internal = varData[v][1];
+      if (display && internal) {
+        var val = 0;
+        var colIndex = headers.indexOf(internal.toString()); 
+        if (colIndex !== -1 && playerRow !== -1) val = playerData[playerRow][colIndex] || 0;
+        customVars.push({ display: display, value: val });
       }
+    }
+  }
+
+  return { "status": "success", "found": playerRow !== -1, "s1": s1, "s2": s2, "s3": s3, "customVars": customVars };
+}
+
+function getPurchaseHistory(historyData, discordId, targetItem) {
+  var now = new Date();
+  var todayStr = Utilities.formatDate(now, "GMT+8", "yyyyMMdd");
+  var monthStr = Utilities.formatDate(now, "GMT+8", "yyyyMM");
+  var stats = { globalDaily: 0, globalMonthly: 0, personalDaily: 0, personalMonthly: 0, personalTotal: 0 };
+  
+  for(var r = 1; r < historyData.length; r++) {
+    if(historyData[r][2] === targetItem) {
+      var tDate = new Date(historyData[r][0]);
+      var tId = historyData[r][1].toString().replace("'", "");
+      var tQty = parseInt(historyData[r][3]) || 0;
+      var tDay = Utilities.formatDate(tDate, "GMT+8", "yyyyMMdd");
+      var tMonth = Utilities.formatDate(tDate, "GMT+8", "yyyyMM");
+      if(tId === discordId.toString()) stats.personalTotal += tQty;
+      if(tMonth === monthStr) {
+        stats.globalMonthly += tQty;
+        if(tId === discordId.toString()) stats.personalMonthly += tQty;
+      }
+      if(tDay === todayStr) {
+        stats.globalDaily += tQty;
+        if(tId === discordId.toString()) stats.personalDaily += tQty;
+      }
+    }
+  }
+  return stats;
+}
+
+function getShopItems(discordId) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheets()[1]; 
+  var historySheet = ss.getSheets()[2]; 
+  var data = sheet.getDataRange().getValues();
+  var historyData = historySheet ? historySheet.getDataRange().getValues() : [];
+  var items = [];
+  var now = new Date().getTime();
+
+  for (var i = 1; i < data.length; i++) {
+    var name = data[i][0];
+    if (!name) continue;
+
+    var price = parseInt(data[i][1]) || 0;
+    var startDate = data[i][2] ? new Date(data[i][2]).getTime() : null;
+    var endDate = data[i][3] ? new Date(data[i][3]).getTime() : null;
+    var stockValue = data[i][4];
+    var category = data[i][5] ? data[i][5].toString().trim() : '未分類';
+    
+    var limitGD = data[i][6] !== "" && data[i][6] !== undefined ? parseInt(data[i][6]) : Infinity;
+    var limitGM = data[i][7] !== "" && data[i][7] !== undefined ? parseInt(data[i][7]) : Infinity;
+    var limitPD = data[i][8] !== "" && data[i][8] !== undefined ? parseInt(data[i][8]) : Infinity;
+    var limitPM = data[i][9] !== "" && data[i][9] !== undefined ? parseInt(data[i][9]) : Infinity;
+    var limitPT = data[i][10] !== "" && data[i][10] !== undefined ? parseInt(data[i][10]) : Infinity;
+    
+    // 🌟 讀取貨幣種類 (L 欄)
+    var rawCurrency = data[i][11] ? data[i][11].toString().trim() : '升階2';
+    var displayCurrency = (rawCurrency === '升階2') ? '幻彩水晶' : rawCurrency;
+
+    var isUnlimitedStock = (!stockValue || stockValue === "" || stockValue === "無限" || stockValue === "無限制");
+    var baseStock = isUnlimitedStock ? Infinity : parseInt(stockValue);
+    var historyStats = getPurchaseHistory(historyData, discordId, name);
+    
+    var remainGD = limitGD - historyStats.globalDaily;
+    var remainGM = limitGM - historyStats.globalMonthly;
+    var remainPD = limitPD - historyStats.personalDaily;
+    var remainPM = limitPM - historyStats.personalMonthly;
+    var remainPT = limitPT - historyStats.personalTotal;
+    
+    var effectiveStock = Math.min(baseStock, remainGD, remainGM, remainPD, remainPM, remainPT);
+    var state = "available";
+    var stateMsg = "可兌換";
+
+    if (startDate && now < startDate) { state = "not_started"; stateMsg = "尚未開始"; } 
+    else if (endDate && now > endDate) { state = "ended"; stateMsg = "活動結束"; } 
+    else if (effectiveStock <= 0) { state = "sold_out"; stateMsg = "達到上限/售完"; }
+
+    var limitsInfo = {
+      baseStock: isUnlimitedStock ? "無限" : baseStock,
+      remainGD: limitGD === Infinity ? null : remainGD, remainGM: limitGM === Infinity ? null : remainGM,
+      remainPD: limitPD === Infinity ? null : remainPD, remainPM: limitPM === Infinity ? null : remainPM,
+      remainPT: limitPT === Infinity ? null : remainPT, effectiveStock: effectiveStock === Infinity ? "無限" : effectiveStock
     };
 
-    function refreshData() {
-      if(!currentUser) return;
-      const refreshBtn = document.getElementById('btn-refresh');
-      refreshBtn.innerText = "⏳ 讀取中...";
-      refreshBtn.disabled = true;
-      fetchScoresAndShop(currentUser.id, () => {
-        refreshBtn.innerText = "🔄 重新整理";
-        refreshBtn.disabled = false;
-      });
+    items.push({ 
+      name: name, price: price, state: state, stateMsg: stateMsg, 
+      category: category, limits: limitsInfo, 
+      currency: rawCurrency, displayCurrency: displayCurrency // 🌟 將貨幣資訊傳給前端
+    });
+  }
+  return { "status": "success", "items": items };
+}
+
+function processPurchase(discordId, itemName, qty) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000); 
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var playerSheet = ss.getSheets()[0];
+    var shopSheet = ss.getSheets()[1];
+    var historySheet = ss.getSheets()[2];
+    
+    var shopData = shopSheet.getDataRange().getValues();
+    var historyData = historySheet.getDataRange().getValues();
+    var itemRow = -1;
+    var pricePerItem = 0;
+    var stockValue = "";
+    var currencyName = "升階2"; // 預設貨幣
+
+    var limitGD = Infinity, limitGM = Infinity, limitPD = Infinity, limitPM = Infinity, limitPT = Infinity;
+
+    for (var i = 1; i < shopData.length; i++) {
+      if (shopData[i][0] === itemName) {
+        itemRow = i + 1;
+        pricePerItem = parseInt(shopData[i][1]) || 0;
+        var now = new Date().getTime();
+        var startDate = shopData[i][2] ? new Date(shopData[i][2]).getTime() : null;
+        var endDate = shopData[i][3] ? new Date(shopData[i][3]).getTime() : null;
+        if (startDate && now < startDate) return { "status": "error", "message": "活動尚未開始！" };
+        if (endDate && now > endDate) return { "status": "error", "message": "活動已經結束！" };
+        
+        stockValue = shopData[i][4];
+        limitGD = shopData[i][6] !== "" && shopData[i][6] !== undefined ? parseInt(shopData[i][6]) : Infinity;
+        limitGM = shopData[i][7] !== "" && shopData[i][7] !== undefined ? parseInt(shopData[i][7]) : Infinity;
+        limitPD = shopData[i][8] !== "" && shopData[i][8] !== undefined ? parseInt(shopData[i][8]) : Infinity;
+        limitPM = shopData[i][9] !== "" && shopData[i][9] !== undefined ? parseInt(shopData[i][9]) : Infinity;
+        limitPT = shopData[i][10] !== "" && shopData[i][10] !== undefined ? parseInt(shopData[i][10]) : Infinity;
+        
+        // 🌟 取得該商品的指定貨幣
+        if (shopData[i][11]) currencyName = shopData[i][11].toString().trim();
+        break;
+      }
     }
 
-    function fetchScoresAndShop(discordId, callback = null) {
-      document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
+    if (itemRow === -1) return { "status": "error", "message": "找不到該商品！" };
+
+    var isUnlimited = (!stockValue || stockValue === "" || stockValue === "無限" || stockValue === "無限制");
+    var baseStock = isUnlimited ? Infinity : parseInt(stockValue);
+    var historyStats = getPurchaseHistory(historyData, discordId, itemName);
+    var remainGD = limitGD - historyStats.globalDaily;
+    var remainGM = limitGM - historyStats.globalMonthly;
+    var remainPD = limitPD - historyStats.personalDaily;
+    var remainPM = limitPM - historyStats.personalMonthly;
+    var remainPT = limitPT - historyStats.personalTotal;
+    
+    var effectiveStock = Math.min(baseStock, remainGD, remainGM, remainPD, remainPM, remainPT);
+    if (effectiveStock < qty) { return { "status": "error", "message": "超過限購數量或庫存不足！" }; }
+
+    // 🌟 動態尋找玩家的貨幣欄位
+    var totalCost = pricePerItem * qty;
+    var playerData = playerSheet.getDataRange().getValues();
+    var playerHeaders = playerData[0];
+    var currencyColIndex = playerHeaders.indexOf(currencyName);
+    
+    if (currencyColIndex === -1) {
+      return { "status": "error", "message": "系統錯誤：玩家庫找不到貨幣 [" + currencyName + "]" };
+    }
+
+    var playerRow = -1;
+    var currentBalance = 0;
+    for (var i = 1; i < playerData.length; i++) {
+      if (playerData[i][0].toString().replace("'", "") === discordId.toString()) {
+        playerRow = i + 1; 
+        currentBalance = parseInt(playerData[i][currencyColIndex]) || 0; 
+        break;
+      }
+    }
+
+    if (playerRow === -1) return { "status": "error", "message": "找不到您的帳號資料" };
+    
+    var displayCurrencyName = (currencyName === '升階2') ? '幻彩水晶' : currencyName;
+    if (currentBalance < totalCost) return { "status": "error", "message": displayCurrencyName + " 餘額不足！(需要 " + totalCost + ")" };
+
+    // 🌟 動態扣款寫入對應的欄位！
+    playerSheet.getRange(playerRow, currencyColIndex + 1).setValue(currentBalance - totalCost);
+    
+    if (!isUnlimited) shopSheet.getRange(itemRow, 5).setValue(baseStock - qty); 
+    historySheet.appendRow([new Date(), discordId.toString(), itemName, qty]);
+
+    // 🌟 Discord 廣播加入動態貨幣名稱！
+    var msg = "[購買] 玩家 " + discordId + " 購買了 " + qty + " 個【" + itemName + "】，共花費 " + totalCost + " " + displayCurrencyName;
+    var payload = { "content": msg };
+    var options = { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload) };
+    try { UrlFetchApp.fetch(WEBHOOK_URL, options); } catch(e) {}
+
+    return { "status": "success", "message": "兌換成功！" }; // 因為可能扣的是別的錢，前端直接整頁重新整理最安全
+  } finally { lock.releaseLock(); }
+}
+
+// 🌟 必須保留：接收 Skript 同步資料的函數
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000); 
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0]; 
+    var sheetData = sheet.getDataRange().getValues();
+    var headers = sheetData[0]; 
+
+    var playerMap = {};
+    for (var i = 1; i < sheetData.length; i++) {
+      var idStr = sheetData[i][0].toString().replace("'", "");
+      playerMap[idStr] = i + 1; 
+    }
+
+    for (var j = 0; j < data.length; j++) {
+      var p = data[j];
+      var row = playerMap[p.discordId.toString()];
       
-      let p1 = fetch(`${GAS_API_URL}?action=getScores&discordId=${discordId}`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
-          document.getElementById('score-s1').innerText = data.s1;
-          document.getElementById('score-s2').innerText = data.s2;
-          document.getElementById('score-s3').innerText = data.s3;
-          if (parseInt(data.s3) === 0) document.getElementById('score-s3-container').style.display = 'none';
-          else document.getElementById('score-s3-container').style.display = 'flex';
-        }
-      });
-
-      let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
-          currentShopItems = data.items;
-          const catSet = new Set(currentShopItems.map(item => item.category));
-          const catSelect = document.getElementById('filter-category');
-          const currentSelection = catSelect.value; 
-          catSelect.innerHTML = '<option value="all">📁 所有分類</option>';
-          catSet.forEach(cat => {
-            let selected = (cat === currentSelection) ? 'selected' : '';
-            catSelect.innerHTML += `<option value="${cat}" ${selected}>${cat}</option>`;
-          });
-
-          renderShop();
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('dashboard').style.display = 'block';
-        }
-      });
-
-      Promise.all([p1, p2]).then(() => { if(callback) callback(); });
-    }
-
-    function renderShop() {
-      const container = document.getElementById('shop-list');
-      const filterCat = document.getElementById('filter-category').value;
-      const sortType = document.getElementById('sort-items').value;
-      let displayItems = [...currentShopItems];
-
-      if (filterCat !== 'all') displayItems = displayItems.filter(item => item.category === filterCat);
-
-      if (sortType === 'avail-first') {
-        displayItems.sort((a, b) => {
-          if (a.state === 'available' && b.state !== 'available') return -1;
-          if (a.state !== 'available' && b.state === 'available') return 1;
-          return 0;
-        });
-      } else if (sortType === 'a-z') displayItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
-      else if (sortType === 'z-a') displayItems.sort((a, b) => b.name.localeCompare(a.name, 'zh-TW'));
-      else if (sortType === 'price-low') displayItems.sort((a, b) => a.price - b.price);
-      else if (sortType === 'price-high') displayItems.sort((a, b) => b.price - a.price);
-
-      container.innerHTML = "";
-      if (displayItems.length === 0) {
-        container.innerHTML = "<div style='color:#B9BBBE; text-align:center;'>目前無符合條件的商品</div>";
-        return;
+      if (!row) {
+        var newRowData = new Array(headers.length).fill("");
+        newRowData[0] = "'" + p.discordId;
+        sheet.appendRow(newRowData);
+        row = sheet.getLastRow();
+        playerMap[p.discordId.toString()] = row;
       }
 
-      displayItems.forEach((item) => {
-        const isAvail = item.state === "available";
-        const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
-        const safeId = encodeURIComponent(item.name).replace(/%/g, ''); 
-        
-        // 🌟 處理限購標籤顯示 (加入金色的終身限購標籤)
-        let limitsHtml = `<div class="limit-tags">`;
-        if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日剩餘: ${item.limits.remainGD}</span>`;
-        if (item.limits.remainGM !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本月剩餘: ${item.limits.remainGM}</span>`;
-        if (item.limits.remainPD !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人今日剩餘: ${item.limits.remainPD}</span>`;
-        if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月剩餘: ${item.limits.remainPM}</span>`;
-        if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 帳號終身剩餘: ${item.limits.remainPT}</span>`;
-        limitsHtml += `</div>`;
-        if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = ""; 
+      if (p.score1 !== undefined) sheet.getRange(row, 2).setValue(p.score1);
+      if (p.score2 !== undefined) sheet.getRange(row, 3).setValue(p.score2);
+      if (p.score3 !== undefined) sheet.getRange(row, 4).setValue(p.score3);
 
-        let actionHtml = '';
-        if (isAvail) {
-          let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
-          actionHtml = `
-            <div class="item-actions">
-              <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.name}', '${safeId}', ${maxQty})">兌換</button>
-            </div>
-          `;
-        } else {
-          actionHtml = `<button class="btn btn-buy" disabled>無法兌換</button>`;
+      if (p.custom) {
+        for (var key in p.custom) {
+          var colIndex = headers.indexOf(key);
+          if (colIndex === -1) {
+            colIndex = headers.length;
+            headers.push(key);
+            sheet.getRange(1, colIndex + 1).setValue(key);
+          }
+          sheet.getRange(row, colIndex + 1).setValue(p.custom[key]);
         }
-
-        const html = `
-          <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
-            <div class="item-header">
-              <span class="item-name">${item.name}</span>
-              <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
-            </div>
-            <div class="item-info">
-              📁 分類：<span style="color: #A6D189; font-weight: bold;">${item.category}</span><br>
-              💰 價格：<span class="item-price">${item.price} 幻彩水晶</span><br>
-              📦 總庫存：${item.limits.baseStock}
-              ${limitsHtml}
-            </div>
-            ${actionHtml}
-          </div>
-        `;
-        container.innerHTML += html;
-      });
+      }
     }
-
-    function buyItem(itemName, safeId, maxQty) {
-      if (!currentUser) return;
-      const qtyInput = document.getElementById(`qty-${safeId}`);
-      const qty = parseInt(qtyInput.value);
-      
-      if (qty < 1) { alert("數量必須大於 0！"); return; }
-      if (qty > maxQty) { alert(`已超過限購數量！您目前最多只能買 ${maxQty} 個。`); return; }
-      if (!confirm(`確定要花費幻彩水晶兌換 ${qty} 個 ${itemName} 嗎？`)) return;
-
-      const btn = document.getElementById(`btn-${safeId}`);
-      btn.innerText = "⏳ 處理中...";
-      btn.disabled = true;
-
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
-          alert("✅ " + data.message);
-          document.getElementById('score-s2').innerText = data.newS2;
-          fetchScoresAndShop(currentUser.id); 
-        } else {
-          alert("❌ 兌換失敗：" + data.message);
-        }
-      })
-      .catch(err => alert("網路錯誤，請稍後再試！"))
-      .finally(() => {
-        btn.innerText = "兌換";
-        btn.disabled = false;
-      });
-    }
-
-    function logout() { window.location.href = "https://jay870122.github.io/DCGI/"; }
-  </script>
-</body>
-</html>
+    return ContentService.createTextOutput("Sync Success (Multi-Currency Enabled)");
+  } catch (err) {
+    return ContentService.createTextOutput("Sync Error: " + err.toString());
+  } finally {
+    lock.releaseLock();
+  }
+}
