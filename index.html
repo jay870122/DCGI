@@ -12,6 +12,7 @@
     .btn-login:hover { background-color: #4752C4; }
     .btn-buy { background-color: #43B581; }
     .btn-buy:hover { background-color: #3CA374; }
+    .btn-buy:disabled { background-color: #4F545C; cursor: not-allowed; }
     .btn-logout { background-color: #ED4245; }
     .btn-logout:hover { background-color: #C13537; }
     .avatar { width: 90px; height: 90px; border-radius: 50%; border: 4px solid #5865F2; margin-bottom: 10px; }
@@ -46,7 +47,7 @@
 
       <h3 style="text-align: left; margin-bottom: 10px;">🛒 兌換商店</h3>
       <div style="background-color: #2C2F33; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px;">
-        <label for="shop-items" style="font-size: 14px; color: #B9BBBE;">選擇物品</label>
+        <label for="shop-items" style="font-size: 14px; color: #B9BBBE;">商品型錄</label>
         <select id="shop-items" class="shop-input"></select>
         
         <label for="buy-qty" style="font-size: 14px; color: #B9BBBE;">兌換數量</label>
@@ -62,7 +63,7 @@
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     let currentUser = null; 
-    let currentShopItems = []; // 紀錄商城物品庫存供前端檢查
+    let currentShopItems = []; 
 
     window.onload = () => {
       const hashString = window.location.hash.slice(1);
@@ -70,117 +71,4 @@
 
       const fragment = new URLSearchParams(hashString);
       const accessToken = fragment.get('access_token');
-      const tokenType = fragment.get('token_type');
-
-      if (accessToken) {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
-        window.history.replaceState(null, null, window.location.pathname);
-
-        fetch('https://discord.com/api/users/@me', { headers: { authorization: `${tokenType} ${accessToken}` } })
-        .then(res => res.json())
-        .then(user => {
-          currentUser = user; 
-          document.getElementById('user-name').innerText = user.global_name || user.username;
-          document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
-          fetchScoresAndShop(user.id);
-        }).catch(err => {
-          alert("登入逾時，請重新登入！");
-          window.location.reload();
-        });
-      }
-    };
-
-    function fetchScoresAndShop(discordId) {
-      document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
-      
-      fetch(`${GAS_API_URL}?action=getScores&discordId=${discordId}`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
-          document.getElementById('score-s1').innerText = data.s1;
-          document.getElementById('score-s2').innerText = data.s2;
-          document.getElementById('score-s3').innerText = data.s3;
-        }
-      });
-
-      fetch(`${GAS_API_URL}?action=getShop`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
-          currentShopItems = data.items;
-          const select = document.getElementById('shop-items');
-          select.innerHTML = ""; 
-
-          if (data.items.length === 0) {
-            select.innerHTML = "<option value=''>目前無商品可兌換</option>";
-          } else {
-            data.items.forEach(item => {
-              let option = document.createElement('option');
-              option.value = item.name;
-              // 顯示價格與庫存
-              let stockText = item.stock === "無限" ? "無限" : `剩 ${item.stock} 個`;
-              option.text = `${item.name} (💰 ${item.price} 點 | 📦 ${stockText})`;
-              select.appendChild(option);
-            });
-          }
-          
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('dashboard').style.display = 'block';
-        }
-      });
-    }
-
-    function buyItem() {
-      if (!currentUser) return;
-      
-      const itemName = document.getElementById('shop-items').value;
-      const qty = parseInt(document.getElementById('buy-qty').value);
-      
-      if (!itemName) {
-        alert("目前商店沒有物品可供兌換！");
-        return;
-      }
-      if (qty < 1) {
-        alert("數量必須大於 0！");
-        return;
-      }
-
-      // 前端先擋下超買，節省網路請求
-      const selectedItem = currentShopItems.find(i => i.name === itemName);
-      if (selectedItem && selectedItem.stock !== "無限" && qty > selectedItem.stock) {
-        alert(`庫存不足！這項物品目前只剩下 ${selectedItem.stock} 個。`);
-        return;
-      }
-
-      if (!confirm(`確定要花費升階2兌換 ${qty} 個 ${itemName} 嗎？`)) return;
-
-      const btn = document.querySelector('.btn-buy');
-      btn.innerText = "⏳ 處理中...";
-      btn.disabled = true;
-
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
-          alert("✅ " + data.message);
-          document.getElementById('score-s2').innerText = data.newS2;
-          // 重新載入商店以更新庫存顯示
-          fetchScoresAndShop(currentUser.id);
-        } else {
-          alert("❌ 兌換失敗：" + data.message);
-        }
-      })
-      .catch(err => alert("網路錯誤，請稍後再試！"))
-      .finally(() => {
-        btn.innerText = "確認兌換";
-        btn.disabled = false;
-      });
-    }
-
-    function logout() {
-      window.location.href = "https://jay870122.github.io/DCGI/";
-    }
-  </script>
-</body>
-</html>
+      const tokenType =
