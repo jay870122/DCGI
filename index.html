@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>曼鯊鯊 | 玩家點數查詢</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #2C2F33; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    .card { background-color: #23272A; padding: 40px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+    .btn-login { background-color: #5865F2; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; display: inline-block; cursor: pointer; transition: background 0.3s; margin-top: 20px; }
+    .btn-login:hover { background-color: #4752C4; }
+    .avatar { width: 100px; height: 100px; border-radius: 50%; border: 4px solid #5865F2; margin-bottom: 15px; }
+    .score-item { display: flex; justify-content: space-between; font-size: 18px; margin: 12px 0; padding-bottom: 8px; border-bottom: 1px solid #4F545C; }
+    .score-value { font-weight: bold; color: #58FF9C; }
+    #dashboard, #loading { display: none; } /* 預設隱藏儀表板和載入中 */
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1 style="margin-top:0;">伺服器點數查詢</h1>
+    
+    <div id="login-section">
+      <p style="color: #B9BBBE;">請綁定您的 Discord 帳號以查看最新資料</p>
+      <button class="btn-login" onclick="loginWithDiscord()">🎮 使用 Discord 登入</button>
+    </div>
+
+    <div id="loading">
+      <p>⏳ 正在連線至資料庫讀取您的分數...</p>
+    </div>
+
+    <div id="dashboard">
+      <img id="user-avatar" class="avatar" src="" alt="Avatar">
+      <h2 id="user-name">玩家名稱</h2>
+      <div style="background-color: #2C2F33; padding: 15px; border-radius: 8px; text-align: left;">
+        <div class="score-item"><span>🌟 升階1:</span> <span class="score-value" id="score-s1">0</span></div>
+        <div class="score-item"><span>🔥 升階2:</span> <span class="score-value" id="score-s2">0</span></div>
+        <div class="score-item"><span>💎 點數3:</span> <span class="score-value" id="score-s3">0</span></div>
+      </div>
+      <button class="btn-login" style="background-color: #ED4245; width: 100%; box-sizing: border-box;" onclick="logout()">登出</button>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 🔧 設定區 (請填入你自己的資料)
+    // ==========================================
+    const CLIENT_ID = '1365601646448607335'; 
+    const REDIRECT_URI = encodeURIComponent('https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec'); // 你的 GitHub Pages 網址
+    const GAS_API_URL = '你的GAS_API網址(結尾是/exec的那個)';
+
+    // ==========================================
+    // 🚀 核心邏輯
+    // ==========================================
+    
+    // 1. 點擊登入時，跳轉到 Discord 授權畫面 (注意 response_type=token)
+    function loginWithDiscord() {
+      const oauthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=identify`;
+      window.location.href = oauthUrl;
+    }
+
+    // 2. 網頁載入時，檢查網址裡面有沒有 Discord 傳回來的 Token
+    window.onload = () => {
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      const [accessToken, tokenType] = [fragment.get('access_token'), fragment.get('token_type')];
+
+      if (accessToken) {
+        // 為了安全，把網址上的 Token 擦掉，避免玩家截圖外洩
+        window.history.replaceState(null, null, window.location.pathname);
+        
+        // 切換畫面：隱藏登入按鈕，顯示載入中
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        // 去跟 Discord 拿玩家的個人資料
+        fetch('https://discord.com/api/users/@me', {
+          headers: { authorization: `${tokenType} ${accessToken}` }
+        })
+        .then(result => result.json())
+        .then(user => {
+          // 顯示大頭貼和名字
+          document.getElementById('user-name').innerText = user.global_name || user.username;
+          document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
+          
+          // 拿到了 Discord ID，現在去敲我們的 GAS API 查分數！
+          fetchScoresFromGAS(user.id);
+        })
+        .catch(console.error);
+      }
+    };
+
+    // 3. 去 GAS API 查分數
+    function fetchScoresFromGAS(discordId) {
+      fetch(`${GAS_API_URL}?discordId=${discordId}`, {
+        method: 'GET',
+        redirect: 'follow'
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.status === "success") {
+          // 把分數填入畫面
+          document.getElementById('score-s1').innerText = data.s1;
+          document.getElementById('score-s2').innerText = data.s2;
+          document.getElementById('score-s3').innerText = data.s3;
+          
+          // 切換畫面：隱藏載入中，顯示儀表板
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+        } else {
+          alert('讀取分數失敗：' + data.message);
+        }
+      })
+      .catch(error => {
+        alert('無法連線至資料庫！');
+        console.error(error);
+      });
+    }
+
+    // 4. 登出
+    function logout() {
+      window.location.reload(); // 簡單暴力，重整頁面就清空狀態了
+    }
+  </script>
+</body>
+</html>
