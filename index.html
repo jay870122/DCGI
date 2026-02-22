@@ -7,8 +7,8 @@
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #2C2F33; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
     .card { background-color: #23272A; padding: 40px; border-radius: 12px; width: 340px; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
-    .btn { color: white; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; width: 100%; margin-top: 10px; }
-    .btn-login { background-color: #5865F2; text-decoration: none; display: inline-block; box-sizing: border-box; }
+    .btn { color: white; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; width: 100%; margin-top: 10px; display: inline-block; box-sizing: border-box; text-decoration: none; }
+    .btn-login { background-color: #5865F2; }
     .btn-login:hover { background-color: #4752C4; }
     .btn-buy { background-color: #43B581; }
     .btn-buy:hover { background-color: #3CA374; }
@@ -28,7 +28,8 @@
     
     <div id="login-section">
       <p style="color: #B9BBBE;">請綁定您的 Discord 帳號以查看資料與兌換</p>
-  <a href="https://discord.com/api/oauth2/authorize?client_id=1365601646448607335&redirect_uri=https%3A%2F%2Fjay870122.github.io%2FDCGI%2F&response_type=token&scope=identify" class="btn btn-login">🎮 使用 Discord 登入</a>    </div>
+      <a href="https://discord.com/api/oauth2/authorize?client_id=1365601646448607335&redirect_uri=https%3A%2F%2Fjay870122.github.io%2FDCGI%2F&response_type=token&scope=identify" class="btn btn-login">🎮 使用 Discord 登入</a>
+    </div>
 
     <div id="loading">
       <p id="loading-text">⏳ 正在連線至資料庫...</p>
@@ -59,13 +60,115 @@
   </div>
 
   <script>
-    // ==========================================
-    // 🔧 設定區 (已填寫您的 DCGI 專屬金鑰)
-    // ==========================================
-    const CLIENT_ID = '1365601646448607335'; 
-    const REDIRECT_URI = encodeURIComponent('https://jay870122.github.io/DCGI/'); 
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
-
     let currentUser = null; 
 
-    function login
+    window.onload = () => {
+      // 抓取網址後面的 #access_token 通行證
+      const hashString = window.location.hash.slice(1);
+      if (!hashString) return; // 如果沒有通行證，就乖乖待在登入畫面
+
+      const fragment = new URLSearchParams(hashString);
+      const accessToken = fragment.get('access_token');
+      const tokenType = fragment.get('token_type');
+
+      if (accessToken) {
+        // 成功拿到通行證！隱藏登入按鈕，顯示載入中
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        // 為了美觀跟安全，把網址上的亂碼通行證擦掉
+        window.history.replaceState(null, null, window.location.pathname);
+
+        // 去跟 Discord 拿頭像跟名字
+        fetch('https://discord.com/api/users/@me', { headers: { authorization: `${tokenType} ${accessToken}` } })
+        .then(res => res.json())
+        .then(user => {
+          currentUser = user; 
+          document.getElementById('user-name').innerText = user.global_name || user.username;
+          document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
+          
+          fetchScoresAndShop(user.id);
+        }).catch(err => {
+          console.error("Discord 認證失敗:", err);
+          alert("登入逾時，請重新登入！");
+          window.location.reload();
+        });
+      }
+    };
+
+    function fetchScoresAndShop(discordId) {
+      document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
+      
+      // 查分數
+      fetch(`${GAS_API_URL}?action=getScores&discordId=${discordId}`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === "success") {
+          document.getElementById('score-s1').innerText = data.s1;
+          document.getElementById('score-s2').innerText = data.s2;
+          document.getElementById('score-s3').innerText = data.s3;
+        }
+      }).catch(e => console.error("分數載入錯誤", e));
+
+      // 查商店
+      fetch(`${GAS_API_URL}?action=getShop`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === "success") {
+          const select = document.getElementById('shop-items');
+          select.innerHTML = ""; // 清空舊選項
+          data.items.forEach(item => {
+            let option = document.createElement('option');
+            option.value = item.name;
+            option.text = `${item.name} (💰 ${item.price} 升階2)`;
+            select.appendChild(option);
+          });
+          
+          // 全部載入完成，顯示儀表板
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+        }
+      }).catch(e => console.error("商店載入錯誤", e));
+    }
+
+    function buyItem() {
+      if (!currentUser) return;
+      
+      const itemName = document.getElementById('shop-items').value;
+      const qty = document.getElementById('buy-qty').value;
+      
+      if (!itemName) {
+        alert("目前商店沒有物品可供兌換！");
+        return;
+      }
+
+      if (!confirm(`確定要花費升階2兌換 ${qty} 個 ${itemName} 嗎？`)) return;
+
+      const btn = document.querySelector('.btn-buy');
+      btn.innerText = "⏳ 處理中...";
+      btn.disabled = true;
+
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === "success") {
+          alert("✅ " + data.message);
+          document.getElementById('score-s2').innerText = data.newS2;
+        } else {
+          alert("❌ 兌換失敗：" + data.message);
+        }
+      })
+      .catch(err => alert("網路錯誤，請稍後再試！"))
+      .finally(() => {
+        btn.innerText = "確認兌換";
+        btn.disabled = false;
+      });
+    }
+
+    function logout() {
+      window.location.href = "https://jay870122.github.io/DCGI/";
+    }
+  </script>
+</body>
+</html>
