@@ -99,7 +99,7 @@
       <button class="btn btn-logout" onclick="logout()">登出帳號</button>
     </div>
 
-    <div class="version-tag">系統版本：v1.7.0 (多幣種支援版)</div>
+    <div class="version-tag">系統版本：v1.8.0 (精準定位防呆版)</div>
   </div>
 
   <script>
@@ -221,7 +221,9 @@
       displayItems.forEach((item) => {
         const isAvail = item.state === "available";
         const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
-        const safeId = encodeURIComponent(item.name).replace(/%/g, ''); 
+        
+        // 🌟 使用 item.id (精準列數) 來產生唯一的 HTML 標籤
+        const safeId = "item-" + item.id; 
         
         let limitsHtml = `<div class="limit-tags">`;
         if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日剩餘: ${item.limits.remainGD}</span>`;
@@ -238,14 +240,13 @@
           actionHtml = `
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem(${item.id}, '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
             </div>
           `;
         } else {
           actionHtml = `<button class="btn btn-buy" disabled>無法兌換</button>`;
         }
 
-        // 🌟 價格顯示動態貨幣！
         const html = `
           <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
             <div class="item-header">
@@ -265,8 +266,8 @@
       });
     }
 
-    // 🌟 購買邏輯加入動態貨幣名稱
-    function buyItem(itemName, safeId, maxQty, currencyName) {
+    // 🌟 JavaScript 加入 itemId 的傳遞
+    function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);
       const qty = parseInt(qtyInput.value);
@@ -274,19 +275,18 @@
       if (qty < 1) { alert("數量必須大於 0！"); return; }
       if (qty > maxQty) { alert(`已超過限購數量！您目前最多只能買 ${maxQty} 個。`); return; }
       
-      // 🌟 確認視窗會精準顯示要扣哪種貨幣！
       if (!confirm(`確定要花費 ${currencyName} 兌換 ${qty} 個 ${itemName} 嗎？`)) return;
 
       const btn = document.getElementById(`btn-${safeId}`);
       btn.innerText = "⏳ 處理中...";
       btn.disabled = true;
 
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
+      // 🌟 網址參數改成傳送 itemId (商品編號) 
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
           alert("✅ " + data.message);
-          // 因為可能扣的是別種貨幣，最安全的方式是整頁重新抓取一次資料
           fetchScoresAndShop(currentUser.id); 
         } else {
           alert("❌ 兌換失敗：" + data.message);
