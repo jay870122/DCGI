@@ -267,6 +267,7 @@
     }
 
     // 🌟 JavaScript 加入 itemId 的傳遞
+// 🌟 購買邏輯防連點與強制重整升級
     function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);
@@ -281,24 +282,35 @@
       btn.innerText = "⏳ 處理中...";
       btn.disabled = true;
 
-      // 🌟 網址參數改成傳送 itemId (商品編號) 
+      // 🌟 防連點核心：直接隱藏儀表板，顯示全畫面的「載入中」，讓玩家完全無法點擊任何東西
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
+
       fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
           alert("✅ " + data.message);
+          // 成功後直接呼叫重新整理函數，它會抓取最新庫存並「自動把畫面切回來」
           fetchScoresAndShop(currentUser.id); 
         } else {
           alert("❌ 兌換失敗：" + data.message);
+          // 只有失敗時，才手動把畫面切回來，並恢復原本的按鈕
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          btn.innerText = "兌換";
+          btn.disabled = false;
         }
       })
-      .catch(err => alert("網路錯誤，請稍後再試！"))
-      .finally(() => {
+      .catch(err => {
+        alert("網路錯誤，請稍後再試！");
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
         btn.innerText = "兌換";
         btn.disabled = false;
       });
     }
-
     function logout() { window.location.href = "https://jay870122.github.io/DCGI/"; }
   </script>
 </body>
