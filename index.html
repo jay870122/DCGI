@@ -21,6 +21,10 @@
     .score-item { display: flex; justify-content: space-between; font-size: 16px; margin: 8px 0; padding-bottom: 6px; border-bottom: 1px solid #4F545C; }
     .score-value { font-weight: bold; color: #58FF9C; }
     
+    /* 🌟 新增過濾控制面板的樣式 */
+    .controls-container { display: flex; gap: 10px; margin-bottom: 15px; }
+    .shop-input { flex-grow: 1; padding: 10px; border-radius: 5px; border: 1px solid #4F545C; background-color: #2C2F33; color: white; font-size: 14px; outline: none; }
+    
     .shop-list-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
     .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px; padding: 15px; text-align: left; position: relative; }
     .shop-item-card.disabled { opacity: 0.6; }
@@ -39,7 +43,6 @@
     .btn-buy:disabled { background-color: #4F545C; cursor: not-allowed; }
 
     .version-tag { font-size: 12px; color: #72767D; margin-top: 20px; text-align: center; }
-
     #dashboard, #loading { display: none; }
   </style>
 </head>
@@ -70,13 +73,30 @@
         <h3 style="margin: 0;">🛒 兌換商店</h3>
         <button id="btn-refresh" class="btn-refresh" onclick="refreshData()">🔄 重新整理</button>
       </div>
+
+      <div class="controls-container">
+        <select id="filter-category" class="shop-input" onchange="renderShop()">
+          <option value="all">📁 所有分類</option>
+        </select>
+        <select id="sort-items" class="shop-input" onchange="renderShop()">
+          <option value="default">預設排序</option>
+          <option value="avail-first">✅ 可用優先</option>
+          <option value="a-z">🔠 名稱 A ~ Z</option>
+          <option value="z-a">🔡 名稱 Z ~ A</option>
+          <option value="price-low">💰 價格 低 ~ 高</option>
+          <option value="price-high">💰 價格 高 ~ 低</option>
+        </select>
+      </div>
       
       <div id="shop-list" class="shop-list-container"></div>
 
       <button class="btn btn-logout" onclick="logout()">登出帳號</button>
-    </div> <div class="version-tag">系統版本：v1.2.1</div>
+    </div>
 
-  </div> <script>
+    <div class="version-tag">系統版本：v1.3.0</div>
+  </div>
+
+  <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     let currentUser = null; 
     let currentShopItems = []; 
@@ -130,7 +150,6 @@
           document.getElementById('score-s1').innerText = data.s1;
           document.getElementById('score-s2').innerText = data.s2;
           document.getElementById('score-s3').innerText = data.s3;
-
           if (parseInt(data.s3) === 0) {
             document.getElementById('score-s3-container').style.display = 'none';
           } else {
@@ -144,68 +163,115 @@
       .then(data => {
         if(data.status === "success") {
           currentShopItems = data.items;
-          const container = document.getElementById('shop-list');
-          container.innerHTML = ""; 
+          
+          // 🌟 動態提取所有存在的分類，加入下拉選單
+          const catSet = new Set(currentShopItems.map(item => item.category));
+          const catSelect = document.getElementById('filter-category');
+          // 保留目前的選擇（如果是重新整理的話）
+          const currentSelection = catSelect.value; 
+          catSelect.innerHTML = '<option value="all">📁 所有分類</option>';
+          catSet.forEach(cat => {
+            let selected = (cat === currentSelection) ? 'selected' : '';
+            catSelect.innerHTML += `<option value="${cat}" ${selected}>${cat}</option>`;
+          });
 
-          if (data.items.length === 0) {
-            container.innerHTML = "<div style='color:#B9BBBE;'>目前無商品</div>";
-          } else {
-            data.items.forEach((item, index) => {
-              const isAvail = item.state === "available";
-              const stockText = item.stock === "無限" ? "無限" : `${item.stock}`;
-              const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
-              
-              let timeHtml = "";
-              if (item.startTime || item.endTime) {
-                timeHtml = `<div class="item-time">`;
-                if (item.startTime) timeHtml += `⏳ 開始：${item.startTime}<br>`;
-                if (item.endTime) timeHtml += `⏳ 結束：${item.endTime}`;
-                timeHtml += `</div>`;
-              }
-
-              let actionHtml = '';
-              if (isAvail) {
-                actionHtml = `
-                  <div class="item-actions">
-                    <input type="number" id="qty-${index}" class="qty-input" value="1" min="1" max="${item.stock !== '無限' ? item.stock : 999}">
-                    <button id="btn-${index}" class="btn btn-buy" onclick="buyItem('${item.name}', ${index})">兌換</button>
-                  </div>
-                `;
-              } else {
-                actionHtml = `<button class="btn btn-buy" disabled>無法兌換</button>`;
-              }
-
-              const html = `
-                <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
-                  <div class="item-header">
-                    <span class="item-name">${item.name}</span>
-                    <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
-                  </div>
-                  <div class="item-info">
-                    💰 價格：<span class="item-price">${item.price} 幻彩水晶</span><br>
-                    📦 庫存剩餘：${stockText}
-                    ${timeHtml}
-                  </div>
-                  ${actionHtml}
-                </div>
-              `;
-              container.innerHTML += html;
-            });
-          }
+          // 開始繪製畫面
+          renderShop();
           document.getElementById('loading').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
         }
       });
 
-      Promise.all([p1, p2]).then(() => {
-        if(callback) callback();
+      Promise.all([p1, p2]).then(() => { if(callback) callback(); });
+    }
+
+    // 🌟 核心繪製與排序邏輯
+    function renderShop() {
+      const container = document.getElementById('shop-list');
+      const filterCat = document.getElementById('filter-category').value;
+      const sortType = document.getElementById('sort-items').value;
+      
+      let displayItems = [...currentShopItems];
+
+      // 1. 執行分類過濾
+      if (filterCat !== 'all') {
+        displayItems = displayItems.filter(item => item.category === filterCat);
+      }
+
+      // 2. 執行排序邏輯
+      if (sortType === 'avail-first') {
+        displayItems.sort((a, b) => {
+          if (a.state === 'available' && b.state !== 'available') return -1;
+          if (a.state !== 'available' && b.state === 'available') return 1;
+          return 0;
+        });
+      } else if (sortType === 'a-z') {
+        displayItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
+      } else if (sortType === 'z-a') {
+        displayItems.sort((a, b) => b.name.localeCompare(a.name, 'zh-TW'));
+      } else if (sortType === 'price-low') {
+        displayItems.sort((a, b) => a.price - b.price);
+      } else if (sortType === 'price-high') {
+        displayItems.sort((a, b) => b.price - a.price);
+      }
+
+      // 3. 輸出卡片 HTML
+      container.innerHTML = "";
+      if (displayItems.length === 0) {
+        container.innerHTML = "<div style='color:#B9BBBE; text-align:center;'>目前無符合條件的商品</div>";
+        return;
+      }
+
+      displayItems.forEach((item) => {
+        const isAvail = item.state === "available";
+        const stockText = item.stock === "無限" ? "無限" : `${item.stock}`;
+        const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
+        // 為了避免重複 ID 造成衝突，我們用安全編碼後的名稱做為 ID
+        const safeId = encodeURIComponent(item.name).replace(/%/g, ''); 
+        
+        let timeHtml = "";
+        if (item.startTime || item.endTime) {
+          timeHtml = `<div class="item-time">`;
+          if (item.startTime) timeHtml += `⏳ 開始：${item.startTime}<br>`;
+          if (item.endTime) timeHtml += `⏳ 結束：${item.endTime}`;
+          timeHtml += `</div>`;
+        }
+
+        let actionHtml = '';
+        if (isAvail) {
+          actionHtml = `
+            <div class="item-actions">
+              <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${item.stock !== '無限' ? item.stock : 999}">
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.name}', '${safeId}')">兌換</button>
+            </div>
+          `;
+        } else {
+          actionHtml = `<button class="btn btn-buy" disabled>無法兌換</button>`;
+        }
+
+        const html = `
+          <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
+            <div class="item-header">
+              <span class="item-name">${item.name}</span>
+              <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
+            </div>
+            <div class="item-info">
+              📁 分類：<span style="color: #A6D189; font-weight: bold;">${item.category}</span><br>
+              💰 價格：<span class="item-price">${item.price} 幻彩水晶</span><br>
+              📦 庫存剩餘：${stockText}
+              ${timeHtml}
+            </div>
+            ${actionHtml}
+          </div>
+        `;
+        container.innerHTML += html;
       });
     }
 
-    function buyItem(itemName, index) {
+    function buyItem(itemName, safeId) {
       if (!currentUser) return;
       
-      const qtyInput = document.getElementById(`qty-${index}`);
+      const qtyInput = document.getElementById(`qty-${safeId}`);
       const qty = parseInt(qtyInput.value);
       
       if (qty < 1) { alert("數量必須大於 0！"); return; }
@@ -218,7 +284,7 @@
 
       if (!confirm(`確定要花費幻彩水晶兌換 ${qty} 個 ${itemName} 嗎？`)) return;
 
-      const btn = document.getElementById(`btn-${index}`);
+      const btn = document.getElementById(`btn-${safeId}`);
       btn.innerText = "⏳ 處理中...";
       btn.disabled = true;
 
