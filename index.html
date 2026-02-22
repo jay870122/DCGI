@@ -35,11 +35,11 @@
     .item-info { font-size: 14px; color: #B9BBBE; margin-bottom: 12px; line-height: 1.6; }
     .item-price { color: #FEE75C; font-weight: bold; font-size: 16px; }
     
-    /* 🌟 限購標籤的專屬樣式 */
     .limit-tags { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
     .limit-tag { font-size: 12px; padding: 4px 8px; border-radius: 4px; display: inline-block; width: fit-content; }
     .tag-global { background-color: #4F545C; color: #FFF; }
     .tag-personal { background-color: #5865F2; color: #FFF; }
+    .tag-total { background-color: #FEE75C; color: #000; font-weight: bold; } /* 🌟 終身限購專屬金色標籤 */
 
     .item-actions { display: flex; gap: 10px; align-items: center; }
     .qty-input { width: 70px; padding: 8px; border-radius: 6px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 16px; text-align: center; outline: none; }
@@ -97,7 +97,7 @@
       <button class="btn btn-logout" onclick="logout()">登出帳號</button>
     </div>
 
-    <div class="version-tag">系統版本：v1.4.0 (終極限購版)</div>
+    <div class="version-tag">系統版本：v1.5.0 (含終身限購)</div>
   </div>
 
   <script>
@@ -211,18 +211,18 @@
         const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
         const safeId = encodeURIComponent(item.name).replace(/%/g, ''); 
         
-        // 🌟 處理限購標籤顯示
+        // 🌟 處理限購標籤顯示 (加入金色的終身限購標籤)
         let limitsHtml = `<div class="limit-tags">`;
         if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日剩餘: ${item.limits.remainGD}</span>`;
         if (item.limits.remainGM !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本月剩餘: ${item.limits.remainGM}</span>`;
         if (item.limits.remainPD !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人今日剩餘: ${item.limits.remainPD}</span>`;
         if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月剩餘: ${item.limits.remainPM}</span>`;
+        if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 帳號終身剩餘: ${item.limits.remainPT}</span>`;
         limitsHtml += `</div>`;
-        if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = ""; // 如果都沒限制就隱藏
+        if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = ""; 
 
         let actionHtml = '';
         if (isAvail) {
-          // 動態調整最大可購買數量
           let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
           actionHtml = `
             <div class="item-actions">
