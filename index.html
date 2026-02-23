@@ -125,34 +125,58 @@
     <div class="version-tag">系統版本：v2.0.0 (自動發卡中心版)</div>
   </div>
 
-  <script>
+<script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     let currentUser = null; 
     let currentShopItems = []; 
 
     window.onload = () => {
+      // 1. 先看看網址有沒有 Discord 剛傳回來的登入代碼
       const hashString = window.location.hash.slice(1);
-      if (!hashString) return; 
+      let accessToken = null;
+      let tokenType = null;
 
-      const fragment = new URLSearchParams(hashString);
-      const accessToken = fragment.get('access_token');
-      const tokenType = fragment.get('token_type');
+      if (hashString) {
+        // 如果有，表示玩家剛按完登入跳轉回來
+        const fragment = new URLSearchParams(hashString);
+        accessToken = fragment.get('access_token');
+        tokenType = fragment.get('token_type');
+        
+        if (accessToken) {
+          // 🌟 關鍵升級：把登入狀態存進瀏覽器的「本地記憶」裡！
+          localStorage.setItem('dc_access_token', accessToken);
+          localStorage.setItem('dc_token_type', tokenType);
+          
+          // 把網址後面的亂碼擦掉，讓網址看起來乾淨，而且重整才不會有問題
+          window.history.replaceState(null, null, window.location.pathname);
+        }
+      } else {
+        // 如果網址沒有代碼，就去「本地記憶」找找看有沒有存過
+        accessToken = localStorage.getItem('dc_access_token');
+        tokenType = localStorage.getItem('dc_token_type');
+      }
 
+      // 2. 如果手上有代碼 (不管是剛拿到的還是記憶裡的)，就開始驗證身分
       if (accessToken) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('loading').style.display = 'block';
-        window.history.replaceState(null, null, window.location.pathname);
 
         fetch('https://discord.com/api/users/@me', { headers: { authorization: `${tokenType} ${accessToken}` } })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error('登入憑證已過期'); // 如果 Discord 說代碼過期了就報錯
+          return res.json();
+        })
         .then(user => {
           currentUser = user; 
           document.getElementById('user-name').innerText = user.global_name || user.username;
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
         }).catch(err => {
-          alert("登入逾時，請重新登入！");
-          window.location.reload();
+          // 🌟 如果驗證失敗 (例如過了幾天代碼過期)，就清空記憶，讓玩家重新登入
+          localStorage.removeItem('dc_access_token');
+          localStorage.removeItem('dc_token_type');
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('login-section').style.display = 'block';
         });
       }
     };
@@ -168,8 +192,6 @@
       });
     }
 
-    // 🌟 獲取並顯示歷史紀錄
-// 🌟 獲取並顯示歷史紀錄 (修復純數字序號報錯問題)
     function showHistory() {
       if(!currentUser) return;
       const modal = document.getElementById('history-modal');
@@ -185,7 +207,6 @@
           data.history.forEach(record => {
             let keyHtml = "";
             if(record.keys && record.keys !== "無") {
-              // 🌟 關鍵修復：用 String() 強制把序號轉成文字，避免純數字讓系統崩潰
               let safeKeys = String(record.keys); 
               keyHtml = `<div class="history-keys">🎁 序號：<br>${safeKeys.split(', ').join('<br>')}</div>`;
             }
@@ -201,7 +222,7 @@
           container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>';
         }
       }).catch(err => {
-        console.error("歷史紀錄讀取錯誤:", err); // 在開發者工具顯示真實錯誤
+        console.error("歷史紀錄讀取錯誤:", err); 
         container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
       });
     }
@@ -328,7 +349,6 @@
       });
     }
 
-    // 🌟 發卡防連點邏輯
     function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);
@@ -346,7 +366,6 @@
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          // 🌟 判斷是否有抽到序號，顯示專屬大獎畫面
           let successMsg = "✅ " + data.message;
           if (data.keys && data.keys.length > 0) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
@@ -366,7 +385,12 @@
       });
     }
 
-    function logout() { window.location.href = "https://jay870122.github.io/DCGI/"; }
+    // 🌟 登出時，把瀏覽器裡的記憶清空，徹底登出！
+    function logout() {
+      localStorage.removeItem('dc_access_token');
+      localStorage.removeItem('dc_token_type');
+      window.location.href = "https://jay870122.github.io/DCGI/";
+    }
   </script>
 </body>
 </html>
