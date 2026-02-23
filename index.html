@@ -396,14 +396,16 @@ fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&it
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          let successMsg = "✅ 兌換與處理完成！";
+          let successMsg = "✅ 兌換處理完成！";
           
-          // 🌟 如果有抽到變數獎勵，直接在畫面上放煙火
-          if (data.rewardVar && data.totalReward > 0) {
-            successMsg += `\n\n🎉 恭喜您開出了：【 ${data.totalReward} 點 ${data.rewardVar} 】！`;
+          // 🌟 核心升級：顯示盲盒或一番賞的抽中結果
+          if (data.displayExt) {
+            successMsg += `\n\n🎉 恭喜您開出了：\n【 ${data.displayExt} 】！`;
+          } else if (data.rewardVar && data.totalReward > 0) {
+            successMsg += `\n\n🎉 恭喜您獲得了：【 ${data.totalReward} 點 ${data.rewardVar} 】！`;
           }
 
-          // 序號獎勵
+          // 序號處理
           if (data.keys && data.keys.length > 0) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
           }
@@ -412,9 +414,8 @@ fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&it
           fetchScoresAndShop(currentUser.id); 
         } else {
           alert("❌ 兌換失敗：" + data.message);
-          // 🌟 庫存變動導致失敗時，自動重整防呆
-          if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限")) {
-            document.getElementById('loading-text').innerText = "🔄 正在同步最新商城庫存...";
+          if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限") || data.message.includes("條件")) {
+            document.getElementById('loading-text').innerText = "🔄 正在同步最新資料...";
             fetchScoresAndShop(currentUser.id);
           } else {
             document.getElementById('loading').style.display = 'none';
