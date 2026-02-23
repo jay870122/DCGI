@@ -348,6 +348,33 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
           actionHtml = `<div class="item-actions"><button class="btn btn-buy" disabled>無法兌換</button></div>`;
         }
 
+// 🌟 生成超精美的「盲盒內容物列表」
+        let gachaHtml = "";
+        if (item.gachaPool && item.gachaPool.length > 0) {
+            gachaHtml = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
+                <div style="color: #FEE75C; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed #4F545C; padding-bottom: 4px;">🎁 內容物一覽：</div>`;
+            
+            item.gachaPool.forEach(g => {
+                let detail = [];
+                if (g.prob !== null) detail.push(`${g.prob}%`);
+                if (g.stock !== null) {
+                    let stockText = g.stock <= 0 ? `<span style="color:#ED4245; font-weight:bold;">(已抽完)</span>` : `${g.stock} 份`;
+                    detail.push(stockText);
+                }
+                if (detail.length === 0) detail.push("保底/無限"); // 都沒寫就是保底
+                
+                // 🌟 如果份數為 0，整行變成灰色且劃掉！
+                let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
+                let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
+                
+                gachaHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
+                    <span>- ${g.dispName} x ${g.qty}</span>
+                    <span style="color: #99AAB5;">${detail.join(" / ")}</span>
+                </div>`;
+            });
+            gachaHtml += `</div>`;
+        }
+
         const html = `
           <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
             ${imageHtml}
@@ -362,7 +389,7 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
                 `💰 價格：<span class="item-price">${item.price} ${item.displayCurrency}</span><br>`}
               📦 庫存：${item.limits.baseStock}
               ${limitsHtml}
-            </div>
+              ${gachaHtml} </div>
             ${actionHtml}
           </div>
         `;
