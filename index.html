@@ -153,12 +153,15 @@
     <div class="version-tag">系統版本：v2.3.0 (尊榮 VIP 條件驗證版)</div>
   </div>
 
-  <script>
+<script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     let currentUser = null; 
     let currentShopItems = []; 
     let currentCategory = 'all'; 
 
+    // 🌟 新增：自訂分類排序清單 (寫在越前面的，就會排在側邊欄越上方！)
+    // 如果試算表有分類「沒寫在這裡」，系統會自動把它們丟到最下面。
+    let CATEGORY_ORDER = []; // 🌟 改由試算表自動控制排序
     window.onload = () => {
       // 🌟 處理 Discord 登入狀態保持
       const hashString = window.location.hash.slice(1);
@@ -207,10 +210,24 @@
     }
 
     function renderSidebar() {
-      const catSet = new Set(currentShopItems.map(item => item.category));
+          // 1. 取出所有不重複的分類
+          let categories = Array.from(new Set(currentShopItems.map(item => item.category)));
+          
+          // 2. 🌟 依照你設定的名單進行排序
+          categories.sort((a, b) => {
+            let idxA = CATEGORY_ORDER.indexOf(a);
+            let idxB = CATEGORY_ORDER.indexOf(b);
+            // 如果分類沒寫在名單上，就排到最下面 (設定一個很大的數字 999)
+            if (idxA === -1) idxA = 999;
+            if (idxB === -1) idxB = 999;
+            return idxA - idxB;
+          });
+
       const sidebar = document.getElementById('category-sidebar');
       let html = `<div class="cat-item ${currentCategory === 'all' ? 'active' : ''}" onclick="selectCategory('all')"><span>📁 所有商品</span></div>`;
-      catSet.forEach(cat => {
+      
+      // 3. 依照排好的順序生成按鈕
+      categories.forEach(cat => {
         const count = currentShopItems.filter(i => i.category === cat).length;
         html += `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat}')">
                    <span>🏷️ ${cat}</span><span style="font-size:12px; opacity:0.7;">${count}</span>
@@ -279,8 +296,12 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          // 🌟 隱藏魔法：直接把名稱包含 [隱藏] 的商品從清單中剔除！
           currentShopItems = data.items.filter(item => !item.name.includes('[隱藏]'));
+          
+          // 🌟 核心魔法：接收試算表第 6 分頁傳來的排序名單！
+          if (data.categoryOrder && data.categoryOrder.length > 0) {
+            CATEGORY_ORDER = data.categoryOrder;
+          }
           
           renderSidebar(); 
           renderShop();    
