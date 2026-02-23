@@ -5,35 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Garbled 幻彩水晶商店</title>
   <style>
+    /* 🌟 整體版面加寬，適應電腦版佈局 */
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #2C2F33; color: white; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-    .card { background-color: #23272A; padding: 30px; border-radius: 12px; width: 100%; max-width: 450px; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.6); position: relative; }
-    .btn { color: white; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; width: 100%; display: inline-block; box-sizing: border-box; text-decoration: none; }
-    .btn-login { background-color: #5865F2; margin-top: 10px; }
+    .card { background-color: #23272A; padding: 30px; border-radius: 12px; width: 100%; max-width: 1100px; /* 從 450px 加寬到 1100px */ box-shadow: 0 8px 20px rgba(0,0,0,0.6); position: relative; }
+    
+    .btn { color: white; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; width: 100%; display: inline-block; box-sizing: border-box; text-decoration: none; text-align: center;}
+    .btn-login { background-color: #5865F2; margin-top: 10px; max-width: 300px; }
     .btn-login:hover { background-color: #4752C4; }
-    .btn-logout { background-color: #ED4245; margin-top: 20px; }
+    .btn-logout { background-color: #ED4245; margin-top: 20px; max-width: 200px;}
     .btn-logout:hover { background-color: #C13537; }
     .btn-action { background-color: #4F545C; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s; }
     .btn-action:hover { background-color: #686D73; }
     .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
     
-    .avatar { width: 90px; height: 90px; border-radius: 50%; border: 4px solid #5865F2; margin-bottom: 10px; }
-    .score-box { background-color: #2C2F33; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px; }
-    .score-item { display: flex; justify-content: space-between; font-size: 16px; margin: 8px 0; padding-bottom: 6px; border-bottom: 1px solid #4F545C; }
+    /* 🌟 玩家資訊區塊改為橫向排版，節省垂直空間 */
+    .user-header-section { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; background-color: #2C2F33; padding: 20px; border-radius: 8px; flex-wrap: wrap; }
+    .avatar { width: 80px; height: 80px; border-radius: 50%; border: 4px solid #5865F2; flex-shrink: 0;}
+    .user-info { flex-grow: 1; }
+    .score-box { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; }
+    .score-item { font-size: 15px; background: #202225; padding: 6px 12px; border-radius: 6px; border: 1px solid #4F545C; display: flex; align-items: center; gap: 6px;}
     .score-value { font-weight: bold; color: #58FF9C; }
     .dynamic-score-value { font-weight: bold; color: #FEE75C; } 
     
-    .controls-container { display: flex; gap: 10px; margin-bottom: 15px; }
-    .shop-input { flex-grow: 1; padding: 10px; border-radius: 5px; border: 1px solid #4F545C; background-color: #2C2F33; color: white; font-size: 14px; outline: none; }
+    /* 🌟 核心升級：側邊欄與主要商品區的排版 */
+    .shop-layout { display: flex; gap: 20px; align-items: flex-start; }
     
-    .shop-list-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-    .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px; padding: 15px; text-align: left; position: relative; }
+    /* 側邊欄 (分類列表) */
+    .sidebar { width: 220px; flex-shrink: 0; background-color: #2C2F33; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 5px; position: sticky; top: 20px; }
+    .cat-item { padding: 12px 15px; border-radius: 6px; cursor: pointer; color: #B9BBBE; font-size: 15px; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+    .cat-item:hover { background-color: #40444B; color: white; }
+    .cat-item.active { background-color: #5865F2; color: white; font-weight: bold; }
+    
+    /* 右側主要商品區 */
+    .main-area { flex-grow: 1; width: 100%; min-width: 0; }
+    .controls-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background-color: #2C2F33; padding: 10px 15px; border-radius: 8px; }
+    .shop-input { padding: 8px 12px; border-radius: 5px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 14px; outline: none; }
+    
+    /* 🌟 商品列表改為「網格佈局 (Grid)」，自動適應寬度排版 */
+    .shop-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+    .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; position: relative; overflow: hidden; height: 100%; box-sizing: border-box; }
     .shop-item-card.disabled { opacity: 0.6; }
-    .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #40444B; padding-bottom: 8px;}
-    .item-name { font-size: 18px; font-weight: bold; color: #FFF; }
-    .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+    
+    .item-image { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; margin-bottom: 12px; border: 1px solid #40444B; }
+    .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px solid #40444B; padding-bottom: 8px; gap: 10px;}
+    .item-name { font-size: 18px; font-weight: bold; color: #FFF; line-height: 1.3;}
+    .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
     .badge-avail { background-color: #43B581; color: white; }
     .badge-unavail { background-color: #ED4245; color: white; }
-    .item-info { font-size: 14px; color: #B9BBBE; margin-bottom: 12px; line-height: 1.6; }
+    .item-remark { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 8px; background-color: #202225; border-left: 3px solid #5865F2; border-radius: 4px; line-height: 1.4; }
+    .item-info { font-size: 14px; color: #B9BBBE; margin-bottom: 15px; line-height: 1.6; flex-grow: 1; } /* flex-grow 讓底下的按鈕自動對齊底部 */
     .item-price { color: #FEE75C; font-weight: bold; font-size: 16px; }
     
     .limit-tags { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
@@ -42,12 +62,20 @@
     .tag-personal { background-color: #5865F2; color: #FFF; }
     .tag-total { background-color: #FEE75C; color: #000; font-weight: bold; }
 
-    .item-actions { display: flex; gap: 10px; align-items: center; }
+    .item-actions { display: flex; gap: 10px; align-items: center; margin-top: auto; }
     .qty-input { width: 70px; padding: 8px; border-radius: 6px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 16px; text-align: center; outline: none; }
     .btn-buy { background-color: #43B581; padding: 8px 16px; width: auto; flex-grow: 1; }
     .btn-buy:hover { background-color: #3CA374; }
+    .btn-buy:disabled { background-color: #4F545C; cursor: not-allowed; }
 
-    /* 🌟 歷史紀錄彈窗樣式 */
+    /* 手機版適應：螢幕太小時，側邊欄變成上方橫向捲動 */
+    @media (max-width: 768px) {
+      .shop-layout { flex-direction: column; }
+      .sidebar { width: 100%; flex-direction: row; overflow-x: auto; position: static; white-space: nowrap; padding: 10px; box-sizing: border-box; }
+      .cat-item { flex-shrink: 0; }
+    }
+
+    /* 彈窗樣式保留 */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;}
     .modal-content { background: #2F3136; border-radius: 12px; padding: 25px; width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; text-align: left; position: relative;}
     .modal-close { position: absolute; top: 15px; right: 20px; color: #B9BBBE; font-size: 24px; font-weight: bold; cursor: pointer; }
@@ -75,108 +103,96 @@
   </div>
 
   <div class="card">
-    <h1 style="margin-top:0;">Garbled 幻彩水晶商店</h1>
-    
-    <div id="login-section">
+    <div id="login-section" style="text-align: center;">
+      <h1 style="margin-top:0;">Garbled 幻彩水晶商店</h1>
       <p style="color: #B9BBBE;">請綁定您的 Discord 帳號以查看資料與兌換</p>
       <a href="https://discord.com/api/oauth2/authorize?client_id=1365601646448607335&redirect_uri=https%3A%2F%2Fjay870122.github.io%2FDCGI%2F&response_type=token&scope=identify" class="btn btn-login">🎮 使用 Discord 登入</a>
     </div>
 
-    <div id="loading">
-      <p id="loading-text">⏳ 正在連線至資料庫...</p>
+    <div id="loading" style="text-align: center;">
+      <p id="loading-text" style="font-size: 18px;">⏳ 正在連線至資料庫...</p>
     </div>
 
     <div id="dashboard">
-      <img id="user-avatar" class="avatar" src="" alt="Avatar">
-      <h2 id="user-name" style="margin-top:0;">玩家名稱</h2>
       
-      <div class="score-box" id="score-box-container">
-        <div class="score-item"><span>🌟 總獲得幻彩水晶:</span> <span class="score-value" id="score-s1">0</span></div>
-        <div class="score-item"><span>🔥 可用幻彩水晶:</span> <span class="score-value" id="score-s2">0</span></div>
-        <div class="score-item" id="score-s3-container"><span>💎 點數3:</span> <span class="score-value" id="score-s3">0</span></div>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="margin: 0;">🛒 兌換商店</h3>
-        <div style="display: flex; gap: 5px;">
-          <button class="btn-action" onclick="showHistory()">📜 紀錄</button>
-          <button id="btn-refresh" class="btn-action" onclick="refreshData()">🔄 重整</button>
+      <div class="user-header-section">
+        <img id="user-avatar" class="avatar" src="" alt="Avatar">
+        <div class="user-info">
+          <h2 id="user-name" style="margin: 0 0 5px 0;">玩家名稱</h2>
+          <div class="score-box" id="score-box-container">
+            <div class="score-item">🌟 總獲得: <span class="score-value" id="score-s1">0</span></div>
+            <div class="score-item">🔥 幻彩水晶: <span class="score-value" id="score-s2">0</span></div>
+            <div class="score-item" id="score-s3-container">💎 點數3: <span class="score-value" id="score-s3">0</span></div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-direction: column;">
+          <button class="btn-action" onclick="showHistory()" style="background-color: #5865F2;">📜 我的紀錄</button>
+          <button class="btn-action" onclick="logout()" style="background-color: #ED4245;">登出帳號</button>
         </div>
       </div>
 
-      <div class="controls-container">
-        <select id="filter-category" class="shop-input" onchange="renderShop()">
-          <option value="all">📁 所有分類</option>
-        </select>
-        <select id="sort-items" class="shop-input" onchange="renderShop()">
-          <option value="default">預設排序</option>
-          <option value="avail-first">✅ 可用優先</option>
-          <option value="a-z">🔠 名稱 A ~ Z</option>
-          <option value="z-a">🔡 名稱 Z ~ A</option>
-          <option value="price-low">💰 價格 低 ~ 高</option>
-          <option value="price-high">💰 價格 高 ~ 低</option>
-        </select>
+      <div class="shop-layout">
+        
+        <div class="sidebar" id="category-sidebar">
+          </div>
+        
+        <div class="main-area">
+          <div class="controls-container">
+            <h3 style="margin: 0;">🛒 兌換商店</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select id="sort-items" class="shop-input" onchange="renderShop()">
+                <option value="default">預設排序</option>
+                <option value="avail-first">✅ 可用優先</option>
+                <option value="price-low">💰 價格 低 ~ 高</option>
+                <option value="price-high">💰 價格 高 ~ 低</option>
+              </select>
+              <button id="btn-refresh" class="btn-action" onclick="refreshData()">🔄 重整庫存</button>
+            </div>
+          </div>
+          
+          <div id="shop-list" class="shop-list-container"></div>
+        </div>
+
       </div>
-      
-      <div id="shop-list" class="shop-list-container"></div>
-      <button class="btn btn-logout" onclick="logout()">登出帳號</button>
     </div>
 
-    <div class="version-tag">系統版本：v2.0.0 (自動發卡中心版)</div>
+    <div class="version-tag">系統版本：v2.2.0 (專業側邊欄商城版)</div>
   </div>
 
-<script>
+  <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     let currentUser = null; 
     let currentShopItems = []; 
+    let currentCategory = 'all'; // 🌟 新增：用來記錄目前選中的分類
 
     window.onload = () => {
-      // 1. 先看看網址有沒有 Discord 剛傳回來的登入代碼
       const hashString = window.location.hash.slice(1);
-      let accessToken = null;
-      let tokenType = null;
-
+      let accessToken = null; let tokenType = null;
       if (hashString) {
-        // 如果有，表示玩家剛按完登入跳轉回來
         const fragment = new URLSearchParams(hashString);
-        accessToken = fragment.get('access_token');
-        tokenType = fragment.get('token_type');
-        
+        accessToken = fragment.get('access_token'); tokenType = fragment.get('token_type');
         if (accessToken) {
-          // 🌟 關鍵升級：把登入狀態存進瀏覽器的「本地記憶」裡！
-          localStorage.setItem('dc_access_token', accessToken);
-          localStorage.setItem('dc_token_type', tokenType);
-          
-          // 把網址後面的亂碼擦掉，讓網址看起來乾淨，而且重整才不會有問題
+          localStorage.setItem('dc_access_token', accessToken); localStorage.setItem('dc_token_type', tokenType);
           window.history.replaceState(null, null, window.location.pathname);
         }
       } else {
-        // 如果網址沒有代碼，就去「本地記憶」找找看有沒有存過
-        accessToken = localStorage.getItem('dc_access_token');
-        tokenType = localStorage.getItem('dc_token_type');
+        accessToken = localStorage.getItem('dc_access_token'); tokenType = localStorage.getItem('dc_token_type');
       }
 
-      // 2. 如果手上有代碼 (不管是剛拿到的還是記憶裡的)，就開始驗證身分
       if (accessToken) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('loading').style.display = 'block';
 
         fetch('https://discord.com/api/users/@me', { headers: { authorization: `${tokenType} ${accessToken}` } })
-        .then(res => {
-          if (!res.ok) throw new Error('登入憑證已過期'); // 如果 Discord 說代碼過期了就報錯
-          return res.json();
-        })
+        .then(res => { if (!res.ok) throw new Error('登入過期'); return res.json(); })
         .then(user => {
           currentUser = user; 
           document.getElementById('user-name').innerText = user.global_name || user.username;
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
         }).catch(err => {
-          // 🌟 如果驗證失敗 (例如過了幾天代碼過期)，就清空記憶，讓玩家重新登入
-          localStorage.removeItem('dc_access_token');
-          localStorage.removeItem('dc_token_type');
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('login-section').style.display = 'block';
+          localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
+          document.getElementById('loading').style.display = 'none'; document.getElementById('login-section').style.display = 'block';
         });
       }
     };
@@ -184,12 +200,35 @@
     function refreshData() {
       if(!currentUser) return;
       const refreshBtn = document.getElementById('btn-refresh');
-      refreshBtn.innerText = "⏳...";
-      refreshBtn.disabled = true;
-      fetchScoresAndShop(currentUser.id, () => {
-        refreshBtn.innerText = "🔄 重整";
-        refreshBtn.disabled = false;
+      refreshBtn.innerText = "⏳..."; refreshBtn.disabled = true;
+      fetchScoresAndShop(currentUser.id, () => { refreshBtn.innerText = "🔄 重整庫存"; refreshBtn.disabled = false; });
+    }
+
+    // 🌟 側邊欄點擊事件
+    function selectCategory(cat) {
+      currentCategory = cat;
+      renderSidebar(); // 更新左側亮起狀態
+      renderShop();    // 更新右側商品
+    }
+
+    // 🌟 繪製左側邊欄
+    function renderSidebar() {
+      const catSet = new Set(currentShopItems.map(item => item.category));
+      const sidebar = document.getElementById('category-sidebar');
+      
+      let html = `<div class="cat-item ${currentCategory === 'all' ? 'active' : ''}" onclick="selectCategory('all')">
+                    <span>📁 所有商品</span>
+                  </div>`;
+
+      catSet.forEach(cat => {
+        // 計算該分類底下有幾個商品
+        const count = currentShopItems.filter(i => i.category === cat).length;
+        html += `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat}')">
+                   <span>🏷️ ${cat}</span>
+                   <span style="font-size:12px; opacity:0.7;">${count}</span>
+                 </div>`;
       });
+      sidebar.innerHTML = html;
     }
 
     function showHistory() {
@@ -210,26 +249,16 @@
               let safeKeys = String(record.keys); 
               keyHtml = `<div class="history-keys">🎁 序號：<br>${safeKeys.split(', ').join('<br>')}</div>`;
             }
-            container.innerHTML += `
-              <div class="history-card">
-                <div class="history-time">${record.time}</div>
-                <div class="history-name">${record.itemName} <span class="history-qty">x ${record.qty}</span></div>
-                ${keyHtml}
-              </div>
-            `;
+            container.innerHTML += `<div class="history-card"><div class="history-time">${record.time}</div><div class="history-name">${record.itemName} <span class="history-qty">x ${record.qty}</span></div>${keyHtml}</div>`;
           });
-        } else {
-          container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>';
-        }
+        } else { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>'; }
       }).catch(err => {
         console.error("歷史紀錄讀取錯誤:", err); 
         container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
       });
     }
 
-    function closeHistory() {
-      document.getElementById('history-modal').style.display = 'none';
-    }
+    function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
 
     function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
@@ -249,7 +278,7 @@
           if(data.customVars && data.customVars.length > 0) {
             const container = document.getElementById('score-box-container');
             data.customVars.forEach(v => {
-              const html = `<div class="score-item dynamic-score-item"><span>💠 ${v.display}:</span> <span class="dynamic-score-value">${v.value}</span></div>`;
+              const html = `<div class="score-item dynamic-score-item">💠 ${v.display}: <span class="dynamic-score-value">${v.value}</span></div>`;
               container.insertAdjacentHTML('beforeend', html);
             });
           }
@@ -261,15 +290,8 @@
       .then(data => {
         if(data.status === "success") {
           currentShopItems = data.items;
-          const catSet = new Set(currentShopItems.map(item => item.category));
-          const catSelect = document.getElementById('filter-category');
-          const currentSelection = catSelect.value; 
-          catSelect.innerHTML = '<option value="all">📁 所有分類</option>';
-          catSet.forEach(cat => {
-            let selected = (cat === currentSelection) ? 'selected' : '';
-            catSelect.innerHTML += `<option value="${cat}" ${selected}>${cat}</option>`;
-          });
-          renderShop();
+          renderSidebar(); // 🌟 重新繪製左側分類列
+          renderShop();    // 🌟 重新繪製右側商品網格
           document.getElementById('loading').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
         }
@@ -280,11 +302,14 @@
 
     function renderShop() {
       const container = document.getElementById('shop-list');
-      const filterCat = document.getElementById('filter-category').value;
       const sortType = document.getElementById('sort-items').value;
+      
       let displayItems = [...currentShopItems];
 
-      if (filterCat !== 'all') displayItems = displayItems.filter(item => item.category === filterCat);
+      // 🌟 過濾邏輯改用 currentCategory 變數
+      if (currentCategory !== 'all') {
+        displayItems = displayItems.filter(item => item.category === currentCategory);
+      }
 
       if (sortType === 'avail-first') {
         displayItems.sort((a, b) => {
@@ -292,14 +317,12 @@
           if (a.state !== 'available' && b.state === 'available') return 1;
           return 0;
         });
-      } else if (sortType === 'a-z') displayItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
-      else if (sortType === 'z-a') displayItems.sort((a, b) => b.name.localeCompare(a.name, 'zh-TW'));
-      else if (sortType === 'price-low') displayItems.sort((a, b) => a.price - b.price);
+      } else if (sortType === 'price-low') displayItems.sort((a, b) => a.price - b.price);
       else if (sortType === 'price-high') displayItems.sort((a, b) => b.price - a.price);
 
       container.innerHTML = "";
       if (displayItems.length === 0) {
-        container.innerHTML = "<div style='color:#B9BBBE; text-align:center;'>目前無符合條件的商品</div>";
+        container.innerHTML = "<div style='color:#B9BBBE; padding: 20px;'>此分類目前無商品</div>";
         return;
       }
 
@@ -309,13 +332,16 @@
         const safeId = "item-" + item.id; 
         
         let limitsHtml = `<div class="limit-tags">`;
-        if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日剩餘: ${item.limits.remainGD}</span>`;
-        if (item.limits.remainGM !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本月剩餘: ${item.limits.remainGM}</span>`;
-        if (item.limits.remainPD !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人今日剩餘: ${item.limits.remainPD}</span>`;
-        if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月剩餘: ${item.limits.remainPM}</span>`;
-        if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 帳號終身剩餘: ${item.limits.remainPT}</span>`;
+        if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日: ${item.limits.remainGD}</span>`;
+        if (item.limits.remainGM !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本月: ${item.limits.remainGM}</span>`;
+        if (item.limits.remainPD !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人今日: ${item.limits.remainPD}</span>`;
+        if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月: ${item.limits.remainPM}</span>`;
+        if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 終身限購: ${item.limits.remainPT}</span>`;
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = ""; 
+
+        let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片">` : '';
+        let remarkHtml = item.remark ? `<div class="item-remark">📝 ${item.remark}</div>` : '';
 
         let actionHtml = '';
         if (isAvail) {
@@ -327,19 +353,21 @@
             </div>
           `;
         } else {
-          actionHtml = `<button class="btn btn-buy" disabled>無法兌換</button>`;
+          actionHtml = `<div class="item-actions"><button class="btn btn-buy" disabled>無法兌換</button></div>`;
         }
 
+        // 卡片 HTML (加入圖文與動態佈局)
         const html = `
           <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
+            ${imageHtml}
             <div class="item-header">
               <span class="item-name">${item.name}</span>
               <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
             </div>
+            ${remarkHtml}
             <div class="item-info">
-              📁 分類：<span style="color: #A6D189; font-weight: bold;">${item.category}</span><br>
               💰 價格：<span class="item-price">${item.price} ${item.displayCurrency}</span><br>
-              📦 總庫存：${item.limits.baseStock}
+              📦 庫存：${item.limits.baseStock}
               ${limitsHtml}
             </div>
             ${actionHtml}
@@ -360,7 +388,7 @@
 
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
-      document.getElementById('loading-text').innerText = "⏳ 正在處理訂單與發送序號...";
+      document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
 
       fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
       .then(res => res.json())
@@ -385,10 +413,8 @@
       });
     }
 
-    // 🌟 登出時，把瀏覽器裡的記憶清空，徹底登出！
     function logout() {
-      localStorage.removeItem('dc_access_token');
-      localStorage.removeItem('dc_token_type');
+      localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
       window.location.href = "https://jay870122.github.io/DCGI/";
     }
   </script>
