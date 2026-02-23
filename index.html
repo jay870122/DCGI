@@ -377,7 +377,7 @@
       });
     }
 
-    function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
+function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);
       const qty = parseInt(qtyInput.value);
@@ -402,8 +402,16 @@
           fetchScoresAndShop(currentUser.id); 
         } else {
           alert("❌ 兌換失敗：" + data.message);
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('dashboard').style.display = 'block';
+          
+          // 🌟 核心升級：如果失敗原因跟「庫存、限購、售完」有關，自動強制刷新畫面！
+          if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限")) {
+            document.getElementById('loading-text').innerText = "🔄 正在同步最新商城庫存...";
+            fetchScoresAndShop(currentUser.id);
+          } else {
+            // 如果是餘額不足等其他問題，就把畫面切回來即可
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+          }
         }
       })
       .catch(err => {
