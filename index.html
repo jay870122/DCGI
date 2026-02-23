@@ -375,27 +375,23 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
             gachaHtml = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
                 <div style="color: #FEE75C; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed #4F545C; padding-bottom: 4px;">🎁 內容物一覽：</div>`;
             
-item.gachaPool.forEach(g => {
+            item.gachaPool.forEach(g => {
                 let detail = [];
                 if (g.prob !== null) detail.push(`${g.prob}%`);
                 if (g.stock !== null) {
                     let stockText = g.stock <= 0 ? `<span style="color:#ED4245; font-weight:bold;">(已抽完)</span>` : `${g.stock} 份`;
                     detail.push(stockText);
                 }
-                if (detail.length === 0) detail.push("保底/無限"); 
+                if (detail.length === 0) detail.push("保底/無限"); // 都沒寫就是保底
                 
+                // 🌟 如果份數為 0，整行變成灰色且劃掉！
                 let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
                 let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
                 
-                // 🌟 智慧隱藏數量邏輯：
-                // 如果「名稱不等於變數名 (有自訂名稱)」或是「數量為 1」，就不顯示後面的 x 數量！
-                let displayQty = (g.dispName !== g.varName || g.qty === 1) ? "" : ` x ${g.qty}`;
-                
                 gachaHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
-                    <span>- ${g.dispName}${displayQty}</span>
+                    <span>- ${g.dispName} x ${g.qty}</span>
                     <span style="color: #99AAB5;">${detail.join(" / ")}</span>
                 </div>`;
-            });
             });
             gachaHtml += `</div>`;
         }
