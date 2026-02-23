@@ -389,14 +389,22 @@
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
 
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
+fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          let successMsg = "✅ " + data.message;
+          let successMsg = "✅ 兌換與處理完成！";
+          
+          // 🌟 如果有抽到變數獎勵，直接在畫面上放煙火
+          if (data.rewardVar && data.totalReward > 0) {
+            successMsg += `\n\n🎉 恭喜您開出了：【 ${data.totalReward} 點 ${data.rewardVar} 】！`;
+          }
+
+          // 序號獎勵
           if (data.keys && data.keys.length > 0) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
           }
+          
           alert(successMsg);
           fetchScoresAndShop(currentUser.id); 
         } else {
