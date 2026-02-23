@@ -12,9 +12,9 @@
     .btn-login:hover { background-color: #4752C4; }
     .btn-logout { background-color: #ED4245; margin-top: 20px; }
     .btn-logout:hover { background-color: #C13537; }
-    .btn-refresh { background-color: #4F545C; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s; }
-    .btn-refresh:hover { background-color: #686D73; }
-    .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-action { background-color: #4F545C; color: white; padding: 6px 12px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s; }
+    .btn-action:hover { background-color: #686D73; }
+    .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
     
     .avatar { width: 90px; height: 90px; border-radius: 50%; border: 4px solid #5865F2; margin-bottom: 10px; }
     .score-box { background-color: #2C2F33; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px; }
@@ -46,13 +46,33 @@
     .qty-input { width: 70px; padding: 8px; border-radius: 6px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 16px; text-align: center; outline: none; }
     .btn-buy { background-color: #43B581; padding: 8px 16px; width: auto; flex-grow: 1; }
     .btn-buy:hover { background-color: #3CA374; }
-    .btn-buy:disabled { background-color: #4F545C; cursor: not-allowed; }
+
+    /* 🌟 歷史紀錄彈窗樣式 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;}
+    .modal-content { background: #2F3136; border-radius: 12px; padding: 25px; width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; text-align: left; position: relative;}
+    .modal-close { position: absolute; top: 15px; right: 20px; color: #B9BBBE; font-size: 24px; font-weight: bold; cursor: pointer; }
+    .modal-close:hover { color: white; }
+    .history-card { background: #202225; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #40444B;}
+    .history-time { font-size: 12px; color: #72767D; margin-bottom: 5px; }
+    .history-name { font-size: 16px; font-weight: bold; color: #FFF; }
+    .history-qty { color: #A6D189; }
+    .history-keys { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #4F545C; color: #FEE75C; font-family: monospace; font-size: 14px; word-break: break-all;}
 
     .version-tag { font-size: 12px; color: #72767D; margin-top: 20px; text-align: center; }
     #dashboard, #loading { display: none; }
   </style>
 </head>
 <body>
+
+  <div id="history-modal" class="modal-overlay">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeHistory()">×</span>
+      <h2 style="margin-top:0; border-bottom: 1px solid #4F545C; padding-bottom: 10px;">📜 兌換與序號紀錄</h2>
+      <div id="history-list-container">
+        <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
+      </div>
+    </div>
+  </div>
 
   <div class="card">
     <h1 style="margin-top:0;">Garbled 幻彩水晶商店</h1>
@@ -78,7 +98,10 @@
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <h3 style="margin: 0;">🛒 兌換商店</h3>
-        <button id="btn-refresh" class="btn-refresh" onclick="refreshData()">🔄 重新整理</button>
+        <div style="display: flex; gap: 5px;">
+          <button class="btn-action" onclick="showHistory()">📜 紀錄</button>
+          <button id="btn-refresh" class="btn-action" onclick="refreshData()">🔄 重整</button>
+        </div>
       </div>
 
       <div class="controls-container">
@@ -99,7 +122,7 @@
       <button class="btn btn-logout" onclick="logout()">登出帳號</button>
     </div>
 
-    <div class="version-tag">系統版本：v1.8.0 (精準定位防呆版)</div>
+    <div class="version-tag">系統版本：v2.0.0 (自動發卡中心版)</div>
   </div>
 
   <script>
@@ -137,12 +160,50 @@
     function refreshData() {
       if(!currentUser) return;
       const refreshBtn = document.getElementById('btn-refresh');
-      refreshBtn.innerText = "⏳ 讀取中...";
+      refreshBtn.innerText = "⏳...";
       refreshBtn.disabled = true;
       fetchScoresAndShop(currentUser.id, () => {
-        refreshBtn.innerText = "🔄 重新整理";
+        refreshBtn.innerText = "🔄 重整";
         refreshBtn.disabled = false;
       });
+    }
+
+    // 🌟 獲取並顯示歷史紀錄
+    function showHistory() {
+      if(!currentUser) return;
+      const modal = document.getElementById('history-modal');
+      const container = document.getElementById('history-list-container');
+      modal.style.display = 'flex';
+      container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
+
+      fetch(`${GAS_API_URL}?action=getHistory&discordId=${currentUser.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === "success" && data.history.length > 0) {
+          container.innerHTML = "";
+          data.history.forEach(record => {
+            let keyHtml = "";
+            if(record.keys && record.keys !== "無") {
+              keyHtml = `<div class="history-keys">🎁 序號：<br>${record.keys.split(', ').join('<br>')}</div>`;
+            }
+            container.innerHTML += `
+              <div class="history-card">
+                <div class="history-time">${record.time}</div>
+                <div class="history-name">${record.itemName} <span class="history-qty">x ${record.qty}</span></div>
+                ${keyHtml}
+              </div>
+            `;
+          });
+        } else {
+          container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>';
+        }
+      }).catch(err => {
+        container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+      });
+    }
+
+    function closeHistory() {
+      document.getElementById('history-modal').style.display = 'none';
     }
 
     function fetchScoresAndShop(discordId, callback = null) {
@@ -183,7 +244,6 @@
             let selected = (cat === currentSelection) ? 'selected' : '';
             catSelect.innerHTML += `<option value="${cat}" ${selected}>${cat}</option>`;
           });
-
           renderShop();
           document.getElementById('loading').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
@@ -221,8 +281,6 @@
       displayItems.forEach((item) => {
         const isAvail = item.state === "available";
         const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
-        
-        // 🌟 使用 item.id (精準列數) 來產生唯一的 HTML 標籤
         const safeId = "item-" + item.id; 
         
         let limitsHtml = `<div class="limit-tags">`;
@@ -266,8 +324,7 @@
       });
     }
 
-    // 🌟 JavaScript 加入 itemId 的傳遞
-// 🌟 購買邏輯防連點與強制重整升級
+    // 🌟 發卡防連點邏輯
     function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);
@@ -275,42 +332,36 @@
       
       if (qty < 1) { alert("數量必須大於 0！"); return; }
       if (qty > maxQty) { alert(`已超過限購數量！您目前最多只能買 ${maxQty} 個。`); return; }
-      
       if (!confirm(`確定要花費 ${currencyName} 兌換 ${qty} 個 ${itemName} 嗎？`)) return;
 
-      const btn = document.getElementById(`btn-${safeId}`);
-      btn.innerText = "⏳ 處理中...";
-      btn.disabled = true;
-
-      // 🌟 防連點核心：直接隱藏儀表板，顯示全畫面的「載入中」，讓玩家完全無法點擊任何東西
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
-      document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
+      document.getElementById('loading-text').innerText = "⏳ 正在處理訂單與發送序號...";
 
       fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          alert("✅ " + data.message);
-          // 成功後直接呼叫重新整理函數，它會抓取最新庫存並「自動把畫面切回來」
+          // 🌟 判斷是否有抽到序號，顯示專屬大獎畫面
+          let successMsg = "✅ " + data.message;
+          if (data.keys && data.keys.length > 0) {
+            successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
+          }
+          alert(successMsg);
           fetchScoresAndShop(currentUser.id); 
         } else {
           alert("❌ 兌換失敗：" + data.message);
-          // 只有失敗時，才手動把畫面切回來，並恢復原本的按鈕
           document.getElementById('loading').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
-          btn.innerText = "兌換";
-          btn.disabled = false;
         }
       })
       .catch(err => {
         alert("網路錯誤，請稍後再試！");
         document.getElementById('loading').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
-        btn.innerText = "兌換";
-        btn.disabled = false;
       });
     }
+
     function logout() { window.location.href = "https://jay870122.github.io/DCGI/"; }
   </script>
 </body>
