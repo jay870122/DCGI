@@ -387,12 +387,8 @@ item.gachaPool.forEach(g => {
                 let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
                 let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
                 
-                // 🌟 智慧隱藏數量邏輯：
-                // 如果「名稱不等於變數名 (有自訂名稱)」或是「數量為 1」，就不顯示後面的 x 數量！
-                let displayQty = (g.dispName !== g.varName || g.qty === 1) ? "" : ` x ${g.qty}`;
-                
                 gachaHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
-                    <span>- ${g.dispName}${displayQty}</span>
+                    <span>- ${g.dispName} x ${g.qty}</span>
                     <span style="color: #99AAB5;">${detail.join(" / ")}</span>
                 </div>`;
             });
