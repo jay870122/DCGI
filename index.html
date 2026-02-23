@@ -169,6 +169,7 @@
     }
 
     // 🌟 獲取並顯示歷史紀錄
+// 🌟 獲取並顯示歷史紀錄 (修復純數字序號報錯問題)
     function showHistory() {
       if(!currentUser) return;
       const modal = document.getElementById('history-modal');
@@ -184,7 +185,9 @@
           data.history.forEach(record => {
             let keyHtml = "";
             if(record.keys && record.keys !== "無") {
-              keyHtml = `<div class="history-keys">🎁 序號：<br>${record.keys.split(', ').join('<br>')}</div>`;
+              // 🌟 關鍵修復：用 String() 強制把序號轉成文字，避免純數字讓系統崩潰
+              let safeKeys = String(record.keys); 
+              keyHtml = `<div class="history-keys">🎁 序號：<br>${safeKeys.split(', ').join('<br>')}</div>`;
             }
             container.innerHTML += `
               <div class="history-card">
@@ -198,6 +201,7 @@
           container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>';
         }
       }).catch(err => {
+        console.error("歷史紀錄讀取錯誤:", err); // 在開發者工具顯示真實錯誤
         container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
       });
     }
