@@ -40,7 +40,7 @@
     .shop-input { padding: 8px 12px; border-radius: 5px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 14px; outline: none; }
     
     /* 🌟 商品網格卡片 */
-    .shop-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+    .shop-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; }
     .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; position: relative; overflow: hidden; height: 100%; box-sizing: border-box; }
     .shop-item-card.disabled { opacity: 0.6; }
     
@@ -50,6 +50,7 @@
     .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
     .badge-avail { background-color: #43B581; color: white; }
     .badge-unavail { background-color: #ED4245; color: white; }
+    /* 🌟 備註區塊加上 white-space: pre-wrap; 支援換行 */
     .item-remark { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 8px; background-color: #202225; border-left: 3px solid #5865F2; border-radius: 4px; line-height: 1.4; white-space: pre-wrap; }
     .item-info { font-size: 14px; color: #B9BBBE; margin-bottom: 15px; line-height: 1.6; flex-grow: 1; } 
     .item-price { color: #FEE75C; font-weight: bold; font-size: 16px; }
@@ -150,18 +151,16 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v2.3.0 (尊榮 VIP 條件驗證版)</div>
+    <div class="version-tag">系統版本：v3.0.0 (終極盲盒與智慧管理版)</div>
   </div>
 
-<script>
+  <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     let currentUser = null; 
     let currentShopItems = []; 
     let currentCategory = 'all'; 
+    let CATEGORY_ORDER = []; // 🌟 由 GAS API 傳回分類排序名單
 
-    // 🌟 新增：自訂分類排序清單 (寫在越前面的，就會排在側邊欄越上方！)
-    // 如果試算表有分類「沒寫在這裡」，系統會自動把它們丟到最下面。
-    let CATEGORY_ORDER = []; // 🌟 改由試算表自動控制排序
     window.onload = () => {
       // 🌟 處理 Discord 登入狀態保持
       const hashString = window.location.hash.slice(1);
@@ -202,7 +201,7 @@
       fetchScoresAndShop(currentUser.id, () => { refreshBtn.innerText = "🔄 重整庫存"; refreshBtn.disabled = false; });
     }
 
-    // 🌟 左側邊欄選擇邏輯
+    // 🌟 左側邊欄選擇邏輯 (含試算表自訂排序)
     function selectCategory(cat) {
       currentCategory = cat;
       renderSidebar();
@@ -210,23 +209,19 @@
     }
 
     function renderSidebar() {
-          // 1. 取出所有不重複的分類
-          let categories = Array.from(new Set(currentShopItems.map(item => item.category)));
-          
-          // 2. 🌟 依照你設定的名單進行排序
-          categories.sort((a, b) => {
-            let idxA = CATEGORY_ORDER.indexOf(a);
-            let idxB = CATEGORY_ORDER.indexOf(b);
-            // 如果分類沒寫在名單上，就排到最下面 (設定一個很大的數字 999)
-            if (idxA === -1) idxA = 999;
-            if (idxB === -1) idxB = 999;
-            return idxA - idxB;
-          });
+      let categories = Array.from(new Set(currentShopItems.map(item => item.category)));
+      
+      // 依照試算表的名單排序
+      categories.sort((a, b) => {
+        let idxA = CATEGORY_ORDER.indexOf(a);
+        let idxB = CATEGORY_ORDER.indexOf(b);
+        if (idxA === -1) idxA = 999;
+        if (idxB === -1) idxB = 999;
+        return idxA - idxB;
+      });
 
       const sidebar = document.getElementById('category-sidebar');
       let html = `<div class="cat-item ${currentCategory === 'all' ? 'active' : ''}" onclick="selectCategory('all')"><span>📁 所有商品</span></div>`;
-      
-      // 3. 依照排好的順序生成按鈕
       categories.forEach(cat => {
         const count = currentShopItems.filter(i => i.category === cat).length;
         html += `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat}')">
@@ -236,7 +231,7 @@
       sidebar.innerHTML = html;
     }
 
-    // 🌟 歷史紀錄讀取邏輯 (防數字報錯)
+    // 🌟 歷史紀錄讀取邏輯 (防數字報錯 & 隱藏標籤)
     function showHistory() {
       if(!currentUser) return;
       const modal = document.getElementById('history-modal');
@@ -255,8 +250,7 @@
               let safeKeys = String(record.keys); 
               keyHtml = `<div class="history-keys">🎁 序號：<br>${safeKeys.split(', ').join('<br>')}</div>`;
             }
-            // 若為條件商品，隱藏名稱中的 [持有]
-            // 🌟 順手把 [隱藏] 標籤也從歷史紀錄的顯示中擦掉
+            // 隱藏 [持有] 與 [隱藏] 標籤
             let displayName = record.itemName.replace('[持有]', '').replace('[隱藏]', '').trim();
             container.innerHTML += `<div class="history-card"><div class="history-time">${record.time}</div><div class="history-name">${displayName} <span class="history-qty">x ${record.qty}</span></div>${keyHtml}</div>`;
           });
@@ -292,17 +286,18 @@
         }
       });
 
-let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
+      let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
+          // 🌟 隱藏魔法：過濾掉有 [隱藏] 標籤的商品
           currentShopItems = data.items.filter(item => !item.name.includes('[隱藏]'));
           
-          // 🌟 核心魔法：接收試算表第 6 分頁傳來的排序名單！
+          // 接收自訂分類排序
           if (data.categoryOrder && data.categoryOrder.length > 0) {
             CATEGORY_ORDER = data.categoryOrder;
           }
-          
+
           renderSidebar(); 
           renderShop();    
           document.getElementById('loading').style.display = 'none';
@@ -349,27 +344,14 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = ""; 
 
-        // 🌟 處理圖文顯示與 [持有] 標籤邏輯
+        // 🌟 隱藏標題的 [持有]
         let isHold = item.name.includes('[持有]');
         let displayName = item.name.replace('[持有]', '').trim();
 
         let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片">` : '';
         let remarkHtml = item.remark ? `<div class="item-remark">📝 ${item.remark}</div>` : '';
 
-        let actionHtml = '';
-        if (isAvail) {
-          let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
-          actionHtml = `
-            <div class="item-actions">
-              <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem(${item.id}, '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
-            </div>
-          `;
-        } else {
-          actionHtml = `<div class="item-actions"><button class="btn btn-buy" disabled>無法兌換</button></div>`;
-        }
-
-// 🌟 生成超精美的「盲盒內容物列表」
+        // 🌟 盲盒內容物一覽 (含智慧隱藏數量)
         let gachaHtml = "";
         if (item.gachaPool && item.gachaPool.length > 0) {
             gachaHtml = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
@@ -382,18 +364,33 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
                     let stockText = g.stock <= 0 ? `<span style="color:#ED4245; font-weight:bold;">(已抽完)</span>` : `${g.stock} 份`;
                     detail.push(stockText);
                 }
-                if (detail.length === 0) detail.push("保底/無限"); // 都沒寫就是保底
+                if (detail.length === 0) detail.push("保底/無限"); 
                 
-                // 🌟 如果份數為 0，整行變成灰色且劃掉！
                 let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
                 let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
                 
+                // 智慧隱藏：若有自訂名稱，或數量僅1個，則不顯示 x 數量
+                let displayQty = (g.dispName !== g.varName || g.qty === 1) ? "" : ` x ${g.qty}`;
+                
                 gachaHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
-                    <span>- ${g.dispName} x ${g.qty}</span>
+                    <span>- ${g.dispName}${displayQty}</span>
                     <span style="color: #99AAB5;">${detail.join(" / ")}</span>
                 </div>`;
             });
             gachaHtml += `</div>`;
+        }
+
+        let actionHtml = '';
+        if (isAvail) {
+          let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
+          actionHtml = `
+            <div class="item-actions">
+              <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}">
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem(${item.id}, '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
+            </div>
+          `;
+        } else {
+          actionHtml = `<div class="item-actions"><button class="btn btn-buy" disabled>無法兌換</button></div>`;
         }
 
         const html = `
@@ -410,7 +407,8 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
                 `💰 價格：<span class="item-price">${item.price} ${item.displayCurrency}</span><br>`}
               📦 庫存：${item.limits.baseStock}
               ${limitsHtml}
-              ${gachaHtml} </div>
+              ${gachaHtml}
+            </div>
             ${actionHtml}
           </div>
         `;
@@ -440,20 +438,19 @@ let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
 
-fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
           let successMsg = "✅ 兌換處理完成！";
           
-          // 🌟 核心升級：顯示盲盒或一番賞的抽中結果
+          // 顯示盲盒或變數獲得結果
           if (data.displayExt) {
             successMsg += `\n\n🎉 恭喜您開出了：\n【 ${data.displayExt} 】！`;
           } else if (data.rewardVar && data.totalReward > 0) {
             successMsg += `\n\n🎉 恭喜您獲得了：【 ${data.totalReward} 點 ${data.rewardVar} 】！`;
           }
 
-          // 序號處理
           if (data.keys && data.keys.length > 0) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
           }
@@ -462,6 +459,7 @@ fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&it
           fetchScoresAndShop(currentUser.id); 
         } else {
           alert("❌ 兌換失敗：" + data.message);
+          // 庫存變動導致失敗時，自動重整防呆
           if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限") || data.message.includes("條件")) {
             document.getElementById('loading-text').innerText = "🔄 正在同步最新資料...";
             fetchScoresAndShop(currentUser.id);
