@@ -239,7 +239,8 @@
               keyHtml = `<div class="history-keys">🎁 序號：<br>${safeKeys.split(', ').join('<br>')}</div>`;
             }
             // 若為條件商品，隱藏名稱中的 [持有]
-            let displayName = record.itemName.replace('[持有]', '').trim();
+            // 🌟 順手把 [隱藏] 標籤也從歷史紀錄的顯示中擦掉
+            let displayName = record.itemName.replace('[持有]', '').replace('[隱藏]', '').trim();
             container.innerHTML += `<div class="history-card"><div class="history-time">${record.time}</div><div class="history-name">${displayName} <span class="history-qty">x ${record.qty}</span></div>${keyHtml}</div>`;
           });
         } else { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>'; }
@@ -274,11 +275,13 @@
         }
       });
 
-      let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
+let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          currentShopItems = data.items;
+          // 🌟 隱藏魔法：直接把名稱包含 [隱藏] 的商品從清單中剔除！
+          currentShopItems = data.items.filter(item => !item.name.includes('[隱藏]'));
+          
           renderSidebar(); 
           renderShop();    
           document.getElementById('loading').style.display = 'none';
