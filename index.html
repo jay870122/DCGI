@@ -258,20 +258,38 @@
       .then(data => {
         if(data.status === "success" && data.history.length > 0) {
           container.innerHTML = "";
-          data.history.forEach(record => {
+data.history.forEach(record => {
+            // 1. 處理序號顯示
             let keyHtml = "";
             if(record.keys && record.keys !== "無") {
               let safeKeys = String(record.keys); 
               keyHtml = `<div class="history-keys">🎁 序號：<br>${safeKeys.split(', ').join('<br>')}</div>`;
             }
+            
+            // 2. 🌟 處理抽中物品顯示
+            let drawnHtml = "";
+            if(record.drawn) {
+              drawnHtml = `<div style="margin-top: 8px; padding: 6px; background-color: #2F3136; border-radius: 4px; font-size: 13px; color: #FEE75C; border: 1px solid #40444B;">🎉 獲得：${record.drawn}</div>`;
+            }
+            
+            // 3. 🌟 處理餘額變化顯示 (防呆：舊紀錄沒有餘額時不顯示)
+            let balanceHtml = "";
+            if(record.beforeBal !== null && record.afterBal !== null) {
+              balanceHtml = `<div style="margin-top: 6px; font-size: 12px; color: #99AAB5;">💰 餘額變化：${record.beforeBal} ➔ <span style="color: #FFF; font-weight: bold;">${record.afterBal}</span></div>`;
+            }
+
             let displayName = record.itemName.replace('[持有]', '').replace('[隱藏]', '').trim();
-            container.innerHTML += `<div class="history-card"><div class="history-time">${record.time}</div><div class="history-name">${displayName} <span class="history-qty">x ${record.qty}</span></div>${keyHtml}</div>`;
+            
+            // 將所有元素組合進卡片中
+            container.innerHTML += `
+              <div class="history-card">
+                <div class="history-time">${record.time}</div>
+                <div class="history-name">${displayName} <span class="history-qty">x ${record.qty}</span></div>
+                ${balanceHtml}
+                ${drawnHtml}
+                ${keyHtml}
+              </div>`;
           });
-        } else { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>'; }
-      }).catch(err => {
-        console.error("歷史紀錄讀取錯誤:", err);
-        container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
-      });
     }
 
     function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
