@@ -52,6 +52,12 @@
     .badge-unavail { background-color: #ED4245; color: white; }
     /* 🌟 備註區塊加上 white-space: pre-wrap; 支援換行 */
     .item-remark { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 8px; background-color: #202225; border-left: 3px solid #5865F2; border-radius: 4px; line-height: 1.4; white-space: pre-wrap; }
+.item-time-info { 
+      font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 10px; 
+      background-color: #202225; border-radius: 6px; border: 1px solid #40444B; 
+      line-height: 1.5;
+    }
+    .countdown-timer { font-weight: bold; font-size: 14px; }
     .item-info { font-size: 14px; color: #B9BBBE; margin-bottom: 15px; line-height: 1.6; flex-grow: 1; } 
     .item-price { color: #FEE75C; font-weight: bold; font-size: 16px; }
     
@@ -379,7 +385,22 @@
             });
             gachaHtml += `</div>`;
         }
-
+// 🌟 新增：商品開始與結束時間的 HTML 區塊
+        let timeHtml = "";
+        if (item.startDate || item.endDate) {
+          timeHtml += `<div class="item-time-info">`;
+          if (item.startDate) {
+            let sDate = new Date(item.startDate).toLocaleString('zh-TW', { hour12: false });
+            timeHtml += `<div>🟢 開始：${sDate}</div>`;
+          }
+          if (item.endDate) {
+            let eDate = new Date(item.endDate).toLocaleString('zh-TW', { hour12: false });
+            timeHtml += `<div>🔴 結束：${eDate}</div>`;
+          }
+          // 加入倒數計時器容器 (綁定資料以供 JS 每秒計算)
+          timeHtml += `<div style="margin-top: 6px; border-top: 1px dashed #4F545C; padding-top: 6px;">⏳ 狀態：<span id="countdown-${safeId}" class="countdown-timer" data-id="${item.id}" data-start="${item.startDate || ''}" data-end="${item.endDate || ''}">計算中...</span></div>`;
+          timeHtml += `</div>`;
+        }
         let actionHtml = '';
         if (isAvail) {
           let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
@@ -401,6 +422,15 @@
               <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
             </div>
             ${remarkHtml}
+            const html = `
+                    <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
+                      ${imageHtml}
+                      <div class="item-header">
+                        <span class="item-name">${displayName}</span>
+                        <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
+                      </div>
+                      ${remarkHtml}
+                      ${timeHtml} <div class="item-info">
             <div class="item-info">
               ${isHold ? 
                 `✨ 條件：<span class="item-price" style="color:#58FF9C;">需持有 ${item.price} ${item.displayCurrency}</span><br>` : 
@@ -414,6 +444,7 @@
         `;
         container.innerHTML += html;
       });
+      startCountdowns();
     }
 
     function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
@@ -479,6 +510,96 @@
     function logout() {
       localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
       window.location.href = "https://jay870122.github.io/DCGI/";
+    }
+    let countdownInterval = null;
+
+    function startCountdowns() {
+      // 每次渲染商品清單時，先清除舊的計時器避免重複疊加
+      if (countdownInterval) clearInterval(countdownInterval);
+      
+      countdownInterval = setInterval(() => {
+        const timers = document.querySelectorAll('.countdown-timer');
+        if (timers.length === 0) return;
+        
+        let needsReRender = false;
+        const now = new Date().getTime();
+        
+        timers.forEach(timer => {
+          const itemId = timer.getAttribute('data-id');
+          const startStr = timer.getAttribute('data-start');
+          const endStr = timer.getAttribute('data-end');
+          
+          const start = startStr ? parseInt(startStr) : null;
+          const end = endStr ? parseInt(endStr) : null;
+          
+          // 透過 ID 找到對應的商品資料
+          let itemIndex = currentShopItems.findIndex(i => i.id === itemId);
+          if(itemIndex === -1) return;
+          let item = currentShopItems[itemIndex];
+          
+          // 如果已經售完就不用管時間了
+          if (item.state === 'sold_out') {
+            timer.innerText = "已售完 / 達到上限";
+            timer.style.color = "#72767D";
+            return;
+          }
+          
+          if (start && now < start) {
+            // 尚未開始，倒數至開始
+            let diff = start - now;
+            timer.innerText = `距離開始剩餘：${formatTimeDiff(diff)}`;
+            timer.style.color = "#FEE75C"; // 黃色
+          } else if (end && now < end) {
+            // 已開始，倒數至結束
+            if (item.state === 'not_started') {
+              // 🌟 時間跨過開始線，自動變更狀態為可兌換！
+              item.state = 'available';
+              item.stateMsg = '可兌換';
+              needsReRender = true; 
+            }
+            let diff = end - now;
+            timer.innerText = `距離結束剩餘：${formatTimeDiff(diff)}`;
+            timer.style.color = "#58FF9C"; // 綠色
+          } else if (end && now >= end) {
+            // 已結束
+            if (item.state === 'available') {
+              // 🌟 時間跨過結束線，自動變更狀態為結束並鎖定！
+              item.state = 'ended';
+              item.stateMsg = '活動結束';
+              needsReRender = true;
+            }
+            timer.innerText = "活動已結束";
+            timer.style.color = "#ED4245"; // 紅色
+          } else {
+            // 無結束時間，但已跨過開始時間
+            if (item.state === 'not_started') {
+              item.state = 'available';
+              item.stateMsg = '可兌換';
+              needsReRender = true;
+            }
+            timer.innerText = "無限期兌換中";
+            timer.style.color = "#58FF9C";
+          }
+        });
+        
+        // 🌟 如果有任何商品的狀態因為時間到了而改變，重新渲染畫面 (不用重拉 API，畫面會自動更新鎖定/解鎖按鈕)
+        if (needsReRender) {
+          renderShop();
+        }
+      }, 1000);
+    }
+
+    // 將毫秒轉換為 天、時、分、秒 的小工具函數
+    function formatTimeDiff(ms) {
+      let seconds = Math.floor((ms / 1000) % 60);
+      let minutes = Math.floor((ms / 1000 / 60) % 60);
+      let hours = Math.floor((ms / 1000 / 60 / 60) % 24);
+      let days = Math.floor(ms / 1000 / 60 / 60 / 24);
+      
+      let str = "";
+      if (days > 0) str += `${days}天 `;
+      str += `${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
+      return str;
     }
   </script>
 </body>
