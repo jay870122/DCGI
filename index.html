@@ -386,7 +386,7 @@
           actionHtml = `
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem(${item.id}, '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
             </div>
           `;
         } else {
