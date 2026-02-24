@@ -60,10 +60,9 @@
     .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
     .badge-avail { background-color: #43B581; color: white; }
     .badge-unavail { background-color: #ED4245; color: white; }
-    /* 🌟 備註區塊加上 white-space: pre-wrap; 支援換行 */
     .item-remark { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 8px; background-color: #202225; border-left: 3px solid #5865F2; border-radius: 4px; line-height: 1.4; white-space: pre-wrap; }
     
-    /* 🌟 新增：商品倒數計時區塊樣式 */
+    /* 🌟 商品倒數計時區塊樣式 */
     .item-time-info { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 10px; background-color: #202225; border-radius: 6px; border: 1px solid #40444B; line-height: 1.5; }
     .countdown-timer { font-weight: bold; font-size: 14px; white-space: nowrap; }
 
@@ -166,7 +165,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.1.0 (終極盲盒與限時搶購版)</div>
+    <div class="version-tag">系統版本：v3.1.2 (終極盲盒與餘額紀錄強化版)</div>
   </div>
 
   <script>
@@ -177,7 +176,6 @@
     let currentCategory = 'all'; 
     let CATEGORY_ORDER = []; 
     
-    // 🌟 倒數計時器變數
     let countdownInterval = null;
 
     window.onload = () => {
@@ -253,26 +251,26 @@
       const container = document.getElementById('history-list-container');
       modal.style.display = 'flex';
       container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
+      
       fetch(`${GAS_API_URL}?action=getHistory&discordId=${currentUser.id}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success" && data.history.length > 0) {
           container.innerHTML = "";
-data.history.forEach(record => {
-            // 1. 處理序號顯示
+          data.history.forEach(record => {
             let keyHtml = "";
             if(record.keys && record.keys !== "無") {
               let safeKeys = String(record.keys); 
               keyHtml = `<div class="history-keys">🎁 序號：<br>${safeKeys.split(', ').join('<br>')}</div>`;
             }
-            
-            // 2. 🌟 處理抽中物品顯示
+
+            // 🌟 處理抽中物品顯示
             let drawnHtml = "";
             if(record.drawn) {
               drawnHtml = `<div style="margin-top: 8px; padding: 6px; background-color: #2F3136; border-radius: 4px; font-size: 13px; color: #FEE75C; border: 1px solid #40444B;">🎉 獲得：${record.drawn}</div>`;
             }
-            
-            // 3. 🌟 處理餘額變化顯示 (防呆：舊紀錄沒有餘額時不顯示)
+
+            // 🌟 處理餘額變化顯示
             let balanceHtml = "";
             if(record.beforeBal !== null && record.afterBal !== null) {
               balanceHtml = `<div style="margin-top: 6px; font-size: 12px; color: #99AAB5;">💰 餘額變化：${record.beforeBal} ➔ <span style="color: #FFF; font-weight: bold;">${record.afterBal}</span></div>`;
@@ -280,7 +278,6 @@ data.history.forEach(record => {
 
             let displayName = record.itemName.replace('[持有]', '').replace('[隱藏]', '').trim();
             
-            // 將所有元素組合進卡片中
             container.innerHTML += `
               <div class="history-card">
                 <div class="history-time">${record.time}</div>
@@ -290,6 +287,11 @@ data.history.forEach(record => {
                 ${keyHtml}
               </div>`;
           });
+        } else { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>'; }
+      }).catch(err => {
+        console.error("歷史紀錄讀取錯誤:", err);
+        container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+      });
     }
 
     function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
@@ -372,7 +374,6 @@ data.history.forEach(record => {
         let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片">` : '';
         let remarkHtml = item.remark ? `<div class="item-remark">📝 ${item.remark}</div>` : '';
 
-        // 🌟 盲盒內容物一覽
         let gachaHtml = "";
         if (item.gachaPool && item.gachaPool.length > 0) {
             gachaHtml = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
@@ -398,7 +399,6 @@ data.history.forEach(record => {
             gachaHtml += `</div>`;
         }
 
-        // 🌟 新增：商品開始與結束時間的 HTML 區塊
         let timeHtml = "";
         if (item.startDate || item.endDate) {
           timeHtml += `<div class="item-time-info">`;
@@ -410,7 +410,6 @@ data.history.forEach(record => {
             let eDate = new Date(item.endDate).toLocaleString('zh-TW', { hour12: false });
             timeHtml += `<div>🔴 結束：${eDate}</div>`;
           }
-          // 加入倒數計時器容器
           timeHtml += `<div style="margin-top: 6px; border-top: 1px dashed #4F545C; padding-top: 6px;">⏳ 狀態：<span id="countdown-${safeId}" class="countdown-timer" data-id="${item.id}" data-start="${item.startDate || ''}" data-end="${item.endDate || ''}">計算中...</span></div>`;
           timeHtml += `</div>`;
         }
@@ -436,8 +435,8 @@ data.history.forEach(record => {
               <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
             </div>
             ${remarkHtml}
-            
-            ${timeHtml} <div class="item-info">
+            ${timeHtml} 
+            <div class="item-info">
               ${isHold ? `✨ 條件：<span class="item-price" style="color:#58FF9C;">需持有 ${item.price} ${item.displayCurrency}</span><br>` : 
                 `💰 價格：<span class="item-price">${item.price} ${item.displayCurrency}</span><br>`}
               📦 庫存：${item.limits.baseStock}
@@ -450,7 +449,6 @@ data.history.forEach(record => {
         container.innerHTML += html;
       });
       
-      // 🌟 啟動或重置倒數計時器
       startCountdowns();
     }
 
@@ -511,9 +509,7 @@ data.history.forEach(record => {
       window.location.href = "https://jay870122.github.io/DCGI/";
     }
 
-    // 🌟 新增：倒數計時與自動切換狀態的邏輯
     function startCountdowns() {
-      // 每次渲染商品清單時，先清除舊的計時器避免重複疊加
       if (countdownInterval) clearInterval(countdownInterval);
       
       countdownInterval = setInterval(() => {
@@ -531,12 +527,10 @@ data.history.forEach(record => {
           const start = startStr ? parseInt(startStr) : null;
           const end = endStr ? parseInt(endStr) : null;
           
-          // 透過 ID 找到對應的商品資料
           let itemIndex = currentShopItems.findIndex(i => i.id === itemId);
           if(itemIndex === -1) return;
           let item = currentShopItems[itemIndex];
           
-          // 如果已經售完就不用管時間了
           if (item.state === 'sold_out') {
             timer.innerText = "已售完 / 達到上限";
             timer.style.color = "#72767D";
@@ -544,33 +538,27 @@ data.history.forEach(record => {
           }
           
           if (start && now < start) {
-            // 尚未開始，倒數至開始
             let diff = start - now;
             timer.innerText = `距離開始剩餘：${formatTimeDiff(diff)}`;
-            timer.style.color = "#FEE75C"; // 黃色
+            timer.style.color = "#FEE75C"; 
           } else if (end && now < end) {
-            // 已開始，倒數至結束
             if (item.state === 'not_started') {
-              // 時間跨過開始線，自動變更狀態為可兌換！
               item.state = 'available';
               item.stateMsg = '可兌換';
               needsReRender = true; 
             }
             let diff = end - now;
             timer.innerText = `距離結束剩餘：${formatTimeDiff(diff)}`;
-            timer.style.color = "#58FF9C"; // 綠色
+            timer.style.color = "#58FF9C"; 
           } else if (end && now >= end) {
-            // 已結束
             if (item.state === 'available') {
-              // 時間跨過結束線，自動變更狀態為結束並鎖定！
               item.state = 'ended';
               item.stateMsg = '活動結束';
               needsReRender = true;
             }
             timer.innerText = "活動已結束";
-            timer.style.color = "#ED4245"; // 紅色
+            timer.style.color = "#ED4245"; 
           } else {
-            // 無結束時間，但已跨過開始時間
             if (item.state === 'not_started') {
               item.state = 'available';
               item.stateMsg = '可兌換';
@@ -581,7 +569,6 @@ data.history.forEach(record => {
           }
         });
         
-        // 🌟 如果有任何商品的狀態因為時間到了而改變，重新渲染畫面
         if (needsReRender) {
           renderShop();
         }
