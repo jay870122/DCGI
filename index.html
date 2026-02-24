@@ -65,7 +65,7 @@
     
     /* 🌟 新增：商品倒數計時區塊樣式 */
     .item-time-info { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 10px; background-color: #202225; border-radius: 6px; border: 1px solid #40444B; line-height: 1.5; }
-    .countdown-timer { font-weight: bold; font-size: 14px; }
+    .countdown-timer { font-weight: bold; font-size: 14px; white-space: nowrap; }
 
     .item-info { font-size: 14px; color: #B9BBBE; margin-bottom: 15px; line-height: 1.6; flex-grow: 1; } 
     .item-price { color: #FEE75C; font-weight: bold; font-size: 16px; }
@@ -578,7 +578,7 @@
       
       let str = "";
       if (days > 0) str += `${days}天 `;
-      str += `${hours.toString().padStart(2, '0')} : ${minutes.toString().padStart(2, '0')} : ${seconds.toString().padStart(2, '0')}`;
+      str += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
       return str;
     }
   </script>
