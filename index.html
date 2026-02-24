@@ -308,76 +308,73 @@
       Promise.all([p1, p2]).then(() => { if(callback) callback(); });
     }
 
-    function renderShop() {
+function renderShop() {
       const container = document.getElementById('shop-list');
+      const filterCat = document.getElementById('filter-category').value;
       const sortType = document.getElementById('sort-items').value;
       let displayItems = [...currentShopItems];
 
-      if (currentCategory !== 'all') displayItems = displayItems.filter(item => item.category === currentCategory);
-
+      if (filterCat !== 'all') displayItems = displayItems.filter(item => item.category === filterCat);
       if (sortType === 'avail-first') {
-        displayItems.sort((a, b) => {
-          if (a.state === 'available' && b.state !== 'available') return -1;
-          if (a.state !== 'available' && b.state === 'available') return 1;
-          return 0;
-        });
-      } else if (sortType === 'price-low') displayItems.sort((a, b) => a.price - b.price);
+        displayItems.sort((a, b) => { if (a.state === 'available' && b.state !== 'available') return -1; if (a.state !== 'available' && b.state === 'available') return 1; return 0; });
+      } else if (sortType === 'a-z') displayItems.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
+      else if (sortType === 'z-a') displayItems.sort((a, b) => b.name.localeCompare(a.name, 'zh-TW'));
+      else if (sortType === 'price-low') displayItems.sort((a, b) => a.price - b.price);
       else if (sortType === 'price-high') displayItems.sort((a, b) => b.price - a.price);
 
       container.innerHTML = "";
-      if (displayItems.length === 0) {
-        container.innerHTML = "<div style='color:#B9BBBE; padding: 20px;'>此分類目前無商品</div>";
-        return;
-      }
+      if (displayItems.length === 0) { container.innerHTML = "<div style='color:#B9BBBE; text-align:center;'>目前無符合條件的商品</div>"; return; }
 
       displayItems.forEach((item) => {
-        const isAvail = item.state === "available";
-        const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
+        // 🌟 網頁前端 AND / OR 邏輯判斷
+        let hasReqRole = true;
+        if (item.reqRoles.length > 0) {
+          hasReqRole = item.reqIsAnd 
+            ? item.reqRoles.every(r => currentUser.roles && currentUser.roles.includes(r)) // AND (必須全有)
+            : item.reqRoles.some(r => currentUser.roles && currentUser.roles.includes(r)); // OR (有其一即可)
+        }
+
+        let hasDiscount = false;
+        if (item.discountRoles.length > 0) {
+          hasDiscount = item.discountIsAnd
+            ? item.discountRoles.every(r => currentUser.roles && currentUser.roles.includes(r))
+            : item.discountRoles.some(r => currentUser.roles && currentUser.roles.includes(r));
+        }
+        
+        let isAvail = item.state === "available" && hasReqRole;
+        let stateMsg = item.stateMsg;
+        let badgeClass = isAvail ? "badge-avail" : "badge-unavail";
+        
+        if (item.state === "available" && !hasReqRole) {
+          stateMsg = "🔒 條件未滿足"; 
+        }
+
         const safeId = "item-" + item.id; 
         
+        let specialTags = "";
+        if (item.reqRoles.length > 0) {
+          let reqText = item.reqIsAnd ? "🔒 需擁有所有指定身分組" : "🔒 需擁有任一指定身分組";
+          specialTags += `<span class="limit-tag" style="background-color:#ED4245;">${reqText}</span> `;
+        }
+        if (item.rewardRole) specialTags += `<span class="limit-tag" style="background-color:#5865F2;">✨ 購買即贈專屬身分組</span> `;
+        if (specialTags !== "") specialTags = `<div style="margin-top: 5px; margin-bottom: 5px;">${specialTags}</div>`;
+
         let limitsHtml = `<div class="limit-tags">`;
-        if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日: ${item.limits.remainGD}</span>`;
-        if (item.limits.remainGM !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本月: ${item.limits.remainGM}</span>`;
-        if (item.limits.remainPD !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人今日: ${item.limits.remainPD}</span>`;
-        if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月: ${item.limits.remainPM}</span>`;
-        if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 終身限購: ${item.limits.remainPT}</span>`;
+        if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日剩餘: ${item.limits.remainGD}</span>`;
+        if (item.limits.remainGM !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本月剩餘: ${item.limits.remainGM}</span>`;
+        if (item.limits.remainPD !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人今日剩餘: ${item.limits.remainPD}</span>`;
+        if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月剩餘: ${item.limits.remainPM}</span>`;
+        if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 帳號終身剩餘: ${item.limits.remainPT}</span>`;
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = ""; 
 
-        // 🌟 隱藏標題的 [持有]
-        let isHold = item.name.includes('[持有]');
-        let displayName = item.name.replace('[持有]', '').trim();
-
-        let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片">` : '';
-        let remarkHtml = item.remark ? `<div class="item-remark">📝 ${item.remark}</div>` : '';
-
-        // 🌟 盲盒內容物一覽 (含智慧隱藏數量)
-        let gachaHtml = "";
-        if (item.gachaPool && item.gachaPool.length > 0) {
-            gachaHtml = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
-                <div style="color: #FEE75C; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed #4F545C; padding-bottom: 4px;">🎁 內容物一覽：</div>`;
-            
-            item.gachaPool.forEach(g => {
-                let detail = [];
-                if (g.prob !== null) detail.push(`${g.prob}%`);
-                if (g.stock !== null) {
-                    let stockText = g.stock <= 0 ? `<span style="color:#ED4245; font-weight:bold;">(已抽完)</span>` : `${g.stock} 份`;
-                    detail.push(stockText);
-                }
-                if (detail.length === 0) detail.push("保底/無限"); 
-                
-                let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
-                let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
-                
-                // 智慧隱藏：若有自訂名稱，或數量僅1個，則不顯示 x 數量
-                let displayQty = (g.dispName !== g.varName || g.qty === 1) ? "" : ` x ${g.qty}`;
-                
-                gachaHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
-                    <span>- ${g.dispName}${displayQty}</span>
-                    <span style="color: #99AAB5;">${detail.join(" / ")}</span>
-                </div>`;
-            });
-            gachaHtml += `</div>`;
+        let finalPrice = item.price;
+        let priceHtml = `<span class="item-price">${item.price} ${item.displayCurrency}</span>`;
+        if (hasDiscount) {
+          finalPrice = Math.ceil(item.price * item.discountRate);
+          let discountPercent = Math.round((1 - item.discountRate) * 100);
+          priceHtml = `<span style="text-decoration: line-through; color:#72767D; font-size:12px;">${item.price}</span> 
+                       <span class="item-price" style="color:#58FF9C; font-size:18px;">${finalPrice} ${item.displayCurrency} (為您省下 ${discountPercent}%)</span>`;
         }
 
         let actionHtml = '';
@@ -386,28 +383,25 @@
           actionHtml = `
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}', ${finalPrice})">兌換</button>
             </div>
           `;
         } else {
-          actionHtml = `<div class="item-actions"><button class="btn btn-buy" disabled>無法兌換</button></div>`;
+          actionHtml = `<button class="btn btn-buy" disabled>${stateMsg}</button>`;
         }
 
         const html = `
           <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
-            ${imageHtml}
             <div class="item-header">
-              <span class="item-name">${displayName}</span>
-              <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
+              <span class="item-name">${item.name}</span>
+              <span class="item-badge ${badgeClass}">${stateMsg}</span>
             </div>
-            ${remarkHtml}
+            ${specialTags}
             <div class="item-info">
-              ${isHold ? 
-                `✨ 條件：<span class="item-price" style="color:#58FF9C;">需持有 ${item.price} ${item.displayCurrency}</span><br>` : 
-                `💰 價格：<span class="item-price">${item.price} ${item.displayCurrency}</span><br>`}
-              📦 庫存：${item.limits.baseStock}
+              📁 分類：<span style="color: #A6D189; font-weight: bold;">${item.category}</span><br>
+              💰 價格：${priceHtml}<br>
+              📦 總庫存：${item.limits.baseStock}
               ${limitsHtml}
-              ${gachaHtml}
             </div>
             ${actionHtml}
           </div>
@@ -415,8 +409,7 @@
         container.innerHTML += html;
       });
     }
-
-    function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
+function buyItem(itemId, itemName, safeId, maxQty, currencyName, unitPrice) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);
       const qty = parseInt(qtyInput.value);
@@ -424,15 +417,9 @@
       if (qty < 1) { alert("數量必須大於 0！"); return; }
       if (qty > maxQty) { alert(`已超過限購數量！您目前最多只能買 ${maxQty} 個。`); return; }
       
-      // 🌟 [持有] 確認視窗邏輯
-      let isHold = itemName.includes('[持有]');
-      let displayItemName = itemName.replace('[持有]', '').trim();
-
-      let confirmMsg = isHold 
-        ? `🎁 此為條件福利！\n\n系統僅會驗證您是否持有足夠的【${currencyName}】作為領取條件，實際扣款為 0。\n確定要領取 ${qty} 個 ${displayItemName} 嗎？` 
-        : `確定要花費 ${currencyName} 兌換 ${qty} 個 ${displayItemName} 嗎？`;
-        
-      if (!confirm(confirmMsg)) return;
+      // 🌟 確認視窗顯示正確的打折後總價
+      const totalCost = unitPrice * qty;
+      if (!confirm(`確定要花費 ${totalCost} ${currencyName} 兌換 ${qty} 個 ${itemName} 嗎？`)) return;
 
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
@@ -442,31 +429,15 @@
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          let successMsg = "✅ 兌換處理完成！";
-          
-          // 顯示盲盒或變數獲得結果
-          if (data.displayExt) {
-            successMsg += `\n\n🎉 恭喜您開出了：\n【 ${data.displayExt} 】！`;
-          } else if (data.rewardVar && data.totalReward > 0) {
-            successMsg += `\n\n🎉 恭喜您獲得了：【 ${data.totalReward} 點 ${data.rewardVar} 】！`;
-          }
-
-          if (data.keys && data.keys.length > 0) {
-            successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
-          }
-          
+          let successMsg = "✅ " + data.message;
+          if (data.keys && data.keys.length > 0) successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
+          if (data.displayExt && data.displayExt !== "") successMsg += "\n\n🎉 盲盒抽卡結果：\n" + data.displayExt;
           alert(successMsg);
           fetchScoresAndShop(currentUser.id); 
         } else {
           alert("❌ 兌換失敗：" + data.message);
-          // 庫存變動導致失敗時，自動重整防呆
-          if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限") || data.message.includes("條件")) {
-            document.getElementById('loading-text').innerText = "🔄 正在同步最新資料...";
-            fetchScoresAndShop(currentUser.id);
-          } else {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
-          }
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
         }
       })
       .catch(err => {
