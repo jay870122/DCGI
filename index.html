@@ -296,7 +296,7 @@
 
     function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
 
-    function fetchScoresAndShop(discordId, callback = null) {
+function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
       let p1 = fetch(`${GAS_API_URL}?action=getScores&discordId=${discordId}`)
       .then(res => res.json())
@@ -321,7 +321,20 @@
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
-          currentShopItems = data.items.filter(item => !item.name.includes('[隱藏]'));
+          
+          // ==========================================
+          // 🌟 管理員設定區塊
+          // 請在下方的單引號中填入你的 Discord ID。若有多人，可用逗號隔開：['ID1', 'ID2']
+          // ==========================================
+          const ADMIN_IDS = ['填入你的DiscordID']; 
+          const isAdmin = ADMIN_IDS.includes(discordId);
+
+          // 🌟 判斷：如果是管理員就保留，如果不是管理員就過濾掉 [隱藏] 商品
+          currentShopItems = data.items.filter(item => {
+            if (item.name.includes('[隱藏]')) return isAdmin;
+            return true;
+          });
+
           if (data.categoryOrder && data.categoryOrder.length > 0) {
             CATEGORY_ORDER = data.categoryOrder;
           }
@@ -333,7 +346,6 @@
       });
       Promise.all([p1, p2]).then(() => { if(callback) callback(); });
     }
-
     function renderShop() {
       const container = document.getElementById('shop-list');
       const sortType = document.getElementById('sort-items').value;
