@@ -428,7 +428,7 @@ function fetchScoresAndShop(discordId, callback = null) {
 
         let actionHtml = '';
         if (isAvail) {
-          let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
+          let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 100;
           actionHtml = `
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}">
