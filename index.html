@@ -630,8 +630,8 @@ function fetchScoresAndShop(discordId, callback = null) {
       return str;
     }
     function shareItem(itemId, itemName) {
-      // 🌟 改為複製 GAS 後端的轉跳網址，讓 Discord 可以抓到預覽圖
-      const shareUrl = `${GAS_API_URL}?action=share&item=${itemId}`;
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?item=${itemId}`;
       
       // 建立隱藏輸入框來執行複製動作
       const tmp = document.createElement("input");
