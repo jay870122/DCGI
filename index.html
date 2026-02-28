@@ -57,6 +57,8 @@
     .item-image { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; margin-bottom: 12px; border: 1px solid #40444B; }
     .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px solid #40444B; padding-bottom: 8px; gap: 10px;}
     .item-name { font-size: 18px; font-weight: bold; color: #FFF; line-height: 1.3;}
+    .btn-share { margin-left: 8px; cursor: pointer; font-size: 16px; opacity: 0.6; transition: 0.2s; user-select: none; }
+    .btn-share:hover { opacity: 1; transform: scale(1.2); }
     .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
     .badge-avail { background-color: #43B581; color: white; }
     .badge-unavail { background-color: #ED4245; color: white; }
@@ -179,6 +181,13 @@
     let countdownInterval = null;
 
     window.onload = () => {
+      // 🌟 攔截分享網址的參數並記憶 (解決玩家按登入後遺失商品 ID 的問題)
+      const urlParams = new URLSearchParams(window.location.search);
+      const shareTarget = urlParams.get('item');
+      if (shareTarget) {
+        localStorage.setItem('shared_item_target', shareTarget);
+        window.history.replaceState({}, document.title, window.location.pathname); // 清除網址上的參數保持乾淨
+      }
       const hashString = window.location.hash.slice(1);
       let accessToken = null; let tokenType = null;
       if (hashString) {
@@ -344,7 +353,26 @@ function fetchScoresAndShop(discordId, callback = null) {
           document.getElementById('dashboard').style.display = 'block';
         }
       });
-      Promise.all([p1, p2]).then(() => { if(callback) callback(); });
+    Promise.all([p1, p2]).then(() => { 
+        if(callback) callback(); 
+        
+        // 🌟 檢查是否有待跳轉的分享商品
+        const targetId = localStorage.getItem('shared_item_target');
+        if (targetId) {
+          setTimeout(() => {
+            const el = document.getElementById('card-item-' + targetId);
+            if (el) {
+              // 平滑滾動到該商品
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // 加入發光特效吸引目光
+              el.style.transition = "box-shadow 0.3s ease-in-out";
+              el.style.boxShadow = "0 0 20px 6px #5865F2";
+              setTimeout(() => { el.style.boxShadow = "none"; }, 3000); // 3秒後移除發光
+            }
+            localStorage.removeItem('shared_item_target'); // 執行完就清掉記憶
+          }, 600); // 等待畫面渲染一下再滑動
+        }
+      });
     }
     function renderShop() {
       const container = document.getElementById('shop-list');
@@ -440,10 +468,13 @@ function fetchScoresAndShop(discordId, callback = null) {
         }
 
         const html = `
-          <div class="shop-item-card ${!isAvail ? 'disabled' : ''}">
+          <div class="shop-item-card ${!isAvail ? 'disabled' : ''}" id="card-${safeId}">
             ${imageHtml}
             <div class="item-header">
-              <span class="item-name">${displayName}</span>
+              <div style="display: flex; align-items: center;">
+                <span class="item-name">${displayName}</span>
+                <span class="btn-share" onclick="shareItem('${item.id}', '${displayName}')" title="複製分享連結">🔗</span>
+              </div>
               <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
             </div>
             ${remarkHtml}
@@ -597,6 +628,20 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (days > 0) str += `${days}天 `;
       str += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
       return str;
+    }
+    function shareItem(itemId, itemName) {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?item=${itemId}`;
+      
+      // 建立隱藏輸入框來執行複製動作
+      const tmp = document.createElement("input");
+      tmp.value = shareUrl;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand("copy");
+      document.body.removeChild(tmp);
+      
+      alert(`🔗 已複製【${itemName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
     }
   </script>
 </body>
