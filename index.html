@@ -44,7 +44,7 @@
     .cat-item:hover { background-color: #40444B; color: white; }
     .cat-item.active { background-color: #5865F2; color: white; font-weight: bold; }
 
-    /* 🌟 分類分享按鈕 (新增) */
+    /* 🌟 分類分享按鈕 */
     .btn-share-cat {
       cursor: pointer;
       opacity: 0.4;
@@ -67,7 +67,13 @@
                       padding: 15px; display: flex; flex-direction: column; position: relative; overflow: hidden; height: 100%; box-sizing: border-box; }
     .shop-item-card.disabled { opacity: 0.6; }
     
-    .item-image { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; margin-bottom: 12px; border: 1px solid #40444B; }
+    /* 🌟 圖片樣式更新：加入游標與 hover 放大提示效果 */
+    .item-image { 
+        width: 100%; height: 140px; object-fit: cover; border-radius: 6px; margin-bottom: 12px; border: 1px solid #40444B; 
+        cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .item-image:hover { transform: scale(1.03); border-color: #5865F2; }
+
     .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px solid #40444B; padding-bottom: 8px; gap: 10px;}
     .item-name { font-size: 18px; font-weight: bold; color: #FFF; line-height: 1.3;}
     .btn-share { margin-left: 8px; cursor: pointer; font-size: 16px; opacity: 0.6; transition: 0.2s; user-select: none; }
@@ -114,12 +120,28 @@
     .history-qty { color: #A6D189; }
     .history-keys { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #4F545C; color: #FEE75C; font-family: monospace; font-size: 14px; word-break: break-all;}
 
+    /* 🌟 圖片放大彈出視窗 */
+    .image-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85); justify-content: center; align-items: center;
+      z-index: 2000; padding: 20px; box-sizing: border-box; cursor: pointer;
+    }
+    .image-overlay img {
+      max-width: 90vw; max-height: 90vh; border-radius: 8px; border: 2px solid #5865F2;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8); object-fit: contain; cursor: default;
+    }
+    .image-close {
+      position: absolute; top: 20px; right: 30px; color: #FFF; font-size: 40px; font-weight: bold; cursor: pointer; transition: color 0.2s; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .image-close:hover { color: #ED4245; }
+
     .version-tag { font-size: 12px; color: #72767D; margin-top: 20px; text-align: center; }
     #dashboard, #loading { display: none; }
   </style>
 </head>
 <body>
 
+  <!-- 🌟 歷史紀錄模態視窗 -->
   <div id="history-modal" class="modal-overlay">
     <div class="modal-content">
       <span class="modal-close" onclick="closeHistory()">×</span>
@@ -128,6 +150,12 @@
         <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
       </div>
     </div>
+  </div>
+
+  <!-- 🌟 圖片放大模態視窗 -->
+  <div id="image-overlay" class="image-overlay" onclick="closeImage()">
+    <span class="image-close">×</span>
+    <img id="full-size-image" src="" alt="Full Size" onclick="event.stopPropagation()">
   </div>
 
   <div class="card">
@@ -292,6 +320,18 @@
       sidebar.innerHTML = html;
     }
 
+    // 🌟 控制圖片放大縮小
+    function openImage(url) {
+      const fullSizeImage = document.getElementById('full-size-image');
+      fullSizeImage.src = url;
+      document.getElementById('image-overlay').style.display = 'flex';
+    }
+
+    function closeImage() {
+      document.getElementById('image-overlay').style.display = 'none';
+      document.getElementById('full-size-image').src = '';
+    }
+
     function showHistory() {
       if(!currentUser) return;
       const modal = document.getElementById('history-modal');
@@ -371,7 +411,6 @@ function fetchScoresAndShop(discordId, callback = null) {
           
           // ==========================================
           // 🌟 管理員設定區塊
-          // 請在下方的單引號中填入你的 Discord ID。若有多人，可用逗號隔開：['ID1', 'ID2']
           // ==========================================
           const ADMIN_IDS = ['176681551189377024']; 
           const isAdmin = ADMIN_IDS.includes(discordId);
@@ -460,7 +499,8 @@ function fetchScoresAndShop(discordId, callback = null) {
         
         let isHold = item.name.includes('[持有]');
         let displayName = item.name.replace('[持有]', '').trim();
-        let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片">` : '';
+        // 🌟 更新圖片 HTML 讓它帶有 onclick 事件以開啟預覽
+        let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="openImage('${item.imageUrl}')">` : '';
         let remarkHtml = item.remark ? `<div class="item-remark">📝 ${item.remark}</div>` : '';
 
         let gachaHtml = "";
