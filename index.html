@@ -83,6 +83,10 @@
     .badge-unavail { background-color: #ED4245; color: white; }
     .item-remark { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 8px; background-color: #202225; border-left: 3px solid #5865F2; border-radius: 4px; line-height: 1.4; white-space: pre-wrap; }
     
+    /* 🌟 備註內的超連結樣式 */
+    .item-remark a { color: #00AFF4; text-decoration: none; word-break: break-all; }
+    .item-remark a:hover { text-decoration: underline; }
+
     /* 🌟 商品倒數計時區塊樣式 */
     .item-time-info { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 10px; background-color: #202225; border-radius: 6px; border: 1px solid #40444B; line-height: 1.5; }
     .countdown-timer { font-weight: bold; font-size: 14px; white-space: nowrap; }
@@ -501,7 +505,13 @@ function fetchScoresAndShop(discordId, callback = null) {
         let displayName = item.name.replace('[持有]', '').trim();
         // 🌟 更新圖片 HTML 讓它帶有 onclick 事件以開啟預覽
         let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="openImage('${item.imageUrl}')">` : '';
-        let remarkHtml = item.remark ? `<div class="item-remark">📝 ${item.remark}</div>` : '';
+        
+        // 🌟 自動檢查備註中的網址並替換成 a 標籤 (超連結)
+        let formattedRemark = item.remark;
+        if (formattedRemark) {
+            formattedRemark = formattedRemark.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>');
+        }
+        let remarkHtml = formattedRemark ? `<div class="item-remark">📝 ${formattedRemark}</div>` : '';
 
         let gachaHtml = "";
         if (item.gachaPool && item.gachaPool.length > 0) {
