@@ -263,7 +263,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.8.0 (拍賣支援限定身分組)</div>
+    <div class="version-tag">系統版本：v3.9.0 (拍賣支援起標時間)</div>
   </div>
 
   <script>
@@ -526,6 +526,8 @@
           else statusHtml = `<div class="auction-status lose">流標（無人出價）</div>`;
         } else if (a.state === 'pending_settlement') {
           statusHtml = `<div class="auction-status">⏳ 拍賣已截止，等待系統結算中...</div>`;
+        } else if (a.state === 'not_started') {
+          statusHtml = `<div class="auction-status">🕐 尚未開始，敬請期待</div>`;
         } else if (a.state === 'no_permission') {
           statusHtml = `<div class="auction-status lose">🔒 身分組不符，無法出價</div>`;
         } else if (a.type === 'PUBLIC' && a.currentHighBidderIsMe) {
@@ -542,9 +544,14 @@
           roleTagHtml = `<span class="limit-tag ${roleTagClass}" style="margin-bottom:8px; display:inline-block;">${roleIcon} 限定身分組(${roleModeHint}): ${a.requiredRoleNames.join('、')}</span><br>`;
         }
 
-        const countdownHtml = a.endDate
-          ? `<span class="auction-countdown" data-end="${a.endDate}">計算中...</span>`
-          : '無截止時間';
+        let countdownHtml;
+        if (a.state === 'not_started' && a.startDate) {
+          countdownHtml = `<span class="auction-countdown" data-start="${a.startDate}">計算中...</span>`;
+        } else if (a.endDate) {
+          countdownHtml = `<span class="auction-countdown" data-end="${a.endDate}">計算中...</span>`;
+        } else {
+          countdownHtml = '無截止時間';
+        }
 
         let bidRowHtml = '';
         if (a.state === 'open') {
@@ -582,8 +589,27 @@
 
     function updateAuctionCountdowns() {
       document.querySelectorAll('.auction-countdown').forEach((el) => {
-        const end = parseInt(el.getAttribute('data-end'));
         const now = new Date().getTime();
+        const startAttr = el.getAttribute('data-start');
+
+        if (startAttr) {
+          // 🌟 起標倒數
+          const start = parseInt(startAttr);
+          if (now >= start) {
+            el.innerText = '即將開放，重新整理中...';
+            el.style.color = '#FEE75C';
+            if (!el.dataset.reloaded) {
+              el.dataset.reloaded = '1';
+              setTimeout(loadAuctions, 1500);
+            }
+          } else {
+            el.innerText = formatTimeDiff(start - now) + ' 後開始';
+            el.style.color = '#00AFF4';
+          }
+          return;
+        }
+
+        const end = parseInt(el.getAttribute('data-end'));
         if (now >= end) {
           el.innerText = '已截止';
           el.style.color = '#ED4245';
