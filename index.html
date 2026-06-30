@@ -343,18 +343,35 @@
       document.getElementById('full-size-image').src = '';
     }
 
+    let currentHistoryPage = 1;
+    const HISTORY_PAGE_SIZE = 10;
+
     function showHistory() {
       if(!currentUser) return;
-      const modal = document.getElementById('history-modal');
+      document.getElementById('history-modal').style.display = 'flex';
+      currentHistoryPage = 1;
+      document.getElementById('history-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
+      loadHistoryPage(1, false);
+    }
+
+    function loadHistoryPage(page, append) {
       const container = document.getElementById('history-list-container');
-      modal.style.display = 'flex';
-      container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
-      
-      fetch(`${GAS_API_URL}?action=getHistory&discordId=${currentUser.id}`)
+      const oldBtn = document.getElementById('history-load-more-btn');
+      if (oldBtn) oldBtn.remove();
+      if (append) {
+        container.insertAdjacentHTML('beforeend', '<p id="history-loading-more" style="text-align:center; color:#B9BBBE;">載入更多中...</p>');
+      }
+
+      fetch(`${GAS_API_URL}?action=getHistory&discordId=${currentUser.id}&page=${page}&pageSize=${HISTORY_PAGE_SIZE}`)
       .then(res => res.json())
       .then(data => {
-        if(data.status === "success" && data.history.length > 0) {
-          container.innerHTML = "";
+        const loadingMore = document.getElementById('history-loading-more');
+        if (loadingMore) loadingMore.remove();
+
+        if (!append) container.innerHTML = "";
+
+        if (data.status === "success" && data.history.length > 0) {
+          currentHistoryPage = page;
           data.history.forEach(record => {
             let keyHtml = "";
             if(record.keys && record.keys !== "無") {
@@ -375,20 +392,29 @@
             }
 
             let displayName = record.itemName.replace('[持有]', '').replace('[隱藏]', '').trim();
-            
-            container.innerHTML += `
+
+            container.insertAdjacentHTML('beforeend', `
               <div class="history-card">
                 <div class="history-time">${record.time}</div>
                 <div class="history-name">${displayName} <span class="history-qty">x ${record.qty}</span></div>
                 ${balanceHtml}
                 ${drawnHtml}
                 ${keyHtml}
-              </div>`;
+              </div>`);
           });
-        } else { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>'; }
+
+          if (data.hasMore) {
+            container.insertAdjacentHTML('beforeend', `<button id="history-load-more-btn" class="btn btn-action" style="width:100%; margin-top:10px; background-color:#5865F2;" onclick="loadHistoryPage(${page + 1}, true)">📜 載入更多</button>`);
+          }
+        } else if (!append) {
+          container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>';
+        }
       }).catch(err => {
+        const loadingMore = document.getElementById('history-loading-more');
+        if (loadingMore) loadingMore.remove();
         console.error("歷史紀錄讀取錯誤:", err);
-        container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+        if (!append) container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+        else container.insertAdjacentHTML('beforeend', '<p style="text-align:center; color:#ED4245;">載入更多失敗，請稍後再試</p>');
       });
     }
 
