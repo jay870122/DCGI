@@ -263,7 +263,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.9.0 (拍賣支援起標時間)</div>
+    <div class="version-tag">系統版本：v3.10.0 (拍賣支援分享連結)</div>
   </div>
 
   <script>
@@ -282,6 +282,7 @@
       const urlParams = new URLSearchParams(window.location.search);
       const shareTarget = urlParams.get('item');
       const shareCategory = urlParams.get('category'); 
+      const shareAuctionId = urlParams.get('auction');
 
       let shouldCleanUrl = false;
       
@@ -292,6 +293,11 @@
       
       if (shareCategory) {
         localStorage.setItem('shared_category_target', shareCategory);
+        shouldCleanUrl = true;
+      }
+
+      if (shareAuctionId) {
+        localStorage.setItem('shared_auction_target', shareAuctionId);
         shouldCleanUrl = true;
       }
 
@@ -567,10 +573,13 @@
         const remarkHtml = a.remark ? `<div class="item-remark" style="margin-bottom:10px;">📝 ${a.remark}</div>` : '';
 
         container.insertAdjacentHTML('beforeend', `
-          <div class="auction-card ${isEnded ? 'ended' : ''}">
+          <div class="auction-card ${isEnded ? 'ended' : ''}" id="auction-card-${a.id}">
             ${imageHtml}
             <div class="auction-header">
-              <span class="auction-name">${a.name}</span>
+              <div style="display: flex; align-items: center;">
+                <span class="auction-name">${a.name}</span>
+                <span class="btn-share" onclick="shareAuction('${a.id}', '${a.name.replace(/'/g, "\\'")}')" title="複製分享連結">🔗</span>
+              </div>
               <span class="auction-type-badge ${typeClass}">${typeLabel}</span>
             </div>
             ${remarkHtml}
@@ -585,6 +594,21 @@
         `);
       });
       updateAuctionCountdowns();
+
+      // 🌟 檢查是否有待跳轉的分享拍賣,捲動並高亮該卡片
+      const targetAuctionId = localStorage.getItem('shared_auction_target');
+      if (targetAuctionId) {
+        setTimeout(() => {
+          const el = document.getElementById('auction-card-' + targetAuctionId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.style.transition = "box-shadow 0.3s ease-in-out";
+            el.style.boxShadow = "0 0 20px 6px #F0B232";
+            setTimeout(() => { el.style.boxShadow = "none"; }, 3000);
+          }
+          localStorage.removeItem('shared_auction_target');
+        }, 300);
+      }
     }
 
     function updateAuctionCountdowns() {
@@ -748,6 +772,12 @@ function fetchScoresAndShop(discordId, callback = null) {
             }
             localStorage.removeItem('shared_item_target'); // 執行完就清掉記憶
           }, 600); // 等待畫面渲染一下再滑動
+        }
+
+        // 🌟 檢查是否有待跳轉的分享拍賣
+        const targetAuctionId = localStorage.getItem('shared_auction_target');
+        if (targetAuctionId) {
+          showAuctions(); // 自動開啟拍賣會彈窗,裡面渲染完成後會自己捲動定位高亮(見renderAuctions)
         }
       })
       .catch(err => {
@@ -1035,6 +1065,20 @@ function fetchScoresAndShop(discordId, callback = null) {
     }
     
     // 🌟 複製商品專屬網址
+    function shareAuction(auctionId, auctionName) {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?auction=${auctionId}`;
+
+      const tmp = document.createElement("input");
+      tmp.value = shareUrl;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand("copy");
+      document.body.removeChild(tmp);
+
+      alert(`🔗 已複製拍賣【${auctionName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
+    }
+
     function shareItem(itemId, itemName) {
       const baseUrl = window.location.origin + window.location.pathname;
       const shareUrl = `${baseUrl}?item=${itemId}`;
