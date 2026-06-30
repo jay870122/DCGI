@@ -219,7 +219,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.4.0 (改用Cloudflare Worker讀取,大幅加速)</div>
+    <div class="version-tag">系統版本：v3.5.0 (兌換紀錄也改用Worker讀取)</div>
   </div>
 
   <script>
@@ -358,7 +358,7 @@
         container.insertAdjacentHTML('beforeend', '<p id="history-loading-more" style="text-align:center; color:#B9BBBE;">載入更多中...</p>');
       }
 
-      fetch(`${GAS_API_URL}?action=getHistory&discordId=${currentUser.id}&page=${page}&pageSize=${HISTORY_PAGE_SIZE}`)
+      fetch(`${DASHBOARD_WORKER_URL}?action=history&discordId=${currentUser.id}&page=${page}&pageSize=${HISTORY_PAGE_SIZE}`)
       .then(res => res.json())
       .then(data => {
         const loadingMore = document.getElementById('history-loading-more');
