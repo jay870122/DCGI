@@ -219,7 +219,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.2.0 (移除所有商品分類・預設可用優先排序)</div>
+    <div class="version-tag">系統版本：v3.3.0 (合併讀取API・加速載入)</div>
   </div>
 
   <script>
@@ -417,10 +417,14 @@
 
 function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
-      let p1 = fetch(`${GAS_API_URL}?action=getScores&discordId=${discordId}`)
+
+      fetch(`${GAS_API_URL}?action=getDashboard&discordId=${discordId}`)
       .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
+      .then(result => {
+        if (result.status !== "success") return;
+
+        const data = result.scores;
+        if(data && data.status === "success") {
           document.getElementById('score-s1').innerText = data.s1;
           document.getElementById('score-s2').innerText = data.s2;
           document.getElementById('score-s3').innerText = data.s3;
@@ -444,12 +448,10 @@ function fetchScoresAndShop(discordId, callback = null) {
             });
           }
         }
-      });
-      let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
-          
+
+        const shopData = result.shop;
+        if(shopData && shopData.status === "success") {
+
           // ==========================================
           // 🌟 管理員設定區塊
           // ==========================================
@@ -457,13 +459,13 @@ function fetchScoresAndShop(discordId, callback = null) {
           const isAdmin = ADMIN_IDS.includes(discordId);
 
           // 🌟 判斷：如果是管理員就保留，如果不是管理員就過濾掉 [隱藏] 商品
-          currentShopItems = data.items.filter(item => {
+          currentShopItems = shopData.items.filter(item => {
             if (item.name.includes('[隱藏]')) return isAdmin;
             return true;
           });
 
-          if (data.categoryOrder && data.categoryOrder.length > 0) {
-            CATEGORY_ORDER = data.categoryOrder;
+          if (shopData.categoryOrder && shopData.categoryOrder.length > 0) {
+            CATEGORY_ORDER = shopData.categoryOrder;
           }
 
           // 🌟 【新增】檢查是否有待跳轉的分享分類
@@ -492,10 +494,9 @@ function fetchScoresAndShop(discordId, callback = null) {
           document.getElementById('loading').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
         }
-      });
-    Promise.all([p1, p2]).then(() => { 
+
         if(callback) callback(); 
-        
+
         // 🌟 檢查是否有待跳轉的分享商品
         const targetId = localStorage.getItem('shared_item_target');
         if (targetId) {
@@ -512,6 +513,10 @@ function fetchScoresAndShop(discordId, callback = null) {
             localStorage.removeItem('shared_item_target'); // 執行完就清掉記憶
           }, 600); // 等待畫面渲染一下再滑動
         }
+      })
+      .catch(err => {
+        console.error("載入失敗:", err);
+        document.getElementById('loading-text').innerText = "❌ 載入失敗，請稍後再試";
       });
     }
     function renderShop() {
