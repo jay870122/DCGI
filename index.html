@@ -219,11 +219,12 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.3.0 (合併讀取API・加速載入)</div>
+    <div class="version-tag">系統版本：v3.4.0 (改用Cloudflare Worker讀取,大幅加速)</div>
   </div>
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
+    const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'; // 🌟 讀取分數+商店目錄改走這個Worker,速度比較快;買東西/查紀錄/登入還是走上面的GAS_API_URL
   
     let currentUser = null; 
     let currentShopItems = []; 
@@ -418,7 +419,7 @@
 function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
 
-      fetch(`${GAS_API_URL}?action=getDashboard&discordId=${discordId}`)
+      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}`)
       .then(res => res.json())
       .then(result => {
         if (result.status !== "success") return;
