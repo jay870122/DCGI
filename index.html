@@ -263,7 +263,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.10.0 (拍賣支援分享連結)</div>
+    <div class="version-tag">系統版本：v3.11.0 (拍賣讀取改用Worker加速)</div>
   </div>
 
   <script>
@@ -485,7 +485,7 @@
     }
 
     function loadAuctions() {
-      fetch(`${GAS_API_URL}?action=getAuctions&discordId=${currentUser.id}`)
+      fetch(`${DASHBOARD_WORKER_URL}?action=auctions&discordId=${currentUser.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
