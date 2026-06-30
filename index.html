@@ -142,6 +142,7 @@
     .auction-type-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: bold; white-space: nowrap; }
     .auction-type-public { background-color: #43B581; color: #FFF; }
     .auction-type-sealed { background-color: #9B59B6; color: #FFF; }
+    .auction-type-sealed-low { background-color: #E67E22; color: #FFF; }
     .auction-info { font-size: 13px; color: #B9BBBE; margin-bottom: 10px; line-height: 1.6; }
     .auction-bid-value { color: #FEE75C; font-weight: bold; }
     .auction-status { font-size: 13px; padding: 8px; border-radius: 6px; margin-bottom: 10px; text-align: center; font-weight: bold; }
@@ -264,7 +265,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.14.1 (拍賣會標題顯示完整貨幣清單)</div>
+    <div class="version-tag">系統版本：v3.15.0 (新增暗標低者得拍賣類型)</div>
   </div>
 
   <script>
@@ -518,14 +519,18 @@
       container.innerHTML = '';
       currentAuctions.forEach(a => {
         const isEnded = a.state !== 'open';
-        const typeLabel = a.type === 'SEALED' ? '🕵️ 暗標' : '📢 公開比價';
-        const typeClass = a.type === 'SEALED' ? 'auction-type-sealed' : 'auction-type-public';
+        let typeLabel, typeClass;
+        if (a.type === 'SEALED') { typeLabel = '🕵️ 暗標(高者得)'; typeClass = 'auction-type-sealed'; }
+        else if (a.type === 'SEALED_LOW') { typeLabel = '🔻 暗標(低者得)'; typeClass = 'auction-type-sealed-low'; }
+        else { typeLabel = '📢 公開比價'; typeClass = 'auction-type-public'; }
 
         let priceInfoHtml;
         if (a.type === 'PUBLIC') {
           priceInfoHtml = a.hasAnyBid
             ? `目前最高出價：<span class="auction-bid-value">${a.currentHighBid} ${a.displayCurrency}</span>${a.currentHighBidderName ? ` (👤 ${a.currentHighBidderName})` : ''}`
             : `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（尚無人出價）`;
+        } else if (a.type === 'SEALED_LOW') {
+          priceInfoHtml = `起標價(上限)：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價越低越有機會得標，金額互相保密）`;
         } else {
           priceInfoHtml = `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價金額互相保密）`;
         }
@@ -567,10 +572,16 @@
 
         let bidRowHtml = '';
         if (a.state === 'open') {
-          const minBid = a.type === 'PUBLIC' ? (a.hasAnyBid ? a.currentHighBid + 1 : a.startBid) : a.startBid;
+          let bidInputAttrs;
+          if (a.type === 'SEALED_LOW') {
+            bidInputAttrs = `max="${a.startBid}" placeholder="最高 ${a.startBid}"`;
+          } else {
+            const minBid = a.type === 'PUBLIC' ? (a.hasAnyBid ? a.currentHighBid + 1 : a.startBid) : a.startBid;
+            bidInputAttrs = `min="${minBid}" placeholder="最低 ${minBid}"`;
+          }
           bidRowHtml = `
             <div class="auction-bid-row">
-              <input type="number" class="auction-bid-input" id="bid-input-${a.id}" min="${minBid}" placeholder="最低 ${minBid}">
+              <input type="number" class="auction-bid-input" id="bid-input-${a.id}" ${bidInputAttrs}>
               <button class="auction-bid-btn" id="bid-btn-${a.id}" onclick="submitBid('${a.id}', '${a.name.replace(/'/g, "\\'")}')">出價</button>
             </div>`;
         }
