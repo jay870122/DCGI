@@ -99,6 +99,8 @@
     .tag-global { background-color: #4F545C; color: #FFF; }
     .tag-personal { background-color: #5865F2; color: #FFF; }
     .tag-total { background-color: #FEE75C; color: #000; font-weight: bold; }
+    .tag-role-ok { background-color: #9B59B6; color: #FFF; }
+    .tag-role-locked { background-color: #74398A; color: #E0C3F1; }
 
     .item-actions { display: flex; gap: 10px; align-items: center; margin-top: auto; }
     .qty-input { width: 70px; padding: 8px; border-radius: 6px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 16px; text-align: center; outline: none; }
@@ -500,6 +502,11 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (item.limits.remainPW !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本周: ${item.limits.remainPW}</span>`;
         if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月: ${item.limits.remainPM}</span>`;
         if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 終身限購: ${item.limits.remainPT}</span>`;
+        if (item.requiredRoleNames && item.requiredRoleNames.length > 0) {
+          const roleTagClass = item.hasRolePermission ? 'tag-role-ok' : 'tag-role-locked';
+          const roleIcon = item.hasRolePermission ? '✅' : '🔒';
+          limitsHtml += `<span class="limit-tag ${roleTagClass}">${roleIcon} 限定身分組: ${item.requiredRoleNames.join('、')}</span>`;
+        }
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
         
