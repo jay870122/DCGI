@@ -519,7 +519,10 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (item.requiredRoleNames && item.requiredRoleNames.length > 0) {
           const roleTagClass = item.hasRolePermission ? 'tag-role-ok' : 'tag-role-locked';
           const roleIcon = item.hasRolePermission ? '✅' : '🔒';
-          limitsHtml += `<span class="limit-tag ${roleTagClass}">${roleIcon} 限定身分組: ${item.requiredRoleNames.join('、')}</span>`;
+          let roleModeHint = '需任一個';
+          if (item.roleRequirementMode === 'ALL') roleModeHint = '需全部持有';
+          else if (item.roleRequirementMode === 'COUNT') roleModeHint = `需其中${item.roleRequirementMinCount}個`;
+          limitsHtml += `<span class="limit-tag ${roleTagClass}">${roleIcon} 限定身分組(${roleModeHint}): ${item.requiredRoleNames.join('、')}</span>`;
         }
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
