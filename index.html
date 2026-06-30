@@ -132,6 +132,28 @@
     .history-qty { color: #A6D189; }
     .history-keys { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #4F545C; color: #FEE75C; font-family: monospace; font-size: 14px; word-break: break-all;}
 
+    /* 🌟 拍賣會 */
+    .auction-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+    .auction-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; }
+    .auction-card.ended { opacity: 0.7; }
+    .auction-image { width: 100%; height: 130px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; border: 1px solid #40444B; }
+    .auction-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; }
+    .auction-name { font-size: 16px; font-weight: bold; color: #FFF; }
+    .auction-type-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: bold; white-space: nowrap; }
+    .auction-type-public { background-color: #43B581; color: #FFF; }
+    .auction-type-sealed { background-color: #9B59B6; color: #FFF; }
+    .auction-info { font-size: 13px; color: #B9BBBE; margin-bottom: 10px; line-height: 1.6; }
+    .auction-bid-value { color: #FEE75C; font-weight: bold; }
+    .auction-status { font-size: 13px; padding: 8px; border-radius: 6px; margin-bottom: 10px; text-align: center; font-weight: bold; }
+    .auction-status.win { background-color: #1F4D2C; color: #58FF9C; }
+    .auction-status.lose { background-color: #4D1F1F; color: #ED4245; }
+    .auction-status.leading { background-color: #1F3A4D; color: #00AFF4; }
+    .auction-bid-row { display: flex; gap: 8px; margin-top: auto; }
+    .auction-bid-input { flex-grow: 1; padding: 8px; border-radius: 6px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 14px; }
+    .auction-bid-btn { background-color: #F0B232; color: #1F2124; font-weight: bold; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+    .auction-bid-btn:hover { background-color: #D69A1F; }
+    .auction-bid-btn:disabled { background-color: #4F545C; color: #B9BBBE; cursor: not-allowed; }
+
     /* 🌟 圖片放大彈出視窗 */
     .image-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -162,6 +184,21 @@
       </div>
       <div class="modal-body">
         <div id="history-list-container">
+          <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🌟 拍賣會彈窗 -->
+  <div id="auction-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeAuctions()">×</span>
+        <h2 style="margin:0;">🔨 拍賣會</h2>
+      </div>
+      <div class="modal-body">
+        <div id="auction-list-container" class="auction-list-container">
           <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
         </div>
       </div>
@@ -199,6 +236,7 @@
           <div class="role-box" id="role-box-container"></div>
         </div>
         <div style="display: flex; gap: 10px; flex-direction: column;">
+          <button class="btn-action" onclick="showAuctions()" style="background-color: #F0B232;">🔨 拍賣會</button>
           <button class="btn-action" onclick="showHistory()" style="background-color: #5865F2;">📜 我的紀錄</button>
           <button class="btn-action" onclick="logout()" style="background-color: #ED4245;">登出帳號</button>
         </div>
@@ -225,7 +263,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.6.1 (選一群組改用商品自身限購判斷解鎖時機)</div>
+    <div class="version-tag">系統版本：v3.7.0 (新增拍賣會功能)</div>
   </div>
 
   <script>
@@ -421,6 +459,158 @@
     }
 
     function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
+
+    // ============================================================
+    // 🌟 拍賣會
+    // ============================================================
+    let currentAuctions = [];
+    let auctionCountdownInterval = null;
+
+    function showAuctions() {
+      if (!currentUser) return;
+      document.getElementById('auction-modal').style.display = 'flex';
+      document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
+      loadAuctions();
+    }
+
+    function closeAuctions() {
+      document.getElementById('auction-modal').style.display = 'none';
+      if (auctionCountdownInterval) { clearInterval(auctionCountdownInterval); auctionCountdownInterval = null; }
+    }
+
+    function loadAuctions() {
+      fetch(`${GAS_API_URL}?action=getAuctions&discordId=${currentUser.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          currentAuctions = data.auctions;
+          renderAuctions();
+          if (auctionCountdownInterval) clearInterval(auctionCountdownInterval);
+          auctionCountdownInterval = setInterval(updateAuctionCountdowns, 1000);
+        } else {
+          document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message || '') + '</p>';
+        }
+      })
+      .catch(err => {
+        console.error('拍賣讀取錯誤:', err);
+        document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+      });
+    }
+
+    function renderAuctions() {
+      const container = document.getElementById('auction-list-container');
+      if (!currentAuctions || currentAuctions.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前沒有拍賣品</p>';
+        return;
+      }
+      container.innerHTML = '';
+      currentAuctions.forEach(a => {
+        const isEnded = a.state !== 'open';
+        const typeLabel = a.type === 'SEALED' ? '🕵️ 暗標' : '📢 公開比價';
+        const typeClass = a.type === 'SEALED' ? 'auction-type-sealed' : 'auction-type-public';
+
+        let priceInfoHtml;
+        if (a.type === 'PUBLIC') {
+          priceInfoHtml = a.hasAnyBid
+            ? `目前最高出價：<span class="auction-bid-value">${a.currentHighBid} ${a.displayCurrency}</span>`
+            : `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（尚無人出價）`;
+        } else {
+          priceInfoHtml = `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價金額互相保密）`;
+        }
+        const myBidHtml = a.myActiveBid !== null ? `<br>您目前出價：<span class="auction-bid-value">${a.myActiveBid} ${a.displayCurrency}</span>` : '';
+
+        let statusHtml = '';
+        if (a.state === 'ended') {
+          if (a.winnerIsMe) statusHtml = `<div class="auction-status win">🎉 恭喜！您以 ${a.winningBid} ${a.displayCurrency} 得標！</div>`;
+          else if (a.winningBid !== null) statusHtml = `<div class="auction-status lose">已結標，未得標</div>`;
+          else statusHtml = `<div class="auction-status lose">流標（無人出價）</div>`;
+        } else if (a.state === 'pending_settlement') {
+          statusHtml = `<div class="auction-status">⏳ 拍賣已截止，等待系統結算中...</div>`;
+        } else if (a.type === 'PUBLIC' && a.currentHighBidderIsMe) {
+          statusHtml = `<div class="auction-status leading">👑 您目前是最高出價者</div>`;
+        }
+
+        const countdownHtml = a.endDate
+          ? `<span class="auction-countdown" data-end="${a.endDate}">計算中...</span>`
+          : '無截止時間';
+
+        let bidRowHtml = '';
+        if (a.state === 'open') {
+          const minBid = a.type === 'PUBLIC' ? (a.hasAnyBid ? a.currentHighBid + 1 : a.startBid) : a.startBid;
+          bidRowHtml = `
+            <div class="auction-bid-row">
+              <input type="number" class="auction-bid-input" id="bid-input-${a.id}" min="${minBid}" placeholder="最低 ${minBid}">
+              <button class="auction-bid-btn" onclick="submitBid('${a.id}', '${a.name.replace(/'/g, "\\'")}')">出價</button>
+            </div>`;
+        }
+
+        const imageHtml = a.imageUrl ? `<img src="${a.imageUrl}" class="auction-image" alt="拍賣品圖片">` : '';
+        const remarkHtml = a.remark ? `<div class="item-remark" style="margin-bottom:10px;">📝 ${a.remark}</div>` : '';
+
+        container.insertAdjacentHTML('beforeend', `
+          <div class="auction-card ${isEnded ? 'ended' : ''}">
+            ${imageHtml}
+            <div class="auction-header">
+              <span class="auction-name">${a.name}</span>
+              <span class="auction-type-badge ${typeClass}">${typeLabel}</span>
+            </div>
+            ${remarkHtml}
+            <div class="auction-info">
+              ${priceInfoHtml}${myBidHtml}<br>
+              ⏳ ${countdownHtml}
+            </div>
+            ${statusHtml}
+            ${bidRowHtml}
+          </div>
+        `);
+      });
+      updateAuctionCountdowns();
+    }
+
+    function updateAuctionCountdowns() {
+      document.querySelectorAll('.auction-countdown').forEach((el) => {
+        const end = parseInt(el.getAttribute('data-end'));
+        const now = new Date().getTime();
+        if (now >= end) {
+          el.innerText = '已截止';
+          el.style.color = '#ED4245';
+          // 截止後重新整理一次列表,讓畫面切換成「等待結算/已結標」狀態,不會一直卡在出價中的樣子
+          if (!el.dataset.reloaded) {
+            el.dataset.reloaded = '1';
+            setTimeout(loadAuctions, 1500);
+          }
+        } else {
+          el.innerText = formatTimeDiff(end - now) + ' 後截止';
+          el.style.color = '#58FF9C';
+        }
+      });
+    }
+
+    function submitBid(auctionId, auctionName) {
+      if (!currentUser) return;
+      const input = document.getElementById(`bid-input-${auctionId}`);
+      const amount = parseInt(input.value);
+      if (!amount || amount <= 0) { alert('請輸入有效的出價金額'); return; }
+      if (!confirm(`確定要對「${auctionName}」出價 ${amount} 嗎？`)) return;
+
+      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          alert('✅ 出價成功！');
+          loadAuctions();
+          fetchScoresAndShop(currentUser.id); // 出價會凍結扣款,順便刷新餘額顯示
+        } else {
+          alert('❌ 出價失敗：' + data.message);
+          loadAuctions();
+        }
+      })
+      .catch((err) => {
+        console.error('出價錯誤:', err);
+        alert('網路錯誤，請稍後再試！');
+      });
+    }
+
 
 function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
