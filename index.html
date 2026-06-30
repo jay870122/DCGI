@@ -166,7 +166,7 @@
     <div id="login-section" style="text-align: center;">
       <h1 style="margin-top:0;">Garbled 幻彩水晶商店</h1>
       <p style="color: #B9BBBE;">請綁定您的 Discord 帳號以查看資料與兌換</p>
-      <a href="https://discord.com/api/oauth2/authorize?client_id=1365601646448607335&redirect_uri=https%3A%2F%2Fjay870122.github.io%2FDCGI%2F&response_type=token&scope=identify+guilds.members.read" class="btn btn-login">🎮 使用 Discord 登入</a>
+      <a href="https://discord.com/api/oauth2/authorize?client_id=1365601646448607335&redirect_uri=https%3A%2F%2Fjay870122.github.io%2FDCGI%2F&response_type=token&scope=identify" class="btn btn-login">🎮 使用 Discord 登入</a>
     </div>
 
     <div id="loading" style="text-align: center;">
@@ -224,13 +224,9 @@
     let CATEGORY_ORDER = []; 
     
     let countdownInterval = null;
-    let currentUserRoles = "";
 
     window.onload = () => {
       // 🌟 攔截分享網址的參數並記憶 (商品分享 & 分類分享)
-// 🌟 【新增】填入你指定的 Discord 伺服器 ID (Guild ID)
-      const TARGET_GUILD_ID = '1363544297848442960'; 
-
       const urlParams = new URLSearchParams(window.location.search);
       const shareTarget = urlParams.get('item');
       const shareCategory = urlParams.get('category'); 
@@ -266,12 +262,9 @@
         tokenType = localStorage.getItem('dc_token_type');
       }
 
-if (accessToken) {
+      if (accessToken) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('loading').style.display = 'block';
-
-        // ⚠️ 請務必將下方的數字換成你自己的 Discord 伺服器 ID (純數字，請加單引號)
-        const TARGET_GUILD_ID = '1363544297848442960'; 
 
         fetch('https://discord.com/api/users/@me', { headers: { authorization: `${tokenType} ${accessToken}` } })
         .then(res => { if (!res.ok) throw new Error('登入過期'); return res.json(); })
@@ -279,30 +272,13 @@ if (accessToken) {
           currentUser = user; 
           document.getElementById('user-name').innerText = user.global_name || user.username;
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
-          
-          // 查詢特定伺服器的身分組
-          return fetch(`https://discord.com/api/users/@me/guilds/${TARGET_GUILD_ID}/member`, {
-            headers: { authorization: `${tokenType} ${accessToken}` }
-          });
-        })
-        .then(res => {
-          if (res.ok) return res.json();
-          return { roles: [] }; 
-        })
-        .then(memberData => {
-          const userRoles = memberData.roles || [];
-          currentUserRoles = userRoles.join(','); // 🌟 存入全域變數
-          fetchScoresAndShop(currentUser.id);     // 🌟 呼叫時保持原樣，不加第二個參數
-        })
-        .catch(err => {
-          // 🌟 加入錯誤提示，方便抓蟲
-          console.error("登入錯誤:", err);
-          alert("登入過程發生異常：" + err.message + "\n請確認伺服器ID設定是否為純數字！");
-          
+          fetchScoresAndShop(user.id);
+        }).catch(err => {
           localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
           document.getElementById('loading').style.display = 'none'; document.getElementById('login-section').style.display = 'block';
         });
       }
+    };
 
     function refreshData() {
       if(!currentUser) return;
@@ -413,7 +389,7 @@ if (accessToken) {
 
 function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
-      let p1 = fetch(`${GAS_API_URL}?action=getScores&discordId=${discordId}&roles=${currentUserRoles}`)
+      let p1 = fetch(`${GAS_API_URL}?action=getScores&discordId=${discordId}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
@@ -432,7 +408,7 @@ function fetchScoresAndShop(discordId, callback = null) {
           }
         }
       });
-      let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}&roles=${currentUserRoles}`)
+      let p2 = fetch(`${GAS_API_URL}?action=getShop&discordId=${discordId}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
