@@ -196,6 +196,7 @@
       <div class="modal-header">
         <span class="modal-close" onclick="closeAuctions()">×</span>
         <h2 style="margin:0;">🔨 拍賣會</h2>
+        <div class="score-box" id="auction-currency-box" style="margin-top: 10px; gap: 8px;"></div>
       </div>
       <div class="modal-body">
         <div id="auction-list-container" class="auction-list-container">
@@ -263,7 +264,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.12.0 (公開拍賣顯示出價者暱稱)</div>
+    <div class="version-tag">系統版本：v3.14.1 (拍賣會標題顯示完整貨幣清單)</div>
   </div>
 
   <script>
@@ -504,6 +505,11 @@
     }
 
     function renderAuctions() {
+      // 🌟 同步彈窗標題旁的貨幣顯示:直接複製玩家頭像旁邊那整組(含所有自訂貨幣),不用各自維護一份
+      const scoreBoxEl = document.getElementById('score-box-container');
+      const auctionCurrencyBox = document.getElementById('auction-currency-box');
+      if (scoreBoxEl && auctionCurrencyBox) auctionCurrencyBox.innerHTML = scoreBoxEl.innerHTML;
+
       const container = document.getElementById('auction-list-container');
       if (!currentAuctions || currentAuctions.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前沒有拍賣品</p>';
@@ -565,7 +571,7 @@
           bidRowHtml = `
             <div class="auction-bid-row">
               <input type="number" class="auction-bid-input" id="bid-input-${a.id}" min="${minBid}" placeholder="最低 ${minBid}">
-              <button class="auction-bid-btn" onclick="submitBid('${a.id}', '${a.name.replace(/'/g, "\\'")}')">出價</button>
+              <button class="auction-bid-btn" id="bid-btn-${a.id}" onclick="submitBid('${a.id}', '${a.name.replace(/'/g, "\\'")}')">出價</button>
             </div>`;
         }
 
@@ -652,17 +658,24 @@
     function submitBid(auctionId, auctionName) {
       if (!currentUser) return;
       const input = document.getElementById(`bid-input-${auctionId}`);
+      const btn = document.getElementById(`bid-btn-${auctionId}`);
       const amount = parseInt(input.value);
       if (!amount || amount <= 0) { alert('請輸入有效的出價金額'); return; }
       if (!confirm(`確定要對「${auctionName}」出價 ${amount} 嗎？`)) return;
+
+      const originalBtnText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = '⏳ 出價中請稍後...';
+      input.disabled = true;
 
       fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
           alert('✅ 出價成功！');
-          loadAuctions();
-          fetchScoresAndShop(currentUser.id); // 出價會凍結扣款,順便刷新餘額顯示
+          // 🌟 先刷新分數(更新餘額顯示),完成後再重新整理拍賣列表,
+          // 這樣拍賣彈窗標題旁的貨幣顯示才會是扣款後的最新餘額,不會還停在出價前的舊數字
+          fetchScoresAndShop(currentUser.id, loadAuctions);
         } else {
           alert('❌ 出價失敗：' + data.message);
           loadAuctions();
@@ -671,6 +684,10 @@
       .catch((err) => {
         console.error('出價錯誤:', err);
         alert('網路錯誤，請稍後再試！');
+        // 🌟 網路錯誤時列表不會重新整理,要自己手動把按鈕跟輸入框解鎖,不然會卡住
+        btn.disabled = false;
+        btn.innerText = originalBtnText;
+        input.disabled = false;
       });
     }
 
