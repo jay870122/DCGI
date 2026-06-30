@@ -206,8 +206,8 @@
             <h3 style="margin: 0;">🛒 兌換商店</h3>
             <div style="display: flex; gap: 10px; align-items: center;">
               <select id="sort-items" class="shop-input" onchange="renderShop()">
-                <option value="default">預設排序</option>
                 <option value="avail-first">✅ 可用優先</option>
+                <option value="default">預設排序</option>
                 <option value="price-low">💰 價格 低 ~ 高</option>
                 <option value="price-high">💰 價格 高 ~ 低</option>
               </select>
@@ -227,7 +227,7 @@
   
     let currentUser = null; 
     let currentShopItems = []; 
-    let currentCategory = 'all'; 
+    let currentCategory = null;
     let CATEGORY_ORDER = []; 
     
     let countdownInterval = null;
@@ -310,14 +310,9 @@
         return idxA - idxB;
       });
       const sidebar = document.getElementById('category-sidebar');
-      
-      // 🌟 所有商品 (加入分享按鈕)
-      let html = `<div class="cat-item ${currentCategory === 'all' ? 'active' : ''}" onclick="selectCategory('all')">
-                    <span>📁 所有商品</span>
-                    <span class="btn-share-cat" onclick="shareCategory(event, 'all')" title="分享此分類">🔗</span>
-                  </div>`;
-                  
+
       // 🌟 各個子分類 (加入分享按鈕)
+      let html = "";
       categories.forEach(cat => {
         const count = currentShopItems.filter(i => i.category === cat).length;
         html += `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat}')">
@@ -472,13 +467,24 @@ function fetchScoresAndShop(discordId, callback = null) {
           }
 
           // 🌟 【新增】檢查是否有待跳轉的分享分類
+          const allCats = Array.from(new Set(currentShopItems.map(item => item.category)));
           const targetCategory = localStorage.getItem('shared_category_target');
-          if (targetCategory) {
-            const allCats = Array.from(new Set(currentShopItems.map(item => item.category)));
-            if (allCats.includes(targetCategory) || targetCategory === 'all') {
-              currentCategory = targetCategory;
-            }
+          if (targetCategory && allCats.includes(targetCategory)) {
+            currentCategory = targetCategory;
             localStorage.removeItem('shared_category_target');
+          } else {
+            localStorage.removeItem('shared_category_target');
+            // 🌟 沒有指定分類(或上次選的分類已經不存在)時,預設選排序後的第一個分類,而不是「所有商品」
+            if (!currentCategory || !allCats.includes(currentCategory)) {
+              allCats.sort((a, b) => {
+                let idxA = CATEGORY_ORDER.indexOf(a);
+                let idxB = CATEGORY_ORDER.indexOf(b);
+                if (idxA === -1) idxA = 999;
+                if (idxB === -1) idxB = 999;
+                return idxA - idxB;
+              });
+              currentCategory = allCats[0] || null;
+            }
           }
 
           renderSidebar(); 
@@ -513,7 +519,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       const sortType = document.getElementById('sort-items').value;
       let displayItems = [...currentShopItems];
 
-      if (currentCategory !== 'all') displayItems = displayItems.filter(item => item.category === currentCategory);
+      if (currentCategory) displayItems = displayItems.filter(item => item.category === currentCategory);
       if (sortType === 'avail-first') {
         displayItems.sort((a, b) => {
           if (a.state === 'available' && b.state !== 'available') return -1;
@@ -804,7 +810,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       const baseUrl = window.location.origin + window.location.pathname;
       const shareUrl = `${baseUrl}?category=${encodeURIComponent(catName)}`;
       
-      const displayCatName = catName === 'all' ? '所有商品' : catName;
+      const displayCatName = catName;
 
       // 建立隱藏輸入框來執行複製動作
       const tmp = document.createElement("input");
