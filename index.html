@@ -225,7 +225,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.5.0 (兌換紀錄也改用Worker讀取)</div>
+    <div class="version-tag">系統版本：v3.6.1 (選一群組改用商品自身限購判斷解鎖時機)</div>
   </div>
 
   <script>
@@ -567,6 +567,12 @@ function fetchScoresAndShop(discordId, callback = null) {
           if (item.roleRequirementMode === 'ALL') roleModeHint = '需全部持有';
           else if (item.roleRequirementMode === 'COUNT') roleModeHint = `需其中${item.roleRequirementMinCount}個`;
           limitsHtml += `<span class="limit-tag ${roleTagClass}">${roleIcon} 限定身分組(${roleModeHint}): ${item.requiredRoleNames.join('、')}</span>`;
+        }
+        if (item.exclusiveGroup) {
+          const groupTagClass = item.groupLocked ? 'tag-role-locked' : 'tag-role-ok';
+          const groupIcon = item.groupLocked ? '🔒' : '🎯';
+          const groupMsg = item.groupLocked ? `已選擇同組其他商品` : `選一群組`;
+          limitsHtml += `<span class="limit-tag ${groupTagClass}">${groupIcon} ${groupMsg}: ${item.exclusiveGroup}</span>`;
         }
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
