@@ -33,7 +33,11 @@
     .score-item { font-size: 15px; background: #202225; padding: 6px 12px; border-radius: 6px;
                   border: 1px solid #4F545C; display: flex; align-items: center; gap: 6px;}
     .score-value { font-weight: bold; color: #58FF9C; }
-    .dynamic-score-value { font-weight: bold; color: #FEE75C; } 
+    .dynamic-score-value { font-weight: bold; color: #FEE75C; }
+
+    /* 🌟 玩家持有身分組徽章 */
+    .role-box { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .role-badge { font-size: 13px; background: #5865F2; color: #FFF; padding: 5px 10px; border-radius: 999px; font-weight: bold; } 
     
     /* 🌟 側邊欄與網格商品區佈局 */
     .shop-layout { display: flex; gap: 20px; align-items: flex-start; }
@@ -186,6 +190,7 @@
             <div class="score-item">🔥 幻彩水晶: <span class="score-value" id="score-s2">0</span></div>
             <div class="score-item" id="score-s3-container">💎 點數3: <span class="score-value" id="score-s3">0</span></div>
           </div>
+          <div class="role-box" id="role-box-container"></div>
         </div>
         <div style="display: flex; gap: 10px; flex-direction: column;">
           <button class="btn-action" onclick="showHistory()" style="background-color: #5865F2;">📜 我的紀錄</button>
@@ -406,6 +411,15 @@ function fetchScoresAndShop(discordId, callback = null) {
             const container = document.getElementById('score-box-container');
             data.customVars.forEach(v => {
               container.insertAdjacentHTML('beforeend', `<div class="score-item dynamic-score-item">💠 ${v.display}: <span class="dynamic-score-value">${v.value}</span></div>`);
+            });
+          }
+
+          // 🌟 顯示玩家目前持有的身分組
+          const roleContainer = document.getElementById('role-box-container');
+          roleContainer.innerHTML = '';
+          if (data.roleNames && data.roleNames.length > 0) {
+            data.roleNames.forEach(name => {
+              roleContainer.insertAdjacentHTML('beforeend', `<div class="role-badge">🏅 ${name}</div>`);
             });
           }
         }
