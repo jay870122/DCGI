@@ -263,7 +263,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.7.0 (新增拍賣會功能)</div>
+    <div class="version-tag">系統版本：v3.8.0 (拍賣支援限定身分組)</div>
   </div>
 
   <script>
@@ -526,8 +526,20 @@
           else statusHtml = `<div class="auction-status lose">流標（無人出價）</div>`;
         } else if (a.state === 'pending_settlement') {
           statusHtml = `<div class="auction-status">⏳ 拍賣已截止，等待系統結算中...</div>`;
+        } else if (a.state === 'no_permission') {
+          statusHtml = `<div class="auction-status lose">🔒 身分組不符，無法出價</div>`;
         } else if (a.type === 'PUBLIC' && a.currentHighBidderIsMe) {
           statusHtml = `<div class="auction-status leading">👑 您目前是最高出價者</div>`;
+        }
+
+        let roleTagHtml = '';
+        if (a.requiredRoleNames && a.requiredRoleNames.length > 0) {
+          let roleModeHint = '需任一個';
+          if (a.roleRequirementMode === 'ALL') roleModeHint = '需全部持有';
+          else if (a.roleRequirementMode === 'COUNT') roleModeHint = `需其中${a.roleRequirementMinCount}個`;
+          const roleTagClass = a.hasRolePermission ? 'tag-role-ok' : 'tag-role-locked';
+          const roleIcon = a.hasRolePermission ? '✅' : '🔒';
+          roleTagHtml = `<span class="limit-tag ${roleTagClass}" style="margin-bottom:8px; display:inline-block;">${roleIcon} 限定身分組(${roleModeHint}): ${a.requiredRoleNames.join('、')}</span><br>`;
         }
 
         const countdownHtml = a.endDate
@@ -555,6 +567,7 @@
               <span class="auction-type-badge ${typeClass}">${typeLabel}</span>
             </div>
             ${remarkHtml}
+            ${roleTagHtml}
             <div class="auction-info">
               ${priceInfoHtml}${myBidHtml}<br>
               ⏳ ${countdownHtml}
