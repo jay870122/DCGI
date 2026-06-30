@@ -263,7 +263,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.11.0 (拍賣讀取改用Worker加速)</div>
+    <div class="version-tag">系統版本：v3.12.0 (公開拍賣顯示出價者暱稱)</div>
   </div>
 
   <script>
@@ -518,7 +518,7 @@
         let priceInfoHtml;
         if (a.type === 'PUBLIC') {
           priceInfoHtml = a.hasAnyBid
-            ? `目前最高出價：<span class="auction-bid-value">${a.currentHighBid} ${a.displayCurrency}</span>`
+            ? `目前最高出價：<span class="auction-bid-value">${a.currentHighBid} ${a.displayCurrency}</span>${a.currentHighBidderName ? ` (👤 ${a.currentHighBidderName})` : ''}`
             : `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（尚無人出價）`;
         } else {
           priceInfoHtml = `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價金額互相保密）`;
