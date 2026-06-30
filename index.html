@@ -494,8 +494,10 @@ function fetchScoresAndShop(discordId, callback = null) {
         
         let limitsHtml = `<div class="limit-tags">`;
         if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日: ${item.limits.remainGD}</span>`;
+        if (item.limits.remainGW !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本周: ${item.limits.remainGW}</span>`;
         if (item.limits.remainGM !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服本月: ${item.limits.remainGM}</span>`;
         if (item.limits.remainPD !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人今日: ${item.limits.remainPD}</span>`;
+        if (item.limits.remainPW !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本周: ${item.limits.remainPW}</span>`;
         if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月: ${item.limits.remainPM}</span>`;
         if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 終身限購: ${item.limits.remainPT}</span>`;
         limitsHtml += `</div>`;
