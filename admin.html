@@ -14,6 +14,8 @@ body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-s
 .user-info{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu)}
 .user-info img{width:28px;height:28px;border-radius:50%}
 .badge{background:var(--gold);color:#1F2124;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+.btn-logout{background:transparent;color:var(--mu);border:1px solid var(--bd);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;margin-left:6px;white-space:nowrap}
+.btn-logout:hover{color:var(--red);border-color:var(--red)}
 /* layout */
 .layout{display:flex;min-height:calc(100vh - 48px)}
 /* sidebar nav */
@@ -217,6 +219,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
+      <button class="btn-logout" onclick="logout()">🚪 登出</button>
     </div>
   </div>
   <div class="layout">
@@ -477,13 +480,37 @@ function loginWithDiscord() {
   location.href = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(location.origin+location.pathname)}&response_type=token&scope=identify&state=${st}`;
 }
 
+function logout() {
+  if (!confirm('確定要登出管理後台嗎？')) return;
+  localStorage.removeItem('admin_dc_access_token');
+  ME = null;
+  document.getElementById('admin-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
 async function init() {
   const h = new URLSearchParams(location.hash.slice(1));
-  const tok = h.get('access_token');
+  let tok = h.get('access_token');
+  if (tok) {
+    // 🌟 記住登入狀態,之後重新整理/重開分頁不用再走一次 Discord 授權流程
+    localStorage.setItem('admin_dc_access_token', tok);
+    history.replaceState({}, '', location.pathname);
+  } else {
+    tok = localStorage.getItem('admin_dc_access_token');
+  }
   if (!tok) return;
-  history.replaceState({}, '', location.pathname);
-  const u = await (await fetch('https://discord.com/api/users/@me', {headers:{Authorization:`Bearer ${tok}`}})).json();
-  if (!ADMIN_IDS.includes(u.id)) { alert('❌ 您沒有管理員權限'); return; }
+
+  let u;
+  try {
+    const res = await fetch('https://discord.com/api/users/@me', {headers:{Authorization:`Bearer ${tok}`}});
+    if (!res.ok) throw new Error('token expired');
+    u = await res.json();
+  } catch (e) {
+    // 🌟 token 過期或失效,清掉並回到登入畫面,不要卡住
+    localStorage.removeItem('admin_dc_access_token');
+    return;
+  }
+  if (!ADMIN_IDS.includes(u.id)) { alert('❌ 您沒有管理員權限'); localStorage.removeItem('admin_dc_access_token'); return; }
   ME = u;
   document.getElementById('ua-img').src = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`;
   document.getElementById('ua-name').textContent = u.global_name || u.username;
