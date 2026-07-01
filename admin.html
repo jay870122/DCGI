@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Garbled 管理後台</title>
+<style>
+:root{--bg:#1E2124;--s:#2F3136;--s2:#36393F;--bd:#4F545C;--t:#DCDDDE;--mu:#72767D;
+  --gold:#F0B232;--green:#43B581;--red:#ED4245;--blue:#5865F2;--purple:#9B59B6;--orange:#E67E22;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+/* topbar */
+.topbar{background:var(--s);border-bottom:1px solid var(--bd);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.brand{font-size:17px;font-weight:700;color:var(--gold)}
+.user-info{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu)}
+.user-info img{width:28px;height:28px;border-radius:50%}
+.badge{background:var(--gold);color:#1F2124;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+/* layout */
+.layout{display:flex;min-height:calc(100vh - 48px)}
+/* sidebar nav */
+.sidebar{width:200px;background:var(--s);border-right:1px solid var(--bd);padding:16px 0;flex-shrink:0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:14px;color:var(--mu);cursor:pointer;border-left:3px solid transparent}
+.nav-item:hover{color:var(--t);background:rgba(255,255,255,0.03)}
+.nav-item.active{color:var(--gold);border-left-color:var(--gold);background:rgba(240,178,50,0.07)}
+.nav-sep{border:none;border-top:1px solid var(--bd);margin:8px 16px}
+/* main */
+.main{flex:1;padding:24px;overflow-y:auto;max-width:1100px}
+/* login */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
+.login-card{background:var(--s);border:1px solid var(--bd);border-radius:16px;padding:48px 40px;text-align:center;width:360px}
+.login-card h2{font-size:22px;color:var(--gold);margin-bottom:8px}
+.login-card p{color:var(--mu);font-size:14px;margin-bottom:28px;line-height:1.6}
+/* page header */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:20px;font-weight:700}
+/* toolbar */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.search{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 14px;color:var(--t);font-size:14px;width:220px}
+.search:focus{outline:none;border-color:var(--gold)}
+.filter-sel{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 14px;color:var(--t);font-size:14px}
+/* table */
+.tbl-wrap{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:var(--s2);color:var(--mu);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:10px 14px;text-align:left;border-bottom:1px solid var(--bd)}
+td{padding:10px 14px;border-bottom:1px solid rgba(79,84,92,0.4);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.cell-name{font-weight:600;color:var(--t);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell-id{font-family:monospace;font-size:12px;color:var(--mu)}
+/* badge/status */
+.status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.status-open{background:rgba(67,181,129,0.15);color:var(--green)}
+.status-ended{background:rgba(79,84,92,0.4);color:var(--mu)}
+.status-ns{background:rgba(240,178,50,0.15);color:var(--gold)}
+.status-closed{background:rgba(237,66,69,0.15);color:var(--red)}
+.status-pending{background:rgba(230,126,34,0.15);color:var(--orange)}
+.type-badge{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.type-pub{background:rgba(67,181,129,0.2);color:var(--green)}
+.type-seal{background:rgba(155,89,182,0.2);color:var(--purple)}
+.type-low{background:rgba(230,126,34,0.2);color:var(--orange)}
+/* action buttons */
+.btn-row{display:flex;gap:6px}
+.btn{padding:5px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-edit{background:rgba(88,101,242,0.2);color:var(--blue)}
+.btn-edit:hover{background:rgba(88,101,242,0.35)}
+.btn-del{background:rgba(237,66,69,0.2);color:var(--red)}
+.btn-del:hover{background:rgba(237,66,69,0.35)}
+.btn-close{background:rgba(230,126,34,0.2);color:var(--orange)}
+.btn-close:hover{background:rgba(230,126,34,0.35)}
+/* fab */
+.fab{background:var(--gold);color:#1F2124;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+.fab:hover{background:#D4991F}
+/* empty */
+.empty{text-align:center;color:var(--mu);padding:40px;font-size:14px}
+/* modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
+.overlay.open{display:flex}
+.modal{background:var(--s);border:1px solid var(--bd);border-radius:12px;width:100%;max-width:700px;margin:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--bd)}
+.modal-header h3{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--mu);font-size:22px;cursor:pointer;line-height:1}
+.modal-close:hover{color:var(--t)}
+.modal-body{padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.modal-body .full{grid-column:span 2}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:10px}
+/* fields */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:0.04em}
+.field label .hint{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mu);font-size:11px;margin-left:4px}
+.field input,.field select,.field textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 12px;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--gold)}
+.field textarea{resize:vertical;min-height:70px;font-family:inherit}
+.field .role-hint{font-size:11px;color:var(--mu);margin-top:3px}
+/* form sections */
+.fsep{grid-column:span 2;font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+/* save/cancel btn */
+.btn-save{background:var(--gold);color:#1F2124;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+.btn-save:hover{background:#D4991F}
+.btn-save:disabled{background:var(--bd);color:var(--mu);cursor:not-allowed}
+.btn-cancel{background:transparent;color:var(--mu);border:1px solid var(--bd);padding:10px 16px;border-radius:8px;font-size:14px;cursor:pointer}
+.btn-cancel:hover{border-color:var(--t);color:var(--t)}
+/* toast */
+.toast{position:fixed;bottom:28px;right:28px;padding:14px 20px;border-radius:10px;font-weight:600;font-size:14px;opacity:0;transform:translateY(12px);transition:all 0.25s;z-index:999;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{background:var(--green);color:#fff}
+.toast.err{background:var(--red);color:#fff}
+/* add form page */
+.add-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.add-form .full{grid-column:span 2}
+.add-form .fsep{grid-column:span 2}
+.add-form .actions{grid-column:span 2;display:flex;gap:10px;margin-top:8px}
+.add-form .actions .btn-save{flex:1}
+.count-badge{background:var(--s2);color:var(--mu);font-size:12px;padding:3px 10px;border-radius:999px;margin-left:8px}
+/* discord btn */
+.btn-discord{background:var(--blue);color:#FFF;border:none;padding:13px 28px;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;width:100%}
+.btn-discord:hover{background:#4752C4}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <h2>🛡️ 管理後台</h2>
+    <p>此工具僅限授權管理員使用。<br>請以 Discord 帳號登入，系統將自動驗證您的權限。</p>
+    <button class="btn-discord" onclick="loginWithDiscord()">🎮 以 Discord 登入</button>
+  </div>
+</div>
+
+<div id="admin-app" style="display:none">
+  <div class="topbar">
+    <div class="brand">⚙️ Garbled 管理後台</div>
+    <div class="user-info">
+      <img id="ua-img" src=""><span id="ua-name"></span>
+      <span class="badge">管理員</span>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-item active" onclick="navTo('shop-list')">📦 商品管理</div>
+      <div class="nav-item" onclick="navTo('auction-list')">🔨 拍賣管理</div>
+      <hr class="nav-sep">
+      <div class="nav-item" onclick="navTo('add-shop')">➕ 新增商品</div>
+      <div class="nav-item" onclick="navTo('add-auction')">➕ 新增拍賣</div>
+    </div>
+    <div class="main" id="main-content">
+      <!-- 商品管理 -->
+      <div id="page-shop-list">
+        <div class="page-header">
+          <div class="page-title">📦 商品管理 <span class="count-badge" id="shop-count">—</span></div>
+          <div class="toolbar">
+            <input class="search" id="shop-search" placeholder="搜尋商品名稱..." oninput="renderShopTable()">
+            <select class="filter-sel" id="shop-cat-filter" onchange="renderShopTable()">
+              <option value="">全部分類</option>
+            </select>
+            <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>商品名稱</th><th>分類</th><th>價格</th><th>庫存</th><th>狀態</th><th>ID</th><th>操作</th></tr></thead>
+            <tbody id="shop-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 拍賣管理 -->
+      <div id="page-auction-list" style="display:none">
+        <div class="page-header">
+          <div class="page-title">🔨 拍賣管理 <span class="count-badge" id="auction-count">—</span></div>
+          <div class="toolbar">
+            <input class="search" id="auction-search" placeholder="搜尋拍賣名稱..." oninput="renderAuctionTable()">
+            <select class="filter-sel" id="auction-cat-filter" onchange="renderAuctionTable()">
+              <option value="">全部分類</option>
+            </select>
+            <button class="fab" onclick="navTo('add-auction')">➕ 新增拍賣</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>拍賣名稱</th><th>類型</th><th>分類</th><th>起標價</th><th>目前最高</th><th>結束時間</th><th>狀態</th><th>ID</th><th>操作</th></tr></thead>
+            <tbody id="auction-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 新增商品 -->
+      <div id="page-add-shop" style="display:none">
+        <div class="page-header"><div class="page-title">➕ 新增商品</div></div>
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="add-form" id="add-shop-form">
+            <div class="fsep">基本資訊</div>
+            <div class="field full"><label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][測試]標籤</span></label><input id="ns-name" type="text" placeholder="例：7日優越童話通行證"></div>
+            <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
+            <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="升階2" list="dc-list"><datalist id="dc-list"></datalist></div>
+            <div class="field"><label>分類</label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
+            <div class="field"><label>庫存 <span class="hint">留空=無限</span></label><input id="ns-stock" placeholder="無限"></div>
+            <div class="fsep">時間（可選）</div>
+            <div class="field"><label>開始時間</label><input id="ns-sdate" type="datetime-local"></div>
+            <div class="field"><label>結束時間</label><input id="ns-edate" type="datetime-local"></div>
+            <div class="fsep">限購（留空=不限）</div>
+            <div class="field"><label>全服每日</label><input id="ns-lgd" type="number" min="1"></div>
+            <div class="field"><label>全服每週</label><input id="ns-lgw" type="number" min="1"></div>
+            <div class="field"><label>全服每月</label><input id="ns-lgm" type="number" min="1"></div>
+            <div class="field"><label>個人每日</label><input id="ns-lpd" type="number" min="1"></div>
+            <div class="field"><label>個人每週</label><input id="ns-lpw" type="number" min="1"></div>
+            <div class="field"><label>個人每月</label><input id="ns-lpm" type="number" min="1"></div>
+            <div class="field"><label>終身（個人）</label><input id="ns-lpt" type="number" min="1"></div>
+            <div class="fsep">獎勵設定</div>
+            <div class="field"><label>固定獎勵變數名 <span class="hint">盲盒留空</span></label><input id="ns-rvar" placeholder="例：升階2"></div>
+            <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="ns-rqty" placeholder="固定獎勵填數量&#10;盲盒依商店格式填入"></textarea></div>
+            <div class="fsep">其他</div>
+            <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
+            <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
+            <div class="field"><label>限定身分組</label><input id="ns-role" list="ri-list" placeholder="留空=不限"><datalist id="ri-list"></datalist><div class="role-hint" id="ns-role-hint"></div></div>
+            <div class="field"><label>選一群組</label><input id="ns-excl" placeholder="留空=不限"></div>
+            <div class="actions"><button class="btn-cancel" onclick="resetAddShop()">清空</button><button class="btn-save" id="ns-btn" onclick="submitAddShop()">➕ 新增到試算表</button></div>
+          </div>
+        </div>
+      </div>
+      <!-- 新增拍賣 -->
+      <div id="page-add-auction" style="display:none">
+        <div class="page-header"><div class="page-title">➕ 新增拍賣</div></div>
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="add-form" id="add-auction-form">
+            <div class="fsep">基本資訊</div>
+            <div class="field full"><label>拍賣名稱<span style="color:var(--red)">*</span></label><input id="na-name" type="text" placeholder="例：星之支配者頭冠(煉金)"></div>
+            <div class="field"><label>起標價<span style="color:var(--red)">*</span></label><input id="na-bid" type="number" min="0" placeholder="0"></div>
+            <div class="field"><label>貨幣欄位</label><input id="na-currency" value="升階2" list="dc-list"></div>
+            <div class="field"><label>拍賣類型</label><select id="na-type"><option value="PUBLIC">📢 公開比價（高者得）</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW">🔻 暗標（低者得）</option></select></div>
+            <div class="field"><label>分類</label><input id="na-cat" list="ac-list"><datalist id="ac-list"></datalist></div>
+            <div class="fsep">時間設定</div>
+            <div class="field"><label>起標時間 <span class="hint">留空=立即</span></label><input id="na-sdate" type="datetime-local"></div>
+            <div class="field"><label>結束時間<span style="color:var(--red)">*</span></label><input id="na-edate" type="datetime-local"></div>
+            <div class="field"><label>最後幾分鐘有出價延長</label><input id="na-ext1" type="number" min="1" placeholder="例：5"></div>
+            <div class="field"><label>延長幾分鐘</label><input id="na-ext2" type="number" min="1" placeholder="例：10"></div>
+            <div class="fsep">其他</div>
+            <div class="field full"><label>圖片網址</label><input id="na-img" type="url"></div>
+            <div class="field full"><label>備註</label><textarea id="na-remark"></textarea></div>
+            <div class="field full"><label>限定身分組</label><input id="na-role" list="ri-list" placeholder="留空=不限"><div class="role-hint" id="na-role-hint"></div></div>
+            <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-save" id="na-btn" onclick="submitAddAuction()">➕ 新增到試算表</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 商品編輯 modal -->
+<div class="overlay" id="shop-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>✏️ 編輯商品</h3><button class="modal-close" onclick="closeModal('shop-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="full field"><label>商品名稱</label><input id="em-name" type="text"></div>
+      <div class="field"><label>價格</label><input id="em-price" type="number" min="0"></div>
+      <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
+      <div class="field"><label>分類</label><input id="em-category" list="sc-list"></div>
+      <div class="field"><label>庫存</label><input id="em-stock"></div>
+      <div class="fsep">時間</div>
+      <div class="field"><label>開始時間</label><input id="em-sdate" type="datetime-local"></div>
+      <div class="field"><label>結束時間</label><input id="em-edate" type="datetime-local"></div>
+      <div class="fsep">限購（留空=不限）</div>
+      <div class="field"><label>全服每日</label><input id="em-lgd" type="number" min="1"></div>
+      <div class="field"><label>全服每週</label><input id="em-lgw" type="number" min="1"></div>
+      <div class="field"><label>全服每月</label><input id="em-lgm" type="number" min="1"></div>
+      <div class="field"><label>個人每日</label><input id="em-lpd" type="number" min="1"></div>
+      <div class="field"><label>個人每週</label><input id="em-lpw" type="number" min="1"></div>
+      <div class="field"><label>個人每月</label><input id="em-lpm" type="number" min="1"></div>
+      <div class="field"><label>終身（個人）</label><input id="em-lpt" type="number" min="1"></div>
+      <div class="fsep">獎勵</div>
+      <div class="field"><label>固定獎勵變數名</label><input id="em-rvar"></div>
+      <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="em-rqty"></textarea></div>
+      <div class="fsep">其他</div>
+      <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
+      <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
+      <div class="field"><label>限定身分組</label><input id="em-role" list="ri-list"><div class="role-hint" id="em-role-hint"></div></div>
+      <div class="field"><label>選一群組</label><input id="em-excl"></div>
+      <input type="hidden" id="em-id">
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('shop-modal')">取消</button><button class="btn-save" id="em-save" onclick="saveShopItem()">💾 儲存變更</button></div>
+  </div>
+</div>
+
+<!-- 拍賣編輯 modal -->
+<div class="overlay" id="auction-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>✏️ 編輯拍賣</h3><button class="modal-close" onclick="closeModal('auction-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="full field"><label>拍賣名稱</label><input id="ea-name" type="text"></div>
+      <div class="field"><label>起標價</label><input id="ea-bid" type="number" min="0"></div>
+      <div class="field"><label>貨幣欄位</label><input id="ea-currency" list="dc-list"></div>
+      <div class="field"><label>拍賣類型</label><select id="ea-type"><option value="PUBLIC">📢 公開比價</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW">🔻 暗標（低者得）</option></select></div>
+      <div class="field"><label>分類</label><input id="ea-cat" list="ac-list"></div>
+      <div class="fsep">時間</div>
+      <div class="field"><label>起標時間</label><input id="ea-sdate" type="datetime-local"></div>
+      <div class="field"><label>結束時間</label><input id="ea-edate" type="datetime-local"></div>
+      <div class="field"><label>最後幾分鐘有出價延長</label><input id="ea-ext1" type="number" min="1"></div>
+      <div class="field"><label>延長幾分鐘</label><input id="ea-ext2" type="number" min="1"></div>
+      <div class="fsep">其他</div>
+      <div class="full field"><label>圖片網址</label><input id="ea-img" type="url"></div>
+      <div class="full field"><label>備註</label><textarea id="ea-remark"></textarea></div>
+      <div class="full field"><label>限定身分組</label><input id="ea-role" list="ri-list"><div class="role-hint" id="ea-role-hint"></div></div>
+      <input type="hidden" id="ea-id">
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('auction-modal')">取消</button><button class="btn-save" id="ea-save" onclick="saveAuction()">💾 儲存變更</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GAS = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
+const CLIENT_ID = '1365601646448607335';
+const ADMIN_IDS = ['176681551189377024'];
+let ME = null, ROLES = {}, shopItems = [], auctionItems = [];
+
+// ── Auth ──
+function loginWithDiscord() {
+  const st = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('s', st);
+  location.href = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(location.origin+location.pathname)}&response_type=token&scope=identify&state=${st}`;
+}
+
+async function init() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  const tok = h.get('access_token');
+  if (!tok) return;
+  history.replaceState({}, '', location.pathname);
+  const u = await (await fetch('https://discord.com/api/users/@me', {headers:{Authorization:`Bearer ${tok}`}})).json();
+  if (!ADMIN_IDS.includes(u.id)) { alert('❌ 您沒有管理員權限'); return; }
+  ME = u;
+  document.getElementById('ua-img').src = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`;
+  document.getElementById('ua-name').textContent = u.global_name || u.username;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-app').style.display = 'block';
+  await loadMeta();
+  loadShopItems();
+}
+
+async function api(params) {
+  const p = new URLSearchParams({...params, discordId: ME.id});
+  const r = await fetch(`${GAS}?${p}`);
+  return r.json();
+}
+
+// ── Meta ──
+async function loadMeta() {
+  const d = await api({action:'adminGetMeta'});
+  if (d.status !== 'success') return;
+  ROLES = {};
+  d.roles.forEach(r => { ROLES[r.id] = r.name; });
+
+  const ri = document.getElementById('ri-list');
+  ri.innerHTML = '';
+  d.roles.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.label = `${r.name} (${r.id})`; ri.appendChild(o); });
+
+  const dc = document.getElementById('dc-list');
+  d.playerHeaders.forEach(h => { if (h && !h.toString().startsWith('DC')) { const o=document.createElement('option'); o.value=h; dc.appendChild(o); }});
+
+  const sc = document.getElementById('sc-list');
+  d.shopCategories.forEach(c => { const o=document.createElement('option'); o.value=c; sc.appendChild(o); });
+  document.getElementById('shop-cat-filter').innerHTML = '<option value="">全部分類</option>' + d.shopCategories.map(c => `<option>${c}</option>`).join('');
+
+  const ac = document.getElementById('ac-list');
+  d.auctionCategories.forEach(c => { const o=document.createElement('option'); o.value=c; ac.appendChild(o); });
+  document.getElementById('auction-cat-filter').innerHTML = '<option value="">全部分類</option>' + d.auctionCategories.map(c => `<option>${c}</option>`).join('');
+
+  // role hint on all role inputs
+  ['ns-role','na-role','em-role','ea-role'].forEach(id => {
+    const el = document.getElementById(id);
+    const hint = document.getElementById(id + '-hint');
+    if (el && hint) el.addEventListener('input', () => {
+      const ids = el.value.replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
+      hint.textContent = ids.map(i => ROLES[i] ? `👤 ${ROLES[i]}` : '').filter(Boolean).join('  ') || '';
+    });
+  });
+}
+
+// ── Navigation ──
+const pages = ['shop-list','auction-list','add-shop','add-auction'];
+function navTo(p) {
+  pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
+  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['shop-list','auction-list','add-shop','add-auction'][i] === p));
+  if (p==='shop-list') loadShopItems();
+  if (p==='auction-list') loadAuctionItems();
+}
+
+// ── Toast ──
+function toast(msg, ok=true) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${ok?'ok':'err'} show`;
+  setTimeout(()=>t.className='toast', 3000);
+}
+
+// ── Modal ──
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Shop ──
+async function loadShopItems() {
+  document.getElementById('shop-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
+  const d = await api({action:'adminGetShopItems'});
+  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
+  shopItems = d.items;
+  document.getElementById('shop-count').textContent = shopItems.length + ' 件';
+  renderShopTable();
+}
+
+function renderShopTable() {
+  const q = document.getElementById('shop-search').value.toLowerCase();
+  const cat = document.getElementById('shop-cat-filter').value;
+  const items = shopItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!cat || i.category === cat));
+  const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
+  document.getElementById('shop-tbody').innerHTML = items.length === 0
+    ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
+    : items.map(i => `<tr>
+      <td class="cell-name" title="${i.name}">${i.name}</td>
+      <td>${i.category||'—'}</td>
+      <td>${i.price}</td>
+      <td>${i.stock||'無限'}</td>
+      <td>${stateLabel[i.state]||''}</td>
+      <td class="cell-id">${i.itemId||'—'}</td>
+      <td><div class="btn-row">
+        <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
+        <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openEditShop(itemId) {
+  const i = shopItems.find(x => x.itemId === itemId);
+  if (!i) return;
+  const f = id => document.getElementById(id);
+  f('em-id').value=i.itemId; f('em-name').value=i.name; f('em-price').value=i.price;
+  f('em-currency').value=i.currency||'升階2'; f('em-category').value=i.category||'';
+  f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
+  f('em-sdate').value=i.startDate||''; f('em-edate').value=i.endDate||'';
+  f('em-lgd').value=i.limitGD||''; f('em-lgm').value=i.limitGM||'';
+  f('em-lpd').value=i.limitPD||''; f('em-lpm').value=i.limitPM||'';
+  f('em-lgw').value=i.limitGW||''; f('em-lpw').value=i.limitPW||'';
+  f('em-lpt').value=i.limitPT||''; f('em-rvar').value=i.rewardVar||'';
+  f('em-rqty').value=i.rewardQty||''; f('em-img').value=i.imageUrl||'';
+  f('em-remark').value=i.remark||''; f('em-role').value=i.requiredRole||'';
+  f('em-excl').value=i.exclusiveGroup||'';
+  const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
+  f('em-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
+  document.getElementById('shop-modal').classList.add('open');
+}
+
+async function saveShopItem() {
+  const f = id => document.getElementById(id).value;
+  const btn = document.getElementById('em-save');
+  btn.disabled=true; btn.textContent='儲存中...';
+  const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
+    currency:f('em-currency'),category:f('em-category'),stock:f('em-stock'),
+    startDate:f('em-sdate'),endDate:f('em-edate'),
+    limitGD:f('em-lgd'),limitGM:f('em-lgm'),limitPD:f('em-lpd'),limitPM:f('em-lpm'),
+    limitGW:f('em-lgw'),limitPW:f('em-lpw'),limitPT:f('em-lpt'),
+    rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
+    remark:f('em-remark'),requiredRole:f('em-role'),exclusiveGroup:f('em-excl')});
+  btn.disabled=false; btn.textContent='💾 儲存變更';
+  if (d.status==='success') { toast('✅ 商品已更新'); closeModal('shop-modal'); loadShopItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+async function delShopItem(id, name) {
+  if (!confirm(`確定要刪除「${name}」嗎？此操作無法還原。`)) return;
+  const d = await api({action:'adminDeleteShopItem', itemId:id});
+  if (d.status==='success') { toast('🗑️ 商品已刪除'); loadShopItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+// ── Auction ──
+async function loadAuctionItems() {
+  document.getElementById('auction-tbody').innerHTML = '<tr><td colspan="9" class="empty">讀取中...</td></tr>';
+  const d = await api({action:'adminGetAuctions'});
+  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
+  auctionItems = d.auctions;
+  document.getElementById('auction-count').textContent = auctionItems.length + ' 場';
+  renderAuctionTable();
+}
+
+function renderAuctionTable() {
+  const q = document.getElementById('auction-search').value.toLowerCase();
+  const cat = document.getElementById('auction-cat-filter').value;
+  const items = auctionItems.filter(i => (!q||i.name.toLowerCase().includes(q)) && (!cat||(i.category||'')=== cat));
+  const typeLabel = {PUBLIC:'<span class="type-badge type-pub">公開</span>',SEALED:'<span class="type-badge type-seal">暗標↑</span>',SEALED_LOW:'<span class="type-badge type-low">暗標↓</span>'};
+  const stateLabel = {open:'<span class="status status-open">● 進行中</span>',ended:'<span class="status status-ended">● 已結標</span>',not_started:'<span class="status status-ns">● 未開始</span>',closed:'<span class="status status-closed">● 已關閉</span>',pending:'<span class="status status-pending">● 待結算</span>'};
+  document.getElementById('auction-tbody').innerHTML = items.length===0
+    ? '<tr><td colspan="9" class="empty">沒有符合條件的拍賣</td></tr>'
+    : items.map(i => `<tr>
+      <td class="cell-name" title="${i.name}">${i.name}</td>
+      <td>${typeLabel[i.type]||i.type}</td>
+      <td>${i.category||'—'}</td>
+      <td>${i.startBid}</td>
+      <td>${i.currentHighBid||'—'}</td>
+      <td>${i.endDate||'—'}</td>
+      <td>${stateLabel[i.state]||''}</td>
+      <td class="cell-id">${i.auctionId||'—'}</td>
+      <td><div class="btn-row">
+        <button class="btn btn-edit" onclick="openEditAuction('${i.auctionId}')">編輯</button>
+        ${i.state==='open'?`<button class="btn btn-close" onclick="closeAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">關閉</button>`:''}
+        <button class="btn btn-del" onclick="delAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function openEditAuction(auctionId) {
+  const i = auctionItems.find(x => x.auctionId === auctionId);
+  if (!i) return;
+  const f = id => document.getElementById(id);
+  f('ea-id').value=i.auctionId; f('ea-name').value=i.name; f('ea-bid').value=i.startBid;
+  f('ea-type').value=i.type||'PUBLIC'; f('ea-cat').value=i.category||'';
+  f('ea-currency').value=i.currency||'升階2'; f('ea-sdate').value=i.startDate||'';
+  f('ea-edate').value=i.endDate||''; f('ea-ext1').value=i.extendTrigger||'';
+  f('ea-ext2').value=i.extendBy||''; f('ea-img').value=i.imageUrl||'';
+  f('ea-remark').value=i.remark||''; f('ea-role').value=i.requiredRole||'';
+  const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
+  f('ea-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
+  document.getElementById('auction-modal').classList.add('open');
+}
+
+async function saveAuction() {
+  const f = id => document.getElementById(id).value;
+  const btn = document.getElementById('ea-save');
+  btn.disabled=true; btn.textContent='儲存中...';
+  const d = await api({action:'adminUpdateAuction',auctionId:f('ea-id'),name:f('ea-name'),startBid:f('ea-bid'),
+    type:f('ea-type'),category:f('ea-cat'),currency:f('ea-currency'),
+    startDate:f('ea-sdate'),endDate:f('ea-edate'),
+    extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
+    imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:f('ea-role')});
+  btn.disabled=false; btn.textContent='💾 儲存變更';
+  if (d.status==='success') { toast('✅ 拍賣已更新'); closeModal('auction-modal'); loadAuctionItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+async function closeAuction(id, name) {
+  if (!confirm(`確定要手動關閉「${name}」嗎？關閉後下次定時結算會自動退款並通知得標者。`)) return;
+  const d = await api({action:'adminCloseAuction', auctionId:id});
+  if (d.status==='success') { toast('🔒 拍賣已關閉'); loadAuctionItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+async function delAuction(id, name) {
+  if (!confirm(`確定要刪除「${name}」嗎？注意：若有玩家出價且未退款，請先手動退款。`)) return;
+  const d = await api({action:'adminDeleteAuction', auctionId:id});
+  if (d.status==='success') { toast('🗑️ 拍賣已刪除'); loadAuctionItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+// ── Add Shop ──
+function resetAddShop() {
+  ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
+   'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
+   'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('ns-currency').value='升階2';
+}
+async function submitAddShop() {
+  const f=id=>document.getElementById(id).value;
+  if (!f('ns-name')) { toast('請填寫商品名稱', false); return; }
+  if (f('ns-price')==='') { toast('請填寫價格', false); return; }
+  const btn=document.getElementById('ns-btn'); btn.disabled=true; btn.textContent='新增中...';
+  const d=await api({action:'adminAddShopItem',name:f('ns-name'),price:f('ns-price'),
+    currency:f('ns-currency'),category:f('ns-category'),stock:f('ns-stock'),
+    startDate:f('ns-sdate'),endDate:f('ns-edate'),
+    limitGD:f('ns-lgd'),limitGM:f('ns-lgm'),limitPD:f('ns-lpd'),limitPM:f('ns-lpm'),
+    limitGW:f('ns-lgw'),limitPW:f('ns-lpw'),limitPT:f('ns-lpt'),
+    rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
+    remark:f('ns-remark'),requiredRole:f('ns-role'),exclusiveGroup:f('ns-excl')});
+  btn.disabled=false; btn.textContent='➕ 新增到試算表';
+  if (d.status==='success') { toast(`✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
+  else toast('❌ '+d.message, false);
+}
+
+// ── Add Auction ──
+function resetAddAuction() {
+  ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('na-currency').value='升階2';
+  document.getElementById('na-type').value='PUBLIC';
+}
+async function submitAddAuction() {
+  const f=id=>document.getElementById(id).value;
+  if (!f('na-name')) { toast('請填寫拍賣名稱', false); return; }
+  if (f('na-bid')==='') { toast('請填寫起標價', false); return; }
+  if (!f('na-edate')) { toast('請填寫結束時間', false); return; }
+  const btn=document.getElementById('na-btn'); btn.disabled=true; btn.textContent='新增中...';
+  const d=await api({action:'adminAddAuction',name:f('na-name'),startBid:f('na-bid'),
+    type:f('na-type'),category:f('na-cat'),currency:f('na-currency'),
+    startDate:f('na-sdate'),endDate:f('na-edate'),
+    extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
+    imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:f('na-role')});
+  btn.disabled=false; btn.textContent='➕ 新增到試算表';
+  if (d.status==='success') { toast(`✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
+  else toast('❌ '+d.message, false);
+}
+
+// close modal on overlay click
+document.querySelectorAll('.overlay').forEach(el => el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); }));
+
+init();
+</script>
+</body>
+</html>
