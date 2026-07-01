@@ -550,9 +550,16 @@
       });
       const allCategories = rawCategories;
 
-      // 🌟 分類分享:檢查網址是否帶入指定要跳轉的拍賣分類
+      // 🌟 分類分享 / 拍賣分享:分享特定拍賣時要優先切到該拍賣的分類,
+      // 不然如果目前分類跟拍賣所在分類不同,會被篩選濾掉、導致捲動定位永遠找不到卡片
       const targetAuctionCategory = localStorage.getItem('shared_auction_category_target');
-      if (targetAuctionCategory && allCategories.includes(targetAuctionCategory)) {
+      const targetAuctionIdForCat = localStorage.getItem('shared_auction_target');
+      const targetAuctionForCat = targetAuctionIdForCat ? currentAuctions.find(a => a.id === targetAuctionIdForCat) : null;
+
+      if (targetAuctionForCat) {
+        currentAuctionCategory = targetAuctionForCat.category || '未分類';
+        localStorage.removeItem('shared_auction_category_target');
+      } else if (targetAuctionCategory && allCategories.includes(targetAuctionCategory)) {
         currentAuctionCategory = targetAuctionCategory;
         localStorage.removeItem('shared_auction_category_target');
       } else {
@@ -580,6 +587,7 @@
       if (!displayAuctions || displayAuctions.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前沒有拍賣品</p>';
         updateAuctionCountdowns();
+        localStorage.removeItem('shared_auction_target'); // 🌟 沒有東西可以捲動定位,清掉避免下次一直重複觸發
         return;
       }
       container.innerHTML = '';
@@ -903,10 +911,17 @@ function fetchScoresAndShop(discordId, callback = null) {
             CATEGORY_ORDER = shopData.categoryOrder;
           }
 
-          // 🌟 【新增】檢查是否有待跳轉的分享分類
+          // 🌟 檢查是否有待跳轉的分享分類 / 分享商品(分享特定商品時要優先切到該商品的分類,
+          // 不然如果目前分類跟商品所在分類不同,商品會被篩選濾掉、導致捲動定位永遠找不到卡片)
           const allCats = Array.from(new Set(currentShopItems.map(item => item.category)));
           const targetCategory = localStorage.getItem('shared_category_target');
-          if (targetCategory && allCats.includes(targetCategory)) {
+          const targetItemId = localStorage.getItem('shared_item_target');
+          const targetItem = targetItemId ? currentShopItems.find(item => item.id === targetItemId) : null;
+
+          if (targetItem && targetItem.category) {
+            currentCategory = targetItem.category;
+            localStorage.removeItem('shared_category_target');
+          } else if (targetCategory && allCats.includes(targetCategory)) {
             currentCategory = targetCategory;
             localStorage.removeItem('shared_category_target');
           } else {
