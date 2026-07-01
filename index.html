@@ -564,7 +564,7 @@
             ? `目前最高出價：<span class="auction-bid-value">${a.currentHighBid} ${a.displayCurrency}</span>${a.currentHighBidderName ? ` (👤 ${a.currentHighBidderName})` : ''}`
             : `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（尚無人出價）`;
         } else if (a.type === 'SEALED_LOW') {
-          priceInfoHtml = `起標價(上限)：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價越低越有機會得標，金額互相保密）`;
+          priceInfoHtml = `起標價(上限)：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價越低越有機會得標，金額互相保密；若與他人出價金額相同會互相淘汰，改由下一個不重複的最低價得標）`;
         } else {
           priceInfoHtml = `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價金額互相保密）`;
         }
@@ -574,7 +574,7 @@
         if (a.state === 'ended') {
           if (a.winnerIsMe) statusHtml = `<div class="auction-status win">🎉 恭喜！您以 ${a.winningBid} ${a.displayCurrency} 得標！</div>`;
           else if (a.winningBid !== null) statusHtml = `<div class="auction-status lose">已結標，未得標</div>`;
-          else statusHtml = `<div class="auction-status lose">流標（無人出價）</div>`;
+          else statusHtml = `<div class="auction-status lose">流標（無人出價，或暗標(低者得)出價互撞找不到唯一得標者）</div>`;
         } else if (a.state === 'pending_settlement') {
           statusHtml = `<div class="auction-status">⏳ 拍賣已截止，等待系統結算中...</div>`;
         } else if (a.state === 'not_started') {
