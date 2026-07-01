@@ -291,6 +291,7 @@
       const shareTarget = urlParams.get('item');
       const shareCategory = urlParams.get('category'); 
       const shareAuctionId = urlParams.get('auction');
+      const shareAuctionCategoryParam = urlParams.get('auctionCategory');
 
       let shouldCleanUrl = false;
       
@@ -306,6 +307,11 @@
 
       if (shareAuctionId) {
         localStorage.setItem('shared_auction_target', shareAuctionId);
+        shouldCleanUrl = true;
+      }
+
+      if (shareAuctionCategoryParam) {
+        localStorage.setItem('shared_auction_category_target', shareAuctionCategoryParam);
         shouldCleanUrl = true;
       }
 
@@ -479,13 +485,12 @@
     // ============================================================
     let currentAuctions = [];
     let auctionCountdownInterval = null;
-    let currentAuctionCategory = null; // 🌟 目前選中的拍賣分類,null=全部
+    let currentAuctionCategory = null; // 🌟 目前選中的拍賣分類;不再有「全部」選項,載入後會自動選第一個分類
     let AUCTION_CATEGORY_ORDER = []; // 🌟 拍賣分類排序(從分類排序表B欄讀取)
 
     function showAuctions() {
       if (!currentUser) return;
       document.getElementById('auction-modal').style.display = 'flex';
-      currentAuctionCategory = null;
       document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
       document.getElementById('auction-category-tabs').style.display = 'none';
       loadAuctions();
@@ -532,11 +537,24 @@
         return ia - ib;
       });
       const allCategories = rawCategories;
+
+      // 🌟 分類分享:檢查網址是否帶入指定要跳轉的拍賣分類
+      const targetAuctionCategory = localStorage.getItem('shared_auction_category_target');
+      if (targetAuctionCategory && allCategories.includes(targetAuctionCategory)) {
+        currentAuctionCategory = targetAuctionCategory;
+        localStorage.removeItem('shared_auction_category_target');
+      } else {
+        localStorage.removeItem('shared_auction_category_target');
+        // 🌟 沒有分類分享目標時,不再有「全部」分類,預設選排序後的第一個分類
+        if (!currentAuctionCategory || !allCategories.includes(currentAuctionCategory)) {
+          currentAuctionCategory = allCategories[0] || null;
+        }
+      }
+
       const tabsEl = document.getElementById('auction-category-tabs');
       if (allCategories.length > 1) {
         tabsEl.style.display = 'flex';
-        tabsEl.innerHTML = `<div class="auction-cat-tab ${currentAuctionCategory === null ? 'active' : ''}" onclick="selectAuctionCategory(null)">全部</div>` +
-          allCategories.map(cat => `<div class="auction-cat-tab ${currentAuctionCategory === cat ? 'active' : ''}" onclick="selectAuctionCategory('${cat.replace(/'/g, "\\'")}')">${cat}</div>`).join('');
+        tabsEl.innerHTML = allCategories.map(cat => `<div class="auction-cat-tab ${currentAuctionCategory === cat ? 'active' : ''}" onclick="selectAuctionCategory('${cat.replace(/'/g, "\\'")}')">${cat} <span class="btn-share-cat" onclick="shareAuctionCategory(event, '${cat.replace(/'/g, "\\'")}')" title="分享此分類">🔗</span></div>`).join('');
       } else {
         tabsEl.style.display = 'none';
       }
@@ -838,10 +856,11 @@ function fetchScoresAndShop(discordId, callback = null) {
           }, 600); // 等待畫面渲染一下再滑動
         }
 
-        // 🌟 檢查是否有待跳轉的分享拍賣
+        // 🌟 檢查是否有待跳轉的分享拍賣或分享拍賣分類
         const targetAuctionId = localStorage.getItem('shared_auction_target');
-        if (targetAuctionId) {
-          showAuctions(); // 自動開啟拍賣會彈窗,裡面渲染完成後會自己捲動定位高亮(見renderAuctions)
+        const targetAuctionCategory = localStorage.getItem('shared_auction_category_target');
+        if (targetAuctionId || targetAuctionCategory) {
+          showAuctions(); // 自動開啟拍賣會彈窗,裡面渲染完成後會自己捲動定位高亮/切換分類(見renderAuctions)
         }
       })
       .catch(err => {
@@ -1181,6 +1200,23 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.body.removeChild(tmp);
 
       alert(`🔗 已複製分類【${displayCatName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
+    }
+    // 🌟 複製拍賣分類專屬網址 (新增)
+    function shareAuctionCategory(event, catName) {
+      event.stopPropagation(); // 避免觸發上層的 onclick 切換分類
+
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?auctionCategory=${encodeURIComponent(catName)}`;
+
+      // 建立隱藏輸入框來執行複製動作
+      const tmp = document.createElement("input");
+      tmp.value = shareUrl;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand("copy");
+      document.body.removeChild(tmp);
+
+      alert(`🔗 已複製拍賣分類【${catName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
     }
   </script>
 </body>
