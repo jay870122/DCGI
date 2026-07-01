@@ -348,6 +348,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
             <div class="field"><label>限定身分組</label><input id="ns-role" list="ri-list" placeholder="留空=不限"><datalist id="ri-list"></datalist><div class="role-hint" id="ns-role-hint"></div></div>
             <div class="field"><label>選一群組</label><input id="ns-excl" placeholder="留空=不限"></div>
+            <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
+            <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ns-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
+            <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="ns-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              💱 玩家兌換這個商品時,可以用上面指定的替代貨幣(例如拍賣幣)折抵部分或全部價格,剩下的才用原本標價的貨幣扣。<br>
+              例如匯率填 <code>1</code>,代表 1 個替代幣可以折抵 1 個原始貨幣；玩家可以選擇「自動用掉手上所有替代幣」或「自訂要折抵多少」,系統會自動算出折抵後還要付多少原始貨幣。
+            </div>
             <div class="actions"><button class="btn-cancel" onclick="resetAddShop()">清空</button><button class="btn-cancel" id="ns-draft-btn" onclick="submitAddShop('DRAFT')">📝 存為草稿</button><button class="btn-save" id="ns-btn" onclick="submitAddShop(null)">➕ 新增到試算表</button></div>
           </div>
         </div>
@@ -441,6 +448,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
       <div class="field"><label>限定身分組</label><input id="em-role" list="ri-list"><div class="role-hint" id="em-role-hint"></div></div>
       <div class="field"><label>選一群組</label><input id="em-excl"></div>
+      <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
+      <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="em-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
+      <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="em-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
       <input type="hidden" id="em-id">
       <input type="hidden" id="em-sortorder">
     </div>
@@ -639,7 +649,7 @@ function renderShopTable() {
   document.getElementById('shop-tbody').innerHTML = items.length === 0
     ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}</td>
+      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
       <td data-label="庫存">${i.stock||'無限'}</td>
@@ -670,6 +680,7 @@ function openEditShop(itemId) {
   f('em-rqty').value=i.rewardQty||''; f('em-img').value=i.imageUrl||'';
   f('em-remark').value=i.remark||''; f('em-role').value=i.requiredRole||'';
   f('em-excl').value=i.exclusiveGroup||'';
+  f('em-altcurrency').value=i.altCurrency||''; f('em-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
   const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
   f('em-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
   document.getElementById('shop-modal').classList.add('open');
@@ -681,6 +692,7 @@ async function saveShopItem() {
   const f = id => document.getElementById(id).value;
   const nonInstantErr = checkNonInstantRule(f('em-name'), f('em-rvar'));
   if (nonInstantErr) { alert(nonInstantErr); return; }
+  if (f('em-altcurrency') && !(parseFloat(f('em-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
   const btn = document.getElementById('em-save');
   btn.disabled=true; btn.textContent='儲存中...';
   const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
@@ -690,7 +702,8 @@ async function saveShopItem() {
     limitGD:f('em-lgd'),limitGM:f('em-lgm'),limitPD:f('em-lpd'),limitPM:f('em-lpm'),
     limitGW:f('em-lgw'),limitPW:f('em-lpw'),limitPT:f('em-lpt'),
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
-    remark:f('em-remark'),requiredRole:f('em-role'),exclusiveGroup:f('em-excl')});
+    remark:f('em-remark'),requiredRole:f('em-role'),exclusiveGroup:f('em-excl'),
+    altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -707,7 +720,8 @@ async function publishShopItem(itemId) {
     limitGD:i.limitGD,limitGM:i.limitGM,limitPD:i.limitPD,limitPM:i.limitPM,
     limitGW:i.limitGW,limitPW:i.limitPW,limitPT:i.limitPT,
     rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
-    remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup});
+    remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
+    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate});
   if (d.status==='success') { toast('🚀 已上架'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
@@ -823,7 +837,8 @@ async function delAuction(id, name) {
 function resetAddShop() {
   ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
-   'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl'].forEach(id => document.getElementById(id).value='');
+   'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
+   'ns-altcurrency','ns-altrate'].forEach(id => document.getElementById(id).value='');
   document.getElementById('ns-currency').value='升階2';
   document.getElementById('ns-status').value='';
   renderGachaPreview('ns-rqty', 'ns-rqty-preview');
@@ -843,6 +858,7 @@ async function submitAddShop(forceStatus) {
   if (!f('ns-name')) { toast('請填寫商品名稱', false); return; }
   const nonInstantErr = checkNonInstantRule(f('ns-name'), f('ns-rvar'));
   if (nonInstantErr) { alert(nonInstantErr); return; }
+  if (f('ns-altcurrency') && !(parseFloat(f('ns-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
   const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('ns-status');
   const isDraft = status === 'DRAFT';
   if (!isDraft && f('ns-price')==='') { toast('請填寫價格', false); return; }
@@ -856,7 +872,8 @@ async function submitAddShop(forceStatus) {
     limitGD:f('ns-lgd'),limitGM:f('ns-lgm'),limitPD:f('ns-lpd'),limitPM:f('ns-lpm'),
     limitGW:f('ns-lgw'),limitPW:f('ns-lpw'),limitPT:f('ns-lpt'),
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
-    remark:f('ns-remark'),requiredRole:f('ns-role'),exclusiveGroup:f('ns-excl')});
+    remark:f('ns-remark'),requiredRole:f('ns-role'),exclusiveGroup:f('ns-excl'),
+    altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
@@ -1003,9 +1020,9 @@ function setupFieldAutosave(fieldIds, keyFn) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-altcurrency','ns-altrate'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl','em-altcurrency','em-altrate'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role'];
 
