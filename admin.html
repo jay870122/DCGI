@@ -113,6 +113,32 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 /* discord btn */
 .btn-discord{background:var(--blue);color:#FFF;border:none;padding:13px 28px;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;width:100%}
 .btn-discord:hover{background:#4752C4}
+/* draft status */
+.status-draft{background:rgba(114,118,125,0.25);color:var(--t)}
+/* sortable table headers */
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--t)}
+th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
+/* gacha guide + live preview */
+.gacha-guide{grid-column:span 2;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--mu);line-height:1.7;margin-top:-4px}
+.gacha-guide code{background:rgba(255,255,255,0.06);color:var(--gold);padding:1px 5px;border-radius:4px;font-family:monospace}
+.gacha-preview{grid-column:span 2;border-radius:var(--r);padding:10px 14px;font-size:12px;line-height:1.8;margin-top:-4px;border:1px solid var(--bd);background:var(--s2)}
+.gacha-preview.ok{border-color:rgba(67,181,129,0.4)}
+.gacha-preview.warn{border-color:rgba(237,66,69,0.5)}
+.gacha-preview .gp-line{color:var(--mu)}
+.gacha-preview .gp-line.bad{color:var(--red)}
+.gacha-preview .gp-summary{font-weight:700;margin-bottom:4px}
+.gacha-preview .gp-summary.ok{color:var(--green)}
+.gacha-preview .gp-summary.warn{color:var(--red)}
+/* order lists (排序設定頁) */
+.order-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.order-row{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px}
+.order-row .order-idx{color:var(--mu);font-size:12px;width:22px;flex-shrink:0}
+.order-row .order-label{flex:1;font-size:14px}
+.order-btns{display:flex;gap:4px}
+.order-btns .btn{padding:4px 9px}
+.order-add-row{display:flex;gap:8px;margin-top:12px}
+.order-add-row .search{flex:1}
 </style>
 </head>
 <body>
@@ -140,6 +166,8 @@ tr:hover td{background:rgba(255,255,255,0.02)}
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('add-shop')">➕ 新增商品</div>
       <div class="nav-item" onclick="navTo('add-auction')">➕ 新增拍賣</div>
+      <hr class="nav-sep">
+      <div class="nav-item" onclick="navTo('sort-settings')">🔀 排序設定</div>
     </div>
     <div class="main" id="main-content">
       <!-- 商品管理 -->
@@ -151,12 +179,25 @@ tr:hover td{background:rgba(255,255,255,0.02)}
             <select class="filter-sel" id="shop-cat-filter" onchange="renderShopTable()">
               <option value="">全部分類</option>
             </select>
+            <select class="filter-sel" id="shop-status-filter" onchange="renderShopTable()">
+              <option value="">全部狀態</option>
+              <option value="ACTIVE">🟢 上架中</option>
+              <option value="DRAFT">📝 草稿</option>
+            </select>
             <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
           </div>
         </div>
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>商品名稱</th><th>分類</th><th>價格</th><th>庫存</th><th>狀態</th><th>ID</th><th>操作</th></tr></thead>
+            <thead><tr>
+              <th class="sortable" onclick="sortShopBy('name')">商品名稱<span class="sort-arrow" id="th-shop-name"></span></th>
+              <th class="sortable" onclick="sortShopBy('category')">分類<span class="sort-arrow" id="th-shop-category"></span></th>
+              <th class="sortable" onclick="sortShopBy('price')">價格<span class="sort-arrow" id="th-shop-price"></span></th>
+              <th class="sortable" onclick="sortShopBy('stock')">庫存<span class="sort-arrow" id="th-shop-stock"></span></th>
+              <th class="sortable" onclick="sortShopBy('state')">狀態<span class="sort-arrow" id="th-shop-state"></span></th>
+              <th class="sortable" onclick="sortShopBy('itemId')">ID<span class="sort-arrow" id="th-shop-itemId"></span></th>
+              <th>操作</th>
+            </tr></thead>
             <tbody id="shop-tbody"></tbody>
           </table>
         </div>
@@ -175,7 +216,17 @@ tr:hover td{background:rgba(255,255,255,0.02)}
         </div>
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>拍賣名稱</th><th>類型</th><th>分類</th><th>起標價</th><th>目前最高</th><th>結束時間</th><th>狀態</th><th>ID</th><th>操作</th></tr></thead>
+            <thead><tr>
+              <th class="sortable" onclick="sortAuctionBy('name')">拍賣名稱<span class="sort-arrow" id="th-auction-name"></span></th>
+              <th class="sortable" onclick="sortAuctionBy('type')">類型<span class="sort-arrow" id="th-auction-type"></span></th>
+              <th class="sortable" onclick="sortAuctionBy('category')">分類<span class="sort-arrow" id="th-auction-category"></span></th>
+              <th class="sortable" onclick="sortAuctionBy('startBid')">起標價<span class="sort-arrow" id="th-auction-startBid"></span></th>
+              <th class="sortable" onclick="sortAuctionBy('currentHighBid')">目前最高<span class="sort-arrow" id="th-auction-currentHighBid"></span></th>
+              <th class="sortable" onclick="sortAuctionBy('endDate')">結束時間<span class="sort-arrow" id="th-auction-endDate"></span></th>
+              <th class="sortable" onclick="sortAuctionBy('state')">狀態<span class="sort-arrow" id="th-auction-state"></span></th>
+              <th class="sortable" onclick="sortAuctionBy('auctionId')">ID<span class="sort-arrow" id="th-auction-auctionId"></span></th>
+              <th>操作</th>
+            </tr></thead>
             <tbody id="auction-tbody"></tbody>
           </table>
         </div>
@@ -191,6 +242,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
             <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="升階2" list="dc-list"><datalist id="dc-list"></datalist></div>
             <div class="field"><label>分類</label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
             <div class="field"><label>庫存 <span class="hint">留空=無限</span></label><input id="ns-stock" placeholder="無限"></div>
+            <div class="field"><label>狀態</label><select id="ns-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
             <div class="fsep">時間（可選）</div>
             <div class="field"><label>開始時間</label><input id="ns-sdate" type="datetime-local"></div>
             <div class="field"><label>結束時間</label><input id="ns-edate" type="datetime-local"></div>
@@ -205,12 +257,27 @@ tr:hover td{background:rgba(255,255,255,0.02)}
             <div class="fsep">獎勵設定</div>
             <div class="field"><label>固定獎勵變數名 <span class="hint">盲盒留空</span></label><input id="ns-rvar" placeholder="例：升階2"></div>
             <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="ns-rqty" placeholder="固定獎勵填數量&#10;盲盒依商店格式填入"></textarea></div>
+            <div class="gacha-guide">
+              📖 <b>盲盒規則格式指南</b>（固定獎勵不用看這段,只要在上面填數量就好）<br>
+              一行 = 一個獎項,用逗號分隔幾個設定,順序不限,系統會自動辨識：<br>
+              　・第一個一定是<code>獎項顯示名稱</code><br>
+              　・帶 <code>%</code> 的是<b>中獎機率</b>,例如 <code>30%</code><br>
+              　・帶 <code>份</code> 或 <code>個</code> 的是<b>該獎項庫存</b>,例如 <code>300份</code>（開完就不會再抽到）<br>
+              　・純數字是<b>單次獲得數量</b>,例如中獎後給 <code>2</code> 個<br>
+              　・其他文字會當作<b>對應的貨幣/道具欄位名稱</b>（跟顯示名稱不同時才需要）<br>
+              可以機率制、庫存制混著用；沒填機率的獎項,會用剩餘機率依庫存比例均分。範例：<br>
+              <code>幻彩水晶,30%,300份</code><br>
+              <code>普通粽子,50%</code><br>
+              <code>黃金粽子,15%,50份</code><br>
+              <code>傳說粽子,5%,5份</code>
+            </div>
+            <div class="gacha-preview" id="ns-rqty-preview" style="display:none"></div>
             <div class="fsep">其他</div>
             <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
             <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
             <div class="field"><label>限定身分組</label><input id="ns-role" list="ri-list" placeholder="留空=不限"><datalist id="ri-list"></datalist><div class="role-hint" id="ns-role-hint"></div></div>
             <div class="field"><label>選一群組</label><input id="ns-excl" placeholder="留空=不限"></div>
-            <div class="actions"><button class="btn-cancel" onclick="resetAddShop()">清空</button><button class="btn-save" id="ns-btn" onclick="submitAddShop()">➕ 新增到試算表</button></div>
+            <div class="actions"><button class="btn-cancel" onclick="resetAddShop()">清空</button><button class="btn-cancel" id="ns-draft-btn" onclick="submitAddShop('DRAFT')">📝 存為草稿</button><button class="btn-save" id="ns-btn" onclick="submitAddShop(null)">➕ 新增到試算表</button></div>
           </div>
         </div>
       </div>
@@ -238,6 +305,36 @@ tr:hover td{background:rgba(255,255,255,0.02)}
           </div>
         </div>
       </div>
+      <!-- 排序設定 -->
+      <div id="page-sort-settings" style="display:none">
+        <div class="page-header"><div class="page-title">🔀 排序設定</div></div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">📁 商店分類順序</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定玩家商店頁面左側分類側邊欄的先後順序,由上到下=由左到右/由前到後</div>
+          <div class="order-list" id="shop-cat-order-list"></div>
+          <div class="order-add-row"><input class="search" id="shop-cat-add-input" placeholder="新增分類名稱..." style="width:auto;flex:1"><button class="btn btn-edit" onclick="addCategoryToOrder('shop')">＋ 加入</button></div>
+          <button class="btn-save" style="margin-top:14px" onclick="saveCategoryOrder('shop')">💾 儲存商店分類順序</button>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">🔨 拍賣分類順序</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定玩家拍賣頁面分類標籤的先後順序</div>
+          <div class="order-list" id="auction-cat-order-list"></div>
+          <div class="order-add-row"><input class="search" id="auction-cat-add-input" placeholder="新增分類名稱..." style="width:auto;flex:1"><button class="btn btn-edit" onclick="addCategoryToOrder('auction')">＋ 加入</button></div>
+          <button class="btn-save" style="margin-top:14px" onclick="saveCategoryOrder('auction')">💾 儲存拍賣分類順序</button>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">📦 商品顯示順序</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定同一分類內,商品在玩家商店頁面出現的先後順序</div>
+          <div class="toolbar" style="margin-top:12px">
+            <select class="filter-sel" id="item-order-cat-select" onchange="renderItemOrderList()"></select>
+          </div>
+          <div class="order-list" id="item-order-list"></div>
+          <button class="btn-save" style="margin-top:14px" onclick="saveItemOrder()">💾 儲存商品順序</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -252,6 +349,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
       <div class="field"><label>分類</label><input id="em-category" list="sc-list"></div>
       <div class="field"><label>庫存</label><input id="em-stock"></div>
+      <div class="field"><label>狀態</label><select id="em-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
       <div class="fsep">時間</div>
       <div class="field"><label>開始時間</label><input id="em-sdate" type="datetime-local"></div>
       <div class="field"><label>結束時間</label><input id="em-edate" type="datetime-local"></div>
@@ -266,12 +364,14 @@ tr:hover td{background:rgba(255,255,255,0.02)}
       <div class="fsep">獎勵</div>
       <div class="field"><label>固定獎勵變數名</label><input id="em-rvar"></div>
       <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="em-rqty"></textarea></div>
+      <div class="gacha-preview" id="em-rqty-preview" style="display:none"></div>
       <div class="fsep">其他</div>
       <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
       <div class="field"><label>限定身分組</label><input id="em-role" list="ri-list"><div class="role-hint" id="em-role-hint"></div></div>
       <div class="field"><label>選一群組</label><input id="em-excl"></div>
       <input type="hidden" id="em-id">
+      <input type="hidden" id="em-sortorder">
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('shop-modal')">取消</button><button class="btn-save" id="em-save" onclick="saveShopItem()">💾 儲存變更</button></div>
   </div>
@@ -373,12 +473,15 @@ async function loadMeta() {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings'];
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
-  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['shop-list','auction-list','add-shop','add-auction'][i] === p));
+  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', pages[i] === p));
   if (p==='shop-list') loadShopItems();
   if (p==='auction-list') loadAuctionItems();
+  if (p==='add-shop') addShopAutosave.checkAndOffer();
+  if (p==='add-auction') addAuctionAutosave.checkAndOffer();
+  if (p==='sort-settings') openSortSettings();
 }
 
 // ── Toast ──
@@ -401,11 +504,43 @@ async function loadShopItems() {
   renderShopTable();
 }
 
+let shopSort = { key: null, dir: 1 };
+function sortShopBy(key) {
+  if (shopSort.key === key) shopSort.dir *= -1; else { shopSort.key = key; shopSort.dir = 1; }
+  renderShopTable();
+}
+function updateSortArrows(prefix, sortState) {
+  ['name','category','price','stock','state','itemId','type','startBid','currentHighBid','endDate','auctionId'].forEach(k => {
+    const el = document.getElementById(`th-${prefix}-${k}`);
+    if (!el) return;
+    el.textContent = sortState.key === k ? (sortState.dir === 1 ? '▲' : '▼') : '';
+  });
+}
+
 function renderShopTable() {
   const q = document.getElementById('shop-search').value.toLowerCase();
   const cat = document.getElementById('shop-cat-filter').value;
-  const items = shopItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!cat || i.category === cat));
+  const statusFilter = document.getElementById('shop-status-filter').value;
+  let items = shopItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!cat || i.category === cat));
+  if (statusFilter === 'DRAFT') items = items.filter(i => i.status === 'DRAFT');
+  else if (statusFilter === 'ACTIVE') items = items.filter(i => i.status !== 'DRAFT');
+
+  if (shopSort.key) {
+    const k = shopSort.key, dir = shopSort.dir;
+    items = items.slice().sort((a, b) => {
+      let va = a[k], vb = b[k];
+      if (k === 'price') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+      else if (k === 'stock') { va = (va === '' || va === undefined) ? Infinity : parseFloat(va); vb = (vb === '' || vb === undefined) ? Infinity : parseFloat(vb); if (isNaN(va)) va = Infinity; if (isNaN(vb)) vb = Infinity; }
+      else { va = (va || '').toString().toLowerCase(); vb = (vb || '').toString().toLowerCase(); }
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }
+  updateSortArrows('shop', shopSort);
+
   const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
+  document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   document.getElementById('shop-tbody').innerHTML = items.length === 0
     ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
@@ -413,9 +548,10 @@ function renderShopTable() {
       <td>${i.category||'—'}</td>
       <td>${i.price}</td>
       <td>${i.stock||'無限'}</td>
-      <td>${stateLabel[i.state]||''}</td>
+      <td>${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (stateLabel[i.state]||'')}</td>
       <td class="cell-id">${i.itemId||'—'}</td>
       <td><div class="btn-row">
+        ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
       </div></td>
@@ -429,6 +565,8 @@ function openEditShop(itemId) {
   f('em-id').value=i.itemId; f('em-name').value=i.name; f('em-price').value=i.price;
   f('em-currency').value=i.currency||'升階2'; f('em-category').value=i.category||'';
   f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
+  f('em-status').value=i.status==='DRAFT'?'DRAFT':'';
+  f('em-sortorder').value=i.sortOrder!==null&&i.sortOrder!==undefined?i.sortOrder:'';
   f('em-sdate').value=i.startDate||''; f('em-edate').value=i.endDate||'';
   f('em-lgd').value=i.limitGD||''; f('em-lgm').value=i.limitGM||'';
   f('em-lpd').value=i.limitPD||''; f('em-lpm').value=i.limitPM||'';
@@ -440,6 +578,8 @@ function openEditShop(itemId) {
   const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
   f('em-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
   document.getElementById('shop-modal').classList.add('open');
+  renderGachaPreview('em-rqty', 'em-rqty-preview');
+  editShopAutosave.checkAndOffer();
 }
 
 async function saveShopItem() {
@@ -448,13 +588,30 @@ async function saveShopItem() {
   btn.disabled=true; btn.textContent='儲存中...';
   const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
     currency:f('em-currency'),category:f('em-category'),stock:f('em-stock'),
+    status:f('em-status'),sortOrder:f('em-sortorder'),
     startDate:f('em-sdate'),endDate:f('em-edate'),
     limitGD:f('em-lgd'),limitGM:f('em-lgm'),limitPD:f('em-lpd'),limitPM:f('em-lpm'),
     limitGW:f('em-lgw'),limitPW:f('em-lpw'),limitPT:f('em-lpt'),
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
     remark:f('em-remark'),requiredRole:f('em-role'),exclusiveGroup:f('em-excl')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
-  if (d.status==='success') { toast('✅ 商品已更新'); closeModal('shop-modal'); loadShopItems(); }
+  if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+async function publishShopItem(itemId) {
+  const i = shopItems.find(x => x.itemId === itemId);
+  if (!i) return;
+  if (!confirm(`確定要把「${i.name}」從草稿改為上架嗎？上架後玩家就會看到這個商品。`)) return;
+  const d = await api({action:'adminUpdateShopItem',itemId:i.itemId,name:i.name,price:i.price,
+    currency:i.currency,category:i.category,stock:i.stock,
+    status:'',sortOrder:i.sortOrder!==null&&i.sortOrder!==undefined?i.sortOrder:'',
+    startDate:i.startDate,endDate:i.endDate,
+    limitGD:i.limitGD,limitGM:i.limitGM,limitPD:i.limitPD,limitPM:i.limitPM,
+    limitGW:i.limitGW,limitPW:i.limitPW,limitPT:i.limitPT,
+    rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
+    remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup});
+  if (d.status==='success') { toast('🚀 已上架'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
 
@@ -475,10 +632,31 @@ async function loadAuctionItems() {
   renderAuctionTable();
 }
 
+let auctionSort = { key: null, dir: 1 };
+function sortAuctionBy(key) {
+  if (auctionSort.key === key) auctionSort.dir *= -1; else { auctionSort.key = key; auctionSort.dir = 1; }
+  renderAuctionTable();
+}
+
 function renderAuctionTable() {
   const q = document.getElementById('auction-search').value.toLowerCase();
   const cat = document.getElementById('auction-cat-filter').value;
-  const items = auctionItems.filter(i => (!q||i.name.toLowerCase().includes(q)) && (!cat||(i.category||'')=== cat));
+  let items = auctionItems.filter(i => (!q||i.name.toLowerCase().includes(q)) && (!cat||(i.category||'')=== cat));
+
+  if (auctionSort.key) {
+    const k = auctionSort.key, dir = auctionSort.dir;
+    items = items.slice().sort((a, b) => {
+      let va = a[k], vb = b[k];
+      if (k === 'startBid' || k === 'currentHighBid') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+      else if (k === 'endDate') { va = va ? new Date(va).getTime() : 0; vb = vb ? new Date(vb).getTime() : 0; }
+      else { va = (va || '').toString().toLowerCase(); vb = (vb || '').toString().toLowerCase(); }
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }
+  updateSortArrows('auction', auctionSort);
+
   const typeLabel = {PUBLIC:'<span class="type-badge type-pub">公開</span>',SEALED:'<span class="type-badge type-seal">暗標↑</span>',SEALED_LOW:'<span class="type-badge type-low">暗標↓</span>'};
   const stateLabel = {open:'<span class="status status-open">● 進行中</span>',ended:'<span class="status status-ended">● 已結標</span>',not_started:'<span class="status status-ns">● 未開始</span>',closed:'<span class="status status-closed">● 已關閉</span>',pending:'<span class="status status-pending">● 待結算</span>'};
   document.getElementById('auction-tbody').innerHTML = items.length===0
@@ -513,6 +691,7 @@ function openEditAuction(auctionId) {
   const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
   f('ea-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
   document.getElementById('auction-modal').classList.add('open');
+  editAuctionAutosave.checkAndOffer();
 }
 
 async function saveAuction() {
@@ -525,7 +704,7 @@ async function saveAuction() {
     extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
     imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:f('ea-role')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
-  if (d.status==='success') { toast('✅ 拍賣已更新'); closeModal('auction-modal'); loadAuctionItems(); }
+  if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
 }
 
@@ -549,21 +728,29 @@ function resetAddShop() {
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl'].forEach(id => document.getElementById(id).value='');
   document.getElementById('ns-currency').value='升階2';
+  document.getElementById('ns-status').value='';
+  renderGachaPreview('ns-rqty', 'ns-rqty-preview');
+  addShopAutosave.clear();
 }
-async function submitAddShop() {
+async function submitAddShop(forceStatus) {
   const f=id=>document.getElementById(id).value;
   if (!f('ns-name')) { toast('請填寫商品名稱', false); return; }
-  if (f('ns-price')==='') { toast('請填寫價格', false); return; }
-  const btn=document.getElementById('ns-btn'); btn.disabled=true; btn.textContent='新增中...';
-  const d=await api({action:'adminAddShopItem',name:f('ns-name'),price:f('ns-price'),
+  const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('ns-status');
+  const isDraft = status === 'DRAFT';
+  if (!isDraft && f('ns-price')==='') { toast('請填寫價格', false); return; }
+  const btn=document.getElementById(isDraft ? 'ns-draft-btn' : 'ns-btn');
+  const originalText = btn.textContent;
+  btn.disabled=true; btn.textContent=isDraft ? '存草稿中...' : '新增中...';
+  const d=await api({action:'adminAddShopItem',name:f('ns-name'),price:f('ns-price')||0,
     currency:f('ns-currency'),category:f('ns-category'),stock:f('ns-stock'),
+    status:isDraft?'DRAFT':'',
     startDate:f('ns-sdate'),endDate:f('ns-edate'),
     limitGD:f('ns-lgd'),limitGM:f('ns-lgm'),limitPD:f('ns-lpd'),limitPM:f('ns-lpm'),
     limitGW:f('ns-lgw'),limitPW:f('ns-lpw'),limitPT:f('ns-lpt'),
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
     remark:f('ns-remark'),requiredRole:f('ns-role'),exclusiveGroup:f('ns-excl')});
-  btn.disabled=false; btn.textContent='➕ 新增到試算表';
-  if (d.status==='success') { toast(`✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
+  btn.disabled=false; btn.textContent=originalText;
+  if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
 }
 
@@ -572,6 +759,7 @@ function resetAddAuction() {
   ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('na-currency').value='升階2';
   document.getElementById('na-type').value='PUBLIC';
+  addAuctionAutosave.clear();
 }
 async function submitAddAuction() {
   const f=id=>document.getElementById(id).value;
@@ -587,6 +775,226 @@ async function submitAddAuction() {
   btn.disabled=false; btn.textContent='➕ 新增到試算表';
   if (d.status==='success') { toast(`✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
   else toast('❌ '+d.message, false);
+}
+
+// ── 盲盒設定即時預覽 ──
+function parseGachaRulesPreview(rawText) {
+  const lines = (rawText || '').split('\n');
+  const pool = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const parts = line.split(',').map(s => s.trim());
+    let dispName = parts[0], varName = dispName, qty = 1, prob = null, stock = null, bad = false, extraToken = null;
+    for (let p = 1; p < parts.length; p++) {
+      const token = parts[p];
+      if (token === '') continue;
+      if (token.indexOf('%') !== -1) {
+        const v = parseFloat(token.replace('%', ''));
+        if (isNaN(v)) bad = true; else prob = v;
+      } else if (token.indexOf('份') !== -1 || token.indexOf('個') !== -1) {
+        const v = parseInt(token.replace(/[^0-9-]/g, ''));
+        if (isNaN(v)) bad = true; else stock = v;
+      } else if (!isNaN(token) && !isNaN(parseFloat(token))) {
+        qty = parseInt(token);
+      } else if (varName !== dispName || extraToken) {
+        bad = true; // 已經有一個變數名了,又出現一個看不懂的文字
+      } else {
+        varName = token; extraToken = token;
+      }
+    }
+    pool.push({ dispName, varName, qty, prob, stock, bad, raw: line });
+  }
+  return pool;
+}
+
+function renderGachaPreview(textareaId, previewId) {
+  const ta = document.getElementById(textareaId);
+  const box = document.getElementById(previewId);
+  if (!ta || !box) return;
+  const text = ta.value;
+  if (!text.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const pool = parseGachaRulesPreview(text);
+  if (pool.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  const nameCount = {};
+  pool.forEach(p => { nameCount[p.dispName] = (nameCount[p.dispName]||0) + 1; });
+  let totalProb = 0, probCount = 0, stockCount = 0, hasBad = false;
+  const lineHtml = pool.map(p => {
+    const dup = nameCount[p.dispName] > 1;
+    const bad = p.bad || dup;
+    if (bad) hasBad = true;
+    if (p.prob !== null) { totalProb += p.prob; probCount++; }
+    if (p.stock !== null) stockCount++;
+    const bits = [];
+    if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
+    if (p.qty !== 1) bits.push(`數量:${p.qty}`);
+    if (p.prob !== null) bits.push(`機率:${p.prob}%`);
+    if (p.stock !== null) bits.push(`庫存:${p.stock}份`);
+    if (bits.length === 0) bits.push('機率依剩餘庫存均分');
+    const warnTxt = dup ? '⚠️ 顯示名稱重複' : (p.bad ? '⚠️ 有看不懂的設定,請檢查逗號分隔內容' : '');
+    return `<div class="gp-line ${bad?'bad':''}">${bad?'❌':'✅'} <b>${p.dispName}</b>　${bits.join('　')}${warnTxt ? '　'+warnTxt : ''}</div>`;
+  }).join('');
+
+  let summaryHtml;
+  if (hasBad) {
+    summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項,發現格式問題,請對照上面範例檢查</div>`;
+  } else if (totalProb > 100) {
+    summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項,機率制加總 ${totalProb}% 已超過100%,請調整</div>`;
+  } else {
+    summaryHtml = `<div class="gp-summary ok">✅ 共 ${pool.length} 個獎項（機率制 ${probCount} 個,合計 ${totalProb}%；庫存/均分制 ${stockCount} 個）</div>`;
+  }
+  box.className = 'gacha-preview ' + (hasBad || totalProb > 100 ? 'warn' : 'ok');
+  box.style.display = '';
+  box.innerHTML = summaryHtml + lineHtml;
+}
+
+['ns-rqty','em-rqty'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => renderGachaPreview(id, id + '-preview'));
+});
+
+// ── 本機自動暫存(草稿)系統:避免不小心關掉分頁或跳分類遺失輸入 ──
+function setupFieldAutosave(fieldIds, keyFn) {
+  function key() { return 'gardraft:' + keyFn(); }
+  function save() {
+    const data = {};
+    fieldIds.forEach(id => { const el = document.getElementById(id); if (el) data[id] = el.value; });
+    try { localStorage.setItem(key(), JSON.stringify({ data, ts: Date.now() })); } catch (e) {}
+  }
+  function clear() { try { localStorage.removeItem(key()); } catch (e) {} }
+  function checkAndOffer() {
+    let raw; try { raw = localStorage.getItem(key()); } catch (e) { raw = null; }
+    if (!raw) return;
+    let parsed; try { parsed = JSON.parse(raw); } catch (e) { clear(); return; }
+    const hasContent = Object.values(parsed.data || {}).some(v => v && v.toString().trim() !== '');
+    if (!hasContent) { clear(); return; }
+    const when = new Date(parsed.ts).toLocaleString('zh-TW');
+    if (confirm(`偵測到 ${when} 未送出的本機暫存內容,要載入嗎？\n(選「取消」則捨棄這份暫存)`)) {
+      fieldIds.forEach(id => { const el = document.getElementById(id); if (el && parsed.data[id] !== undefined) el.value = parsed.data[id]; });
+      fieldIds.forEach(id => { const el = document.getElementById(id); if (el) el.dispatchEvent(new Event('input')); });
+    } else {
+      clear();
+    }
+  }
+  fieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => { clearTimeout(el._autosaveTimer); el._autosaveTimer = setTimeout(save, 500); });
+  });
+  return { checkAndOffer, clear, save };
+}
+
+const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl'];
+const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl'];
+const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role'];
+const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role'];
+
+const addShopAutosave = setupFieldAutosave(NS_FIELDS, () => 'add-shop');
+const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'));
+const addAuctionAutosave = setupFieldAutosave(NA_FIELDS, () => 'add-auction');
+const editAuctionAutosave = setupFieldAutosave(EA_FIELDS, () => 'edit-auction:' + (document.getElementById('ea-id').value || 'new'));
+
+// ── 排序設定:分類順序 + 商品顯示順序 ──
+let categoryOrderData = { shop: [], auction: [] };
+let currentItemOrderList = [];
+
+async function openSortSettings() {
+  if (shopItems.length === 0) await loadShopItems();
+  if (auctionItems.length === 0) await loadAuctionItems();
+  await loadCategoryOrder();
+}
+
+async function loadCategoryOrder() {
+  const d = await api({ action: 'adminGetCategoryOrder' });
+  if (d.status !== 'success') { toast('載入排序失敗: ' + d.message, false); return; }
+  categoryOrderData.shop = (d.shopCategories || []).slice();
+  categoryOrderData.auction = (d.auctionCategories || []).slice();
+  shopItems.forEach(i => { if (i.category && !categoryOrderData.shop.includes(i.category)) categoryOrderData.shop.push(i.category); });
+  auctionItems.forEach(a => { if (a.category && !categoryOrderData.auction.includes(a.category)) categoryOrderData.auction.push(a.category); });
+  renderCategoryOrderList('shop');
+  renderCategoryOrderList('auction');
+  renderItemOrderCategorySelect();
+}
+
+function renderCategoryOrderList(kind) {
+  const list = categoryOrderData[kind];
+  const el = document.getElementById(`${kind}-cat-order-list`);
+  el.innerHTML = list.length === 0 ? '<div class="empty">尚無分類,請在下方新增</div>' : list.map((c, i) => `
+    <div class="order-row">
+      <span class="order-idx">${i+1}</span>
+      <span class="order-label">${c}</span>
+      <div class="order-btns">
+        <button class="btn btn-edit" onclick="moveCategory('${kind}',${i},-1)" ${i===0?'disabled':''}>▲</button>
+        <button class="btn btn-edit" onclick="moveCategory('${kind}',${i},1)" ${i===list.length-1?'disabled':''}>▼</button>
+        <button class="btn btn-del" onclick="removeCategory('${kind}',${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+function moveCategory(kind, idx, dir) {
+  const list = categoryOrderData[kind];
+  const t = idx + dir;
+  if (t < 0 || t >= list.length) return;
+  [list[idx], list[t]] = [list[t], list[idx]];
+  renderCategoryOrderList(kind);
+}
+function removeCategory(kind, idx) {
+  categoryOrderData[kind].splice(idx, 1);
+  renderCategoryOrderList(kind);
+}
+function addCategoryToOrder(kind) {
+  const inp = document.getElementById(`${kind}-cat-add-input`);
+  const v = inp.value.trim();
+  if (!v) return;
+  if (!categoryOrderData[kind].includes(v)) categoryOrderData[kind].push(v);
+  inp.value = '';
+  renderCategoryOrderList(kind);
+}
+async function saveCategoryOrder(kind) {
+  const payload = kind === 'shop' ? { shopCategories: JSON.stringify(categoryOrderData.shop) } : { auctionCategories: JSON.stringify(categoryOrderData.auction) };
+  const d = await api({ action: 'adminSaveCategoryOrder', ...payload });
+  if (d.status === 'success') toast('✅ ' + d.message); else toast('❌ ' + d.message, false);
+}
+
+function renderItemOrderCategorySelect() {
+  const cats = Array.from(new Set(shopItems.map(i => i.category).filter(Boolean)));
+  const sel = document.getElementById('item-order-cat-select');
+  const prev = sel.value;
+  sel.innerHTML = cats.length === 0 ? '<option value="">（尚無分類）</option>' : cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (cats.includes(prev)) sel.value = prev;
+  renderItemOrderList();
+}
+function renderItemOrderList() {
+  const cat = document.getElementById('item-order-cat-select').value;
+  currentItemOrderList = shopItems.filter(i => i.category === cat).slice()
+    .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined ? Infinity : a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined ? Infinity : b.sortOrder));
+  paintItemOrderList();
+}
+function paintItemOrderList() {
+  const el = document.getElementById('item-order-list');
+  el.innerHTML = currentItemOrderList.length === 0 ? '<div class="empty">此分類無商品</div>' : currentItemOrderList.map((i, idx) => `
+    <div class="order-row">
+      <span class="order-idx">${idx+1}</span>
+      <span class="order-label">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</span>
+      <div class="order-btns">
+        <button class="btn btn-edit" onclick="moveItemOrder(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
+        <button class="btn btn-edit" onclick="moveItemOrder(${idx},1)" ${idx===currentItemOrderList.length-1?'disabled':''}>▼</button>
+      </div>
+    </div>`).join('');
+}
+function moveItemOrder(idx, dir) {
+  const t = idx + dir;
+  if (t < 0 || t >= currentItemOrderList.length) return;
+  [currentItemOrderList[idx], currentItemOrderList[t]] = [currentItemOrderList[t], currentItemOrderList[idx]];
+  paintItemOrderList();
+}
+async function saveItemOrder() {
+  if (currentItemOrderList.length === 0) { toast('這個分類沒有商品可以排序', false); return; }
+  const items = currentItemOrderList.map((i, idx) => ({ itemId: i.itemId, sortOrder: idx + 1 }));
+  const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) });
+  if (d.status === 'success') { toast('✅ ' + d.message); await loadShopItems(); renderItemOrderList(); }
+  else toast('❌ ' + d.message, false);
 }
 
 // close modal on overlay click
