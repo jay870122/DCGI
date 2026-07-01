@@ -139,6 +139,66 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .order-btns .btn{padding:4px 9px}
 .order-add-row{display:flex;gap:8px;margin-top:12px}
 .order-add-row .search{flex:1}
+
+/* ============================================================
+   🌟 手機版 RWD(≤768px):側邊欄收合成上方橫向選單、表單改單欄、
+   表格改成卡片式呈現(不用左右滑動就能看完整筆資料)
+   ============================================================ */
+@media (max-width: 768px) {
+  .topbar{padding:10px 14px;flex-wrap:wrap;gap:8px}
+  .brand{font-size:15px}
+  .user-info{font-size:12px}
+  .user-info img{width:24px;height:24px}
+
+  .layout{flex-direction:column;min-height:auto}
+  .sidebar{width:100%;display:flex;flex-direction:row;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    padding:8px;border-right:none;border-bottom:1px solid var(--bd);gap:2px}
+  .nav-item{flex-shrink:0;white-space:nowrap;border-left:none;border-bottom:3px solid transparent;padding:8px 14px}
+  .nav-item.active{border-left-color:transparent;border-bottom-color:var(--gold)}
+  .nav-sep{display:none}
+
+  .main{padding:14px;max-width:100%}
+  .page-header{flex-direction:column;align-items:stretch;gap:10px}
+  .page-title{font-size:17px}
+  .toolbar{width:100%}
+  .toolbar .search,.toolbar .filter-sel,.toolbar .fab{width:100%}
+
+  /* 表單：新增/編輯一律改單欄 */
+  .add-form,.modal-body{grid-template-columns:1fr}
+  .add-form .full,.add-form .fsep,.add-form .actions,
+  .modal-body .full,.gacha-guide,.gacha-preview{grid-column:span 1}
+  .add-form .actions{flex-direction:column}
+  .add-form .actions .btn-save{flex:none}
+
+  .overlay{padding:0;align-items:stretch}
+  .modal{max-width:100%;width:100%;margin:0;border-radius:0;min-height:100vh;display:flex;flex-direction:column}
+  .modal-body{flex:1;overflow-y:auto}
+  .modal-footer{flex-wrap:wrap}
+  .modal-footer button{flex:1}
+
+  /* 表格 → 卡片式：隱藏表頭,每一列變成一張卡片,每個欄位用 data-label 當標籤
+     (只套用在真正裝表格的 .tbl-wrap-table,不影響表單/排序設定等其他用途的 .tbl-wrap 卡片) */
+  .tbl-wrap-table table,.tbl-wrap-table tbody,.tbl-wrap-table tr,.tbl-wrap-table td{display:block;width:100%}
+  .tbl-wrap-table thead{position:absolute;left:-9999px;top:-9999px}
+  .tbl-wrap-table{background:transparent;border:none}
+  .tbl-wrap-table tr{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:12px;padding:4px 14px}
+  .tbl-wrap-table tbody tr:last-child{margin-bottom:0}
+  .tbl-wrap-table td{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 0;border-bottom:1px solid rgba(79,84,92,0.4);text-align:right}
+  .tbl-wrap-table tr td:last-child{border-bottom:none}
+  .tbl-wrap-table td::before{content:attr(data-label);font-weight:700;color:var(--mu);font-size:11px;
+    text-transform:uppercase;letter-spacing:0.04em;text-align:left;flex-shrink:0}
+  .tbl-wrap-table td.cell-name{max-width:none;white-space:normal;overflow:visible;text-overflow:unset;text-align:right}
+  .tbl-wrap-table td.cell-actions{display:block;text-align:left;padding-top:10px}
+  .tbl-wrap-table td.cell-actions::before{content:none}
+  .tbl-wrap-table td.cell-actions .btn-row{flex-wrap:wrap;justify-content:flex-start}
+  .tbl-wrap-table .empty{padding:24px 0}
+  .tbl-wrap-table td.empty{display:block;text-align:center}
+  .tbl-wrap-table td.empty::before{content:none}
+
+  .order-row{flex-wrap:wrap}
+  .order-add-row{flex-direction:column}
+}
 </style>
 </head>
 <body>
@@ -187,7 +247,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
           </div>
         </div>
-        <div class="tbl-wrap">
+        <div class="tbl-wrap tbl-wrap-table">
           <table>
             <thead><tr>
               <th class="sortable" onclick="sortShopBy('name')">商品名稱<span class="sort-arrow" id="th-shop-name"></span></th>
@@ -214,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="fab" onclick="navTo('add-auction')">➕ 新增拍賣</button>
           </div>
         </div>
-        <div class="tbl-wrap">
+        <div class="tbl-wrap tbl-wrap-table">
           <table>
             <thead><tr>
               <th class="sortable" onclick="sortAuctionBy('name')">拍賣名稱<span class="sort-arrow" id="th-auction-name"></span></th>
@@ -407,7 +467,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
 const CLIENT_ID = '1365601646448607335';
-const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
+const ADMIN_IDS = ['176681551189377024'];
 let ME = null, ROLES = {}, shopItems = [], auctionItems = [];
 
 // ── Auth ──
@@ -544,13 +604,13 @@ function renderShopTable() {
   document.getElementById('shop-tbody').innerHTML = items.length === 0
     ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}">${i.name}</td>
-      <td>${i.category||'—'}</td>
-      <td>${i.price}</td>
-      <td>${i.stock||'無限'}</td>
-      <td>${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (stateLabel[i.state]||'')}</td>
-      <td class="cell-id">${i.itemId||'—'}</td>
-      <td><div class="btn-row">
+      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}</td>
+      <td data-label="分類">${i.category||'—'}</td>
+      <td data-label="價格">${i.price}</td>
+      <td data-label="庫存">${i.stock||'無限'}</td>
+      <td data-label="狀態">${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (stateLabel[i.state]||'')}</td>
+      <td class="cell-id" data-label="ID">${i.itemId||'—'}</td>
+      <td class="cell-actions" data-label="操作"><div class="btn-row">
         ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
@@ -662,15 +722,15 @@ function renderAuctionTable() {
   document.getElementById('auction-tbody').innerHTML = items.length===0
     ? '<tr><td colspan="9" class="empty">沒有符合條件的拍賣</td></tr>'
     : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}">${i.name}</td>
-      <td>${typeLabel[i.type]||i.type}</td>
-      <td>${i.category||'—'}</td>
-      <td>${i.startBid}</td>
-      <td>${i.currentHighBid||'—'}</td>
-      <td>${i.endDate||'—'}</td>
-      <td>${stateLabel[i.state]||''}</td>
-      <td class="cell-id">${i.auctionId||'—'}</td>
-      <td><div class="btn-row">
+      <td class="cell-name" title="${i.name}" data-label="拍賣名稱">${i.name}</td>
+      <td data-label="類型">${typeLabel[i.type]||i.type}</td>
+      <td data-label="分類">${i.category||'—'}</td>
+      <td data-label="起標價">${i.startBid}</td>
+      <td data-label="目前最高">${i.currentHighBid||'—'}</td>
+      <td data-label="結束時間">${i.endDate||'—'}</td>
+      <td data-label="狀態">${stateLabel[i.state]||''}</td>
+      <td class="cell-id" data-label="ID">${i.auctionId||'—'}</td>
+      <td class="cell-actions" data-label="操作"><div class="btn-row">
         <button class="btn btn-edit" onclick="openEditAuction('${i.auctionId}')">編輯</button>
         ${i.state==='open'?`<button class="btn btn-close" onclick="closeAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">關閉</button>`:''}
         <button class="btn btn-del" onclick="delAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
