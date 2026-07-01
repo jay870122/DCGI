@@ -234,6 +234,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('add-auction')">➕ 新增拍賣</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('sort-settings')">🔀 排序設定</div>
+      <hr class="nav-sep">
+      <div class="nav-item" onclick="navTo('history')">📜 紀錄查詢</div>
     </div>
     <div class="main" id="main-content">
       <!-- 商品管理 -->
@@ -421,6 +423,46 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <button class="btn-save" style="margin-top:14px" onclick="saveItemOrder()">💾 儲存商品順序</button>
         </div>
       </div>
+
+      <!-- 紀錄查詢 -->
+      <div id="page-history" style="display:none">
+        <div class="page-header"><div class="page-title">📜 紀錄查詢</div></div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">🎁 兌換 / 抽獎紀錄</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">最新的排在最前面；資料量大時只會顯示最新符合條件的 300 筆</div>
+          <div class="toolbar" style="margin-top:12px">
+            <input class="search" id="hist-search" placeholder="搜尋商品名稱 / DiscordID / 抽獎結果..." oninput="loadHistory()">
+            <input class="search" id="hist-discordid" placeholder="只看特定玩家的 DiscordID(選填)" style="max-width:220px" oninput="loadHistory()">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mu);cursor:pointer">
+              <input type="checkbox" id="hist-gacha-only" onchange="loadHistory()"> 只看抽獎結果
+            </label>
+            <button class="btn btn-edit" onclick="loadHistory()">🔄 重新查詢</button>
+          </div>
+          <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
+            <table>
+              <thead><tr><th>時間</th><th>玩家</th><th>商品名稱</th><th>數量</th><th>抽獎結果</th><th>序號</th><th>扣款前→後</th></tr></thead>
+              <tbody id="hist-tbody"></tbody>
+            </table>
+          </div>
+          <div id="hist-summary" style="color:var(--mu);font-size:12px;margin-top:8px"></div>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">🔨 拍賣出價紀錄</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">選一場拍賣,查看目前所有出價者與出價狀態(凍結中/已退回/得標)</div>
+          <div class="toolbar" style="margin-top:12px">
+            <select class="filter-sel" id="bids-auction-select" onchange="loadAuctionBids()" style="min-width:260px"></select>
+            <button class="btn btn-edit" onclick="loadAuctionBids()">🔄 重新查詢</button>
+          </div>
+          <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
+            <table>
+              <thead><tr><th>時間</th><th>出價者</th><th>出價金額</th><th>替代幣折抵</th><th>狀態</th></tr></thead>
+              <tbody id="bids-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -589,7 +631,7 @@ async function loadMeta() {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history'];
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
   document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', pages[i] === p));
@@ -598,6 +640,7 @@ function navTo(p) {
   if (p==='add-shop') addShopAutosave.checkAndOffer();
   if (p==='add-auction') addAuctionAutosave.checkAndOffer();
   if (p==='sort-settings') openSortSettings();
+  if (p==='history') openHistoryPage();
 }
 
 // ── Toast ──
@@ -1147,6 +1190,67 @@ async function saveItemOrder() {
   const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) });
   if (d.status === 'success') { toast('✅ ' + d.message); await loadShopItems(); renderItemOrderList(); }
   else toast('❌ ' + d.message, false);
+}
+
+// ── 紀錄查詢:兌換/抽獎紀錄 ──
+async function openHistoryPage() {
+  if (auctionItems.length === 0) await loadAuctionItems();
+  renderAuctionBidSelect();
+  loadHistory();
+  loadAuctionBids();
+}
+
+async function loadHistory() {
+  const q = document.getElementById('hist-search').value;
+  const filterDiscordId = document.getElementById('hist-discordid').value.trim();
+  const gachaOnly = document.getElementById('hist-gacha-only').checked;
+  const d = await api({ action: 'adminGetHistory', q, filterDiscordId, gachaOnly });
+  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
+
+  const tbody = document.getElementById('hist-tbody');
+  tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="7" class="empty">沒有符合條件的紀錄</td></tr>' : d.rows.map(r => `
+    <tr>
+      <td data-label="時間">${r.time ? new Date(r.time).toLocaleString('zh-TW') : '—'}</td>
+      <td data-label="玩家">${r.playerName}<br><span class="cell-id" style="font-size:11px">${r.discordId}</span></td>
+      <td class="cell-name" data-label="商品名稱" title="${r.itemName}">${r.itemName}</td>
+      <td data-label="數量">${r.qty}</td>
+      <td data-label="抽獎結果">${r.drawnResult ? `🎁 ${r.drawnResult}` : '—'}</td>
+      <td data-label="序號">${r.keys || '—'}</td>
+      <td data-label="扣款前→後">${r.balanceBefore} → ${r.balanceAfter}</td>
+    </tr>`).join('');
+
+  document.getElementById('hist-summary').textContent = d.capped
+    ? `符合條件共 ${d.totalMatched} 筆以上,只顯示最新 300 筆`
+    : `符合條件共 ${d.totalMatched} 筆`;
+}
+
+// ── 紀錄查詢:拍賣出價紀錄 ──
+function renderAuctionBidSelect() {
+  const sel = document.getElementById('bids-auction-select');
+  const prev = sel.value;
+  const stateLabel = { open: '進行中', ended: '已結標', closed: '已關閉', pending: '待結算', not_started: '未開始' };
+  sel.innerHTML = auctionItems.length === 0
+    ? '<option value="">（尚無拍賣）</option>'
+    : auctionItems.map(a => `<option value="${a.auctionId}">${a.name}（${stateLabel[a.state] || a.state}）</option>`).join('');
+  if (auctionItems.some(a => a.auctionId === prev)) sel.value = prev;
+}
+
+async function loadAuctionBids() {
+  const auctionId = document.getElementById('bids-auction-select').value;
+  const tbody = document.getElementById('bids-tbody');
+  if (!auctionId) { tbody.innerHTML = '<tr><td colspan="5" class="empty">請先選擇一場拍賣</td></tr>'; return; }
+  const d = await api({ action: 'adminGetAuctionBids', auctionId });
+  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
+
+  const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>' };
+  tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="5" class="empty">這場拍賣目前還沒有人出價</td></tr>' : d.rows.map(r => `
+    <tr>
+      <td data-label="時間">${r.time ? new Date(r.time).toLocaleString('zh-TW') : '—'}</td>
+      <td data-label="出價者">${r.playerName}<br><span class="cell-id" style="font-size:11px">${r.discordId}</span></td>
+      <td data-label="出價金額">${r.amount}</td>
+      <td data-label="替代幣折抵">${r.altAmount > 0 ? r.altAmount : '—'}</td>
+      <td data-label="狀態">${statusLabel[r.status] || r.status}</td>
+    </tr>`).join('');
 }
 
 // close modal on overlay click
