@@ -328,11 +328,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・帶 <code>份</code> 或 <code>個</code> 的是<b>該獎項庫存</b>,例如 <code>300份</code>（開完就不會再抽到）<br>
               　・純數字是<b>單次獲得數量</b>,例如中獎後給 <code>2</code> 個<br>
               　・其他文字會當作<b>對應的貨幣/道具欄位名稱</b>（跟顯示名稱不同時才需要）<br>
-              可以機率制、庫存制混著用；沒填機率的獎項,會用剩餘機率依庫存比例均分。範例：<br>
+              可以機率制、庫存制混著用；沒填機率的獎項,會用剩餘機率依庫存比例均分。<br>
+              🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
+              📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
+              範例：<br>
               <code>幻彩水晶,30%,300份</code><br>
               <code>普通粽子,50%</code><br>
               <code>黃金粽子,15%,50份</code><br>
-              <code>傳說粽子,5%,5份</code>
+              <code>傳說粽子,5%,5份</code><br>
+              <code>幻彩水晶碎片X100, 幻彩水晶碎片, 100</code>　<span class="hint">← 顯示名稱可以跟貨幣欄位名稱不同,中獎會給 100 個「幻彩水晶碎片」</span><br>
+              <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
             </div>
             <div class="gacha-preview" id="ns-rqty-preview" style="display:none"></div>
             <div class="fsep">其他</div>
@@ -671,6 +676,8 @@ function openEditShop(itemId) {
 
 async function saveShopItem() {
   const f = id => document.getElementById(id).value;
+  const nonInstantErr = checkNonInstantRule(f('em-name'), f('em-rvar'));
+  if (nonInstantErr) { alert(nonInstantErr); return; }
   const btn = document.getElementById('em-save');
   btn.disabled=true; btn.textContent='儲存中...';
   const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
@@ -819,9 +826,20 @@ function resetAddShop() {
   renderGachaPreview('ns-rqty', 'ns-rqty-preview');
   addShopAutosave.clear();
 }
+// 🌟 [非即時]商品規定要用盲盒格式:名稱帶[非即時]卻用「固定獎勵變數名」直接發放的話,
+// 系統的「需人工發送」判斷只在盲盒格式裡才有支援,固定獎勵模式會直接自動入帳、變成沒有真的擋下來
+function checkNonInstantRule(name, rewardVar) {
+  if (/\[非即時\]/.test(name || '') && (rewardVar || '').trim() !== '') {
+    return '商品名稱包含 [非即時],獎勵必須使用盲盒格式：\n請把「固定獎勵變數名」留空,改在「獎勵數量/盲盒規則」填入至少一行保底獎,例如：\n腳色加布, [非即時]腳色加布, 1\n(不寫機率、不寫份數=保底獎,一定會開出)';
+  }
+  return null;
+}
+
 async function submitAddShop(forceStatus) {
   const f=id=>document.getElementById(id).value;
   if (!f('ns-name')) { toast('請填寫商品名稱', false); return; }
+  const nonInstantErr = checkNonInstantRule(f('ns-name'), f('ns-rvar'));
+  if (nonInstantErr) { alert(nonInstantErr); return; }
   const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('ns-status');
   const isDraft = status === 'DRAFT';
   if (!isDraft && f('ns-price')==='') { toast('請填寫價格', false); return; }
@@ -890,7 +908,7 @@ function parseGachaRulesPreview(rawText) {
         varName = token; extraToken = token;
       }
     }
-    pool.push({ dispName, varName, qty, prob, stock, bad, raw: line });
+    pool.push({ dispName, varName, qty, prob, stock, bad, raw: line, isNonInstant: /\[非即時\]/.test(dispName) || /\[非即時\]/.test(varName) });
   }
   return pool;
 }
@@ -906,21 +924,28 @@ function renderGachaPreview(textareaId, previewId) {
 
   const nameCount = {};
   pool.forEach(p => { nameCount[p.dispName] = (nameCount[p.dispName]||0) + 1; });
+  const fallbackCount = pool.filter(p => !p.bad && p.prob === null && p.stock === null).length;
   let totalProb = 0, probCount = 0, stockCount = 0, hasBad = false;
-  const lineHtml = pool.map(p => {
+  const lineHtml = pool.map((p, idx) => {
     const dup = nameCount[p.dispName] > 1;
     const bad = p.bad || dup;
     if (bad) hasBad = true;
     if (p.prob !== null) { totalProb += p.prob; probCount++; }
     if (p.stock !== null) stockCount++;
+    const isFallback = !p.bad && p.prob === null && p.stock === null;
     const bits = [];
     if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
     if (p.qty !== 1) bits.push(`數量:${p.qty}`);
     if (p.prob !== null) bits.push(`機率:${p.prob}%`);
-    if (p.stock !== null) bits.push(`庫存:${p.stock}份`);
-    if (bits.length === 0) bits.push('機率依剩餘庫存均分');
-    const warnTxt = dup ? '⚠️ 顯示名稱重複' : (p.bad ? '⚠️ 有看不懂的設定,請檢查逗號分隔內容' : '');
-    return `<div class="gp-line ${bad?'bad':''}">${bad?'❌':'✅'} <b>${p.dispName}</b>　${bits.join('　')}${warnTxt ? '　'+warnTxt : ''}</div>`;
+    if (p.stock !== null) bits.push(`庫存:${p.stock}份（依庫存比例抽）`);
+    if (isFallback) bits.push('🛡️ 保底獎');
+    if (p.isNonInstant) bits.push('📦 非即時(需人工發送)');
+    if (bits.length === 0) bits.push('—');
+    const notes = [];
+    if (dup) notes.push('⚠️ 顯示名稱重複');
+    if (p.bad) notes.push('⚠️ 有看不懂的設定,請檢查逗號分隔內容');
+    if (isFallback && idx !== pool.length - 1) notes.push('💡 建議把保底獎放在最後一行,方便閱讀');
+    return `<div class="gp-line ${bad?'bad':''}">${bad?'❌':'✅'} <b>${p.dispName}</b>　${bits.join('　')}${notes.length ? '　'+notes.join('　') : ''}</div>`;
   }).join('');
 
   let summaryHtml;
@@ -928,8 +953,11 @@ function renderGachaPreview(textareaId, previewId) {
     summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項,發現格式問題,請對照上面範例檢查</div>`;
   } else if (totalProb > 100) {
     summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項,機率制加總 ${totalProb}% 已超過100%,請調整</div>`;
+  } else if (fallbackCount === 0) {
+    summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項(機率制 ${probCount} 個,合計 ${totalProb}%；庫存制 ${stockCount} 個),但沒有保底獎——如果機率沒中、庫存又都抽完,可能會開不出獎項,建議加一行保底獎</div>`;
   } else {
-    summaryHtml = `<div class="gp-summary ok">✅ 共 ${pool.length} 個獎項（機率制 ${probCount} 個,合計 ${totalProb}%；庫存/均分制 ${stockCount} 個）</div>`;
+    const fallbackHint = fallbackCount > 1 ? `,🛡️ 保底獎 ${fallbackCount} 個(會隨機挑一個)` : `,🛡️ 保底獎 1 個`;
+    summaryHtml = `<div class="gp-summary ok">✅ 共 ${pool.length} 個獎項（機率制 ${probCount} 個,合計 ${totalProb}%；庫存制 ${stockCount} 個${fallbackHint}）</div>`;
   }
   box.className = 'gacha-preview ' + (hasBad || totalProb > 100 ? 'warn' : 'ok');
   box.style.display = '';
