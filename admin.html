@@ -223,7 +223,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
             <div class="field full"><label>拍賣名稱<span style="color:var(--red)">*</span></label><input id="na-name" type="text" placeholder="例：星之支配者頭冠(煉金)"></div>
             <div class="field"><label>起標價<span style="color:var(--red)">*</span></label><input id="na-bid" type="number" min="0" placeholder="0"></div>
             <div class="field"><label>貨幣欄位</label><input id="na-currency" value="升階2" list="dc-list"></div>
-            <div class="field"><label>拍賣類型</label><select id="na-type"><option value="PUBLIC">📢 公開比價（高者得）</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW">🔻 暗標（低者得）</option></select></div>
+            <div class="field"><label>拍賣類型</label><select id="na-type"><option value="PUBLIC">📢 公開比價（高者得）</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
             <div class="field"><label>分類</label><input id="na-cat" list="ac-list"><datalist id="ac-list"></datalist></div>
             <div class="fsep">時間設定</div>
             <div class="field"><label>起標時間 <span class="hint">留空=立即</span></label><input id="na-sdate" type="datetime-local"></div>
@@ -285,7 +285,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
       <div class="full field"><label>拍賣名稱</label><input id="ea-name" type="text"></div>
       <div class="field"><label>起標價</label><input id="ea-bid" type="number" min="0"></div>
       <div class="field"><label>貨幣欄位</label><input id="ea-currency" list="dc-list"></div>
-      <div class="field"><label>拍賣類型</label><select id="ea-type"><option value="PUBLIC">📢 公開比價</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW">🔻 暗標（低者得）</option></select></div>
+      <div class="field"><label>拍賣類型</label><select id="ea-type"><option value="PUBLIC">📢 公開比價</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
       <div class="field"><label>分類</label><input id="ea-cat" list="ac-list"></div>
       <div class="fsep">時間</div>
       <div class="field"><label>起標時間</label><input id="ea-sdate" type="datetime-local"></div>
