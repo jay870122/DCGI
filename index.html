@@ -525,6 +525,7 @@
       document.getElementById('auction-modal').style.display = 'none';
       if (auctionCountdownInterval) { clearInterval(auctionCountdownInterval); auctionCountdownInterval = null; }
       if (auctionAutoRefreshInterval) { clearInterval(auctionAutoRefreshInterval); auctionAutoRefreshInterval = null; }
+      auctionCountdownReloadTriggered.clear();
     }
 
     function loadAuctions() {
@@ -654,9 +655,9 @@
 
         let countdownHtml;
         if (a.state === 'not_started' && a.startDate) {
-          countdownHtml = `<span class="auction-countdown" data-start="${a.startDate}">計算中...</span>`;
+          countdownHtml = `<span class="auction-countdown" data-start="${a.startDate}" data-auction-id="${a.id}">計算中...</span>`;
         } else if (a.endDate) {
-          countdownHtml = `<span class="auction-countdown" data-end="${a.endDate}">計算中...</span>`;
+          countdownHtml = `<span class="auction-countdown" data-end="${a.endDate}" data-auction-id="${a.id}">計算中...</span>`;
         } else {
           countdownHtml = '無截止時間';
         }
@@ -739,10 +740,18 @@
       }
     }
 
+    // 🌟 【重要修正】用 Set 記錄哪些拍賣已經因為倒數歸零觸發過重整,這個變數在模組層級、
+    // 不會因為 renderAuctions() 重建 DOM 而重設。之前用 el.dataset.reloaded 當標記,
+    // 但每次 loadAuctions() 都會整個重建 DOM、產生全新的元素,標記形同虛設,
+    // 導致「倒數歸零的拍賣」每 1.5~2.5 秒就再觸發一次 loadAuctions(),永遠停不下來——
+    // 尤其好幾場拍賣剛好同時到期、又有好幾個人同時開著頁面時,會疊加成大量重複請求。
+    const auctionCountdownReloadTriggered = new Set();
+
     function updateAuctionCountdowns() {
       document.querySelectorAll('.auction-countdown').forEach((el) => {
         const now = new Date().getTime();
         const startAttr = el.getAttribute('data-start');
+        const auctionId = el.getAttribute('data-auction-id');
 
         if (startAttr) {
           // 🌟 起標倒數
@@ -750,8 +759,9 @@
           if (now >= start) {
             el.innerText = '即將開放，重新整理中...';
             el.style.color = '#FEE75C';
-            if (!el.dataset.reloaded) {
-              el.dataset.reloaded = '1';
+            const key = 'start:' + auctionId;
+            if (auctionId && !auctionCountdownReloadTriggered.has(key)) {
+              auctionCountdownReloadTriggered.add(key);
               setTimeout(loadAuctions, 1500);
             }
           } else {
@@ -766,8 +776,9 @@
           el.innerText = '已截止';
           el.style.color = '#ED4245';
           // 截止後重新整理一次列表,讓畫面切換成「等待結算/已結標」狀態,不會一直卡在出價中的樣子
-          if (!el.dataset.reloaded) {
-            el.dataset.reloaded = '1';
+          const key = 'end:' + auctionId;
+          if (auctionId && !auctionCountdownReloadTriggered.has(key)) {
+            auctionCountdownReloadTriggered.add(key);
             setTimeout(loadAuctions, 1500);
           }
         } else {
