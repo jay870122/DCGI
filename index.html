@@ -496,6 +496,7 @@
     let currentAuctions = [];
     let auctionCountdownInterval = null;
     let currentAuctionCategory = null; // 🌟 目前選中的拍賣分類;不再有「全部」選項,載入後會自動選第一個分類
+    let auctionAltInfo = {}; // 🌟 auctionId -> {rate, balance, altName, mainCurrency},給拍賣替代貨幣折抵預覽用
     let AUCTION_CATEGORY_ORDER = []; // 🌟 拍賣分類排序(從分類排序表B欄讀取)
 
     function showAuctions() {
@@ -532,6 +533,7 @@
     }
 
     function renderAuctions() {
+      auctionAltInfo = {}; // 🌟 每次重繪拍賣列表都重置替代貨幣資訊快取
       // 🌟 同步彈窗標題旁的貨幣顯示:直接複製玩家頭像旁邊那整組(含所有自訂貨幣),不用各自維護一份
       const scoreBoxEl = document.getElementById('score-box-container');
       const auctionCurrencyBox = document.getElementById('auction-currency-box');
@@ -598,7 +600,7 @@
         } else {
           priceInfoHtml = `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價金額互相保密）`;
         }
-        const myBidHtml = a.myActiveBid !== null ? `<br>您目前出價：<span class="auction-bid-value">${a.myActiveBid} ${a.displayCurrency}</span>` : '';
+        const myBidHtml = a.myActiveBid !== null ? `<br>您目前出價：<span class="auction-bid-value">${a.myActiveBid} ${a.displayCurrency}</span>${a.myActiveBidAlt > 0 ? `（已折抵 ${a.myActiveBidAlt} ${a.altCurrency || ''}）` : ''}` : '';
 
         let statusHtml = '';
         if (a.state === 'ended') {
@@ -643,9 +645,29 @@
             const minBid = a.type === 'PUBLIC' ? (a.hasAnyBid ? a.currentHighBid + 1 : a.startBid) : a.startBid;
             bidInputAttrs = `min="${minBid}" placeholder="最低 ${minBid}"`;
           }
+
+          let auctionAltHtml = '';
+          if (a.altCurrency) {
+            auctionAltInfo[a.id] = { rate: a.altCurrencyRate, balance: a.altCurrencyBalance, altName: a.altCurrency, mainCurrency: a.displayCurrency };
+            auctionAltHtml = `
+              <div class="alt-currency-box" id="altbox-auction-${a.id}">
+                <label class="alt-toggle-label">
+                  <input type="checkbox" id="alt-toggle-auction-${a.id}" onchange="onAuctionAltToggle('${a.id}')">
+                  💱 使用 ${a.altCurrency} 折抵（你有 ${a.altCurrencyBalance}）
+                </label>
+                <div class="alt-mode-row" id="alt-mode-row-auction-${a.id}" style="display:none">
+                  <label><input type="radio" name="alt-mode-auction-${a.id}" id="alt-mode-auto-auction-${a.id}" value="auto" checked onchange="updateAuctionAltPreview('${a.id}')"> 自動折抵</label>
+                  <label><input type="radio" name="alt-mode-auction-${a.id}" id="alt-mode-manual-auction-${a.id}" value="manual" onchange="updateAuctionAltPreview('${a.id}')"> 自訂數量</label>
+                  <input type="number" id="alt-amount-auction-${a.id}" min="0" value="0" style="display:none" oninput="updateAuctionAltPreview('${a.id}')">
+                </div>
+                <div class="alt-preview" id="alt-preview-auction-${a.id}"></div>
+              </div>`;
+          }
+
           bidRowHtml = `
+            ${auctionAltHtml}
             <div class="auction-bid-row">
-              <input type="number" class="auction-bid-input" id="bid-input-${a.id}" ${bidInputAttrs}>
+              <input type="number" class="auction-bid-input" id="bid-input-${a.id}" ${bidInputAttrs} oninput="updateAuctionAltPreview('${a.id}')">
               <button class="auction-bid-btn" id="bid-btn-${a.id}" onclick="submitBid('${a.id}', '${a.name.replace(/'/g, "\\'")}')">出價</button>
             </div>`;
         }
@@ -730,20 +752,82 @@
       });
     }
 
+    // 🌟 拍賣替代貨幣折抵:勾選後顯示模式選項,並更新預覽
+    function onAuctionAltToggle(auctionId) {
+      const enabled = document.getElementById(`alt-toggle-auction-${auctionId}`).checked;
+      const row = document.getElementById(`alt-mode-row-auction-${auctionId}`);
+      if (row) row.style.display = enabled ? 'flex' : 'none';
+      updateAuctionAltPreview(auctionId);
+    }
+
+    // 🌟 拍賣替代貨幣折抵:即時算出折抵後這筆出價還要凍結多少原始貨幣
+    function updateAuctionAltPreview(auctionId) {
+      const info = auctionAltInfo[auctionId];
+      const previewEl = document.getElementById(`alt-preview-auction-${auctionId}`);
+      if (!info || !previewEl) return;
+
+      const toggleEl = document.getElementById(`alt-toggle-auction-${auctionId}`);
+      const manualInput = document.getElementById(`alt-amount-auction-${auctionId}`);
+      const manualRadio = document.getElementById(`alt-mode-manual-auction-${auctionId}`);
+      const isManual = manualRadio && manualRadio.checked;
+      if (manualInput) manualInput.style.display = isManual ? '' : 'none';
+
+      if (!toggleEl || !toggleEl.checked) { previewEl.textContent = ''; return; }
+
+      const bidInput = document.getElementById(`bid-input-${auctionId}`);
+      const bidAmount = bidInput ? (parseInt(bidInput.value) || 0) : 0;
+      if (bidAmount <= 0) { previewEl.textContent = '請先輸入出價金額'; return; }
+      const maxUsefulAlt = info.rate > 0 ? Math.ceil(bidAmount / info.rate) : 0;
+
+      let altUsed;
+      if (isManual) {
+        const cap = Math.min(info.balance, maxUsefulAlt);
+        if (manualInput) manualInput.max = cap;
+        let requested = manualInput ? (parseInt(manualInput.value) || 0) : 0;
+        if (requested < 0) requested = 0;
+        altUsed = Math.min(requested, cap);
+      } else {
+        altUsed = Math.min(info.balance, maxUsefulAlt);
+      }
+
+      const altCoverage = Math.min(bidAmount, Math.floor(altUsed * info.rate));
+      const remaining = bidAmount - altCoverage;
+      previewEl.textContent = altUsed > 0
+        ? `折抵 ${altUsed} 個 ${info.altName} → 這筆出價還需凍結 ${remaining} ${info.mainCurrency}`
+        : `目前折抵 0 個(${info.altName} 餘額不足或尚未輸入數量)`;
+    }
+
     function submitBid(auctionId, auctionName) {
       if (!currentUser) return;
       const input = document.getElementById(`bid-input-${auctionId}`);
       const btn = document.getElementById(`bid-btn-${auctionId}`);
       const amount = parseInt(input.value);
       if (!amount || amount <= 0) { alert('請輸入有效的出價金額'); return; }
-      if (!confirm(`確定要對「${auctionName}」出價 ${amount} 嗎？`)) return;
+
+      // 🌟 替代貨幣折抵:讀取玩家在拍賣卡片上勾選的折抵模式/數量
+      let altMode = 'none', altAmount = 0, altConfirmNote = '';
+      const altToggle = document.getElementById(`alt-toggle-auction-${auctionId}`);
+      if (altToggle && altToggle.checked) {
+        const manualRadio = document.getElementById(`alt-mode-manual-auction-${auctionId}`);
+        const isManual = manualRadio && manualRadio.checked;
+        altMode = isManual ? 'manual' : 'auto';
+        if (isManual) {
+          const manualInput = document.getElementById(`alt-amount-auction-${auctionId}`);
+          altAmount = manualInput ? (parseInt(manualInput.value) || 0) : 0;
+          altConfirmNote = `\n💱 折抵方式：自訂折抵 ${altAmount} 個`;
+        } else {
+          altConfirmNote = `\n💱 折抵方式：自動用掉需要的份量`;
+        }
+      }
+
+      if (!confirm(`確定要對「${auctionName}」出價 ${amount} 嗎？${altConfirmNote}`)) return;
 
       const originalBtnText = btn.innerText;
       btn.disabled = true;
       btn.innerText = '⏳ 出價中請稍後...';
       input.disabled = true;
 
-      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}`)
+      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
