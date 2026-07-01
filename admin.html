@@ -454,10 +454,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="page-header"><div class="page-title">🔨 拍賣出價紀錄</div></div>
 
         <div class="tbl-wrap" style="padding:24px">
-          <div style="color:var(--mu);font-size:12px">選一場拍賣,查看目前所有出價者與出價狀態(凍結中/已退回/得標)</div>
+          <div style="color:var(--mu);font-size:12px">選一場拍賣,查看目前所有出價者與出價狀態(凍結中/已退回/得標)；頁面開著時每5秒自動重整一次</div>
           <div class="toolbar" style="margin-top:12px">
             <select class="filter-sel" id="bids-auction-select" onchange="loadAuctionBids()" style="min-width:260px"></select>
             <button class="btn btn-edit" onclick="loadAuctionBids()">🔄 重新查詢</button>
+            <span id="bids-last-refresh" style="font-size:11px;color:var(--mu)"></span>
           </div>
           <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
             <table>
@@ -636,16 +637,21 @@ async function loadMeta() {
 
 // ── Navigation ──
 const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history','auction-bids'];
+let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每5秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
   document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', pages[i] === p));
+  if (auctionBidsAutoRefreshInterval) { clearInterval(auctionBidsAutoRefreshInterval); auctionBidsAutoRefreshInterval = null; }
   if (p==='shop-list') loadShopItems();
   if (p==='auction-list') loadAuctionItems();
   if (p==='add-shop') addShopAutosave.checkAndOffer();
   if (p==='add-auction') addAuctionAutosave.checkAndOffer();
   if (p==='sort-settings') openSortSettings();
   if (p==='history') loadHistory();
-  if (p==='auction-bids') openAuctionBidsPage();
+  if (p==='auction-bids') {
+    openAuctionBidsPage();
+    auctionBidsAutoRefreshInterval = setInterval(loadAuctionBids, 5000);
+  }
 }
 
 // ── Toast ──
@@ -1242,7 +1248,8 @@ function renderAuctionBidSelect() {
 async function loadAuctionBids() {
   const auctionId = document.getElementById('bids-auction-select').value;
   const tbody = document.getElementById('bids-tbody');
-  if (!auctionId) { tbody.innerHTML = '<tr><td colspan="5" class="empty">請先選擇一場拍賣</td></tr>'; return; }
+  const refreshLabel = document.getElementById('bids-last-refresh');
+  if (!auctionId) { tbody.innerHTML = '<tr><td colspan="5" class="empty">請先選擇一場拍賣</td></tr>'; if (refreshLabel) refreshLabel.textContent = ''; return; }
   const d = await api({ action: 'adminGetAuctionBids', auctionId });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
@@ -1255,6 +1262,7 @@ async function loadAuctionBids() {
       <td data-label="替代幣折抵">${r.altAmount > 0 ? r.altAmount : '—'}</td>
       <td data-label="狀態">${statusLabel[r.status] || r.status}</td>
     </tr>`).join('');
+  if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}`;
 }
 
 // close modal on overlay click
