@@ -499,7 +499,7 @@
     // ============================================================
     let currentAuctions = [];
     let auctionCountdownInterval = null;
-    let auctionAutoRefreshInterval = null; // 🌟 拍賣視窗開著的時候,每5秒自動重整一次最新出價狀況(後端Worker有加短效快取,不用擔心API配額)
+    let auctionAutoRefreshInterval = null; // 🌟 拍賣視窗開著的時候,每10秒自動重整一次最新出價狀況;截標前搶標的塞車主要來自出價(寫入)本身排隊,重整太快只會雪上加霜,所以刻意不調太短
     let currentAuctionCategory = null; // 🌟 目前選中的拍賣分類;不再有「全部」選項,載入後會自動選第一個分類
     let auctionAltInfo = {}; // 🌟 auctionId -> {rate, balance, altName, mainCurrency},給拍賣替代貨幣折抵預覽用
     let AUCTION_CATEGORY_ORDER = []; // 🌟 拍賣分類排序(從分類排序表B欄讀取)
@@ -518,7 +518,7 @@
         const container = document.getElementById('auction-list-container');
         if (container && activeEl && container.contains(activeEl) && activeEl !== document.body) return;
         loadAuctions();
-      }, 5000);
+      }, 10000);
     }
 
     function closeAuctions() {
@@ -538,7 +538,7 @@
           if (auctionCountdownInterval) clearInterval(auctionCountdownInterval);
           auctionCountdownInterval = setInterval(updateAuctionCountdowns, 1000);
           const refreshLabel = document.getElementById('auction-last-refresh');
-          if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}（每5秒自動更新）`;
+          if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}（每10秒自動更新）`;
         } else {
           document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message || '') + '</p>';
         }
