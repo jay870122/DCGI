@@ -122,12 +122,15 @@ th.sortable{cursor:pointer;user-select:none}
 th.sortable:hover{color:var(--t)}
 th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 /* gacha guide + live preview */
-.gacha-guide{grid-column:span 2;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--mu);line-height:1.7;margin-top:-4px}
-.gacha-guide code{background:rgba(255,255,255,0.06);color:var(--gold);padding:1px 5px;border-radius:4px;font-family:monospace}
+.gacha-guide{grid-column:span 2;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--t);line-height:1.8;margin-top:-4px}
+.gacha-guide b{color:var(--t)}
+.gacha-guide .hint{color:var(--mu)}
+.gacha-guide code{background:rgba(240,178,50,0.16);color:var(--gold);font-weight:700;padding:2px 6px;border-radius:4px;font-family:monospace;white-space:nowrap}
 .gacha-preview{grid-column:span 2;border-radius:var(--r);padding:10px 14px;font-size:12px;line-height:1.8;margin-top:-4px;border:1px solid var(--bd);background:var(--s2)}
 .gacha-preview.ok{border-color:rgba(67,181,129,0.4)}
 .gacha-preview.warn{border-color:rgba(237,66,69,0.5)}
-.gacha-preview .gp-line{color:var(--mu)}
+.gacha-preview .gp-line{color:var(--t)}
+.gacha-preview .gp-line b{color:var(--t)}
 .gacha-preview .gp-line.bad{color:var(--red)}
 .gacha-preview .gp-summary{font-weight:700;margin-bottom:4px}
 .gacha-preview .gp-summary.ok{color:var(--green)}
