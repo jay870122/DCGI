@@ -454,7 +454,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="page-header"><div class="page-title">🔨 拍賣出價紀錄</div></div>
 
         <div class="tbl-wrap" style="padding:24px">
-          <div style="color:var(--mu);font-size:12px">選一場拍賣,查看目前所有出價者與出價狀態(凍結中/已退回/得標)；頁面開著時每5秒自動重整一次</div>
+          <div style="color:var(--mu);font-size:12px">選一場拍賣,查看目前所有出價者與出價狀態(凍結中/已退回/得標)；頁面開著時每10秒自動重整一次</div>
           <div class="toolbar" style="margin-top:12px">
             <select class="filter-sel" id="bids-auction-select" onchange="loadAuctionBids()" style="min-width:260px"></select>
             <button class="btn btn-edit" onclick="loadAuctionBids()">🔄 重新查詢</button>
@@ -637,7 +637,7 @@ async function loadMeta() {
 
 // ── Navigation ──
 const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history','auction-bids'];
-let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每5秒自動重整一次
+let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
   document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', pages[i] === p));
@@ -650,7 +650,7 @@ function navTo(p) {
   if (p==='history') loadHistory();
   if (p==='auction-bids') {
     openAuctionBidsPage();
-    auctionBidsAutoRefreshInterval = setInterval(loadAuctionBids, 5000);
+    auctionBidsAutoRefreshInterval = setInterval(loadAuctionBids, 10000);
   }
 }
 
