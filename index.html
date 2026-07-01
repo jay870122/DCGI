@@ -212,6 +212,10 @@
         <span class="modal-close" onclick="closeAuctions()">×</span>
         <h2 style="margin:0;">🔨 拍賣會</h2>
         <div class="score-box" id="auction-currency-box" style="margin-top: 10px; gap: 8px;"></div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <button class="btn-action" style="padding:5px 12px; font-size:12px;" onclick="loadAuctions()">🔄 重新整理</button>
+          <span id="auction-last-refresh" style="font-size:11px; color:#B9BBBE;"></span>
+        </div>
       </div>
       <div class="modal-body">
         <div id="auction-category-tabs" class="auction-category-tabs" style="display:none;"></div>
@@ -495,6 +499,7 @@
     // ============================================================
     let currentAuctions = [];
     let auctionCountdownInterval = null;
+    let auctionAutoRefreshInterval = null; // 🌟 拍賣視窗開著的時候,每10秒自動重整一次最新出價狀況
     let currentAuctionCategory = null; // 🌟 目前選中的拍賣分類;不再有「全部」選項,載入後會自動選第一個分類
     let auctionAltInfo = {}; // 🌟 auctionId -> {rate, balance, altName, mainCurrency},給拍賣替代貨幣折抵預覽用
     let AUCTION_CATEGORY_ORDER = []; // 🌟 拍賣分類排序(從分類排序表B欄讀取)
@@ -505,11 +510,21 @@
       document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
       document.getElementById('auction-category-tabs').style.display = 'none';
       loadAuctions();
+
+      if (auctionAutoRefreshInterval) clearInterval(auctionAutoRefreshInterval);
+      auctionAutoRefreshInterval = setInterval(() => {
+        // 🌟 如果玩家正在輸入出價金額或勾選折抵選項,先跳過這次自動重整,避免打斷輸入到一半的內容
+        const activeEl = document.activeElement;
+        const container = document.getElementById('auction-list-container');
+        if (container && activeEl && container.contains(activeEl) && activeEl !== document.body) return;
+        loadAuctions();
+      }, 10000);
     }
 
     function closeAuctions() {
       document.getElementById('auction-modal').style.display = 'none';
       if (auctionCountdownInterval) { clearInterval(auctionCountdownInterval); auctionCountdownInterval = null; }
+      if (auctionAutoRefreshInterval) { clearInterval(auctionAutoRefreshInterval); auctionAutoRefreshInterval = null; }
     }
 
     function loadAuctions() {
@@ -522,6 +537,8 @@
           renderAuctions();
           if (auctionCountdownInterval) clearInterval(auctionCountdownInterval);
           auctionCountdownInterval = setInterval(updateAuctionCountdowns, 1000);
+          const refreshLabel = document.getElementById('auction-last-refresh');
+          if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}（每10秒自動更新）`;
         } else {
           document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message || '') + '</p>';
         }
