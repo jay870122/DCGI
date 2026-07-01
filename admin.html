@@ -280,6 +280,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <select class="filter-sel" id="auction-cat-filter" onchange="renderAuctionTable()">
               <option value="">全部分類</option>
             </select>
+            <select class="filter-sel" id="auction-status-filter" onchange="renderAuctionTable()">
+              <option value="">全部狀態</option>
+              <option value="ACTIVE">🟢 上架中</option>
+              <option value="DRAFT">📝 草稿</option>
+            </select>
             <button class="fab" onclick="navTo('add-auction')">➕ 新增拍賣</button>
           </div>
         </div>
@@ -374,6 +379,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>貨幣欄位</label><input id="na-currency" value="升階2" list="dc-list"></div>
             <div class="field"><label>拍賣類型</label><select id="na-type"><option value="PUBLIC">📢 公開比價（高者得）</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
             <div class="field"><label>分類</label><input id="na-cat" list="ac-list"><datalist id="ac-list"></datalist></div>
+            <div class="field"><label>狀態</label><select id="na-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
             <div class="fsep">時間設定</div>
             <div class="field"><label>起標時間 <span class="hint">留空=立即</span></label><input id="na-sdate" type="datetime-local"></div>
             <div class="field"><label>結束時間<span style="color:var(--red)">*</span></label><input id="na-edate" type="datetime-local"></div>
@@ -390,7 +396,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               💱 玩家出價時,可以用上面指定的替代貨幣(例如拍賣幣)折抵部分或全部出價金額,剩下的才凍結原本標價的貨幣。得標/被蓋過出價/流標退款時,兩種貨幣都會一起處理,不會漏退。<br>
               📐 匯率小於1時(例如100個碎片才折抵1個),系統會自動避免湊不滿整數單位的零頭被白白扣掉,只會扣真正有折抵到的數量。
             </div>
-            <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-save" id="na-btn" onclick="submitAddAuction()">➕ 新增到試算表</button></div>
+            <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-cancel" id="na-draft-btn" onclick="submitAddAuction('DRAFT')">📝 存為草稿</button><button class="btn-save" id="na-btn" onclick="submitAddAuction(null)">➕ 新增到試算表</button></div>
           </div>
         </div>
       </div>
@@ -523,6 +529,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>貨幣欄位</label><input id="ea-currency" list="dc-list"></div>
       <div class="field"><label>拍賣類型</label><select id="ea-type"><option value="PUBLIC">📢 公開比價</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
       <div class="field"><label>分類</label><input id="ea-cat" list="ac-list"></div>
+      <div class="field"><label>狀態</label><select id="ea-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
       <div class="fsep">時間</div>
       <div class="field"><label>起標時間</label><input id="ea-sdate" type="datetime-local"></div>
       <div class="field"><label>結束時間</label><input id="ea-edate" type="datetime-local"></div>
@@ -817,7 +824,10 @@ function sortAuctionBy(key) {
 function renderAuctionTable() {
   const q = document.getElementById('auction-search').value.toLowerCase();
   const cat = document.getElementById('auction-cat-filter').value;
+  const statusFilter = document.getElementById('auction-status-filter').value;
   let items = auctionItems.filter(i => (!q||i.name.toLowerCase().includes(q)) && (!cat||(i.category||'')=== cat));
+  if (statusFilter === 'DRAFT') items = items.filter(i => i.status === 'DRAFT');
+  else if (statusFilter === 'ACTIVE') items = items.filter(i => i.status !== 'DRAFT');
 
   if (auctionSort.key) {
     const k = auctionSort.key, dir = auctionSort.dir;
@@ -844,9 +854,10 @@ function renderAuctionTable() {
       <td data-label="起標價">${i.startBid}</td>
       <td data-label="目前最高">${i.currentHighBid||'—'}</td>
       <td data-label="結束時間">${i.endDate||'—'}</td>
-      <td data-label="狀態">${stateLabel[i.state]||''}</td>
+      <td data-label="狀態">${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (stateLabel[i.state]||'')}</td>
       <td class="cell-id" data-label="ID">${i.auctionId||'—'}</td>
       <td class="cell-actions" data-label="操作"><div class="btn-row">
+        ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishAuction('${i.auctionId}')">🚀 上架</button>` : ''}
         <button class="btn btn-edit" onclick="openEditAuction('${i.auctionId}')">編輯</button>
         ${i.state==='open'?`<button class="btn btn-close" onclick="closeAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">關閉</button>`:''}
         <button class="btn btn-del" onclick="delAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
@@ -865,6 +876,7 @@ function openEditAuction(auctionId) {
   f('ea-ext2').value=i.extendBy||''; f('ea-img').value=i.imageUrl||'';
   f('ea-remark').value=i.remark||''; f('ea-role').value=i.requiredRole||'';
   f('ea-altcurrency').value=i.altCurrency||''; f('ea-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
+  f('ea-status').value=i.status==='DRAFT'?'DRAFT':'';
   const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
   f('ea-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
   document.getElementById('auction-modal').classList.add('open');
@@ -881,9 +893,23 @@ async function saveAuction() {
     startDate:f('ea-sdate'),endDate:f('ea-edate'),
     extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
     imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:f('ea-role'),
-    altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate')});
+    altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate'),status:f('ea-status')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+async function publishAuction(auctionId) {
+  const i = auctionItems.find(x => x.auctionId === auctionId);
+  if (!i) return;
+  if (!confirm(`確定要把「${i.name}」從草稿改為上架嗎？上架後玩家就會看到這場拍賣。`)) return;
+  const d = await api({action:'adminUpdateAuction',auctionId:i.auctionId,name:i.name,startBid:i.startBid,
+    type:i.type,category:i.category,currency:i.currency,
+    startDate:i.startDate,endDate:i.endDate,
+    extendTrigger:i.extendTrigger,extendBy:i.extendBy,
+    imageUrl:i.imageUrl,remark:i.remark,requiredRole:i.requiredRole,
+    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,status:''});
+  if (d.status==='success') { toast('🚀 已上架'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
 }
 
@@ -953,23 +979,28 @@ function resetAddAuction() {
    'na-altcurrency','na-altrate'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('na-currency').value='升階2';
   document.getElementById('na-type').value='PUBLIC';
+  document.getElementById('na-status').value='';
   addAuctionAutosave.clear();
 }
-async function submitAddAuction() {
+async function submitAddAuction(forceStatus) {
   const f=id=>document.getElementById(id).value;
   if (!f('na-name')) { toast('請填寫拍賣名稱', false); return; }
   if (f('na-bid')==='') { toast('請填寫起標價', false); return; }
   if (!f('na-edate')) { toast('請填寫結束時間', false); return; }
   if (f('na-altcurrency') && !(parseFloat(f('na-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
-  const btn=document.getElementById('na-btn'); btn.disabled=true; btn.textContent='新增中...';
+  const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('na-status');
+  const isDraft = status === 'DRAFT';
+  const btn=document.getElementById(isDraft ? 'na-draft-btn' : 'na-btn');
+  const originalText = btn.textContent;
+  btn.disabled=true; btn.textContent=isDraft ? '存草稿中...' : '新增中...';
   const d=await api({action:'adminAddAuction',name:f('na-name'),startBid:f('na-bid'),
     type:f('na-type'),category:f('na-cat'),currency:f('na-currency'),
     startDate:f('na-sdate'),endDate:f('na-edate'),
     extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
     imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:f('na-role'),
-    altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate')});
-  btn.disabled=false; btn.textContent='➕ 新增到試算表';
-  if (d.status==='success') { toast(`✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
+    altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate'),status:isDraft?'DRAFT':''});
+  btn.disabled=false; btn.textContent=originalText;
+  if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.auctionId}` : `✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
   else toast('❌ '+d.message, false);
 }
 
@@ -1094,8 +1125,8 @@ const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','
   'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-altcurrency','ns-altrate'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
   'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl','em-altcurrency','em-altrate'];
-const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-altcurrency','na-altrate'];
-const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-altcurrency','ea-altrate'];
+const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-altcurrency','na-altrate'];
+const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-altcurrency','ea-altrate'];
 
 const addShopAutosave = setupFieldAutosave(NS_FIELDS, () => 'add-shop');
 const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'));
