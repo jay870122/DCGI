@@ -379,6 +379,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field full"><label>圖片網址</label><input id="na-img" type="url"></div>
             <div class="field full"><label>備註</label><textarea id="na-remark"></textarea></div>
             <div class="field full"><label>限定身分組</label><input id="na-role" list="ri-list" placeholder="留空=不限"><div class="role-hint" id="na-role-hint"></div></div>
+            <div class="fsep">替代貨幣折抵（選填,例如出價時可以部分用拍賣幣折抵）</div>
+            <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="na-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
+            <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="na-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              💱 玩家出價時,可以用上面指定的替代貨幣(例如拍賣幣)折抵部分或全部出價金額,剩下的才凍結原本標價的貨幣。得標/被蓋過出價/流標退款時,兩種貨幣都會一起處理,不會漏退。
+            </div>
             <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-save" id="na-btn" onclick="submitAddAuction()">➕ 新增到試算表</button></div>
           </div>
         </div>
@@ -477,6 +483,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="full field"><label>圖片網址</label><input id="ea-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="ea-remark"></textarea></div>
       <div class="full field"><label>限定身分組</label><input id="ea-role" list="ri-list"><div class="role-hint" id="ea-role-hint"></div></div>
+      <div class="fsep">替代貨幣折抵（選填）</div>
+      <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ea-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
+      <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="ea-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
       <input type="hidden" id="ea-id">
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('auction-modal')">取消</button><button class="btn-save" id="ea-save" onclick="saveAuction()">💾 儲存變更</button></div>
@@ -773,7 +782,7 @@ function renderAuctionTable() {
   document.getElementById('auction-tbody').innerHTML = items.length===0
     ? '<tr><td colspan="9" class="empty">沒有符合條件的拍賣</td></tr>'
     : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}" data-label="拍賣名稱">${i.name}</td>
+      <td class="cell-name" title="${i.name}" data-label="拍賣名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}</td>
       <td data-label="類型">${typeLabel[i.type]||i.type}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="起標價">${i.startBid}</td>
@@ -799,6 +808,7 @@ function openEditAuction(auctionId) {
   f('ea-edate').value=i.endDate||''; f('ea-ext1').value=i.extendTrigger||'';
   f('ea-ext2').value=i.extendBy||''; f('ea-img').value=i.imageUrl||'';
   f('ea-remark').value=i.remark||''; f('ea-role').value=i.requiredRole||'';
+  f('ea-altcurrency').value=i.altCurrency||''; f('ea-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
   const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
   f('ea-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
   document.getElementById('auction-modal').classList.add('open');
@@ -807,13 +817,15 @@ function openEditAuction(auctionId) {
 
 async function saveAuction() {
   const f = id => document.getElementById(id).value;
+  if (f('ea-altcurrency') && !(parseFloat(f('ea-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
   const btn = document.getElementById('ea-save');
   btn.disabled=true; btn.textContent='儲存中...';
   const d = await api({action:'adminUpdateAuction',auctionId:f('ea-id'),name:f('ea-name'),startBid:f('ea-bid'),
     type:f('ea-type'),category:f('ea-cat'),currency:f('ea-currency'),
     startDate:f('ea-sdate'),endDate:f('ea-edate'),
     extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
-    imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:f('ea-role')});
+    imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:f('ea-role'),
+    altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
@@ -881,7 +893,8 @@ async function submitAddShop(forceStatus) {
 
 // ── Add Auction ──
 function resetAddAuction() {
-  ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat'].forEach(id=>document.getElementById(id).value='');
+  ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat',
+   'na-altcurrency','na-altrate'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('na-currency').value='升階2';
   document.getElementById('na-type').value='PUBLIC';
   addAuctionAutosave.clear();
@@ -891,12 +904,14 @@ async function submitAddAuction() {
   if (!f('na-name')) { toast('請填寫拍賣名稱', false); return; }
   if (f('na-bid')==='') { toast('請填寫起標價', false); return; }
   if (!f('na-edate')) { toast('請填寫結束時間', false); return; }
+  if (f('na-altcurrency') && !(parseFloat(f('na-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
   const btn=document.getElementById('na-btn'); btn.disabled=true; btn.textContent='新增中...';
   const d=await api({action:'adminAddAuction',name:f('na-name'),startBid:f('na-bid'),
     type:f('na-type'),category:f('na-cat'),currency:f('na-currency'),
     startDate:f('na-sdate'),endDate:f('na-edate'),
     extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
-    imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:f('na-role')});
+    imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:f('na-role'),
+    altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate')});
   btn.disabled=false; btn.textContent='➕ 新增到試算表';
   if (d.status==='success') { toast(`✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
   else toast('❌ '+d.message, false);
@@ -1023,8 +1038,8 @@ const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','
   'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-altcurrency','ns-altrate'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
   'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl','em-altcurrency','em-altrate'];
-const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role'];
-const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role'];
+const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-altcurrency','na-altrate'];
+const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-altcurrency','ea-altrate'];
 
 const addShopAutosave = setupFieldAutosave(NS_FIELDS, () => 'add-shop');
 const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'));
