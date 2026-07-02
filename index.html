@@ -304,7 +304,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.16.1 (拍賣分類排序支援分類排序表B欄)</div>
+    <div class="version-tag">系統版本：v3.17.0 (載入分數/商店失敗時顯示錯誤原因並提供重試按鈕,不再卡死在載入畫面)</div>
   </div>
 
   <script>
@@ -1010,7 +1010,15 @@ function fetchScoresAndShop(discordId, callback = null) {
       fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}`)
       .then(res => res.json())
       .then(result => {
-        if (result.status !== "success") return;
+        if (result.status !== "success") {
+          // 🌟 原本這裡只有 return,Worker 回傳失敗(例如試算表暫時讀取失敗、Google 認證過期、玩家資料格式異常等)
+          // 時畫面會永遠停在「⏳ 載入分數與商店目錄...」不會有任何提示,也叫不出重整鈕。
+          // 改成清楚顯示錯誤原因 + 一個可以重新嘗試的按鈕,不要讓玩家卡住不知道發生什麼事。
+          console.error("讀取分數與商店資料失敗:", result.message);
+          document.getElementById('loading-text').innerHTML =
+            `❌ 載入失敗：${result.message || '未知錯誤'}<br><button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button>`;
+          return;
+        }
 
         const data = result.scores;
         if(data && data.status === "success") {
@@ -1119,7 +1127,8 @@ function fetchScoresAndShop(discordId, callback = null) {
       })
       .catch(err => {
         console.error("載入失敗:", err);
-        document.getElementById('loading-text').innerText = "❌ 載入失敗，請稍後再試";
+        document.getElementById('loading-text').innerHTML =
+          `❌ 載入失敗，請稍後再試<br><button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button>`;
       });
     }
     function renderShop() {
