@@ -236,6 +236,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('sort-settings')">🔀 排序設定</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
+      <div class="nav-item" onclick="navTo('reward-keys')">🎫 序號庫管理</div>
       <div class="nav-item" onclick="navTo('auction-bids')">🔨 拍賣出價紀錄</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('lock-settings')">🔒 密碼鎖定管理</div>
@@ -470,10 +471,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           </div>
           <div id="hist-summary" style="color:var(--mu);font-size:12px;margin-top:8px"></div>
         </div>
+      </div>
+
+      <!-- 序號庫管理 -->
+      <div id="page-reward-keys" style="display:none">
+        <div class="page-header"><div class="page-title">🎫 序號庫管理</div></div>
 
         <div class="tbl-wrap" style="padding:24px">
-          <div class="page-title" style="font-size:15px">🎫 序號庫管理（購買 [序號] 商品 / 盲盒 [序號] 中獎用）</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">跟「密碼鎖定管理」裡的解鎖序號庫是<b>不同的兩張表</b>,這裡是商品名稱帶 [序號]、或盲盒規則裡變數名帶 [序號] 時,實際發給玩家的專屬序號池</div>
+          <div style="color:var(--mu);font-size:12px">購買 [序號] 商品 / 盲盒 [序號] 中獎用；跟「密碼鎖定管理」裡的解鎖序號庫是<b>不同的兩張表</b>,這裡是商品名稱帶 [序號]、或盲盒規則裡變數名帶 [序號] 時,實際發給玩家的專屬序號池</div>
           <div class="toolbar" style="margin-top:12px">
             <button class="btn btn-edit" onclick="loadRewardKeys()">🔄 重新查詢</button>
           </div>
@@ -733,7 +738,7 @@ async function loadMeta() {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -744,7 +749,8 @@ function navTo(p) {
   if (p==='add-shop') addShopAutosave.checkAndOffer();
   if (p==='add-auction') addAuctionAutosave.checkAndOffer();
   if (p==='sort-settings') openSortSettings();
-  if (p==='history') { loadHistory(); loadRewardKeys(); }
+  if (p==='history') loadHistory();
+  if (p==='reward-keys') loadRewardKeys();
   if (p==='auction-bids') {
     openAuctionBidsPage();
     auctionBidsAutoRefreshInterval = setInterval(loadAuctionBids, 10000);
