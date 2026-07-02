@@ -168,6 +168,12 @@
     .auction-bid-btn { background-color: #F0B232; color: #1F2124; font-weight: bold; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; }
     .auction-bid-btn:hover { background-color: #D69A1F; }
     .auction-bid-btn:disabled { background-color: #4F545C; color: #B9BBBE; cursor: not-allowed; }
+    .auction-extend-hint { font-size: 12px; color: #FEE75C; margin: 4px 0 8px 0; }
+    .auction-extend-flash { animation: extendFlash 2s ease-out; }
+    @keyframes extendFlash {
+      0% { box-shadow: 0 0 0 3px rgba(254, 231, 92, 0.9); }
+      100% { box-shadow: 0 0 0 0px rgba(254, 231, 92, 0); }
+    }
 
     /* 🌟 圖片放大彈出視窗 */
     .image-overlay {
@@ -529,10 +535,18 @@
     }
 
     function loadAuctions() {
+      // 🌟 記住這次重整前的截止時間,重整後如果發現變長了,代表剛好被自動延長觸發,閃一下卡片提醒玩家
+      const prevEndDates = {};
+      currentAuctions.forEach(a => { prevEndDates[a.id] = a.endDate; });
+
       fetch(`${DASHBOARD_WORKER_URL}?action=auctions&discordId=${currentUser.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
+          const extendedIds = data.auctions
+            .filter(a => prevEndDates[a.id] && a.endDate && new Date(a.endDate).getTime() > new Date(prevEndDates[a.id]).getTime())
+            .map(a => a.id);
+
           currentAuctions = data.auctions;
           if (data.categoryOrder && data.categoryOrder.length > 0) AUCTION_CATEGORY_ORDER = data.categoryOrder;
           renderAuctions();
@@ -540,6 +554,14 @@
           auctionCountdownInterval = setInterval(updateAuctionCountdowns, 1000);
           const refreshLabel = document.getElementById('auction-last-refresh');
           if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}（每10秒自動更新）`;
+
+          extendedIds.forEach(id => {
+            const card = document.getElementById('auction-card-' + id);
+            if (card) {
+              card.classList.add('auction-extend-flash');
+              setTimeout(() => card.classList.remove('auction-extend-flash'), 2000);
+            }
+          });
         } else {
           document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message || '') + '</p>';
         }
@@ -662,6 +684,12 @@
           countdownHtml = '無截止時間';
         }
 
+        // 🌟 自動延長規則提示:有設定的話,讓玩家知道最後衝刺出價會延長時間,不用意外覺得「怎麼還沒結標」
+        let extendHintHtml = '';
+        if (a.state === 'open' && a.extendTriggerMin !== null && a.extendByMin !== null) {
+          extendHintHtml = `<div class="auction-extend-hint">⏰ 最後 ${a.extendTriggerMin} 分鐘內有人出價，將自動延長 ${a.extendByMin} 分鐘</div>`;
+        }
+
         let bidRowHtml = '';
         if (a.state === 'open') {
           let bidInputAttrs;
@@ -717,6 +745,7 @@
               ${priceInfoHtml}${myBidHtml}<br>
               ⏳ ${countdownHtml}
             </div>
+            ${extendHintHtml}
             ${statusHtml}
             ${bidRowHtml}
           </div>
