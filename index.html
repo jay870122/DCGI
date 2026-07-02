@@ -120,6 +120,7 @@
     .alt-mode-row label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
     .alt-mode-row input[type="number"] { width: 80px; padding: 4px 6px; border-radius: 4px; border: 1px solid #4F545C; background-color: #2C2F33; color: white; font-size: 13px; }
     .alt-preview { margin-top: 6px; color: #58FF9C; font-weight: bold; font-size: 12px; min-height: 14px; }
+    .item-lock-hint { background-color: #2C2530; border: 1px solid #9B59B6; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; font-size: 12px; color: #C99EE0; }
 
     /* 手機版適應：側邊欄變為上方橫向捲動 */
     @media (max-width: 768px) {
@@ -1155,18 +1156,29 @@ function fetchScoresAndShop(discordId, callback = null) {
             </div>`;
         }
 
+        // 🌟 密碼鎖定:分類鎖或商品自己的鎖,只要還沒解鎖任一個就會擋購買,提示玩家需要輸入密碼
+        const isLocked = (item.categoryLocked && !item.categoryUnlocked) || (item.itemLocked && !item.itemUnlocked);
+        let lockHtml = '';
+        if (isLocked) {
+          const lockReason = (item.categoryLocked && !item.categoryUnlocked)
+            ? `此商品所在分類「${item.category}」需要密碼才能購買`
+            : '此商品需要密碼才能購買';
+          lockHtml = `<div class="item-lock-hint">🔒 ${lockReason}，點擊「兌換」時會請你輸入密碼</div>`;
+        }
+
         let actionHtml = '';
         if (isAvail) {
           let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
           actionHtml = `
+            ${lockHtml}
             ${altHtml}
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}" oninput="updateAltPreview('${safeId}')">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">兌換</button>
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : '兌換'}</button>
             </div>
           `;
         } else {
-          actionHtml = `<div class="item-actions"><button class="btn btn-buy" disabled>無法兌換</button></div>`;
+          actionHtml = `<div class="item-actions">${lockHtml}<button class="btn btn-buy" disabled>無法兌換</button></div>`;
         }
 
         const html = `
@@ -1174,7 +1186,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             ${imageHtml}
             <div class="item-header">
               <div style="display: flex; align-items: center;">
-                <span class="item-name">${displayName}</span>
+                <span class="item-name">${isLocked ? '🔒 ' : ''}${displayName}</span>
                 <span class="btn-share" onclick="shareItem('${item.id}', '${displayName}')" title="複製分享連結">🔗</span>
               </div>
               <span class="item-badge ${badgeClass}">${item.stateMsg}</span>
@@ -1252,7 +1264,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         : `目前折抵 0 個(${info.altName} 數量不足以湊到最小可折抵單位,或尚未輸入數量)`;
     }
 
-    function buyItem(itemId, itemName, safeId, maxQty, currencyName) {
+    function buyItem(itemId, itemName, safeId, maxQty, currencyName, unlockPasswordOverride) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);
       const qty = parseInt(qtyInput.value);
@@ -1262,6 +1274,20 @@ function fetchScoresAndShop(discordId, callback = null) {
       
       let isHold = itemName.includes('[持有]');
       let displayItemName = itemName.replace('[持有]', '').trim();
+
+      // 🌟 密碼鎖定:如果商品或所在分類還沒解鎖,先跳出提示要求輸入密碼,不用等後端回錯誤才問一次
+      let unlockPassword = unlockPasswordOverride || '';
+      if (!unlockPassword) {
+        const item = currentShopItems.find(it => it.id === itemId);
+        if (item && ((item.categoryLocked && !item.categoryUnlocked) || (item.itemLocked && !item.itemUnlocked))) {
+          const promptLabel = (item.categoryLocked && !item.categoryUnlocked)
+            ? `此商品所在分類「${item.category}」需要密碼才能購買，請輸入密碼：`
+            : '此商品需要密碼才能購買，請輸入密碼：';
+          const entered = prompt(promptLabel);
+          if (entered === null) return; // 使用者按取消
+          unlockPassword = entered.trim();
+        }
+      }
 
       // 🌟 替代貨幣折抵:讀取玩家在卡片上勾選的折抵模式/數量
       let altMode = 'none', altAmount = 0, altConfirmNote = '';
@@ -1287,7 +1313,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altAmount=${altAmount}`)
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altAmount=${altAmount}&unlockPassword=${encodeURIComponent(unlockPassword)}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
@@ -1305,6 +1331,15 @@ function fetchScoresAndShop(discordId, callback = null) {
           }
           alert(successMsg);
           fetchScoresAndShop(currentUser.id); 
+        } else if (data.needUnlock) {
+          // 🌟 密碼錯誤,或分類密碼解鎖後接著發現商品自己還有另一層鎖:重新提示一次密碼,輸入後自動重試同一筆購買
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          const retryLabel = data.needUnlock === 'CATEGORY' ? '分類密碼' : '商品密碼';
+          const retryEntered = prompt(`${data.message}\n請重新輸入${retryLabel}：`);
+          if (retryEntered !== null && retryEntered.trim() !== '') {
+            buyItem(itemId, itemName, safeId, maxQty, currencyName, retryEntered.trim());
+          }
         } else {
           alert("❌ 兌換失敗：" + data.message);
           if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限") || data.message.includes("條件")) {
