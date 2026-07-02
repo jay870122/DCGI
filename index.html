@@ -121,6 +121,18 @@
     .alt-mode-row input[type="number"] { width: 80px; padding: 4px 6px; border-radius: 4px; border: 1px solid #4F545C; background-color: #2C2F33; color: white; font-size: 13px; }
     .alt-preview { margin-top: 6px; color: #58FF9C; font-weight: bold; font-size: 12px; min-height: 14px; }
     .item-lock-hint { background-color: #2C2530; border: 1px solid #9B59B6; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; font-size: 12px; color: #C99EE0; }
+    .category-lock-screen { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #B9BBBE; }
+    .category-lock-icon { font-size: 48px; margin-bottom: 12px; }
+    .category-lock-title { font-size: 16px; margin-bottom: 20px; color: #FFF; }
+    .category-lock-banner { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      background-color: #2C2530; border: 1px solid #9B59B6; border-radius: 8px; padding: 12px 16px; color: #C99EE0; font-size: 14px; margin-bottom: 4px; }
+    .category-blur-content { display: contents; }
+    .category-blur-content .shop-item-card { filter: blur(5px); pointer-events: none; user-select: none; }
+    .item-blur-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px 15px; }
+    .item-blur-content { margin-bottom: 16px; }
+    .item-blur-icon { font-size: 36px; margin-bottom: 8px; }
+    .item-blur-name { font-size: 16px; font-weight: bold; color: #B9BBBE; letter-spacing: 2px; }
+    .item-blur-price { font-size: 13px; color: #72767D; margin-top: 4px; }
 
     /* 手機版適應：側邊欄變為上方橫向捲動 */
     @media (max-width: 768px) {
@@ -301,6 +313,7 @@
     let currentUser = null; 
     let currentShopItems = []; 
     let itemAltInfo = {}; // 🌟 safeId -> {price, rate, balance, altName, mainCurrency},給替代貨幣折抵預覽用
+    let categoryUnlockedThisSession = new Set(); // 🌟 密碼鎖定:這次瀏覽期間(重新整理網頁會重置)已經解鎖過的分類,不用每次切換分類都重問一次
     let currentCategory = null;
     let CATEGORY_ORDER = []; 
     
@@ -401,8 +414,10 @@
       let html = "";
       categories.forEach(cat => {
         const count = currentShopItems.filter(i => i.category === cat).length;
+        const sample = currentShopItems.find(i => i.category === cat);
+        const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(cat);
         html += `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat}')">
-                   <span>🏷️ ${cat}</span>
+                   <span>${locked ? '🔒' : '🏷️'} ${cat}</span>
                    <div style="display:flex; align-items:center; gap:10px;">
                      <span style="font-size:12px; opacity:0.7;">${count}</span>
                      <span class="btn-share-cat" onclick="shareCategory(event, '${cat}')" title="分享此分類">🔗</span>
@@ -410,6 +425,46 @@
                  </div>`;
       });
       sidebar.innerHTML = html;
+    }
+
+    // 🌟 密碼鎖定:提示輸入分類密碼並向後端驗證,成功才會真的把分類內容顯示出來
+    async function promptUnlockCategory(cat) {
+      const entered = prompt(`分類「${cat}」需要密碼才能瀏覽，請輸入密碼：`);
+      if (entered === null || entered.trim() === '') return;
+      try {
+        const res = await fetch(`${GAS_API_URL}?action=unlockCategory&discordId=${currentUser.id}&category=${encodeURIComponent(cat)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          categoryUnlockedThisSession.add(cat);
+          currentShopItems.forEach(i => { if (i.category === cat) i.categoryUnlocked = true; });
+          renderSidebar();
+          renderShop();
+        } else {
+          alert('❌ ' + (data.message || '密碼錯誤'));
+        }
+      } catch (e) {
+        alert('網路錯誤，請稍後再試！');
+      }
+    }
+
+    // 🌟 密碼鎖定:商品模糊顯示模式的解鎖按鈕,驗證成功後就地更新這個商品的狀態並重新渲染
+    async function promptUnlockItem(itemId, safeId) {
+      const item = currentShopItems.find(it => it.id === itemId);
+      const label = item ? `商品「？？？」` : '此商品';
+      const entered = prompt(`${label}需要密碼才能查看，請輸入密碼：`);
+      if (entered === null || entered.trim() === '') return;
+      try {
+        const res = await fetch(`${GAS_API_URL}?action=unlockItem&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          if (item) item.itemUnlocked = true;
+          renderShop();
+        } else {
+          alert('❌ ' + (data.message || '密碼錯誤'));
+        }
+      } catch (e) {
+        alert('網路錯誤，請稍後再試！');
+      }
     }
 
     // 🌟 控制圖片放大縮小
@@ -1040,7 +1095,30 @@ function fetchScoresAndShop(discordId, callback = null) {
       let displayItems = [...currentShopItems];
       itemAltInfo = {}; // 🌟 每次重繪商店都重置替代貨幣資訊快取
 
-      if (currentCategory) displayItems = displayItems.filter(item => item.category === currentCategory);
+      let isCatBlurLocked = false; // 🌟 這個分類是「模糊顯示」模式且還沒解鎖,渲染完後要整個包一層模糊遮罩
+      if (currentCategory) {
+        displayItems = displayItems.filter(item => item.category === currentCategory);
+
+        // 🌟 分類密碼鎖定:還沒解鎖的話,依照顯示模式決定「完全隱藏內容」/「模糊顯示」/「正常顯示只鎖購買」
+        const catLockSample = currentShopItems.find(item => item.category === currentCategory);
+        const isCatLocked = catLockSample && catLockSample.categoryLocked && !catLockSample.categoryUnlocked && !categoryUnlockedThisSession.has(currentCategory);
+        if (isCatLocked) {
+          if (catLockSample.categoryLockVisibility === 'BLUR') {
+            isCatBlurLocked = true;
+          } else if (catLockSample.categoryLockVisibility !== 'VISIBLE') {
+            // 預設(未設定/HIDDEN):完全隱藏內容,只顯示鎖定畫面
+            container.innerHTML = `
+              <div class="category-lock-screen">
+                <div class="category-lock-icon">🔒</div>
+                <div class="category-lock-title">「${currentCategory}」需要密碼才能瀏覽</div>
+                <button class="btn-action" onclick="promptUnlockCategory('${currentCategory.replace(/'/g,"\\'")}')">輸入密碼解鎖</button>
+              </div>`;
+            return;
+          }
+          // VISIBLE:什麼都不做,往下正常渲染——商品卡片本來就會用 categoryLocked/categoryUnlocked
+          // 顯示鎖定提示並擋住購買按鈕(跟商品自己的鎖定提示是同一套邏輯)
+        }
+      }
       if (sortType === 'avail-first') {
         displayItems.sort((a, b) => {
           if (a.state === 'available' && b.state !== 'available') return -1;
@@ -1056,10 +1134,27 @@ function fetchScoresAndShop(discordId, callback = null) {
         return;
       }
 
+      let allCardsHtml = '';
       displayItems.forEach((item) => {
         const isAvail = item.state === "available";
         const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
         const safeId = "item-" + item.id; 
+
+        // 🌟 商品密碼鎖定 + 模糊顯示模式:還沒解鎖的話,只顯示一張模糊卡片,不洩漏商品細節,直接跳過其他資訊組裝
+        const itemBlurLocked = item.itemLocked && !item.itemUnlocked && item.itemLockVisibility === 'BLUR';
+        if (itemBlurLocked) {
+          allCardsHtml += `
+            <div class="shop-item-card item-blur-card" id="card-${safeId}">
+              <div class="item-blur-content">
+                <div class="item-blur-icon">🔒</div>
+                <div class="item-blur-name">？？？？？</div>
+                <div class="item-blur-price">？？？ ${item.displayCurrency}</div>
+              </div>
+              <button class="btn btn-buy" onclick="promptUnlockItem('${item.id}', '${safeId}')">🔒 輸入密碼解鎖查看</button>
+            </div>
+          `;
+          return; // 🌟 跳過這個商品剩下的正常渲染邏輯
+        }
         
         let limitsHtml = `<div class="limit-tags">`;
         if (item.limits.remainGD !== null) limitsHtml += `<span class="limit-tag tag-global">🌍 全服今日: ${item.limits.remainGD}</span>`;
@@ -1203,9 +1298,22 @@ function fetchScoresAndShop(discordId, callback = null) {
             ${actionHtml}
           </div>
         `;
-        container.innerHTML += html;
+        allCardsHtml += html;
       });
-      
+
+      // 🌟 分類是「模糊顯示」且還沒解鎖:整批商品卡片包一層模糊遮罩,上方顯示解鎖按鈕橫幅
+      if (isCatBlurLocked) {
+        container.innerHTML = `
+          <div class="category-lock-banner">
+            <span>🔒 「${currentCategory}」需要密碼才能購買，以下為模糊預覽</span>
+            <button class="btn-action" onclick="promptUnlockCategory('${currentCategory.replace(/'/g,"\\'")}')">輸入密碼解鎖</button>
+          </div>
+          <div class="category-blur-content">${allCardsHtml}</div>
+        `;
+      } else {
+        container.innerHTML = allCardsHtml;
+      }
+
       startCountdowns();
     }
 
