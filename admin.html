@@ -481,10 +481,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div style="color:var(--mu);font-size:12px">購買 [序號] 商品 / 盲盒 [序號] 中獎用；跟「密碼鎖定管理」裡的解鎖序號庫是<b>不同的兩張表</b>,這裡是商品名稱帶 [序號]、或盲盒規則裡變數名帶 [序號] 時,實際發給玩家的專屬序號池</div>
           <div class="toolbar" style="margin-top:12px">
             <button class="btn btn-edit" onclick="loadRewardKeys()">🔄 重新查詢</button>
+            <button class="btn btn-del" onclick="deleteSelectedRewardKeys()">🗑️ 刪除選中的序號</button>
+            <span id="rk-selected-count" style="font-size:12px;color:var(--mu)"></span>
           </div>
           <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
             <table>
-              <thead><tr><th>對應名稱</th><th>序號</th><th>狀態</th><th>使用者</th></tr></thead>
+              <thead><tr><th style="width:36px"><input type="checkbox" id="rk-select-all" onchange="toggleAllRewardKeys(this.checked)"></th><th>對應名稱</th><th>序號</th><th>狀態</th><th>使用者</th></tr></thead>
               <tbody id="reward-keys-tbody"></tbody>
             </table>
           </div>
@@ -1487,13 +1489,34 @@ async function loadRewardKeys() {
   const tbody = document.getElementById('reward-keys-tbody');
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   const keys = d.keys || [];
-  tbody.innerHTML = keys.length === 0 ? '<tr><td colspan="4" class="empty">還沒有任何序號</td></tr>' : keys.map(k => `
+  tbody.innerHTML = keys.length === 0 ? '<tr><td colspan="5" class="empty">還沒有任何序號</td></tr>' : keys.map((k, idx) => `
     <tr>
+      <td data-label="選取"><input type="checkbox" class="rk-checkbox" data-name="${k.name.replace(/"/g,'&quot;')}" data-code="${k.code.toString().replace(/"/g,'&quot;')}" onchange="updateRewardKeySelectedCount()"></td>
       <td data-label="對應名稱">${k.name}</td>
       <td class="cell-id" data-label="序號">${k.code}</td>
       <td data-label="狀態">${k.used ? '<span class="status status-closed">已使用</span>' : '<span class="status status-open">● 可用</span>'}</td>
       <td data-label="使用者">${k.usedByName || '—'}</td>
     </tr>`).join('');
+  document.getElementById('rk-select-all').checked = false;
+  updateRewardKeySelectedCount();
+}
+function toggleAllRewardKeys(checked) {
+  document.querySelectorAll('.rk-checkbox').forEach(cb => { cb.checked = checked; });
+  updateRewardKeySelectedCount();
+}
+function updateRewardKeySelectedCount() {
+  const count = document.querySelectorAll('.rk-checkbox:checked').length;
+  const label = document.getElementById('rk-selected-count');
+  label.textContent = count > 0 ? `已選 ${count} 組` : '';
+}
+async function deleteSelectedRewardKeys() {
+  const checked = Array.from(document.querySelectorAll('.rk-checkbox:checked'));
+  if (checked.length === 0) { toast('請先勾選要刪除的序號', false); return; }
+  if (!confirm(`確定要刪除選中的 ${checked.length} 組序號嗎？此動作無法復原。`)) return;
+  const targets = checked.map(cb => ({ name: cb.dataset.name, code: cb.dataset.code }));
+  const d = await api({ action: 'adminDeleteRewardKeys', targets: JSON.stringify(targets) });
+  if (d.status === 'success') { toast('✅ ' + d.message); loadRewardKeys(); }
+  else toast('❌ ' + d.message, false);
 }
 async function addRewardKeys() {
   const name = document.getElementById('rk-name').value.trim();
