@@ -133,6 +133,7 @@
     .item-blur-icon { font-size: 36px; margin-bottom: 8px; }
     .item-blur-name { font-size: 16px; font-weight: bold; color: #B9BBBE; letter-spacing: 2px; }
     .item-blur-price { font-size: 13px; color: #72767D; margin-top: 4px; }
+    .item-blur-hint { font-size: 12px; color: #C99EE0; margin-top: 10px; padding: 6px 10px; background-color: #2C2530; border-radius: 6px; }
 
     /* 手機版適應：側邊欄變為上方橫向捲動 */
     @media (max-width: 768px) {
@@ -413,9 +414,15 @@
       // 🌟 各個子分類 (加入分享按鈕)
       let html = "";
       categories.forEach(cat => {
-        const count = currentShopItems.filter(i => i.category === cat).length;
         const sample = currentShopItems.find(i => i.category === cat);
         const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(cat);
+
+        // 🌟 「完全隱藏」模式底下,如果還設定了「側邊欄完全不列出」,就直接跳過這個分類,不留任何蹤跡
+        // (只有目前選中的這個分類例外——例如透過分享連結直接進來的情況——不然使用者會找不到自己現在在哪個分類)
+        const isHideFromSidebar = locked && (!sample.categoryLockVisibility || sample.categoryLockVisibility === '') && sample.categoryLockShowHint === 'HIDE';
+        if (isHideFromSidebar && currentCategory !== cat) return;
+
+        const count = currentShopItems.filter(i => i.category === cat).length;
         html += `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat}')">
                    <span>${locked ? '🔒' : '🏷️'} ${cat}</span>
                    <div style="display:flex; align-items:center; gap:10px;">
@@ -1122,11 +1129,13 @@ function fetchScoresAndShop(discordId, callback = null) {
       itemAltInfo = {}; // 🌟 每次重繪商店都重置替代貨幣資訊快取
 
       let isCatBlurLocked = false; // 🌟 這個分類是「模糊顯示」模式且還沒解鎖,渲染完後要整個包一層模糊遮罩
+      let catLockSampleForHint = null; // 🌟 記住分類鎖定資訊(含提示詞),函式結尾組裝模糊橫幅時還要用到
       if (currentCategory) {
         displayItems = displayItems.filter(item => item.category === currentCategory);
 
         // 🌟 分類密碼鎖定:還沒解鎖的話,依照顯示模式決定「完全隱藏內容」/「模糊顯示」/「正常顯示只鎖購買」
         const catLockSample = currentShopItems.find(item => item.category === currentCategory);
+        catLockSampleForHint = catLockSample;
         const isCatLocked = catLockSample && catLockSample.categoryLocked && !catLockSample.categoryUnlocked && !categoryUnlockedThisSession.has(currentCategory);
         if (isCatLocked) {
           if (catLockSample.categoryLockVisibility === 'BLUR') {
@@ -1166,17 +1175,24 @@ function fetchScoresAndShop(discordId, callback = null) {
         const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
         const safeId = "item-" + item.id; 
 
-        // 🌟 商品密碼鎖定 + 模糊顯示模式:還沒解鎖的話,只顯示一張模糊卡片,不洩漏商品細節,直接跳過其他資訊組裝
+        // 🌟 商品密碼鎖定 + 解鎖前顯示模式:還沒解鎖的話,依設定決定「完全隱藏(不留痕跡)」或「模糊顯示」
         // 🌟 這個商品是不是還處於「鎖定中」——可能是商品自己設了密碼,也可能是純粹繼承分類的鎖定(商品本身沒設密碼,但分類還沒解鎖)
         const itemEffectivelyLocked = (item.itemLocked && !item.itemUnlocked) || (item.categoryLocked && !item.categoryUnlocked);
+        if (itemEffectivelyLocked && item.itemLockVisibility === 'HIDDEN') {
+          return; // 🌟 完全隱藏:連卡片都不產生,不留任何痕跡
+        }
         const itemBlurLocked = itemEffectivelyLocked && item.itemLockVisibility === 'BLUR';
         if (itemBlurLocked) {
+          const blurCatStillLocked = item.categoryLocked && !item.categoryUnlocked;
+          const blurHintText = blurCatStillLocked ? item.categoryLockHintText : item.itemLockHintText;
+          const blurHintHtml = blurHintText ? `<div class="item-blur-hint">💡 提示：${blurHintText}</div>` : '';
           allCardsHtml += `
             <div class="shop-item-card item-blur-card" id="card-${safeId}">
               <div class="item-blur-content">
                 <div class="item-blur-icon">🔒</div>
                 <div class="item-blur-name">？？？？？</div>
                 <div class="item-blur-price">？？？ ${item.displayCurrency}</div>
+                ${blurHintHtml}
               </div>
               <button class="btn btn-buy" onclick="promptUnlockItem('${item.id}', '${safeId}')">🔒 輸入密碼解鎖查看</button>
             </div>
@@ -1283,10 +1299,14 @@ function fetchScoresAndShop(discordId, callback = null) {
         const isLocked = (item.categoryLocked && !item.categoryUnlocked) || (item.itemLocked && !item.itemUnlocked);
         let lockHtml = '';
         if (isLocked) {
-          const lockReason = (item.categoryLocked && !item.categoryUnlocked)
+          const catStillLocked = item.categoryLocked && !item.categoryUnlocked;
+          const lockReason = catStillLocked
             ? `此商品所在分類「${item.category}」需要密碼才能購買`
             : '此商品需要密碼才能購買';
-          lockHtml = `<div class="item-lock-hint">🔒 ${lockReason}，點擊「兌換」時會請你輸入密碼</div>`;
+          // 🌟 優先顯示還鎖著的那一層的提示詞(分類優先於商品,因為分類沒過的話商品那把鎖根本還輪不到)
+          const hintText = catStillLocked ? item.categoryLockHintText : item.itemLockHintText;
+          const hintHtml = hintText ? `<br>💡 提示：${hintText}` : '';
+          lockHtml = `<div class="item-lock-hint">🔒 ${lockReason}，點擊「兌換」時會請你輸入密碼${hintHtml}</div>`;
         }
 
         let actionHtml = '';
@@ -1331,9 +1351,11 @@ function fetchScoresAndShop(discordId, callback = null) {
 
       // 🌟 分類是「模糊顯示」且還沒解鎖:整批商品卡片包一層模糊遮罩,上方顯示解鎖按鈕橫幅
       if (isCatBlurLocked) {
+        const catHintText = catLockSampleForHint && catLockSampleForHint.categoryLockHintText;
+        const catHintHtml = catHintText ? `<br><span style="font-size:12px;opacity:0.85">💡 提示：${catHintText}</span>` : '';
         container.innerHTML = `
           <div class="category-lock-banner">
-            <span>🔒 「${currentCategory}」需要密碼才能購買，以下為模糊預覽</span>
+            <span>🔒 「${currentCategory}」需要密碼才能購買，以下為模糊預覽${catHintHtml}</span>
             <button class="btn-action" onclick="promptUnlockCategory('${currentCategory.replace(/'/g,"\\'")}')">輸入密碼解鎖</button>
           </div>
           <div class="category-blur-content">${allCardsHtml}</div>
