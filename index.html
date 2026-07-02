@@ -1252,8 +1252,15 @@ function fetchScoresAndShop(discordId, callback = null) {
                 
                 let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
                 let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
-                let displayQty = (g.dispName !== g.varName || g.qty === 1) ? "" : ` x ${g.qty}`;
-                
+
+                // 🌟 一個獎項可能同時對應好幾種變數(例如粽子+黃金粽各1個),要把完整內容列出來,不能只顯示第一個
+                let displayQty = "";
+                if (g.varList && g.varList.length > 1) {
+                    displayQty = "（" + g.varList.map(v => `${v.varName}×${v.qty}`).join("、") + "）";
+                } else if (g.dispName === g.varName && g.qty !== 1) {
+                    displayQty = ` x ${g.qty}`;
+                }
+
                 gachaHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
                     <span>- ${g.dispName}${displayQty}</span>
                     <span style="color: #99AAB5;">${detail.join(" / ")}</span>
