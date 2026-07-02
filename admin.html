@@ -237,6 +237,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
       <div class="nav-item" onclick="navTo('auction-bids')">🔨 拍賣出價紀錄</div>
+      <hr class="nav-sep">
+      <div class="nav-item" onclick="navTo('lock-settings')">🔒 密碼鎖定管理</div>
     </div>
     <div class="main" id="main-content">
       <!-- 商品管理 -->
@@ -364,6 +366,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               例如匯率填 <code>1</code>,代表 1 個替代幣可以折抵 1 個原始貨幣；玩家可以選擇「自動用掉手上所有替代幣」或「自訂要折抵多少」,系統會自動算出折抵後還要付多少原始貨幣。<br>
               📐 如果匯率<b>小於1</b>(例如 100個碎片才能折抵1個水晶,匯率填 <code>0.01</code>),系統會自動避免湊不滿整數單位的零頭被白白扣掉——例如玩家只有 150 個碎片,只會扣需要用到的 100 個(折抵1個水晶),剩下 50 個完全不會動用。
             </div>
+            <div class="fsep">商品密碼鎖定（選填）</div>
+            <div class="field"><label>固定密碼 <span class="hint">留空=不用固定密碼</span></label><input id="ns-lockpw" placeholder="所有人共用同一組密碼"></div>
+            <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用一次性序號</span></label><input id="ns-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
+            <div class="field"><label>解鎖持續性</label><select id="ns-lockpersist"><option value="">🔓 永久解鎖(解鎖過一次就不用再輸入)</option><option value="SESSION">🔁 每次購買都要重新輸入</option></select></div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              🔒 固定密碼跟一次性序號可以<b>同時開啟</b>,玩家輸入其中一種正確的都能解鎖(固定密碼不會被用掉,一次性序號用過就失效)。兩者都留空 = 這個商品不鎖。<br>
+              一次性序號要先在「解鎖序號庫」工作表裡建立資料:A欄填這裡設定的「對應名稱」、B欄填實際的序號/密碼字串,新增幾筆就有幾組可以用。
+            </div>
             <div class="actions"><button class="btn-cancel" onclick="resetAddShop()">清空</button><button class="btn-cancel" id="ns-draft-btn" onclick="submitAddShop('DRAFT')">📝 存為草稿</button><button class="btn-save" id="ns-btn" onclick="submitAddShop(null)">➕ 新增到試算表</button></div>
           </div>
         </div>
@@ -474,6 +484,45 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           </div>
         </div>
       </div>
+
+      <!-- 密碼鎖定管理 -->
+      <div id="page-lock-settings" style="display:none">
+        <div class="page-header"><div class="page-title">🔒 密碼鎖定管理</div></div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">📁 分類密碼鎖定</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">整個分類一起鎖,玩家要先解鎖才能瀏覽/購買這個分類裡的商品。固定密碼跟一次性序號可以同時開啟,兩者都留空 = 這個分類不鎖。</div>
+          <div id="cat-lock-list" style="margin-top:14px"></div>
+          <div class="order-add-row" style="margin-top:14px;flex-wrap:wrap">
+            <input class="search" id="cl-category" placeholder="分類名稱(要跟商品分類完全一致)" style="max-width:220px">
+            <input class="search" id="cl-fixedpw" placeholder="固定密碼(留空=不用)" style="max-width:180px">
+            <input class="search" id="cl-codename" placeholder="一次性序號對應名稱(留空=不用)" style="max-width:220px">
+            <select class="filter-sel" id="cl-persist">
+              <option value="">🔓 永久解鎖</option>
+              <option value="SESSION">🔁 每次都要重新輸入</option>
+            </select>
+            <button class="btn btn-edit" onclick="saveCategoryLock()">💾 儲存這個分類的鎖定設定</button>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">🎫 解鎖序號庫使用狀況</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">商品/分類設定的「一次性序號對應名稱」要在這裡對應到實際的序號才能使用</div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn btn-edit" onclick="loadUnlockCodes()">🔄 重新查詢</button>
+          </div>
+          <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
+            <table>
+              <thead><tr><th>對應名稱</th><th>序號</th><th>狀態</th><th>使用者</th></tr></thead>
+              <tbody id="unlock-codes-tbody"></tbody>
+            </table>
+          </div>
+          <div class="fsep">批次新增序號</div>
+          <div class="field full"><label>對應名稱</label><input id="uc-name" placeholder="要跟商品/分類設定裡填的「一次性序號對應名稱」一致"></div>
+          <div class="field full"><label>序號清單 <span class="hint">一行一組</span></label><textarea id="uc-codes" placeholder="ABCD1234&#10;EFGH5678&#10;..."></textarea></div>
+          <div style="display:flex;gap:10px;margin-top:8px"><button class="btn-save" onclick="addUnlockCodes()">➕ 新增到序號庫</button></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -512,6 +561,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
       <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="em-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
       <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="em-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
+      <div class="fsep">商品密碼鎖定（選填）</div>
+      <div class="field"><label>固定密碼 <span class="hint">留空=不用</span></label><input id="em-lockpw" placeholder="所有人共用同一組密碼"></div>
+      <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用</span></label><input id="em-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
+      <div class="field"><label>解鎖持續性</label><select id="em-lockpersist"><option value="">🔓 永久解鎖</option><option value="SESSION">🔁 每次購買都要重新輸入</option></select></div>
       <input type="hidden" id="em-id">
       <input type="hidden" id="em-sortorder">
     </div>
@@ -643,7 +696,7 @@ async function loadMeta() {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history','auction-bids'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -659,6 +712,7 @@ function navTo(p) {
     openAuctionBidsPage();
     auctionBidsAutoRefreshInterval = setInterval(loadAuctionBids, 10000);
   }
+  if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
 }
 
 // ── Toast ──
@@ -721,7 +775,7 @@ function renderShopTable() {
   document.getElementById('shop-tbody').innerHTML = items.length === 0
     ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}</td>
+      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
       <td data-label="庫存">${i.stock||'無限'}</td>
@@ -753,6 +807,8 @@ function openEditShop(itemId) {
   f('em-remark').value=i.remark||''; f('em-role').value=i.requiredRole||'';
   f('em-excl').value=i.exclusiveGroup||'';
   f('em-altcurrency').value=i.altCurrency||''; f('em-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
+  f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
+  f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
   const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
   f('em-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
   document.getElementById('shop-modal').classList.add('open');
@@ -775,7 +831,8 @@ async function saveShopItem() {
     limitGW:f('em-lgw'),limitPW:f('em-lpw'),limitPT:f('em-lpt'),
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
     remark:f('em-remark'),requiredRole:f('em-role'),exclusiveGroup:f('em-excl'),
-    altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate')});
+    altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
+    lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -793,7 +850,8 @@ async function publishShopItem(itemId) {
     limitGW:i.limitGW,limitPW:i.limitPW,limitPT:i.limitPT,
     rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
     remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
-    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate});
+    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
+    lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent});
   if (d.status==='success') { toast('🚀 已上架'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
@@ -932,9 +990,10 @@ function resetAddShop() {
   ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
-   'ns-altcurrency','ns-altrate'].forEach(id => document.getElementById(id).value='');
+   'ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode'].forEach(id => document.getElementById(id).value='');
   document.getElementById('ns-currency').value='升階2';
   document.getElementById('ns-status').value='';
+  document.getElementById('ns-lockpersist').value='';
   renderGachaPreview('ns-rqty', 'ns-rqty-preview');
   addShopAutosave.clear();
 }
@@ -967,7 +1026,8 @@ async function submitAddShop(forceStatus) {
     limitGW:f('ns-lgw'),limitPW:f('ns-lpw'),limitPT:f('ns-lpt'),
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
     remark:f('ns-remark'),requiredRole:f('ns-role'),exclusiveGroup:f('ns-excl'),
-    altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate')});
+    altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
+    lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
@@ -1122,9 +1182,9 @@ function setupFieldAutosave(fieldIds, keyFn) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-altcurrency','ns-altrate'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockpersist'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl','em-altcurrency','em-altrate'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl','em-altcurrency','em-altrate','em-lockpw','em-lockcode','em-lockpersist'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-altcurrency','na-altrate'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-altcurrency','ea-altrate'];
 
@@ -1232,6 +1292,90 @@ async function saveItemOrder() {
   const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) });
   if (d.status === 'success') { toast('✅ ' + d.message); await loadShopItems(); renderItemOrderList(); }
   else toast('❌ ' + d.message, false);
+}
+
+// ── 密碼鎖定管理:分類鎖定 ──
+let categoryLocksList = [];
+async function loadCategoryLocks() {
+  const d = await api({ action: 'adminGetCategoryLocks' });
+  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
+  categoryLocksList = d.locks || [];
+  renderCategoryLockList();
+}
+function renderCategoryLockList() {
+  const el = document.getElementById('cat-lock-list');
+  if (categoryLocksList.length === 0) { el.innerHTML = '<div class="empty">還沒有任何分類設定鎖定,在下面新增一個吧</div>'; return; }
+  el.innerHTML = categoryLocksList.map(l => {
+    const isLocked = l.fixedPassword || l.codeName;
+    const persistLabel = l.persistent === 'SESSION' ? '🔁 每次都要重新輸入' : '🔓 永久解鎖';
+    return `<div class="order-row" style="align-items:center">
+      <span class="order-label">
+        ${isLocked ? '🔒' : '🔓'} <b>${l.category}</b>
+        ${l.fixedPassword ? ' · 固定密碼已設定' : ''}${l.codeName ? ` · 一次性序號對應「${l.codeName}」` : ''}
+        ${isLocked ? ` · ${persistLabel}` : ' · 目前未鎖定'}
+      </span>
+      <div class="order-btns">
+        <button class="btn btn-edit" onclick="editCategoryLock('${l.category.replace(/'/g,"\\'")}')">編輯</button>
+        ${isLocked ? `<button class="btn btn-del" onclick="clearCategoryLock('${l.category.replace(/'/g,"\\'")}')">解除鎖定</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function editCategoryLock(category) {
+  const l = categoryLocksList.find(x => x.category === category);
+  if (!l) return;
+  document.getElementById('cl-category').value = l.category;
+  document.getElementById('cl-fixedpw').value = l.fixedPassword || '';
+  document.getElementById('cl-codename').value = l.codeName || '';
+  document.getElementById('cl-persist').value = l.persistent === 'SESSION' ? 'SESSION' : '';
+}
+async function saveCategoryLock() {
+  const category = document.getElementById('cl-category').value.trim();
+  if (!category) { toast('請填寫分類名稱', false); return; }
+  const d = await api({ action: 'adminSaveCategoryLock', category,
+    fixedPassword: document.getElementById('cl-fixedpw').value,
+    codeName: document.getElementById('cl-codename').value,
+    persistent: document.getElementById('cl-persist').value });
+  if (d.status === 'success') {
+    toast('✅ ' + d.message);
+    ['cl-category','cl-fixedpw','cl-codename'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cl-persist').value = '';
+    loadCategoryLocks();
+  } else toast('❌ ' + d.message, false);
+}
+async function clearCategoryLock(category) {
+  if (!confirm(`確定要解除「${category}」的鎖定嗎？解除後這個分類的商品玩家都能直接購買。`)) return;
+  const d = await api({ action: 'adminSaveCategoryLock', category, fixedPassword: '', codeName: '', persistent: '' });
+  if (d.status === 'success') { toast('✅ 已解除鎖定'); loadCategoryLocks(); }
+  else toast('❌ ' + d.message, false);
+}
+
+// ── 密碼鎖定管理:解鎖序號庫 ──
+async function loadUnlockCodes() {
+  const d = await api({ action: 'adminGetUnlockCodes' });
+  const tbody = document.getElementById('unlock-codes-tbody');
+  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
+  const codes = d.codes || [];
+  tbody.innerHTML = codes.length === 0 ? '<tr><td colspan="4" class="empty">還沒有任何解鎖序號</td></tr>' : codes.map(c => `
+    <tr>
+      <td data-label="對應名稱">${c.name}</td>
+      <td class="cell-id" data-label="序號">${c.code}</td>
+      <td data-label="狀態">${c.used ? '<span class="status status-closed">已使用</span>' : '<span class="status status-open">● 可用</span>'}</td>
+      <td data-label="使用者">${c.usedByName || '—'}</td>
+    </tr>`).join('');
+}
+async function addUnlockCodes() {
+  const name = document.getElementById('uc-name').value.trim();
+  const codes = document.getElementById('uc-codes').value;
+  if (!name) { toast('請填寫對應名稱', false); return; }
+  if (!codes.trim()) { toast('請至少貼一組序號', false); return; }
+  const d = await api({ action: 'adminAddUnlockCodes', name, codes });
+  if (d.status === 'success') {
+    toast('✅ ' + d.message);
+    document.getElementById('uc-name').value = '';
+    document.getElementById('uc-codes').value = '';
+    loadUnlockCodes();
+  } else toast('❌ ' + d.message, false);
 }
 
 // ── 紀錄查詢:兌換/抽獎紀錄 ──
