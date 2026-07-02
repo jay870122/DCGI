@@ -1,1462 +1,972 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Garbled 管理後台</title>
-<style>
-:root{--bg:#1E2124;--s:#2F3136;--s2:#36393F;--bd:#4F545C;--t:#DCDDDE;--mu:#72767D;
-  --gold:#F0B232;--green:#43B581;--red:#ED4245;--blue:#5865F2;--purple:#9B59B6;--orange:#E67E22;--r:8px}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
-/* topbar */
-.topbar{background:var(--s);border-bottom:1px solid var(--bd);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.brand{font-size:17px;font-weight:700;color:var(--gold)}
-.user-info{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu)}
-.user-info img{width:28px;height:28px;border-radius:50%}
-.badge{background:var(--gold);color:#1F2124;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
-.btn-logout{background:transparent;color:var(--mu);border:1px solid var(--bd);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;margin-left:6px;white-space:nowrap}
-.btn-logout:hover{color:var(--red);border-color:var(--red)}
-/* layout */
-.layout{display:flex;min-height:calc(100vh - 48px)}
-/* sidebar nav */
-.sidebar{width:200px;background:var(--s);border-right:1px solid var(--bd);padding:16px 0;flex-shrink:0}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:14px;color:var(--mu);cursor:pointer;border-left:3px solid transparent}
-.nav-item:hover{color:var(--t);background:rgba(255,255,255,0.03)}
-.nav-item.active{color:var(--gold);border-left-color:var(--gold);background:rgba(240,178,50,0.07)}
-.nav-sep{border:none;border-top:1px solid var(--bd);margin:8px 16px}
-/* main */
-.main{flex:1;padding:24px;overflow-y:auto;max-width:1100px}
-/* login */
-#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
-.login-card{background:var(--s);border:1px solid var(--bd);border-radius:16px;padding:48px 40px;text-align:center;width:360px}
-.login-card h2{font-size:22px;color:var(--gold);margin-bottom:8px}
-.login-card p{color:var(--mu);font-size:14px;margin-bottom:28px;line-height:1.6}
-/* page header */
-.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
-.page-title{font-size:20px;font-weight:700}
-/* toolbar */
-.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.search{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 14px;color:var(--t);font-size:14px;width:220px}
-.search:focus{outline:none;border-color:var(--gold)}
-.filter-sel{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 14px;color:var(--t);font-size:14px}
-/* table */
-.tbl-wrap{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:20px}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th{background:var(--s2);color:var(--mu);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:10px 14px;text-align:left;border-bottom:1px solid var(--bd)}
-td{padding:10px 14px;border-bottom:1px solid rgba(79,84,92,0.4);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,0.02)}
-.cell-name{font-weight:600;color:var(--t);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cell-id{font-family:monospace;font-size:12px;color:var(--mu)}
-/* badge/status */
-.status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
-.status-open{background:rgba(67,181,129,0.15);color:var(--green)}
-.status-ended{background:rgba(79,84,92,0.4);color:var(--mu)}
-.status-ns{background:rgba(240,178,50,0.15);color:var(--gold)}
-.status-closed{background:rgba(237,66,69,0.15);color:var(--red)}
-.status-pending{background:rgba(230,126,34,0.15);color:var(--orange)}
-.type-badge{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
-.type-pub{background:rgba(67,181,129,0.2);color:var(--green)}
-.type-seal{background:rgba(155,89,182,0.2);color:var(--purple)}
-.type-low{background:rgba(230,126,34,0.2);color:var(--orange)}
-/* action buttons */
-.btn-row{display:flex;gap:6px}
-.btn{padding:5px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
-.btn-edit{background:rgba(88,101,242,0.2);color:var(--blue)}
-.btn-edit:hover{background:rgba(88,101,242,0.35)}
-.btn-del{background:rgba(237,66,69,0.2);color:var(--red)}
-.btn-del:hover{background:rgba(237,66,69,0.35)}
-.btn-close{background:rgba(230,126,34,0.2);color:var(--orange)}
-.btn-close:hover{background:rgba(230,126,34,0.35)}
-/* fab */
-.fab{background:var(--gold);color:#1F2124;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
-.fab:hover{background:#D4991F}
-/* empty */
-.empty{text-align:center;color:var(--mu);padding:40px;font-size:14px}
-/* modal */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
-.overlay.open{display:flex}
-.modal{background:var(--s);border:1px solid var(--bd);border-radius:12px;width:100%;max-width:700px;margin:auto}
-.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--bd)}
-.modal-header h3{font-size:16px;font-weight:700}
-.modal-close{background:none;border:none;color:var(--mu);font-size:22px;cursor:pointer;line-height:1}
-.modal-close:hover{color:var(--t)}
-.modal-body{padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.modal-body .full{grid-column:span 2}
-.modal-footer{padding:16px 24px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:10px}
-/* fields */
-.field{display:flex;flex-direction:column;gap:5px}
-.field label{font-size:12px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:0.04em}
-.field label .hint{font-weight:400;text-transform:none;letter-spacing:0;color:var(--mu);font-size:11px;margin-left:4px}
-.field input,.field select,.field textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 12px;width:100%}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--gold)}
-.field textarea{resize:vertical;min-height:70px;font-family:inherit}
-.field .role-hint{font-size:11px;color:var(--mu);margin-top:3px}
-/* form sections */
-.fsep{grid-column:span 2;font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
-/* save/cancel btn */
-.btn-save{background:var(--gold);color:#1F2124;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
-.btn-save:hover{background:#D4991F}
-.btn-save:disabled{background:var(--bd);color:var(--mu);cursor:not-allowed}
-.btn-cancel{background:transparent;color:var(--mu);border:1px solid var(--bd);padding:10px 16px;border-radius:8px;font-size:14px;cursor:pointer}
-.btn-cancel:hover{border-color:var(--t);color:var(--t)}
-/* toast */
-.toast{position:fixed;bottom:28px;right:28px;padding:14px 20px;border-radius:10px;font-weight:600;font-size:14px;opacity:0;transform:translateY(12px);transition:all 0.25s;z-index:999;pointer-events:none}
-.toast.show{opacity:1;transform:translateY(0)}
-.toast.ok{background:var(--green);color:#fff}
-.toast.err{background:var(--red);color:#fff}
-/* add form page */
-.add-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.add-form .full{grid-column:span 2}
-.add-form .fsep{grid-column:span 2}
-.add-form .actions{grid-column:span 2;display:flex;gap:10px;margin-top:8px}
-.add-form .actions .btn-save{flex:1}
-.count-badge{background:var(--s2);color:var(--mu);font-size:12px;padding:3px 10px;border-radius:999px;margin-left:8px}
-/* discord btn */
-.btn-discord{background:var(--blue);color:#FFF;border:none;padding:13px 28px;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;width:100%}
-.btn-discord:hover{background:#4752C4}
-/* draft status */
-.status-draft{background:rgba(114,118,125,0.25);color:var(--t)}
-/* sortable table headers */
-th.sortable{cursor:pointer;user-select:none}
-th.sortable:hover{color:var(--t)}
-th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
-/* gacha guide + live preview */
-.gacha-guide{grid-column:span 2;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--t);line-height:1.8;margin-top:-4px}
-.gacha-guide b{color:var(--t)}
-.gacha-guide .hint{color:var(--mu)}
-.gacha-guide code{background:rgba(240,178,50,0.16);color:var(--gold);font-weight:700;padding:2px 6px;border-radius:4px;font-family:monospace;white-space:nowrap}
-.gacha-preview{grid-column:span 2;border-radius:var(--r);padding:10px 14px;font-size:12px;line-height:1.8;margin-top:-4px;border:1px solid var(--bd);background:var(--s2)}
-.gacha-preview.ok{border-color:rgba(67,181,129,0.4)}
-.gacha-preview.warn{border-color:rgba(237,66,69,0.5)}
-.gacha-preview .gp-line{color:var(--t)}
-.gacha-preview .gp-line b{color:var(--t)}
-.gacha-preview .gp-line.bad{color:var(--red)}
-.gacha-preview .gp-summary{font-weight:700;margin-bottom:4px}
-.gacha-preview .gp-summary.ok{color:var(--green)}
-.gacha-preview .gp-summary.warn{color:var(--red)}
-/* order lists (排序設定頁) */
-.order-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-.order-row{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px}
-.order-row .order-idx{color:var(--mu);font-size:12px;width:22px;flex-shrink:0}
-.order-row .order-label{flex:1;font-size:14px}
-.order-btns{display:flex;gap:4px}
-.order-btns .btn{padding:4px 9px}
-.order-add-row{display:flex;gap:8px;margin-top:12px}
-.order-add-row .search{flex:1}
+// ============================================================
+// Garbled 幻彩水晶商店 - Dashboard Worker
+// 取代 Apps Script 的 getDashboard 動作,直接用服務帳戶讀 Google Sheets,
+// 跳過 Apps Script 的執行佇列,只做「讀取」,不寫入(購買/同步仍走原本的 Apps Script)
+// ============================================================
 
-/* ============================================================
-   🌟 手機版 RWD(≤768px):側邊欄收合成上方橫向選單、表單改單欄、
-   表格改成卡片式呈現(不用左右滑動就能看完整筆資料)
-   ============================================================ */
-@media (max-width: 768px) {
-  .topbar{padding:10px 14px;flex-wrap:wrap;gap:8px}
-  .brand{font-size:15px}
-  .user-info{font-size:12px}
-  .user-info img{width:24px;height:24px}
+// 🌟 工作表名稱設定 — 如果你的試算表分頁名稱跟這裡不一樣,請改成你實際的名稱
+const SHEET_NAMES = {
+  player: '玩家資料',
+  shop: '商店',
+  history: '兌換紀錄',
+  customVars: '自訂變數',   // 選用,沒有就留空字串 ''
+  categoryOrder: '分類排序',    // 選用,沒有就留空字串 ''
+  roleMap: '身分組對照表',      // 選用,沒有就留空字串 ''
+};
 
-  .layout{flex-direction:column;min-height:auto}
-  .sidebar{width:100%;display:flex;flex-direction:row;overflow-x:auto;-webkit-overflow-scrolling:touch;
-    padding:8px;border-right:none;border-bottom:1px solid var(--bd);gap:2px}
-  .nav-item{flex-shrink:0;white-space:nowrap;border-left:none;border-bottom:3px solid transparent;padding:8px 14px}
-  .nav-item.active{border-left-color:transparent;border-bottom-color:var(--gold)}
-  .nav-sep{display:none}
+const PLAYER_ROLE_COLUMN = 'DC身分組'; // 要跟 Code.gs 裡的設定一致
+const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444']; // 跟 index.html 裡的管理員清單一致(用來判斷要不要顯示[隱藏]/[測試]商品)
 
-  .main{padding:14px;max-width:100%}
-  .page-header{flex-direction:column;align-items:stretch;gap:10px}
-  .page-title{font-size:17px}
-  .toolbar{width:100%}
-  .toolbar .search,.toolbar .filter-sel,.toolbar .fab{width:100%}
+// 🌟 拍賣功能讀取用,要跟 Code.gs 裡的 AUCTION_SHEET_NAME / BID_SHEET_NAME 設定一致
+const AUCTION_SHEET_NAME = '拍賣';
+const BID_SHEET_NAME = '拍賣出價紀錄';
 
-  /* 表單：新增/編輯一律改單欄 */
-  .add-form,.modal-body{grid-template-columns:1fr}
-  .add-form .full,.add-form .fsep,.add-form .actions,
-  .modal-body .full,.gacha-guide,.gacha-preview{grid-column:span 1}
-  .add-form .actions{flex-direction:column}
-  .add-form .actions .btn-save{flex:none}
+// 🌟 密碼鎖定功能讀取用,要跟 Code.gs 裡的設定一致
+const CATEGORY_LOCK_SHEET_NAME = '分類鎖定設定';
+const UNLOCK_LOG_SHEET_NAME = '解鎖記錄';
 
-  .overlay{padding:0;align-items:stretch}
-  .modal{max-width:100%;width:100%;margin:0;border-radius:0;min-height:100vh;display:flex;flex-direction:column}
-  .modal-body{flex:1;overflow-y:auto}
-  .modal-footer{flex-wrap:wrap}
-  .modal-footer button{flex:1}
+// 🌟 允許跨來源請求的網域,改成你實際的 GitHub Pages 網址(不要留 *,避免被其他網站盜用你的 Google API 額度)
+const ALLOWED_ORIGIN = 'https://jay870122.github.io';
 
-  /* 表格 → 卡片式：隱藏表頭,每一列變成一張卡片,每個欄位用 data-label 當標籤
-     (只套用在真正裝表格的 .tbl-wrap-table,不影響表單/排序設定等其他用途的 .tbl-wrap 卡片) */
-  .tbl-wrap-table table,.tbl-wrap-table tbody,.tbl-wrap-table tr,.tbl-wrap-table td{display:block;width:100%}
-  .tbl-wrap-table thead{position:absolute;left:-9999px;top:-9999px}
-  .tbl-wrap-table{background:transparent;border:none}
-  .tbl-wrap-table tr{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:12px;padding:4px 14px}
-  .tbl-wrap-table tbody tr:last-child{margin-bottom:0}
-  .tbl-wrap-table td{display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding:9px 0;border-bottom:1px solid rgba(79,84,92,0.4);text-align:right}
-  .tbl-wrap-table tr td:last-child{border-bottom:none}
-  .tbl-wrap-table td::before{content:attr(data-label);font-weight:700;color:var(--mu);font-size:11px;
-    text-transform:uppercase;letter-spacing:0.04em;text-align:left;flex-shrink:0}
-  .tbl-wrap-table td.cell-name{max-width:none;white-space:normal;overflow:visible;text-overflow:unset;text-align:right}
-  .tbl-wrap-table td.cell-actions{display:block;text-align:left;padding-top:10px}
-  .tbl-wrap-table td.cell-actions::before{content:none}
-  .tbl-wrap-table td.cell-actions .btn-row{flex-wrap:wrap;justify-content:flex-start}
-  .tbl-wrap-table .empty{padding:24px 0}
-  .tbl-wrap-table td.empty{display:block;text-align:center}
-  .tbl-wrap-table td.empty::before{content:none}
+// 🌟 短效快取:同一份原始試算表資料,在這個時間內被多個玩家重複請求時直接共用,不用每次都重打 Google Sheets API。
+// 個人化的部分(自己的餘額、目前出價等)還是每個玩家各自即時計算,快取的只有「大家看到的原始資料」這一份,
+// 所以每個人看到的東西還是各自正確的,只是最多會慢這個秒數才反映到最新狀態。
+// ⚠️ 這個快取存在記憶體變數裡,不同 Worker 執行個體(不同節點/冷啟動)不會共用,是「盡量擋、擋多少算多少」的機制,
+// 不是嚴格保證,但已經足以大幅降低 Google Sheets API 的呼叫次數。
+const SHEET_CACHE_TTL_MS = 4000; // 稍微短於前端5秒自動重整的間隔,確保不會一直吃到過舊的資料
+const sheetCache = {};
+const sheetCacheInFlight = {}; // 🌟 同一瞬間有好幾個請求同時打進來、快取還沒寫入時,讓他們共用同一個「正在抓取中」的 Promise,不要各自重打一次 API(避免「快取驚群」)
+async function getCachedSheetData_(cacheKey, fetchFn) {
+  const now = Date.now();
+  const entry = sheetCache[cacheKey];
+  if (entry && entry.expiry > now) return entry.data;
 
-  .order-row{flex-wrap:wrap}
-  .order-add-row{flex-direction:column}
-}
-</style>
-</head>
-<body>
+  if (sheetCacheInFlight[cacheKey]) return sheetCacheInFlight[cacheKey]; // 🌟 已經有人在抓了,搭便車等同一個結果就好
 
-<div id="login-screen">
-  <div class="login-card">
-    <h2>🛡️ 管理後台</h2>
-    <p>此工具僅限授權管理員使用。<br>請以 Discord 帳號登入，系統將自動驗證您的權限。</p>
-    <button class="btn-discord" onclick="loginWithDiscord()">🎮 以 Discord 登入</button>
-  </div>
-</div>
-
-<div id="admin-app" style="display:none">
-  <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台</div>
-    <div class="user-info">
-      <img id="ua-img" src=""><span id="ua-name"></span>
-      <span class="badge">管理員</span>
-      <button class="btn-logout" onclick="logout()">🚪 登出</button>
-    </div>
-  </div>
-  <div class="layout">
-    <div class="sidebar">
-      <div class="nav-item active" onclick="navTo('shop-list')">📦 商品管理</div>
-      <div class="nav-item" onclick="navTo('auction-list')">🔨 拍賣管理</div>
-      <hr class="nav-sep">
-      <div class="nav-item" onclick="navTo('add-shop')">➕ 新增商品</div>
-      <div class="nav-item" onclick="navTo('add-auction')">➕ 新增拍賣</div>
-      <hr class="nav-sep">
-      <div class="nav-item" onclick="navTo('sort-settings')">🔀 排序設定</div>
-      <hr class="nav-sep">
-      <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
-      <div class="nav-item" onclick="navTo('auction-bids')">🔨 拍賣出價紀錄</div>
-      <hr class="nav-sep">
-      <div class="nav-item" onclick="navTo('lock-settings')">🔒 密碼鎖定管理</div>
-    </div>
-    <div class="main" id="main-content">
-      <!-- 商品管理 -->
-      <div id="page-shop-list">
-        <div class="page-header">
-          <div class="page-title">📦 商品管理 <span class="count-badge" id="shop-count">—</span></div>
-          <div class="toolbar">
-            <input class="search" id="shop-search" placeholder="搜尋商品名稱..." oninput="renderShopTable()">
-            <select class="filter-sel" id="shop-cat-filter" onchange="renderShopTable()">
-              <option value="">全部分類</option>
-            </select>
-            <select class="filter-sel" id="shop-status-filter" onchange="renderShopTable()">
-              <option value="">全部狀態</option>
-              <option value="ACTIVE">🟢 上架中</option>
-              <option value="DRAFT">📝 草稿</option>
-            </select>
-            <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
-          </div>
-        </div>
-        <div class="tbl-wrap tbl-wrap-table">
-          <table>
-            <thead><tr>
-              <th class="sortable" onclick="sortShopBy('name')">商品名稱<span class="sort-arrow" id="th-shop-name"></span></th>
-              <th class="sortable" onclick="sortShopBy('category')">分類<span class="sort-arrow" id="th-shop-category"></span></th>
-              <th class="sortable" onclick="sortShopBy('price')">價格<span class="sort-arrow" id="th-shop-price"></span></th>
-              <th class="sortable" onclick="sortShopBy('stock')">庫存<span class="sort-arrow" id="th-shop-stock"></span></th>
-              <th class="sortable" onclick="sortShopBy('state')">狀態<span class="sort-arrow" id="th-shop-state"></span></th>
-              <th class="sortable" onclick="sortShopBy('itemId')">ID<span class="sort-arrow" id="th-shop-itemId"></span></th>
-              <th>操作</th>
-            </tr></thead>
-            <tbody id="shop-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-      <!-- 拍賣管理 -->
-      <div id="page-auction-list" style="display:none">
-        <div class="page-header">
-          <div class="page-title">🔨 拍賣管理 <span class="count-badge" id="auction-count">—</span></div>
-          <div class="toolbar">
-            <input class="search" id="auction-search" placeholder="搜尋拍賣名稱..." oninput="renderAuctionTable()">
-            <select class="filter-sel" id="auction-cat-filter" onchange="renderAuctionTable()">
-              <option value="">全部分類</option>
-            </select>
-            <select class="filter-sel" id="auction-status-filter" onchange="renderAuctionTable()">
-              <option value="">全部狀態</option>
-              <option value="ACTIVE">🟢 上架中</option>
-              <option value="DRAFT">📝 草稿</option>
-            </select>
-            <button class="fab" onclick="navTo('add-auction')">➕ 新增拍賣</button>
-          </div>
-        </div>
-        <div class="tbl-wrap tbl-wrap-table">
-          <table>
-            <thead><tr>
-              <th class="sortable" onclick="sortAuctionBy('name')">拍賣名稱<span class="sort-arrow" id="th-auction-name"></span></th>
-              <th class="sortable" onclick="sortAuctionBy('type')">類型<span class="sort-arrow" id="th-auction-type"></span></th>
-              <th class="sortable" onclick="sortAuctionBy('category')">分類<span class="sort-arrow" id="th-auction-category"></span></th>
-              <th class="sortable" onclick="sortAuctionBy('startBid')">起標價<span class="sort-arrow" id="th-auction-startBid"></span></th>
-              <th class="sortable" onclick="sortAuctionBy('currentHighBid')">目前最高<span class="sort-arrow" id="th-auction-currentHighBid"></span></th>
-              <th class="sortable" onclick="sortAuctionBy('endDate')">結束時間<span class="sort-arrow" id="th-auction-endDate"></span></th>
-              <th class="sortable" onclick="sortAuctionBy('state')">狀態<span class="sort-arrow" id="th-auction-state"></span></th>
-              <th class="sortable" onclick="sortAuctionBy('auctionId')">ID<span class="sort-arrow" id="th-auction-auctionId"></span></th>
-              <th>操作</th>
-            </tr></thead>
-            <tbody id="auction-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-      <!-- 新增商品 -->
-      <div id="page-add-shop" style="display:none">
-        <div class="page-header"><div class="page-title">➕ 新增商品</div></div>
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="add-form" id="add-shop-form">
-            <div class="fsep">基本資訊</div>
-            <div class="field full"><label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][測試]標籤</span></label><input id="ns-name" type="text" placeholder="例：7日優越童話通行證"></div>
-            <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
-            <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="升階2" list="dc-list"><datalist id="dc-list"></datalist></div>
-            <div class="field"><label>分類</label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
-            <div class="field"><label>庫存 <span class="hint">留空=無限</span></label><input id="ns-stock" placeholder="無限"></div>
-            <div class="field"><label>狀態</label><select id="ns-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
-            <div class="fsep">時間（可選）</div>
-            <div class="field"><label>開始時間</label><input id="ns-sdate" type="datetime-local"></div>
-            <div class="field"><label>結束時間</label><input id="ns-edate" type="datetime-local"></div>
-            <div class="fsep">限購（留空=不限）</div>
-            <div class="field"><label>全服每日</label><input id="ns-lgd" type="number" min="1"></div>
-            <div class="field"><label>全服每週</label><input id="ns-lgw" type="number" min="1"></div>
-            <div class="field"><label>全服每月</label><input id="ns-lgm" type="number" min="1"></div>
-            <div class="field"><label>個人每日</label><input id="ns-lpd" type="number" min="1"></div>
-            <div class="field"><label>個人每週</label><input id="ns-lpw" type="number" min="1"></div>
-            <div class="field"><label>個人每月</label><input id="ns-lpm" type="number" min="1"></div>
-            <div class="field"><label>終身（個人）</label><input id="ns-lpt" type="number" min="1"></div>
-            <div class="fsep">獎勵設定</div>
-            <div class="field"><label>固定獎勵變數名 <span class="hint">盲盒留空</span></label><input id="ns-rvar" placeholder="例：升階2"></div>
-            <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="ns-rqty" placeholder="固定獎勵填數量&#10;盲盒依商店格式填入"></textarea></div>
-            <div class="gacha-guide">
-              📖 <b>盲盒規則格式指南</b>（固定獎勵不用看這段,只要在上面填數量就好）<br>
-              一行 = 一個獎項,用逗號分隔幾個設定,順序不限,系統會自動辨識：<br>
-              　・第一個一定是<code>獎項顯示名稱</code><br>
-              　・帶 <code>%</code> 的是<b>中獎機率</b>,例如 <code>30%</code><br>
-              　・帶 <code>份</code> 或 <code>個</code> 的是<b>該獎項庫存</b>,例如 <code>300份</code>（開完就不會再抽到）<br>
-              　・純數字是<b>單次獲得數量</b>,例如中獎後給 <code>2</code> 個<br>
-              　・其他文字會當作<b>對應的貨幣/道具欄位名稱</b>（跟顯示名稱不同時才需要）<br>
-              可以機率制、庫存制混著用；沒填機率的獎項,會用剩餘機率依庫存比例均分。<br>
-              🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
-              📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
-              範例：<br>
-              <code>幻彩水晶,30%,300份</code><br>
-              <code>普通粽子,50%</code><br>
-              <code>黃金粽子,15%,50份</code><br>
-              <code>傳說粽子,5%,5份</code><br>
-              <code>幻彩水晶碎片X100, 幻彩水晶碎片, 100</code>　<span class="hint">← 顯示名稱可以跟貨幣欄位名稱不同,中獎會給 100 個「幻彩水晶碎片」</span><br>
-              <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
-            </div>
-            <div class="gacha-preview" id="ns-rqty-preview" style="display:none"></div>
-            <div class="fsep">其他</div>
-            <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
-            <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
-            <div class="field"><label>限定身分組</label><input id="ns-role" list="ri-list" placeholder="留空=不限"><datalist id="ri-list"></datalist><div class="role-hint" id="ns-role-hint"></div></div>
-            <div class="field"><label>選一群組</label><input id="ns-excl" placeholder="留空=不限"></div>
-            <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
-            <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ns-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
-            <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="ns-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
-            <div class="gacha-guide" style="grid-column:span 2">
-              💱 玩家兌換這個商品時,可以用上面指定的替代貨幣(例如拍賣幣)折抵部分或全部價格,剩下的才用原本標價的貨幣扣。<br>
-              例如匯率填 <code>1</code>,代表 1 個替代幣可以折抵 1 個原始貨幣；玩家可以選擇「自動用掉手上所有替代幣」或「自訂要折抵多少」,系統會自動算出折抵後還要付多少原始貨幣。<br>
-              📐 如果匯率<b>小於1</b>(例如 100個碎片才能折抵1個水晶,匯率填 <code>0.01</code>),系統會自動避免湊不滿整數單位的零頭被白白扣掉——例如玩家只有 150 個碎片,只會扣需要用到的 100 個(折抵1個水晶),剩下 50 個完全不會動用。
-            </div>
-            <div class="fsep">商品密碼鎖定（選填）</div>
-            <div class="field"><label>固定密碼 <span class="hint">留空=不用固定密碼</span></label><input id="ns-lockpw" placeholder="所有人共用同一組密碼"></div>
-            <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用一次性序號</span></label><input id="ns-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
-            <div class="field"><label>解鎖持續性</label><select id="ns-lockpersist"><option value="">🔓 永久解鎖(解鎖過一次就不用再輸入)</option><option value="SESSION">🔁 每次購買都要重新輸入</option></select></div>
-            <div class="field"><label>解鎖前顯示模式</label><select id="ns-lockvis"><option value="">👁️ 正常顯示(只鎖購買動作)</option><option value="BLUR">🌫️ 模糊顯示(看不清楚細節,吸引解鎖)</option></select></div>
-            <div class="gacha-guide" style="grid-column:span 2">
-              🔒 固定密碼跟一次性序號可以<b>同時開啟</b>,玩家輸入其中一種正確的都能解鎖(固定密碼不會被用掉,一次性序號用過就失效)。兩者都留空 = 這個商品不鎖。<br>
-              一次性序號要先在「解鎖序號庫」工作表裡建立資料:A欄填這裡設定的「對應名稱」、B欄填實際的序號/密碼字串,新增幾筆就有幾組可以用。
-            </div>
-            <div class="actions"><button class="btn-cancel" onclick="resetAddShop()">清空</button><button class="btn-cancel" id="ns-draft-btn" onclick="submitAddShop('DRAFT')">📝 存為草稿</button><button class="btn-save" id="ns-btn" onclick="submitAddShop(null)">➕ 新增到試算表</button></div>
-          </div>
-        </div>
-      </div>
-      <!-- 新增拍賣 -->
-      <div id="page-add-auction" style="display:none">
-        <div class="page-header"><div class="page-title">➕ 新增拍賣</div></div>
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="add-form" id="add-auction-form">
-            <div class="fsep">基本資訊</div>
-            <div class="field full"><label>拍賣名稱<span style="color:var(--red)">*</span></label><input id="na-name" type="text" placeholder="例：星之支配者頭冠(煉金)"></div>
-            <div class="field"><label>起標價<span style="color:var(--red)">*</span></label><input id="na-bid" type="number" min="0" placeholder="0"></div>
-            <div class="field"><label>貨幣欄位</label><input id="na-currency" value="升階2" list="dc-list"></div>
-            <div class="field"><label>拍賣類型</label><select id="na-type"><option value="PUBLIC">📢 公開比價（高者得）</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
-            <div class="field"><label>分類</label><input id="na-cat" list="ac-list"><datalist id="ac-list"></datalist></div>
-            <div class="field"><label>狀態</label><select id="na-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
-            <div class="fsep">時間設定</div>
-            <div class="field"><label>起標時間 <span class="hint">留空=立即</span></label><input id="na-sdate" type="datetime-local"></div>
-            <div class="field"><label>結束時間<span style="color:var(--red)">*</span></label><input id="na-edate" type="datetime-local"></div>
-            <div class="field"><label>最後幾分鐘有出價延長</label><input id="na-ext1" type="number" min="1" placeholder="例：5"></div>
-            <div class="field"><label>延長幾分鐘</label><input id="na-ext2" type="number" min="1" placeholder="例：10"></div>
-            <div class="fsep">其他</div>
-            <div class="field full"><label>圖片網址</label><input id="na-img" type="url"></div>
-            <div class="field full"><label>備註</label><textarea id="na-remark"></textarea></div>
-            <div class="field full"><label>限定身分組</label><input id="na-role" list="ri-list" placeholder="留空=不限"><div class="role-hint" id="na-role-hint"></div></div>
-            <div class="fsep">替代貨幣折抵（選填,例如出價時可以部分用拍賣幣折抵）</div>
-            <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="na-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
-            <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="na-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
-            <div class="gacha-guide" style="grid-column:span 2">
-              💱 玩家出價時,可以用上面指定的替代貨幣(例如拍賣幣)折抵部分或全部出價金額,剩下的才凍結原本標價的貨幣。得標/被蓋過出價/流標退款時,兩種貨幣都會一起處理,不會漏退。<br>
-              📐 匯率小於1時(例如100個碎片才折抵1個),系統會自動避免湊不滿整數單位的零頭被白白扣掉,只會扣真正有折抵到的數量。
-            </div>
-            <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-cancel" id="na-draft-btn" onclick="submitAddAuction('DRAFT')">📝 存為草稿</button><button class="btn-save" id="na-btn" onclick="submitAddAuction(null)">➕ 新增到試算表</button></div>
-          </div>
-        </div>
-      </div>
-      <!-- 排序設定 -->
-      <div id="page-sort-settings" style="display:none">
-        <div class="page-header"><div class="page-title">🔀 排序設定</div></div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="page-title" style="font-size:15px">📁 商店分類順序</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定玩家商店頁面左側分類側邊欄的先後順序,由上到下=由左到右/由前到後</div>
-          <div class="order-list" id="shop-cat-order-list"></div>
-          <div class="order-add-row"><input class="search" id="shop-cat-add-input" placeholder="新增分類名稱..." style="width:auto;flex:1"><button class="btn btn-edit" onclick="addCategoryToOrder('shop')">＋ 加入</button></div>
-          <button class="btn-save" style="margin-top:14px" onclick="saveCategoryOrder('shop')">💾 儲存商店分類順序</button>
-        </div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="page-title" style="font-size:15px">🔨 拍賣分類順序</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定玩家拍賣頁面分類標籤的先後順序</div>
-          <div class="order-list" id="auction-cat-order-list"></div>
-          <div class="order-add-row"><input class="search" id="auction-cat-add-input" placeholder="新增分類名稱..." style="width:auto;flex:1"><button class="btn btn-edit" onclick="addCategoryToOrder('auction')">＋ 加入</button></div>
-          <button class="btn-save" style="margin-top:14px" onclick="saveCategoryOrder('auction')">💾 儲存拍賣分類順序</button>
-        </div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="page-title" style="font-size:15px">📦 商品顯示順序</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定同一分類內,商品在玩家商店頁面出現的先後順序</div>
-          <div class="toolbar" style="margin-top:12px">
-            <select class="filter-sel" id="item-order-cat-select" onchange="renderItemOrderList()"></select>
-          </div>
-          <div class="order-list" id="item-order-list"></div>
-          <button class="btn-save" style="margin-top:14px" onclick="saveItemOrder()">💾 儲存商品順序</button>
-        </div>
-      </div>
-
-      <!-- 兌換/抽獎紀錄 -->
-      <div id="page-history" style="display:none">
-        <div class="page-header"><div class="page-title">🎁 兌換 / 抽獎紀錄</div></div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div style="color:var(--mu);font-size:12px">最新的排在最前面；資料量大時只會顯示最新符合條件的 300 筆</div>
-          <div class="toolbar" style="margin-top:12px">
-            <input class="search" id="hist-search" placeholder="搜尋商品名稱 / DiscordID / 抽獎結果..." oninput="loadHistory()">
-            <input class="search" id="hist-discordid" placeholder="只看特定玩家的 DiscordID(選填)" style="max-width:220px" oninput="loadHistory()">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mu);cursor:pointer">
-              <input type="checkbox" id="hist-gacha-only" onchange="loadHistory()"> 只看抽獎結果
-            </label>
-            <button class="btn btn-edit" onclick="loadHistory()">🔄 重新查詢</button>
-          </div>
-          <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
-            <table>
-              <thead><tr><th>時間</th><th>玩家</th><th>商品名稱</th><th>數量</th><th>抽獎結果</th><th>序號</th><th>扣款前→後</th></tr></thead>
-              <tbody id="hist-tbody"></tbody>
-            </table>
-          </div>
-          <div id="hist-summary" style="color:var(--mu);font-size:12px;margin-top:8px"></div>
-        </div>
-      </div>
-
-      <!-- 拍賣出價紀錄 -->
-      <div id="page-auction-bids" style="display:none">
-        <div class="page-header"><div class="page-title">🔨 拍賣出價紀錄</div></div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div style="color:var(--mu);font-size:12px">選一場拍賣,查看目前所有出價者與出價狀態(凍結中/已退回/得標)；頁面開著時每10秒自動重整一次</div>
-          <div class="toolbar" style="margin-top:12px">
-            <select class="filter-sel" id="bids-auction-select" onchange="loadAuctionBids()" style="min-width:260px"></select>
-            <button class="btn btn-edit" onclick="loadAuctionBids()">🔄 重新查詢</button>
-            <span id="bids-last-refresh" style="font-size:11px;color:var(--mu)"></span>
-          </div>
-          <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
-            <table>
-              <thead><tr><th>時間</th><th>出價者</th><th>出價金額</th><th>替代幣折抵</th><th>狀態</th></tr></thead>
-              <tbody id="bids-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- 密碼鎖定管理 -->
-      <div id="page-lock-settings" style="display:none">
-        <div class="page-header"><div class="page-title">🔒 密碼鎖定管理</div></div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="page-title" style="font-size:15px">📁 分類密碼鎖定</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">整個分類一起鎖,玩家要先解鎖才能瀏覽/購買這個分類裡的商品。固定密碼跟一次性序號可以同時開啟,兩者都留空 = 這個分類不鎖。</div>
-          <div id="cat-lock-list" style="margin-top:14px"></div>
-          <div class="order-add-row" style="margin-top:14px;flex-wrap:wrap">
-            <input class="search" id="cl-category" placeholder="分類名稱(要跟商品分類完全一致)" style="max-width:220px">
-            <input class="search" id="cl-fixedpw" placeholder="固定密碼(留空=不用)" style="max-width:180px">
-            <input class="search" id="cl-codename" placeholder="一次性序號對應名稱(留空=不用)" style="max-width:220px">
-            <select class="filter-sel" id="cl-persist">
-              <option value="">🔓 永久解鎖</option>
-              <option value="SESSION">🔁 每次都要重新輸入</option>
-            </select>
-            <select class="filter-sel" id="cl-visibility">
-              <option value="">🙈 完全隱藏內容(只顯示鎖定畫面)</option>
-              <option value="BLUR">🌫️ 模糊顯示(可以看到模糊的商品輪廓)</option>
-              <option value="VISIBLE">👁️ 正常顯示(只鎖購買動作,商品內容照常看得到)</option>
-            </select>
-            <button class="btn btn-edit" onclick="saveCategoryLock()">💾 儲存這個分類的鎖定設定</button>
-          </div>
-        </div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="page-title" style="font-size:15px">🎫 解鎖序號庫使用狀況</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">商品/分類設定的「一次性序號對應名稱」要在這裡對應到實際的序號才能使用</div>
-          <div class="toolbar" style="margin-top:12px">
-            <button class="btn btn-edit" onclick="loadUnlockCodes()">🔄 重新查詢</button>
-          </div>
-          <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
-            <table>
-              <thead><tr><th>對應名稱</th><th>序號</th><th>狀態</th><th>使用者</th></tr></thead>
-              <tbody id="unlock-codes-tbody"></tbody>
-            </table>
-          </div>
-          <div class="fsep">批次新增序號</div>
-          <div class="field full"><label>對應名稱</label><input id="uc-name" placeholder="要跟商品/分類設定裡填的「一次性序號對應名稱」一致"></div>
-          <div class="field full"><label>序號清單 <span class="hint">一行一組</span></label><textarea id="uc-codes" placeholder="ABCD1234&#10;EFGH5678&#10;..."></textarea></div>
-          <div style="display:flex;gap:10px;margin-top:8px"><button class="btn-save" onclick="addUnlockCodes()">➕ 新增到序號庫</button></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 商品編輯 modal -->
-<div class="overlay" id="shop-modal">
-  <div class="modal">
-    <div class="modal-header"><h3>✏️ 編輯商品</h3><button class="modal-close" onclick="closeModal('shop-modal')">×</button></div>
-    <div class="modal-body">
-      <div class="full field"><label>商品名稱</label><input id="em-name" type="text"></div>
-      <div class="field"><label>價格</label><input id="em-price" type="number" min="0"></div>
-      <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
-      <div class="field"><label>分類</label><input id="em-category" list="sc-list"></div>
-      <div class="field"><label>庫存</label><input id="em-stock"></div>
-      <div class="field"><label>狀態</label><select id="em-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
-      <div class="fsep">時間</div>
-      <div class="field"><label>開始時間</label><input id="em-sdate" type="datetime-local"></div>
-      <div class="field"><label>結束時間</label><input id="em-edate" type="datetime-local"></div>
-      <div class="fsep">限購（留空=不限）</div>
-      <div class="field"><label>全服每日</label><input id="em-lgd" type="number" min="1"></div>
-      <div class="field"><label>全服每週</label><input id="em-lgw" type="number" min="1"></div>
-      <div class="field"><label>全服每月</label><input id="em-lgm" type="number" min="1"></div>
-      <div class="field"><label>個人每日</label><input id="em-lpd" type="number" min="1"></div>
-      <div class="field"><label>個人每週</label><input id="em-lpw" type="number" min="1"></div>
-      <div class="field"><label>個人每月</label><input id="em-lpm" type="number" min="1"></div>
-      <div class="field"><label>終身（個人）</label><input id="em-lpt" type="number" min="1"></div>
-      <div class="fsep">獎勵</div>
-      <div class="field"><label>固定獎勵變數名</label><input id="em-rvar"></div>
-      <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="em-rqty"></textarea></div>
-      <div class="gacha-preview" id="em-rqty-preview" style="display:none"></div>
-      <div class="fsep">其他</div>
-      <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
-      <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
-      <div class="field"><label>限定身分組</label><input id="em-role" list="ri-list"><div class="role-hint" id="em-role-hint"></div></div>
-      <div class="field"><label>選一群組</label><input id="em-excl"></div>
-      <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
-      <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="em-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
-      <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="em-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
-      <div class="fsep">商品密碼鎖定（選填）</div>
-      <div class="field"><label>固定密碼 <span class="hint">留空=不用</span></label><input id="em-lockpw" placeholder="所有人共用同一組密碼"></div>
-      <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用</span></label><input id="em-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
-      <div class="field"><label>解鎖持續性</label><select id="em-lockpersist"><option value="">🔓 永久解鎖</option><option value="SESSION">🔁 每次購買都要重新輸入</option></select></div>
-      <div class="field"><label>解鎖前顯示模式</label><select id="em-lockvis"><option value="">👁️ 正常顯示</option><option value="BLUR">🌫️ 模糊顯示</option></select></div>
-      <input type="hidden" id="em-id">
-      <input type="hidden" id="em-sortorder">
-    </div>
-    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('shop-modal')">取消</button><button class="btn-save" id="em-save" onclick="saveShopItem()">💾 儲存變更</button></div>
-  </div>
-</div>
-
-<!-- 拍賣編輯 modal -->
-<div class="overlay" id="auction-modal">
-  <div class="modal">
-    <div class="modal-header"><h3>✏️ 編輯拍賣</h3><button class="modal-close" onclick="closeModal('auction-modal')">×</button></div>
-    <div class="modal-body">
-      <div class="full field"><label>拍賣名稱</label><input id="ea-name" type="text"></div>
-      <div class="field"><label>起標價</label><input id="ea-bid" type="number" min="0"></div>
-      <div class="field"><label>貨幣欄位</label><input id="ea-currency" list="dc-list"></div>
-      <div class="field"><label>拍賣類型</label><select id="ea-type"><option value="PUBLIC">📢 公開比價</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
-      <div class="field"><label>分類</label><input id="ea-cat" list="ac-list"></div>
-      <div class="field"><label>狀態</label><select id="ea-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
-      <div class="fsep">時間</div>
-      <div class="field"><label>起標時間</label><input id="ea-sdate" type="datetime-local"></div>
-      <div class="field"><label>結束時間</label><input id="ea-edate" type="datetime-local"></div>
-      <div class="field"><label>最後幾分鐘有出價延長</label><input id="ea-ext1" type="number" min="1"></div>
-      <div class="field"><label>延長幾分鐘</label><input id="ea-ext2" type="number" min="1"></div>
-      <div class="fsep">其他</div>
-      <div class="full field"><label>圖片網址</label><input id="ea-img" type="url"></div>
-      <div class="full field"><label>備註</label><textarea id="ea-remark"></textarea></div>
-      <div class="full field"><label>限定身分組</label><input id="ea-role" list="ri-list"><div class="role-hint" id="ea-role-hint"></div></div>
-      <div class="fsep">替代貨幣折抵（選填）</div>
-      <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ea-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
-      <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="ea-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
-      <input type="hidden" id="ea-id">
-    </div>
-    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('auction-modal')">取消</button><button class="btn-save" id="ea-save" onclick="saveAuction()">💾 儲存變更</button></div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-const GAS = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
-const CLIENT_ID = '1365601646448607335';
-const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
-let ME = null, ROLES = {}, shopItems = [], auctionItems = [];
-
-// ── Auth ──
-function loginWithDiscord() {
-  const st = Math.random().toString(36).slice(2);
-  sessionStorage.setItem('s', st);
-  location.href = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(location.origin+location.pathname)}&response_type=token&scope=identify&state=${st}`;
+  const fetchPromise = (async () => {
+    try {
+      const data = await fetchFn();
+      sheetCache[cacheKey] = { data, expiry: Date.now() + SHEET_CACHE_TTL_MS };
+      return data;
+    } finally {
+      delete sheetCacheInFlight[cacheKey]; // 🌟 不管成功失敗都要清掉,失敗的話下一個請求才能重新嘗試
+    }
+  })();
+  sheetCacheInFlight[cacheKey] = fetchPromise;
+  return fetchPromise;
 }
 
-function logout() {
-  if (!confirm('確定要登出管理後台嗎？')) return;
-  localStorage.removeItem('admin_dc_access_token');
-  ME = null;
-  document.getElementById('admin-app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-}
+// ============================================================
+// 入口
+// ============================================================
+export default {
+  async fetch(request, env, ctx) {
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
 
-async function init() {
-  const h = new URLSearchParams(location.hash.slice(1));
-  let tok = h.get('access_token');
-  if (tok) {
-    // 🌟 記住登入狀態,之後重新整理/重開分頁不用再走一次 Discord 授權流程
-    localStorage.setItem('admin_dc_access_token', tok);
-    history.replaceState({}, '', location.pathname);
-  } else {
-    tok = localStorage.getItem('admin_dc_access_token');
-  }
-  if (!tok) return;
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
 
-  let u;
-  try {
-    const res = await fetch('https://discord.com/api/users/@me', {headers:{Authorization:`Bearer ${tok}`}});
-    if (!res.ok) throw new Error('token expired');
-    u = await res.json();
-  } catch (e) {
-    // 🌟 token 過期或失效,清掉並回到登入畫面,不要卡住
-    localStorage.removeItem('admin_dc_access_token');
-    return;
-  }
-  if (!ADMIN_IDS.includes(u.id)) { alert('❌ 您沒有管理員權限'); localStorage.removeItem('admin_dc_access_token'); return; }
-  ME = u;
-  document.getElementById('ua-img').src = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`;
-  document.getElementById('ua-name').textContent = u.global_name || u.username;
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('admin-app').style.display = 'block';
-  await loadMeta();
-  loadShopItems();
-}
+    const url = new URL(request.url);
+    const discordId = url.searchParams.get('discordId');
+    const action = url.searchParams.get('action') || 'dashboard';
 
-async function api(params) {
-  const p = new URLSearchParams({...params, discordId: ME.id});
-  const r = await fetch(`${GAS}?${p}`);
-  return r.json();
-}
+    if (!discordId) {
+      return jsonResponse({ status: 'error', message: '缺少 discordId' }, corsHeaders);
+    }
 
-// ── Meta ──
-async function loadMeta() {
-  const d = await api({action:'adminGetMeta'});
-  if (d.status !== 'success') return;
-  ROLES = {};
-  d.roles.forEach(r => { ROLES[r.id] = r.name; });
+    try {
+      if (action === 'history') {
+        const t0 = Date.now();
+        const accessToken = await getGoogleAccessToken(env);
+        const t1 = Date.now();
+        const historyData = await getCachedSheetData_('history:' + env.SHEET_ID, () => fetchSingleSheet(accessToken, env.SHEET_ID, SHEET_NAMES.history));
+        const t2 = Date.now();
+        const result = buildHistoryPage(discordId, url.searchParams.get('page'), url.searchParams.get('pageSize'), historyData);
+        const t3 = Date.now();
+        result.debugTiming = { getAccessToken_ms: t1 - t0, fetchHistory_ms: t2 - t1, buildHistory_ms: t3 - t2, total_ms: t3 - t0 };
+        return jsonResponse(result, corsHeaders);
+      }
 
-  const ri = document.getElementById('ri-list');
-  ri.innerHTML = '';
-  d.roles.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.label = `${r.name} (${r.id})`; ri.appendChild(o); });
+      if (action === 'auctions') {
+        const t0 = Date.now();
+        const accessToken = await getGoogleAccessToken(env);
+        const t1 = Date.now();
+        const auctionSheets = await getCachedSheetData_('auctions:' + env.SHEET_ID, () => fetchAuctionSheets(accessToken, env.SHEET_ID));
+        const t2 = Date.now();
+        const result = buildAuctions(discordId, auctionSheets.auction, auctionSheets.bid, auctionSheets.player, auctionSheets.roleMap, auctionSheets.categoryOrder);
+        const t3 = Date.now();
+        result.debugTiming = { getAccessToken_ms: t1 - t0, fetchAuctionSheets_ms: t2 - t1, buildAuctions_ms: t3 - t2, total_ms: t3 - t0 };
+        return jsonResponse(result, corsHeaders);
+      }
 
-  const dc = document.getElementById('dc-list');
-  d.playerHeaders.forEach(h => { if (h && !h.toString().startsWith('DC')) { const o=document.createElement('option'); o.value=h; dc.appendChild(o); }});
+      const t0 = Date.now();
+      const accessToken = await getGoogleAccessToken(env);
+      const t1 = Date.now();
+      const sheets = await getCachedSheetData_('dashboard:' + env.SHEET_ID, () => fetchAllSheets(accessToken, env.SHEET_ID));
+      const t2 = Date.now();
+      const result = buildDashboard(discordId, sheets);
+      const t3 = Date.now();
 
-  const sc = document.getElementById('sc-list');
-  d.shopCategories.forEach(c => { const o=document.createElement('option'); o.value=c; sc.appendChild(o); });
-  document.getElementById('shop-cat-filter').innerHTML = '<option value="">全部分類</option>' + d.shopCategories.map(c => `<option>${c}</option>`).join('');
+      result.debugTiming = {
+        getAccessToken_ms: t1 - t0,
+        fetchAllSheets_ms: t2 - t1,
+        buildDashboard_ms: t3 - t2,
+        total_ms: t3 - t0,
+      };
 
-  const ac = document.getElementById('ac-list');
-  d.auctionCategories.forEach(c => { const o=document.createElement('option'); o.value=c; ac.appendChild(o); });
-  document.getElementById('auction-cat-filter').innerHTML = '<option value="">全部分類</option>' + d.auctionCategories.map(c => `<option>${c}</option>`).join('');
+      return jsonResponse(result, corsHeaders);
+    } catch (err) {
+      return jsonResponse({ status: 'error', message: err.toString() }, corsHeaders);
+    }
+  },
+};
 
-  // role hint on all role inputs
-  ['ns-role','na-role','em-role','ea-role'].forEach(id => {
-    const el = document.getElementById(id);
-    const hint = document.getElementById(id + '-hint');
-    if (el && hint) el.addEventListener('input', () => {
-      const ids = el.value.replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
-      hint.textContent = ids.map(i => ROLES[i] ? `👤 ${ROLES[i]}` : '').filter(Boolean).join('  ') || '';
-    });
+function jsonResponse(obj, corsHeaders) {
+  return new Response(JSON.stringify(obj), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
 }
 
-// ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','history','auction-bids','lock-settings'];
-let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
-function navTo(p) {
-  pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
-  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', pages[i] === p));
-  if (auctionBidsAutoRefreshInterval) { clearInterval(auctionBidsAutoRefreshInterval); auctionBidsAutoRefreshInterval = null; }
-  if (p==='shop-list') loadShopItems();
-  if (p==='auction-list') loadAuctionItems();
-  if (p==='add-shop') addShopAutosave.checkAndOffer();
-  if (p==='add-auction') addAuctionAutosave.checkAndOffer();
-  if (p==='sort-settings') openSortSettings();
-  if (p==='history') loadHistory();
-  if (p==='auction-bids') {
-    openAuctionBidsPage();
-    auctionBidsAutoRefreshInterval = setInterval(loadAuctionBids, 10000);
-  }
-  if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
-}
+// ============================================================
+// Google 服務帳戶驗證 (JWT -> Access Token)
+// 用模組層級變數快取 token,同一個 Worker 實例不用每次請求都重新換票
+// ============================================================
+let cachedToken = null;
+let cachedTokenExpiry = 0;
 
-// ── Toast ──
-function toast(msg, ok=true) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className=`toast ${ok?'ok':'err'} show`;
-  setTimeout(()=>t.className='toast', 3000);
-}
+async function getGoogleAccessToken(env) {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedToken && cachedTokenExpiry > now + 60) return cachedToken;
 
-// ── Modal ──
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claims = {
+    iss: env.GOOGLE_CLIENT_EMAIL,
+    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  };
 
-// ── Shop ──
-async function loadShopItems() {
-  document.getElementById('shop-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
-  const d = await api({action:'adminGetShopItems'});
-  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
-  shopItems = d.items;
-  document.getElementById('shop-count').textContent = shopItems.length + ' 件';
-  renderShopTable();
-}
+  const encHeader = base64url(JSON.stringify(header));
+  const encClaims = base64url(JSON.stringify(claims));
+  const unsigned = `${encHeader}.${encClaims}`;
+  const signature = await signRS256(unsigned, env.GOOGLE_PRIVATE_KEY);
+  const jwt = `${unsigned}.${signature}`;
 
-let shopSort = { key: null, dir: 1 };
-function sortShopBy(key) {
-  if (shopSort.key === key) shopSort.dir *= -1; else { shopSort.key = key; shopSort.dir = 1; }
-  renderShopTable();
-}
-function updateSortArrows(prefix, sortState) {
-  ['name','category','price','stock','state','itemId','type','startBid','currentHighBid','endDate','auctionId'].forEach(k => {
-    const el = document.getElementById(`th-${prefix}-${k}`);
-    if (!el) return;
-    el.textContent = sortState.key === k ? (sortState.dir === 1 ? '▲' : '▼') : '';
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:
+      `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}` +
+      `&assertion=${encodeURIComponent(jwt)}`,
   });
+  const json = await res.json();
+  if (!json.access_token) throw new Error('Google 認證失敗: ' + JSON.stringify(json));
+
+  cachedToken = json.access_token;
+  cachedTokenExpiry = now + (json.expires_in || 3600);
+  return cachedToken;
 }
 
-function renderShopTable() {
-  const q = document.getElementById('shop-search').value.toLowerCase();
-  const cat = document.getElementById('shop-cat-filter').value;
-  const statusFilter = document.getElementById('shop-status-filter').value;
-  let items = shopItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!cat || i.category === cat));
-  if (statusFilter === 'DRAFT') items = items.filter(i => i.status === 'DRAFT');
-  else if (statusFilter === 'ACTIVE') items = items.filter(i => i.status !== 'DRAFT');
+function base64url(input) {
+  const str = typeof input === 'string' ? btoa(unescape(encodeURIComponent(input))) : arrayBufferToBase64(input);
+  return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
-  if (shopSort.key) {
-    const k = shopSort.key, dir = shopSort.dir;
-    items = items.slice().sort((a, b) => {
-      let va = a[k], vb = b[k];
-      if (k === 'price') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
-      else if (k === 'stock') { va = (va === '' || va === undefined) ? Infinity : parseFloat(va); vb = (vb === '' || vb === undefined) ? Infinity : parseFloat(vb); if (isNaN(va)) va = Infinity; if (isNaN(vb)) vb = Infinity; }
-      else { va = (va || '').toString().toLowerCase(); vb = (vb || '').toString().toLowerCase(); }
-      if (va < vb) return -1 * dir;
-      if (va > vb) return 1 * dir;
-      return 0;
-    });
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+async function signRS256(data, pem) {
+  const key = await importPrivateKey(pem);
+  const enc = new TextEncoder();
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(data));
+  return base64url(sig);
+}
+
+async function importPrivateKey(pem) {
+  // 服務帳戶JSON裡的private_key欄位,複製貼上時換行符常常會變成字面上的 "\n" 兩個字元,這裡做防呆轉換
+  const normalizedPem = pem.replace(/\\n/g, '\n');
+  const pemContents = normalizedPem
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '');
+  const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+  return crypto.subtle.importKey(
+    'pkcs8',
+    binaryDer.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+}
+
+// ============================================================
+// 一次性批次讀取所有工作表
+// ============================================================
+async function fetchSingleSheet(accessToken, spreadsheetId, sheetName) {
+  const apiUrl =
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent("'" + sheetName + "'")}` +
+    `?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`;
+  const res = await fetch(apiUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const json = await res.json();
+  if (!json.values) throw new Error(`讀取分頁「${sheetName}」失敗(請確認 SHEET_NAMES.history 設定是否跟試算表實際分頁名稱一致): ` + JSON.stringify(json));
+  return json.values;
+}
+
+// 🌟 拍賣讀取專用:抓玩家表(身分組判斷用)+身分組對照表+拍賣表+拍賣出價紀錄表
+async function fetchAuctionSheets(accessToken, spreadsheetId) {
+  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`;
+  const metaRes = await fetch(metaUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const metaJson = await metaRes.json();
+  const existingNames = metaJson.sheets ? metaJson.sheets.map((s) => s.properties.title) : [];
+
+  const hasAuctionSheet = existingNames.indexOf(AUCTION_SHEET_NAME) !== -1;
+  if (!hasAuctionSheet) return { player: [], roleMap: [], auction: [], bid: [], categoryOrder: [] }; // 還沒設定拍賣功能,直接回空陣列
+
+  const wanted = [['player', SHEET_NAMES.player]];
+  if (existingNames.indexOf(SHEET_NAMES.roleMap) !== -1) wanted.push(['roleMap', SHEET_NAMES.roleMap]);
+  wanted.push(['auction', AUCTION_SHEET_NAME]);
+  if (existingNames.indexOf(BID_SHEET_NAME) !== -1) wanted.push(['bid', BID_SHEET_NAME]);
+  if (existingNames.indexOf(SHEET_NAMES.categoryOrder) !== -1) wanted.push(['categoryOrder', SHEET_NAMES.categoryOrder]);
+
+  const rangeParams = wanted.map(([, name]) => `ranges=${encodeURIComponent("'" + name + "'")}`).join('&');
+  const apiUrl =
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet` +
+    `?${rangeParams}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`;
+  const res = await fetch(apiUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const json = await res.json();
+  if (!json.valueRanges) throw new Error('讀取拍賣資料失敗: ' + JSON.stringify(json));
+
+  const result = { player: [], roleMap: [], auction: [], bid: [], categoryOrder: [] };
+  wanted.forEach(([key], i) => {
+    result[key] = json.valueRanges[i].values || [];
+  });
+  return result;
+}
+
+async function fetchAllSheets(accessToken, spreadsheetId) {
+  // 🌟 先查詢這份試算表實際有哪些分頁(輕量,只拿名稱不拿內容),
+  // 避免「玩家資料」「商店」「兌換紀錄」這幾個必要分頁以外的選用分頁(自訂欄位設定/分類順序/身分組對照表)
+  // 如果剛好沒建立或名稱對不上,導致整個 batchGet 請求直接失敗、什麼資料都拿不到
+  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`;
+  const metaRes = await fetch(metaUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const metaJson = await metaRes.json();
+  if (!metaJson.sheets) throw new Error('讀取試算表分頁清單失敗: ' + JSON.stringify(metaJson));
+  const existingNames = metaJson.sheets.map((s) => s.properties.title);
+
+  const required = [
+    ['player', SHEET_NAMES.player],
+    ['shop', SHEET_NAMES.shop],
+    ['history', SHEET_NAMES.history],
+  ];
+  const optional = [
+    ['customVars', SHEET_NAMES.customVars],
+    ['categoryOrder', SHEET_NAMES.categoryOrder],
+    ['roleMap', SHEET_NAMES.roleMap],
+    ['categoryLock', CATEGORY_LOCK_SHEET_NAME],
+    ['unlockLog', UNLOCK_LOG_SHEET_NAME],
+  ];
+
+  for (const [key, name] of required) {
+    if (!name || existingNames.indexOf(name) === -1) {
+      throw new Error(`找不到必要的分頁「${name}」(對應 ${key})，請確認 SHEET_NAMES 設定是否跟試算表實際分頁名稱一致，目前試算表裡的分頁有: ${existingNames.join('、')}`);
+    }
   }
-  updateSortArrows('shop', shopSort);
 
-  const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
-  document.getElementById('shop-count').textContent = shopItems.length + ' 件';
-  document.getElementById('shop-tbody').innerHTML = items.length === 0
-    ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
-    : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
-      <td data-label="分類">${i.category||'—'}</td>
-      <td data-label="價格">${i.price}</td>
-      <td data-label="庫存">${i.stock||'無限'}</td>
-      <td data-label="狀態">${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (stateLabel[i.state]||'')}</td>
-      <td class="cell-id" data-label="ID">${i.itemId||'—'}</td>
-      <td class="cell-actions" data-label="操作"><div class="btn-row">
-        ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
-        <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
-        <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
-      </div></td>
-    </tr>`).join('');
+  const wanted = required.concat(optional.filter(([, name]) => name && existingNames.indexOf(name) !== -1));
+
+  const rangeParams = wanted.map(([, name]) => `ranges=${encodeURIComponent("'" + name + "'")}`).join('&');
+  const apiUrl =
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet` +
+    `?${rangeParams}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`;
+
+  const res = await fetch(apiUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const json = await res.json();
+  if (!json.valueRanges) throw new Error('讀取試算表內容失敗: ' + JSON.stringify(json));
+
+  const result = {};
+  wanted.forEach(([key], i) => {
+    result[key] = json.valueRanges[i].values || [];
+  });
+  // 沒拿到的選用工作表,補空陣列避免後面程式碼要判斷undefined
+  result.customVars = result.customVars || [];
+  result.categoryOrder = result.categoryOrder || [];
+  result.roleMap = result.roleMap || [];
+  result.categoryLock = result.categoryLock || [];
+  result.unlockLog = result.unlockLog || [];
+  return result;
 }
 
-function openEditShop(itemId) {
-  const i = shopItems.find(x => x.itemId === itemId);
-  if (!i) return;
-  const f = id => document.getElementById(id);
-  f('em-id').value=i.itemId; f('em-name').value=i.name; f('em-price').value=i.price;
-  f('em-currency').value=i.currency||'升階2'; f('em-category').value=i.category||'';
-  f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
-  f('em-status').value=i.status==='DRAFT'?'DRAFT':'';
-  f('em-sortorder').value=i.sortOrder!==null&&i.sortOrder!==undefined?i.sortOrder:'';
-  f('em-sdate').value=i.startDate||''; f('em-edate').value=i.endDate||'';
-  f('em-lgd').value=i.limitGD||''; f('em-lgm').value=i.limitGM||'';
-  f('em-lpd').value=i.limitPD||''; f('em-lpm').value=i.limitPM||'';
-  f('em-lgw').value=i.limitGW||''; f('em-lpw').value=i.limitPW||'';
-  f('em-lpt').value=i.limitPT||''; f('em-rvar').value=i.rewardVar||'';
-  f('em-rqty').value=i.rewardQty||''; f('em-img').value=i.imageUrl||'';
-  f('em-remark').value=i.remark||''; f('em-role').value=i.requiredRole||'';
-  f('em-excl').value=i.exclusiveGroup||'';
-  f('em-altcurrency').value=i.altCurrency||''; f('em-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
-  f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
-  f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
-  f('em-lockvis').value=i.lockVisibility==='BLUR'?'BLUR':'';
-  const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
-  f('em-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
-  document.getElementById('shop-modal').classList.add('open');
-  renderGachaPreview('em-rqty', 'em-rqty-preview');
-  editShopAutosave.checkAndOffer();
+// ============================================================
+// 日期處理: Google Sheets 的序列值 -> JS Date (假設試算表時區為 GMT+8,跟原本 Code.gs 用法一致)
+// ============================================================
+function sheetsSerialToDate(serial) {
+  if (serial === '' || serial === null || serial === undefined) return null;
+  const ms = Math.round((Number(serial) - 25569) * 86400000) - 8 * 3600 * 1000;
+  return new Date(ms);
 }
 
-async function saveShopItem() {
-  const f = id => document.getElementById(id).value;
-  const nonInstantErr = checkNonInstantRule(f('em-name'), f('em-rvar'));
-  if (nonInstantErr) { alert(nonInstantErr); return; }
-  if (f('em-altcurrency') && !(parseFloat(f('em-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
-  const btn = document.getElementById('em-save');
-  btn.disabled=true; btn.textContent='儲存中...';
-  const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
-    currency:f('em-currency'),category:f('em-category'),stock:f('em-stock'),
-    status:f('em-status'),sortOrder:f('em-sortorder'),
-    startDate:f('em-sdate'),endDate:f('em-edate'),
-    limitGD:f('em-lgd'),limitGM:f('em-lgm'),limitPD:f('em-lpd'),limitPM:f('em-lpm'),
-    limitGW:f('em-lgw'),limitPW:f('em-lpw'),limitPT:f('em-lpt'),
-    rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
-    remark:f('em-remark'),requiredRole:f('em-role'),exclusiveGroup:f('em-excl'),
-    altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
-    lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis')});
-  btn.disabled=false; btn.textContent='💾 儲存變更';
-  if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
-  else toast('❌ '+d.message, false);
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+// 取得GMT+8當下時刻的「年/月/日」物件(用純數學運算,不依賴環境時區設定)
+function getGmt8Parts(date) {
+  const shifted = new Date(date.getTime() + 8 * 3600 * 1000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    weekday: shifted.getUTCDay(), // 0=Sun ... 6=Sat
+  };
 }
 
-async function publishShopItem(itemId) {
-  const i = shopItems.find(x => x.itemId === itemId);
-  if (!i) return;
-  if (!confirm(`確定要把「${i.name}」從草稿改為上架嗎？上架後玩家就會看到這個商品。`)) return;
-  const d = await api({action:'adminUpdateShopItem',itemId:i.itemId,name:i.name,price:i.price,
-    currency:i.currency,category:i.category,stock:i.stock,
-    status:'',sortOrder:i.sortOrder!==null&&i.sortOrder!==undefined?i.sortOrder:'',
-    startDate:i.startDate,endDate:i.endDate,
-    limitGD:i.limitGD,limitGM:i.limitGM,limitPD:i.limitPD,limitPM:i.limitPM,
-    limitGW:i.limitGW,limitPW:i.limitPW,limitPT:i.limitPT,
-    rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
-    remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
-    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
-    lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility});
-  if (d.status==='success') { toast('🚀 已上架'); loadShopItems(); }
-  else toast('❌ '+d.message, false);
+function formatDayStr(date) {
+  const p = getGmt8Parts(date);
+  return '' + p.year + pad2(p.month) + pad2(p.day);
+}
+function formatMonthStr(date) {
+  const p = getGmt8Parts(date);
+  return '' + p.year + pad2(p.month);
+}
+// 完整日期時間字串,格式跟 Code.gs 的 "yyyy/MM/dd HH:mm:ss" 一致(假設script時區為GMT+8,跟試算表其他地方一致)
+function formatDateTimeStr(date) {
+  const shifted = new Date(date.getTime() + 8 * 3600 * 1000);
+  const y = shifted.getUTCFullYear(), mo = shifted.getUTCMonth() + 1, d = shifted.getUTCDate();
+  const h = shifted.getUTCHours(), mi = shifted.getUTCMinutes(), s = shifted.getUTCSeconds();
+  return `${y}/${pad2(mo)}/${pad2(d)} ${pad2(h)}:${pad2(mi)}:${pad2(s)}`;
+}
+// ISO 8601 週數(週一為一週起點,第一個含有該年週四的那週是第1週)
+function formatWeekStr(date) {
+  const p = getGmt8Parts(date);
+  const d = new Date(Date.UTC(p.year, p.month - 1, p.day));
+  const dayNum = (d.getUTCDay() + 6) % 7; // 把週日(0)轉成6,週一(1)轉成0...
+  d.setUTCDate(d.getUTCDate() - dayNum + 3); // 移到當週週四
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const firstThursdayDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstThursdayDayNum + 3);
+  const weekNum = 1 + Math.round((d - firstThursday) / (7 * 86400000));
+  return d.getUTCFullYear() + '-' + pad2(weekNum);
 }
 
-async function delShopItem(id, name) {
-  if (!confirm(`確定要刪除「${name}」嗎？此操作無法還原。`)) return;
-  const d = await api({action:'adminDeleteShopItem', itemId:id});
-  if (d.status==='success') { toast('🗑️ 商品已刪除'); loadShopItems(); }
-  else toast('❌ '+d.message, false);
-}
-
-// ── Auction ──
-async function loadAuctionItems() {
-  document.getElementById('auction-tbody').innerHTML = '<tr><td colspan="9" class="empty">讀取中...</td></tr>';
-  const d = await api({action:'adminGetAuctions'});
-  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
-  auctionItems = d.auctions;
-  document.getElementById('auction-count').textContent = auctionItems.length + ' 場';
-  renderAuctionTable();
-}
-
-let auctionSort = { key: null, dir: 1 };
-function sortAuctionBy(key) {
-  if (auctionSort.key === key) auctionSort.dir *= -1; else { auctionSort.key = key; auctionSort.dir = 1; }
-  renderAuctionTable();
-}
-
-function renderAuctionTable() {
-  const q = document.getElementById('auction-search').value.toLowerCase();
-  const cat = document.getElementById('auction-cat-filter').value;
-  const statusFilter = document.getElementById('auction-status-filter').value;
-  let items = auctionItems.filter(i => (!q||i.name.toLowerCase().includes(q)) && (!cat||(i.category||'')=== cat));
-  if (statusFilter === 'DRAFT') items = items.filter(i => i.status === 'DRAFT');
-  else if (statusFilter === 'ACTIVE') items = items.filter(i => i.status !== 'DRAFT');
-
-  if (auctionSort.key) {
-    const k = auctionSort.key, dir = auctionSort.dir;
-    items = items.slice().sort((a, b) => {
-      let va = a[k], vb = b[k];
-      if (k === 'startBid' || k === 'currentHighBid') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
-      else if (k === 'endDate') { va = va ? new Date(va).getTime() : 0; vb = vb ? new Date(vb).getTime() : 0; }
-      else { va = (va || '').toString().toLowerCase(); vb = (vb || '').toString().toLowerCase(); }
-      if (va < vb) return -1 * dir;
-      if (va > vb) return 1 * dir;
-      return 0;
-    });
-  }
-  updateSortArrows('auction', auctionSort);
-
-  const typeLabel = {PUBLIC:'<span class="type-badge type-pub">公開</span>',SEALED:'<span class="type-badge type-seal">暗標↑</span>',SEALED_LOW:'<span class="type-badge type-low">暗標↓</span>'};
-  const stateLabel = {open:'<span class="status status-open">● 進行中</span>',ended:'<span class="status status-ended">● 已結標</span>',not_started:'<span class="status status-ns">● 未開始</span>',closed:'<span class="status status-closed">● 已關閉</span>',pending:'<span class="status status-pending">● 待結算</span>'};
-  document.getElementById('auction-tbody').innerHTML = items.length===0
-    ? '<tr><td colspan="9" class="empty">沒有符合條件的拍賣</td></tr>'
-    : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}" data-label="拍賣名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}</td>
-      <td data-label="類型">${typeLabel[i.type]||i.type}</td>
-      <td data-label="分類">${i.category||'—'}</td>
-      <td data-label="起標價">${i.startBid}</td>
-      <td data-label="目前最高">${i.currentHighBid||'—'}</td>
-      <td data-label="結束時間">${i.endDate||'—'}</td>
-      <td data-label="狀態">${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (stateLabel[i.state]||'')}</td>
-      <td class="cell-id" data-label="ID">${i.auctionId||'—'}</td>
-      <td class="cell-actions" data-label="操作"><div class="btn-row">
-        ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishAuction('${i.auctionId}')">🚀 上架</button>` : ''}
-        <button class="btn btn-edit" onclick="openEditAuction('${i.auctionId}')">編輯</button>
-        ${i.state==='open'?`<button class="btn btn-close" onclick="closeAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">關閉</button>`:''}
-        <button class="btn btn-del" onclick="delAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
-      </div></td>
-    </tr>`).join('');
-}
-
-function openEditAuction(auctionId) {
-  const i = auctionItems.find(x => x.auctionId === auctionId);
-  if (!i) return;
-  const f = id => document.getElementById(id);
-  f('ea-id').value=i.auctionId; f('ea-name').value=i.name; f('ea-bid').value=i.startBid;
-  f('ea-type').value=i.type||'PUBLIC'; f('ea-cat').value=i.category||'';
-  f('ea-currency').value=i.currency||'升階2'; f('ea-sdate').value=i.startDate||'';
-  f('ea-edate').value=i.endDate||''; f('ea-ext1').value=i.extendTrigger||'';
-  f('ea-ext2').value=i.extendBy||''; f('ea-img').value=i.imageUrl||'';
-  f('ea-remark').value=i.remark||''; f('ea-role').value=i.requiredRole||'';
-  f('ea-altcurrency').value=i.altCurrency||''; f('ea-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
-  f('ea-status').value=i.status==='DRAFT'?'DRAFT':'';
-  const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
-  f('ea-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
-  document.getElementById('auction-modal').classList.add('open');
-  editAuctionAutosave.checkAndOffer();
-}
-
-async function saveAuction() {
-  const f = id => document.getElementById(id).value;
-  if (f('ea-altcurrency') && !(parseFloat(f('ea-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
-  const btn = document.getElementById('ea-save');
-  btn.disabled=true; btn.textContent='儲存中...';
-  const d = await api({action:'adminUpdateAuction',auctionId:f('ea-id'),name:f('ea-name'),startBid:f('ea-bid'),
-    type:f('ea-type'),category:f('ea-cat'),currency:f('ea-currency'),
-    startDate:f('ea-sdate'),endDate:f('ea-edate'),
-    extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
-    imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:f('ea-role'),
-    altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate'),status:f('ea-status')});
-  btn.disabled=false; btn.textContent='💾 儲存變更';
-  if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
-  else toast('❌ '+d.message, false);
-}
-
-async function publishAuction(auctionId) {
-  const i = auctionItems.find(x => x.auctionId === auctionId);
-  if (!i) return;
-  if (!confirm(`確定要把「${i.name}」從草稿改為上架嗎？上架後玩家就會看到這場拍賣。`)) return;
-  const d = await api({action:'adminUpdateAuction',auctionId:i.auctionId,name:i.name,startBid:i.startBid,
-    type:i.type,category:i.category,currency:i.currency,
-    startDate:i.startDate,endDate:i.endDate,
-    extendTrigger:i.extendTrigger,extendBy:i.extendBy,
-    imageUrl:i.imageUrl,remark:i.remark,requiredRole:i.requiredRole,
-    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,status:''});
-  if (d.status==='success') { toast('🚀 已上架'); loadAuctionItems(); }
-  else toast('❌ '+d.message, false);
-}
-
-async function closeAuction(id, name) {
-  if (!confirm(`確定要手動關閉「${name}」嗎？關閉後下次定時結算會自動退款並通知得標者。`)) return;
-  const d = await api({action:'adminCloseAuction', auctionId:id});
-  if (d.status==='success') { toast('🔒 拍賣已關閉'); loadAuctionItems(); }
-  else toast('❌ '+d.message, false);
-}
-
-async function delAuction(id, name) {
-  if (!confirm(`確定要刪除「${name}」嗎？注意：若有玩家出價且未退款，請先手動退款。`)) return;
-  const d = await api({action:'adminDeleteAuction', auctionId:id});
-  if (d.status==='success') { toast('🗑️ 拍賣已刪除'); loadAuctionItems(); }
-  else toast('❌ '+d.message, false);
-}
-
-// ── Add Shop ──
-function resetAddShop() {
-  ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
-   'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
-   'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
-   'ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode'].forEach(id => document.getElementById(id).value='');
-  document.getElementById('ns-currency').value='升階2';
-  document.getElementById('ns-status').value='';
-  document.getElementById('ns-lockpersist').value='';
-  document.getElementById('ns-lockvis').value='';
-  renderGachaPreview('ns-rqty', 'ns-rqty-preview');
-  addShopAutosave.clear();
-}
-// 🌟 [非即時]商品規定要用盲盒格式:名稱帶[非即時]卻用「固定獎勵變數名」直接發放的話,
-// 系統的「需人工發送」判斷只在盲盒格式裡才有支援,固定獎勵模式會直接自動入帳、變成沒有真的擋下來
-function checkNonInstantRule(name, rewardVar) {
-  if (/\[非即時\]/.test(name || '') && (rewardVar || '').trim() !== '') {
-    return '商品名稱包含 [非即時],獎勵必須使用盲盒格式：\n請把「固定獎勵變數名」留空,改在「獎勵數量/盲盒規則」填入至少一行保底獎,例如：\n腳色加布, [非即時]腳色加布, 1\n(不寫機率、不寫份數=保底獎,一定會開出)';
+// ============================================================
+// 身分組相關 (對應 Code.gs 的 getUserRoles / getGuildRoleMap / parseRoleRequirement / checkRolePermission)
+// ============================================================
+// 🌟 從玩家表查詢某個DiscordID的Discord顯示名稱(對應 Code.gs 的 getPlayerDisplayName_,同一個 DC暱稱 欄位)
+function getPlayerDisplayNameFromData(discordId, playerData) {
+  if (!playerData || playerData.length === 0) return null;
+  const headers = playerData[0];
+  const colIdx = headers.indexOf('DC暱稱');
+  if (colIdx === -1) return null;
+  for (let i = 1; i < playerData.length; i++) {
+    const row = playerData[i];
+    if (row[0] && row[0].toString().replace("'", '') === discordId.toString()) {
+      const raw = row[colIdx];
+      return raw ? raw.toString().trim() : null;
+    }
   }
   return null;
 }
 
-async function submitAddShop(forceStatus) {
-  const f=id=>document.getElementById(id).value;
-  if (!f('ns-name')) { toast('請填寫商品名稱', false); return; }
-  const nonInstantErr = checkNonInstantRule(f('ns-name'), f('ns-rvar'));
-  if (nonInstantErr) { alert(nonInstantErr); return; }
-  if (f('ns-altcurrency') && !(parseFloat(f('ns-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
-  const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('ns-status');
-  const isDraft = status === 'DRAFT';
-  if (!isDraft && f('ns-price')==='') { toast('請填寫價格', false); return; }
-  const btn=document.getElementById(isDraft ? 'ns-draft-btn' : 'ns-btn');
-  const originalText = btn.textContent;
-  btn.disabled=true; btn.textContent=isDraft ? '存草稿中...' : '新增中...';
-  const d=await api({action:'adminAddShopItem',name:f('ns-name'),price:f('ns-price')||0,
-    currency:f('ns-currency'),category:f('ns-category'),stock:f('ns-stock'),
-    status:isDraft?'DRAFT':'',
-    startDate:f('ns-sdate'),endDate:f('ns-edate'),
-    limitGD:f('ns-lgd'),limitGM:f('ns-lgm'),limitPD:f('ns-lpd'),limitPM:f('ns-lpm'),
-    limitGW:f('ns-lgw'),limitPW:f('ns-lpw'),limitPT:f('ns-lpt'),
-    rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
-    remark:f('ns-remark'),requiredRole:f('ns-role'),exclusiveGroup:f('ns-excl'),
-    altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
-    lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis')});
-  btn.disabled=false; btn.textContent=originalText;
-  if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
-  else toast('❌ '+d.message, false);
+function getUserRolesFromData(discordId, playerData) {
+  if (!playerData || playerData.length === 0) return [];
+  const headers = playerData[0];
+  const colIdx = headers.indexOf(PLAYER_ROLE_COLUMN);
+  if (colIdx === -1) return [];
+  for (let i = 1; i < playerData.length; i++) {
+    const row = playerData[i];
+    if (!row[0]) continue;
+    if (row[0].toString().replace("'", '') === discordId.toString()) {
+      const raw = row[colIdx];
+      if (!raw) return [];
+      const rawStr = raw.toString().replace("'", '');
+      return rawStr.split(',').map((s) => s.trim()).filter((s) => s);
+    }
+  }
+  return [];
 }
 
-// ── Add Auction ──
-function resetAddAuction() {
-  ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat',
-   'na-altcurrency','na-altrate'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('na-currency').value='升階2';
-  document.getElementById('na-type').value='PUBLIC';
-  document.getElementById('na-status').value='';
-  addAuctionAutosave.clear();
-}
-async function submitAddAuction(forceStatus) {
-  const f=id=>document.getElementById(id).value;
-  if (!f('na-name')) { toast('請填寫拍賣名稱', false); return; }
-  if (f('na-bid')==='') { toast('請填寫起標價', false); return; }
-  if (!f('na-edate')) { toast('請填寫結束時間', false); return; }
-  if (f('na-altcurrency') && !(parseFloat(f('na-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
-  const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('na-status');
-  const isDraft = status === 'DRAFT';
-  const btn=document.getElementById(isDraft ? 'na-draft-btn' : 'na-btn');
-  const originalText = btn.textContent;
-  btn.disabled=true; btn.textContent=isDraft ? '存草稿中...' : '新增中...';
-  const d=await api({action:'adminAddAuction',name:f('na-name'),startBid:f('na-bid'),
-    type:f('na-type'),category:f('na-cat'),currency:f('na-currency'),
-    startDate:f('na-sdate'),endDate:f('na-edate'),
-    extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
-    imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:f('na-role'),
-    altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate'),status:isDraft?'DRAFT':''});
-  btn.disabled=false; btn.textContent=originalText;
-  if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.auctionId}` : `✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
-  else toast('❌ '+d.message, false);
+function getGuildRoleMapFromData(roleMapData) {
+  const map = {};
+  for (let i = 1; i < roleMapData.length; i++) {
+    const row = roleMapData[i];
+    if (row[0] && row[1]) {
+      map[row[0].toString().trim()] = row[1].toString().trim();
+    }
+  }
+  return map;
 }
 
-// ── 盲盒設定即時預覽 ──
-function parseGachaRulesPreview(rawText) {
-  const lines = (rawText || '').split('\n');
+function parseRoleRequirement(requiredRoleStr) {
+  const result = { mode: 'ANY', minCount: 1, ids: [] };
+  if (!requiredRoleStr) return result;
+  const raw = requiredRoleStr.toString().trim();
+  if (!raw) return result;
+
+  let idsPart = raw;
+  const colonIdx = raw.indexOf(':');
+  if (colonIdx !== -1) {
+    const prefix = raw.substring(0, colonIdx).trim().toUpperCase();
+    const afterColon = raw.substring(colonIdx + 1);
+    if (prefix === 'ALL') { result.mode = 'ALL'; idsPart = afterColon; }
+    else if (prefix === 'ANY') { result.mode = 'ANY'; idsPart = afterColon; }
+    else if (/^[0-9]+$/.test(prefix)) { result.mode = 'COUNT'; result.minCount = parseInt(prefix); idsPart = afterColon; }
+  }
+  result.ids = idsPart.split(',').map((s) => s.trim()).filter((s) => s);
+  return result;
+}
+
+function checkRolePermission(userRoles, requiredRoleStr) {
+  const req = parseRoleRequirement(requiredRoleStr);
+  if (req.ids.length === 0) return true;
+  if (req.mode === 'ALL') {
+    return req.ids.every((id) => userRoles.indexOf(id) !== -1);
+  } else if (req.mode === 'COUNT') {
+    const matchCount = req.ids.filter((id) => userRoles.indexOf(id) !== -1).length;
+    return matchCount >= req.minCount;
+  }
+  return req.ids.some((id) => userRoles.indexOf(id) !== -1);
+}
+
+// ============================================================
+// 抽獎規則解析 (對應 Code.gs 的 parseGachaRules)
+// ============================================================
+function parseGachaRules(rawText) {
+  const lines = rawText.toString().split('\n');
   const pool = [];
-  for (const raw of lines) {
-    const line = raw.trim();
+  for (const lineRaw of lines) {
+    const line = lineRaw.trim();
     if (!line) continue;
-    const parts = line.split(',').map(s => s.trim());
-    let dispName = parts[0], varName = dispName, qty = 1, prob = null, stock = null, bad = false, extraToken = null;
+    const parts = line.split(',').map((s) => s.trim());
+    let dispName = parts[0], varName = dispName, qty = 1, prob = null, stock = null;
     for (let p = 1; p < parts.length; p++) {
       const token = parts[p];
       if (token === '') continue;
-      if (token.indexOf('%') !== -1) {
-        const v = parseFloat(token.replace('%', ''));
-        if (isNaN(v)) bad = true; else prob = v;
-      } else if (token.indexOf('份') !== -1 || token.indexOf('個') !== -1) {
-        const v = parseInt(token.replace(/[^0-9-]/g, ''));
-        if (isNaN(v)) bad = true; else stock = v;
-      } else if (!isNaN(token) && !isNaN(parseFloat(token))) {
-        qty = parseInt(token);
-      } else if (varName !== dispName || extraToken) {
-        bad = true; // 已經有一個變數名了,又出現一個看不懂的文字
-      } else {
-        varName = token; extraToken = token;
-      }
+      if (token.indexOf('%') !== -1) prob = parseFloat(token.replace('%', ''));
+      else if (token.indexOf('份') !== -1 || token.indexOf('個') !== -1) stock = parseInt(token.replace(/[^0-9-]/g, ''));
+      else if (!isNaN(token) && !isNaN(parseFloat(token))) qty = parseInt(token);
+      else varName = token;
     }
-    pool.push({ dispName, varName, qty, prob, stock, bad, raw: line, isNonInstant: /\[非即時\]/.test(dispName) || /\[非即時\]/.test(varName) });
+    pool.push({ dispName, varName, qty, prob, stock });
   }
   return pool;
 }
 
-function renderGachaPreview(textareaId, previewId) {
-  const ta = document.getElementById(textareaId);
-  const box = document.getElementById(previewId);
-  if (!ta || !box) return;
-  const text = ta.value;
-  if (!text.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
-  const pool = parseGachaRulesPreview(text);
-  if (pool.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
+// ============================================================
+// 歷史紀錄索引 (對應 Code.gs 的 buildHistoryIndex / lookupHistoryStats)
+// ============================================================
+function buildHistoryIndex(historyData, discordId) {
+  const now = new Date();
+  const todayStr = formatDayStr(now);
+  const weekStr = formatWeekStr(now);
+  const monthStr = formatMonthStr(now);
+  const idStr = discordId.toString();
 
-  const nameCount = {};
-  pool.forEach(p => { nameCount[p.dispName] = (nameCount[p.dispName]||0) + 1; });
-  const fallbackCount = pool.filter(p => !p.bad && p.prob === null && p.stock === null).length;
-  let totalProb = 0, probCount = 0, stockCount = 0, hasBad = false;
-  const lineHtml = pool.map((p, idx) => {
-    const dup = nameCount[p.dispName] > 1;
-    const bad = p.bad || dup;
-    if (bad) hasBad = true;
-    if (p.prob !== null) { totalProb += p.prob; probCount++; }
-    if (p.stock !== null) stockCount++;
-    const isFallback = !p.bad && p.prob === null && p.stock === null;
-    const bits = [];
-    if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
-    if (p.qty !== 1) bits.push(`數量:${p.qty}`);
-    if (p.prob !== null) bits.push(`機率:${p.prob}%`);
-    if (p.stock !== null) bits.push(`庫存:${p.stock}份（依庫存比例抽）`);
-    if (isFallback) bits.push('🛡️ 保底獎');
-    if (p.isNonInstant) bits.push('📦 非即時(需人工發送)');
-    if (bits.length === 0) bits.push('—');
-    const notes = [];
-    if (dup) notes.push('⚠️ 顯示名稱重複');
-    if (p.bad) notes.push('⚠️ 有看不懂的設定,請檢查逗號分隔內容');
-    if (isFallback && idx !== pool.length - 1) notes.push('💡 建議把保底獎放在最後一行,方便閱讀');
-    return `<div class="gp-line ${bad?'bad':''}">${bad?'❌':'✅'} <b>${p.dispName}</b>　${bits.join('　')}${notes.length ? '　'+notes.join('　') : ''}</div>`;
-  }).join('');
-
-  let summaryHtml;
-  if (hasBad) {
-    summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項,發現格式問題,請對照上面範例檢查</div>`;
-  } else if (totalProb > 100) {
-    summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項,機率制加總 ${totalProb}% 已超過100%,請調整</div>`;
-  } else if (fallbackCount === 0) {
-    summaryHtml = `<div class="gp-summary warn">⚠️ 共 ${pool.length} 個獎項(機率制 ${probCount} 個,合計 ${totalProb}%；庫存制 ${stockCount} 個),但沒有保底獎——如果機率沒中、庫存又都抽完,可能會開不出獎項,建議加一行保底獎</div>`;
-  } else {
-    const fallbackHint = fallbackCount > 1 ? `,🛡️ 保底獎 ${fallbackCount} 個(會隨機挑一個)` : `,🛡️ 保底獎 1 個`;
-    summaryHtml = `<div class="gp-summary ok">✅ 共 ${pool.length} 個獎項（機率制 ${probCount} 個,合計 ${totalProb}%；庫存制 ${stockCount} 個${fallbackHint}）</div>`;
+  const dayPartsCache = {};
+  function getDateParts(date) {
+    const dayBucket = Math.floor((date.getTime() + 8 * 3600 * 1000) / 86400000);
+    if (dayPartsCache[dayBucket]) return dayPartsCache[dayBucket];
+    const parts = { day: formatDayStr(date), week: formatWeekStr(date), month: formatMonthStr(date) };
+    dayPartsCache[dayBucket] = parts;
+    return parts;
   }
-  box.className = 'gacha-preview ' + (hasBad || totalProb > 100 ? 'warn' : 'ok');
-  box.style.display = '';
-  box.innerHTML = summaryHtml + lineHtml;
+
+  const index = {};
+  for (let r = 1; r < historyData.length; r++) {
+    const row = historyData[r];
+    if (!row[1]) continue;
+    const rowItemName = row[2], rowItemId = row[4];
+    const key = (rowItemId !== undefined && rowItemId !== '' && rowItemId !== null) ? (rowItemId.toString() + '||' + rowItemName) : rowItemName;
+
+    if (!index[key]) index[key] = { globalDaily: 0, globalWeekly: 0, globalMonthly: 0, personalDaily: 0, personalWeekly: 0, personalMonthly: 0, personalTotal: 0 };
+    const entry = index[key];
+
+    const tDate = sheetsSerialToDate(row[0]);
+    if (!tDate) continue;
+    const tId = row[1].toString().replace("'", '');
+    const tQty = parseInt(row[3]) || 0;
+    const isSelf = tId === idStr;
+
+    const parts = getDateParts(tDate);
+    if (isSelf) entry.personalTotal += tQty;
+    if (parts.month === monthStr) { entry.globalMonthly += tQty; if (isSelf) entry.personalMonthly += tQty; }
+    if (parts.week === weekStr) { entry.globalWeekly += tQty; if (isSelf) entry.personalWeekly += tQty; }
+    if (parts.day === todayStr) { entry.globalDaily += tQty; if (isSelf) entry.personalDaily += tQty; }
+  }
+  return index;
 }
 
-['ns-rqty','em-rqty'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('input', () => renderGachaPreview(id, id + '-preview'));
-});
+function lookupHistoryStats(historyIndex, itemName, itemId) {
+  const key = (itemId !== undefined && itemId !== '' && itemId !== null) ? (itemId.toString() + '||' + itemName) : itemName;
+  return historyIndex[key] || { globalDaily: 0, globalWeekly: 0, globalMonthly: 0, personalDaily: 0, personalWeekly: 0, personalMonthly: 0, personalTotal: 0 };
+}
 
-// ── 本機自動暫存(草稿)系統:避免不小心關掉分頁或跳分類遺失輸入 ──
-function setupFieldAutosave(fieldIds, keyFn) {
-  function key() { return 'gardraft:' + keyFn(); }
-  function save() {
-    const data = {};
-    fieldIds.forEach(id => { const el = document.getElementById(id); if (el) data[id] = el.value; });
-    try { localStorage.setItem(key(), JSON.stringify({ data, ts: Date.now() })); } catch (e) {}
-  }
-  function clear() { try { localStorage.removeItem(key()); } catch (e) {} }
-  function checkAndOffer() {
-    let raw; try { raw = localStorage.getItem(key()); } catch (e) { raw = null; }
-    if (!raw) return;
-    let parsed; try { parsed = JSON.parse(raw); } catch (e) { clear(); return; }
-    const hasContent = Object.values(parsed.data || {}).some(v => v && v.toString().trim() !== '');
-    if (!hasContent) { clear(); return; }
-    const when = new Date(parsed.ts).toLocaleString('zh-TW');
-    if (confirm(`偵測到 ${when} 未送出的本機暫存內容,要載入嗎？\n(選「取消」則捨棄這份暫存)`)) {
-      fieldIds.forEach(id => { const el = document.getElementById(id); if (el && parsed.data[id] !== undefined) el.value = parsed.data[id]; });
-      fieldIds.forEach(id => { const el = document.getElementById(id); if (el) el.dispatchEvent(new Event('input')); });
-    } else {
-      clear();
+// ============================================================
+// 主邏輯: 組出跟 Apps Script getDashboardData 一樣形狀的回傳資料
+// ============================================================
+function buildDashboard(discordId, sheets) {
+  const playerData = sheets.player;
+  const headers = playerData[0] || [];
+
+  let s1 = 0, s2 = 0, s3 = 0, playerRow = -1;
+  for (let i = 1; i < playerData.length; i++) {
+    const row = playerData[i];
+    if (row[0] && row[0].toString().replace("'", '') === discordId.toString()) {
+      playerRow = i;
+      s1 = row[2] || 0;
+      s2 = row[3] || 0;
+      s3 = row[4] || 0;
+      break;
     }
   }
-  fieldIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => { clearTimeout(el._autosaveTimer); el._autosaveTimer = setTimeout(save, 500); });
+
+  const customVars = [];
+  if (sheets.customVars && sheets.customVars.length > 1) {
+    for (let v = 1; v < sheets.customVars.length; v++) {
+      const display = sheets.customVars[v][0], internal = sheets.customVars[v][1];
+      if (display && internal) {
+        const colIndex = headers.indexOf(internal.toString());
+        const val = (colIndex !== -1 && playerRow !== -1) ? (playerData[playerRow][colIndex] || 0) : 0;
+        customVars.push({ display, value: val });
+      }
+    }
+  }
+
+  const userRoles = getUserRolesFromData(discordId, playerData);
+  const roleMap = getGuildRoleMapFromData(sheets.roleMap);
+  const roleNames = userRoles.map((id) => roleMap[id]).filter((name) => name);
+
+  const scores = {
+    status: 'success', found: playerRow !== -1, s1, s2, s3, customVars, roleNames,
+  };
+
+  // 🌟 替代貨幣(例如拍賣幣)折抵功能:查玩家目前持有的指定貨幣欄位餘額
+  function getAltBalance(altCurrencyName) {
+    if (!altCurrencyName || playerRow === -1) return 0;
+    const colIdx = headers.indexOf(altCurrencyName);
+    if (colIdx === -1) return 0;
+    return parseInt(playerData[playerRow][colIdx]) || 0;
+  }
+
+  // ---------------- 商店 ----------------
+  const shopData = sheets.shop;
+  const historyData = sheets.history;
+  const historyIndex = buildHistoryIndex(historyData, discordId);
+
+  const categoryOrder = [];
+  if (sheets.categoryOrder) {
+    for (let c = 1; c < sheets.categoryOrder.length; c++) {
+      if (sheets.categoryOrder[c][0]) categoryOrder.push(sheets.categoryOrder[c][0].toString().trim());
+    }
+  }
+
+  // 🌟 密碼鎖定功能:整理這位玩家「已經永久解鎖過」的分類/商品清單,以及分類本身有沒有設定鎖
+  const unlockedCategories = {}, unlockedItemIds = {};
+  const unlockLogData = sheets.unlockLog || [];
+  for (let ul = 1; ul < unlockLogData.length; ul++) {
+    if (unlockLogData[ul][1] && unlockLogData[ul][1].toString().replace("'", '') === discordId.toString()) {
+      const ulTarget = unlockLogData[ul][3] ? unlockLogData[ul][3].toString() : '';
+      if (unlockLogData[ul][2] === 'CATEGORY') unlockedCategories[ulTarget] = true;
+      else if (unlockLogData[ul][2] === 'ITEM') unlockedItemIds[ulTarget] = true;
+    }
+  }
+  const categoryLockData = sheets.categoryLock || [];
+  function getCategoryLocked(categoryName) {
+    for (let cl = 1; cl < categoryLockData.length; cl++) {
+      if (categoryLockData[cl][0] && categoryLockData[cl][0].toString().trim() === categoryName) {
+        const hasFixed = categoryLockData[cl][1] && categoryLockData[cl][1].toString().trim() !== '';
+        const hasCode = categoryLockData[cl][2] && categoryLockData[cl][2].toString().trim() !== '';
+        return hasFixed || hasCode;
+      }
+    }
+    return false;
+  }
+  function getCategoryLockVisibility(categoryName) {
+    for (let cl = 1; cl < categoryLockData.length; cl++) {
+      if (categoryLockData[cl][0] && categoryLockData[cl][0].toString().trim() === categoryName) {
+        return categoryLockData[cl][4] ? categoryLockData[cl][4].toString().trim().toUpperCase() : '';
+      }
+    }
+    return '';
+  }
+  function getCategoryLockShowHint(categoryName) {
+    for (let cl = 1; cl < categoryLockData.length; cl++) {
+      if (categoryLockData[cl][0] && categoryLockData[cl][0].toString().trim() === categoryName) {
+        return categoryLockData[cl][5] ? categoryLockData[cl][5].toString().trim().toUpperCase() : '';
+      }
+    }
+    return '';
+  }
+  function getCategoryLockHintText(categoryName) {
+    for (let cl = 1; cl < categoryLockData.length; cl++) {
+      if (categoryLockData[cl][0] && categoryLockData[cl][0].toString().trim() === categoryName) {
+        return categoryLockData[cl][6] ? categoryLockData[cl][6].toString() : '';
+      }
+    }
+    return '';
+  }
+
+  // 🌟 「選一群組」功能：同一組裡只要選了其中一個商品,其他的就會被鎖住;
+  // 解鎖時機不是另外設定週期,而是直接看「之前選的那個商品」自己的個人限購(I/J/L/M欄)有沒有重置 (對應 Code.gs 的同名邏輯)
+  const groupItemInfo = {}; // key -> {group, itemName, itemId, limitPD, limitPW, limitPM, limitPT}
+  for (let g = 1; g < shopData.length; g++) {
+    const gName = shopData[g][0];
+    if (!gName) continue;
+    const groupNameRaw = shopData[g][20] ? shopData[g][20].toString().trim() : '';
+    if (groupNameRaw) {
+      const gItemId = shopData[g][18] ? shopData[g][18].toString().trim() : '';
+      const gKey = gItemId ? (gItemId + '||' + gName) : gName;
+      groupItemInfo[gKey] = {
+        group: groupNameRaw, itemName: gName, itemId: gItemId,
+        limitPD: shopData[g][8] !== '' && shopData[g][8] !== undefined ? parseInt(shopData[g][8]) : Infinity,
+        limitPW: shopData[g][11] !== '' && shopData[g][11] !== undefined ? parseInt(shopData[g][11]) : Infinity,
+        limitPM: shopData[g][9] !== '' && shopData[g][9] !== undefined ? parseInt(shopData[g][9]) : Infinity,
+        limitPT: shopData[g][12] !== '' && shopData[g][12] !== undefined ? parseInt(shopData[g][12]) : Infinity,
+      };
+    }
+  }
+  const myGroupHistoryKeys = {}; // 群組名稱 -> { 商品key: true }
+  const idStrForGroup = discordId.toString();
+  for (let h = 1; h < historyData.length; h++) {
+    const hRow = historyData[h];
+    if (!hRow[1]) continue;
+    if (hRow[1].toString().replace("'", '') !== idStrForGroup) continue;
+    const hItemName = hRow[2], hItemId = hRow[4];
+    const hKey = (hItemId !== undefined && hItemId !== '' && hItemId !== null) ? (hItemId.toString() + '||' + hItemName) : hItemName;
+    const info = groupItemInfo[hKey];
+    if (info) {
+      if (!myGroupHistoryKeys[info.group]) myGroupHistoryKeys[info.group] = {};
+      myGroupHistoryKeys[info.group][hKey] = true;
+    }
+  }
+
+  const items = [];
+  const now = Date.now();
+
+  for (let i = 1; i < shopData.length; i++) {
+    const row = shopData[i];
+    const name = row[0];
+    if (!name) continue;
+    if (name.indexOf('[測試]') !== -1 && !ADMIN_IDS.includes(discordId.toString())) continue;
+    const itemStatus = row[22] ? row[22].toString().trim().toUpperCase() : ''; // W(22) 狀態:DRAFT=草稿,不對玩家顯示
+    if (itemStatus === 'DRAFT') continue;
+
+    let itemId = row[18] ? row[18].toString().trim() : '';
+    if (!itemId) {
+      // 🌟 唯讀模式沒辦法寫回表格,這裡只能臨時產生一個顯示用的ID,不會被儲存,重新整理可能會變
+      itemId = 'TEMP' + i;
+    }
+
+    const price = parseInt(row[1]) || 0;
+    const startDate = row[2] ? sheetsSerialToDate(row[2]).getTime() : null;
+    const endDate = row[3] ? sheetsSerialToDate(row[3]).getTime() : null;
+    const stockValue = row[4];
+    const category = row[5] ? row[5].toString().trim() : '未分類';
+
+    const limitGD = row[6] !== '' && row[6] !== undefined ? parseInt(row[6]) : Infinity;
+    const limitGM = row[7] !== '' && row[7] !== undefined ? parseInt(row[7]) : Infinity;
+    const limitPD = row[8] !== '' && row[8] !== undefined ? parseInt(row[8]) : Infinity;
+    const limitPM = row[9] !== '' && row[9] !== undefined ? parseInt(row[9]) : Infinity;
+    const limitGW = row[10] !== '' && row[10] !== undefined ? parseInt(row[10]) : Infinity;
+    const limitPW = row[11] !== '' && row[11] !== undefined ? parseInt(row[11]) : Infinity;
+    const limitPT = row[12] !== '' && row[12] !== undefined ? parseInt(row[12]) : Infinity;
+
+    const rawCurrency = row[13] ? row[13].toString().trim() : '升階2';
+    const displayCurrency = rawCurrency === '升階2' ? '幻彩水晶' : rawCurrency;
+
+    const rewardVar = row[14] ? row[14].toString().trim() : '';
+    const rawRewardQty = row[15] ? row[15].toString().trim() : '';
+    const imageUrl = row[16] ? row[16].toString().trim() : '';
+    const remark = row[17] ? row[17].toString().trim() : '';
+    const requiredRoleStr = row[19] ? row[19].toString().trim() : '';
+
+    // 🌟 替代貨幣折抵(例如拍賣幣):X(23)=替代貨幣欄位名稱, Y(24)=匯率(1個替代幣可折抵多少個原始貨幣)
+    let altCurrency = row[23] ? row[23].toString().trim() : '';
+    const altCurrencyRate = row[24] !== '' && row[24] !== undefined ? parseFloat(row[24]) : 0;
+    if (!(altCurrencyRate > 0)) altCurrency = '';
+    const altCurrencyBalance = altCurrency ? getAltBalance(altCurrency) : 0;
+
+    // 🌟 密碼鎖定:Z(25)=固定密碼, AA(26)=一次性序號對應名稱, AB(27)=持續性, AC(28)=解鎖前顯示模式, AD(29)=密碼提示詞
+    const lockFixedPassword = row[25] ? row[25].toString().trim() : '';
+    const lockCodeName = row[26] ? row[26].toString().trim() : '';
+    const itemLockVisibility = row[28] ? row[28].toString().trim().toUpperCase() : '';
+    const itemLockHintText = row[29] ? row[29].toString() : '';
+    const itemLocked = !!(lockFixedPassword || lockCodeName);
+    const itemUnlocked = !itemLocked || !!unlockedItemIds[itemId];
+    const categoryLocked = getCategoryLocked(category);
+    const categoryUnlocked = !categoryLocked || !!unlockedCategories[category];
+    const categoryLockVisibility = getCategoryLockVisibility(category);
+    const categoryLockShowHint = getCategoryLockShowHint(category);
+    const categoryLockHintText = getCategoryLockHintText(category);
+
+    const isUnlimitedStock = stockValue === '' || stockValue === '無限' || stockValue === '無限制';
+    const baseStock = isUnlimitedStock ? Infinity : parseInt(stockValue);
+
+    const historyStats = lookupHistoryStats(historyIndex, name, itemId);
+    const remainGD = limitGD - historyStats.globalDaily, remainGM = limitGM - historyStats.globalMonthly, remainGW = limitGW - historyStats.globalWeekly;
+    const remainPD = limitPD - historyStats.personalDaily, remainPM = limitPM - historyStats.personalMonthly, remainPW = limitPW - historyStats.personalWeekly;
+    const remainPT = limitPT - historyStats.personalTotal;
+    let effectiveStock = Math.min(baseStock, remainGD, remainGW, remainGM, remainPD, remainPW, remainPM, remainPT);
+
+    let gachaPool = [];
+    if (rewardVar === '' && rawRewardQty !== '' && rawRewardQty !== '0') {
+      gachaPool = parseGachaRules(rawRewardQty);
+      let hasInfinite = false, totalGachaStock = 0;
+      for (const g of gachaPool) {
+        if (g.stock === null) hasInfinite = true;
+        else totalGachaStock += g.stock;
+      }
+      if (!hasInfinite) effectiveStock = Math.min(effectiveStock, totalGachaStock);
+    }
+
+    let state = 'available', stateMsg = '可兌換';
+    if (startDate && now < startDate) { state = 'not_started'; stateMsg = '尚未開始'; }
+    else if (endDate && now > endDate) { state = 'ended'; stateMsg = '活動結束'; }
+    else if (effectiveStock <= 0) { state = 'sold_out'; stateMsg = '達到上限/已抽完'; }
+
+    let requiredRoleNames = [];
+    let roleRequirementMode = 'ANY', roleRequirementMinCount = 1;
+    if (requiredRoleStr) {
+      const roleReq = parseRoleRequirement(requiredRoleStr);
+      roleRequirementMode = roleReq.mode;
+      roleRequirementMinCount = roleReq.minCount;
+      requiredRoleNames = roleReq.ids.map((id) => roleMap[id] || '未知身分組' + id);
+    }
+    const hasRolePermission = checkRolePermission(userRoles, requiredRoleStr);
+    if (state === 'available' && !hasRolePermission) { state = 'no_permission'; stateMsg = '身分組不符'; }
+
+    // 🌟 選一群組檢查：玩家已經選過同群組的其他商品、且那個商品自己的個人限購還沒重置時鎖住
+    const exclusiveGroup = row[20] ? row[20].toString().trim() : '';
+    const myItemKey = itemId ? (itemId + '||' + name) : name;
+    let groupLocked = false;
+    if (exclusiveGroup && myGroupHistoryKeys[exclusiveGroup]) {
+      for (const chosenKey of Object.keys(myGroupHistoryKeys[exclusiveGroup])) {
+        if (chosenKey === myItemKey) continue; // 自己買過自己不算被群組鎖,交給自己的限購欄位處理就好
+        const chosenInfo = groupItemInfo[chosenKey];
+        if (!chosenInfo) continue; // 商品可能後來被刪除/改名,找不到限購規則就不鎖,避免永久卡死
+        const chosenStats = lookupHistoryStats(historyIndex, chosenInfo.itemName, chosenInfo.itemId);
+        let stillBlocked = false;
+        if (chosenInfo.limitPD === Infinity && chosenInfo.limitPW === Infinity && chosenInfo.limitPM === Infinity && chosenInfo.limitPT === Infinity) {
+          stillBlocked = true; // 完全沒設個人限購 = 沒有重置依據,維持永久鎖
+        } else {
+          if (chosenInfo.limitPD !== Infinity && (chosenInfo.limitPD - chosenStats.personalDaily) <= 0) stillBlocked = true;
+          if (chosenInfo.limitPW !== Infinity && (chosenInfo.limitPW - chosenStats.personalWeekly) <= 0) stillBlocked = true;
+          if (chosenInfo.limitPM !== Infinity && (chosenInfo.limitPM - chosenStats.personalMonthly) <= 0) stillBlocked = true;
+          if (chosenInfo.limitPT !== Infinity && (chosenInfo.limitPT - chosenStats.personalTotal) <= 0) stillBlocked = true;
+        }
+        if (stillBlocked) { groupLocked = true; break; }
+      }
+    }
+    if (state === 'available' && groupLocked) { state = 'group_locked'; stateMsg = '已選擇同組其他商品'; }
+
+    const limitsInfo = {
+      baseStock: isUnlimitedStock ? '無限' : baseStock,
+      remainGD: limitGD === Infinity ? null : remainGD,
+      remainGW: limitGW === Infinity ? null : remainGW,
+      remainGM: limitGM === Infinity ? null : remainGM,
+      remainPD: limitPD === Infinity ? null : remainPD,
+      remainPW: limitPW === Infinity ? null : remainPW,
+      remainPM: limitPM === Infinity ? null : remainPM,
+      remainPT: limitPT === Infinity ? null : remainPT,
+      effectiveStock: effectiveStock === Infinity ? '無限' : effectiveStock,
+    };
+
+    items.push({
+      id: itemId, name, price, state, stateMsg,
+      category, limits: limitsInfo, currency: rawCurrency, displayCurrency,
+      imageUrl, remark, gachaPool,
+      startDate, endDate,
+      requiredRoleNames, hasRolePermission,
+      roleRequirementMode, roleRequirementMinCount,
+      exclusiveGroup, groupLocked,
+      sortOrder: row[21] !== '' && row[21] !== undefined ? parseInt(row[21]) : null, // V(21) 顯示順序,越小越前面
+      altCurrency, altCurrencyRate, altCurrencyBalance, // 🌟 替代貨幣折抵資訊
+      itemLocked, itemUnlocked, categoryLocked, categoryUnlocked, // 🌟 密碼鎖定資訊
+      itemLockVisibility, categoryLockVisibility, // 🌟 解鎖前顯示模式
+      categoryLockShowHint, // 🌟 分類完全隱藏時,側邊欄要不要顯示這個分類
+      itemLockHintText, categoryLockHintText, // 🌟 密碼提示詞
+    });
+  }
+
+  // 🌟 依顯示順序排序(數字越小越前面;沒設定的商品排在後面,並維持原本相對順序)
+  items.sort((a, b) => {
+    const oa = a.sortOrder === null ? Infinity : a.sortOrder;
+    const ob = b.sortOrder === null ? Infinity : b.sortOrder;
+    return oa - ob;
   });
-  return { checkAndOffer, clear, save };
+
+  const shop = { status: 'success', items, categoryOrder };
+
+  return { status: 'success', scores, shop };
 }
 
-const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis'];
-const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl','em-altcurrency','em-altrate','em-lockpw','em-lockcode','em-lockpersist','em-lockvis'];
-const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-altcurrency','na-altrate'];
-const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-altcurrency','ea-altrate'];
+// ============================================================
+// 兌換紀錄分頁 (對應 Code.gs 的 getUserHistory)
+// ============================================================
+function buildHistoryPage(discordId, pageRaw, pageSizeRaw, historyData) {
+  let page = parseInt(pageRaw) || 1;
+  let pageSize = parseInt(pageSizeRaw) || 10;
+  if (page < 1) page = 1;
+  if (pageSize < 1) pageSize = 10;
+  if (pageSize > 50) pageSize = 50;
 
-const addShopAutosave = setupFieldAutosave(NS_FIELDS, () => 'add-shop');
-const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'));
-const addAuctionAutosave = setupFieldAutosave(NA_FIELDS, () => 'add-auction');
-const editAuctionAutosave = setupFieldAutosave(EA_FIELDS, () => 'edit-auction:' + (document.getElementById('ea-id').value || 'new'));
+  const idStr = discordId.toString();
+  const matched = [];
+  const needed = page * pageSize + 1;
 
-// ── 排序設定:分類順序 + 商品顯示順序 ──
-let categoryOrderData = { shop: [], auction: [] };
-let currentItemOrderList = [];
+  for (let i = historyData.length - 1; i >= 1 && matched.length < needed; i--) {
+    const row = historyData[i];
+    if (!row[0] || !row[1]) continue;
+    if (row[1].toString().replace("'", '') === idStr) {
+      const tDate = sheetsSerialToDate(row[0]);
+      matched.push({
+        time: tDate ? formatDateTimeStr(tDate) : '時間讀取錯誤',
+        itemName: row[2],
+        qty: row[3],
+        keys: row[5] || '無',
+        drawn: row[6] || '',
+        beforeBal: row[7] !== '' && row[7] !== undefined ? row[7] : null,
+        afterBal: row[8] !== '' && row[8] !== undefined ? row[8] : null,
+      });
+    }
+  }
 
-async function openSortSettings() {
-  if (shopItems.length === 0) await loadShopItems();
-  if (auctionItems.length === 0) await loadAuctionItems();
-  await loadCategoryOrder();
-}
+  const hasMore = matched.length > page * pageSize;
+  const startIdx = (page - 1) * pageSize;
+  const pageItems = matched.slice(startIdx, startIdx + pageSize);
 
-async function loadCategoryOrder() {
-  const d = await api({ action: 'adminGetCategoryOrder' });
-  if (d.status !== 'success') { toast('載入排序失敗: ' + d.message, false); return; }
-  categoryOrderData.shop = (d.shopCategories || []).slice();
-  categoryOrderData.auction = (d.auctionCategories || []).slice();
-  shopItems.forEach(i => { if (i.category && !categoryOrderData.shop.includes(i.category)) categoryOrderData.shop.push(i.category); });
-  auctionItems.forEach(a => { if (a.category && !categoryOrderData.auction.includes(a.category)) categoryOrderData.auction.push(a.category); });
-  renderCategoryOrderList('shop');
-  renderCategoryOrderList('auction');
-  renderItemOrderCategorySelect();
-}
-
-function renderCategoryOrderList(kind) {
-  const list = categoryOrderData[kind];
-  const el = document.getElementById(`${kind}-cat-order-list`);
-  el.innerHTML = list.length === 0 ? '<div class="empty">尚無分類,請在下方新增</div>' : list.map((c, i) => `
-    <div class="order-row">
-      <span class="order-idx">${i+1}</span>
-      <span class="order-label">${c}</span>
-      <div class="order-btns">
-        <button class="btn btn-edit" onclick="moveCategory('${kind}',${i},-1)" ${i===0?'disabled':''}>▲</button>
-        <button class="btn btn-edit" onclick="moveCategory('${kind}',${i},1)" ${i===list.length-1?'disabled':''}>▼</button>
-        <button class="btn btn-del" onclick="removeCategory('${kind}',${i})">✕</button>
-      </div>
-    </div>`).join('');
-}
-function moveCategory(kind, idx, dir) {
-  const list = categoryOrderData[kind];
-  const t = idx + dir;
-  if (t < 0 || t >= list.length) return;
-  [list[idx], list[t]] = [list[t], list[idx]];
-  renderCategoryOrderList(kind);
-}
-function removeCategory(kind, idx) {
-  categoryOrderData[kind].splice(idx, 1);
-  renderCategoryOrderList(kind);
-}
-function addCategoryToOrder(kind) {
-  const inp = document.getElementById(`${kind}-cat-add-input`);
-  const v = inp.value.trim();
-  if (!v) return;
-  if (!categoryOrderData[kind].includes(v)) categoryOrderData[kind].push(v);
-  inp.value = '';
-  renderCategoryOrderList(kind);
-}
-async function saveCategoryOrder(kind) {
-  const payload = kind === 'shop' ? { shopCategories: JSON.stringify(categoryOrderData.shop) } : { auctionCategories: JSON.stringify(categoryOrderData.auction) };
-  const d = await api({ action: 'adminSaveCategoryOrder', ...payload });
-  if (d.status === 'success') toast('✅ ' + d.message); else toast('❌ ' + d.message, false);
+  return { status: 'success', history: pageItems, page, pageSize, hasMore };
 }
 
-function renderItemOrderCategorySelect() {
-  const cats = Array.from(new Set(shopItems.map(i => i.category).filter(Boolean)));
-  const sel = document.getElementById('item-order-cat-select');
-  const prev = sel.value;
-  sel.innerHTML = cats.length === 0 ? '<option value="">（尚無分類）</option>' : cats.map(c => `<option value="${c}">${c}</option>`).join('');
-  if (cats.includes(prev)) sel.value = prev;
-  renderItemOrderList();
-}
-function renderItemOrderList() {
-  const cat = document.getElementById('item-order-cat-select').value;
-  currentItemOrderList = shopItems.filter(i => i.category === cat).slice()
-    .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined ? Infinity : a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined ? Infinity : b.sortOrder));
-  paintItemOrderList();
-}
-function paintItemOrderList() {
-  const el = document.getElementById('item-order-list');
-  el.innerHTML = currentItemOrderList.length === 0 ? '<div class="empty">此分類無商品</div>' : currentItemOrderList.map((i, idx) => `
-    <div class="order-row">
-      <span class="order-idx">${idx+1}</span>
-      <span class="order-label">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</span>
-      <div class="order-btns">
-        <button class="btn btn-edit" onclick="moveItemOrder(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
-        <button class="btn btn-edit" onclick="moveItemOrder(${idx},1)" ${idx===currentItemOrderList.length-1?'disabled':''}>▼</button>
-      </div>
-    </div>`).join('');
-}
-function moveItemOrder(idx, dir) {
-  const t = idx + dir;
-  if (t < 0 || t >= currentItemOrderList.length) return;
-  [currentItemOrderList[idx], currentItemOrderList[t]] = [currentItemOrderList[t], currentItemOrderList[idx]];
-  paintItemOrderList();
-}
-async function saveItemOrder() {
-  if (currentItemOrderList.length === 0) { toast('這個分類沒有商品可以排序', false); return; }
-  const items = currentItemOrderList.map((i, idx) => ({ itemId: i.itemId, sortOrder: idx + 1 }));
-  const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) });
-  if (d.status === 'success') { toast('✅ ' + d.message); await loadShopItems(); renderItemOrderList(); }
-  else toast('❌ ' + d.message, false);
-}
+// ============================================================
+// 拍賣列表 (對應 Code.gs 的 getAuctions,只讀,不能出價/結算,那兩個還是走 Apps Script)
+// ============================================================
+function buildAuctions(discordId, auctionData, bidData, playerData, roleMapData, categoryOrderData) {
+  const userRoles = getUserRolesFromData(discordId, playerData);
+  const roleMap = getGuildRoleMapFromData(roleMapData);
+  const now = Date.now();
+  const auctions = [];
 
-// ── 密碼鎖定管理:分類鎖定 ──
-let categoryLocksList = [];
-async function loadCategoryLocks() {
-  const d = await api({ action: 'adminGetCategoryLocks' });
-  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
-  categoryLocksList = d.locks || [];
-  renderCategoryLockList();
-}
-function renderCategoryLockList() {
-  const el = document.getElementById('cat-lock-list');
-  if (categoryLocksList.length === 0) { el.innerHTML = '<div class="empty">還沒有任何分類設定鎖定,在下面新增一個吧</div>'; return; }
-  el.innerHTML = categoryLocksList.map(l => {
-    const isLocked = l.fixedPassword || l.codeName;
-    const persistLabel = l.persistent === 'SESSION' ? '🔁 每次都要重新輸入' : '🔓 永久解鎖';
-    const visLabel = l.visibility === 'BLUR' ? '🌫️ 模糊顯示' : (l.visibility === 'VISIBLE' ? '👁️ 正常顯示' : '🙈 完全隱藏');
-    return `<div class="order-row" style="align-items:center">
-      <span class="order-label">
-        ${isLocked ? '🔒' : '🔓'} <b>${l.category}</b>
-        ${l.fixedPassword ? ' · 固定密碼已設定' : ''}${l.codeName ? ` · 一次性序號對應「${l.codeName}」` : ''}
-        ${isLocked ? ` · ${persistLabel} · ${visLabel}` : ' · 目前未鎖定'}
-      </span>
-      <div class="order-btns">
-        <button class="btn btn-edit" onclick="editCategoryLock('${l.category.replace(/'/g,"\\'")}')">編輯</button>
-        ${isLocked ? `<button class="btn btn-del" onclick="clearCategoryLock('${l.category.replace(/'/g,"\\'")}')">解除鎖定</button>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
-function editCategoryLock(category) {
-  const l = categoryLocksList.find(x => x.category === category);
-  if (!l) return;
-  document.getElementById('cl-category').value = l.category;
-  document.getElementById('cl-fixedpw').value = l.fixedPassword || '';
-  document.getElementById('cl-codename').value = l.codeName || '';
-  document.getElementById('cl-persist').value = l.persistent === 'SESSION' ? 'SESSION' : '';
-  document.getElementById('cl-visibility').value = l.visibility === 'BLUR' ? 'BLUR' : (l.visibility === 'VISIBLE' ? 'VISIBLE' : '');
-}
-async function saveCategoryLock() {
-  const category = document.getElementById('cl-category').value.trim();
-  if (!category) { toast('請填寫分類名稱', false); return; }
-  const d = await api({ action: 'adminSaveCategoryLock', category,
-    fixedPassword: document.getElementById('cl-fixedpw').value,
-    codeName: document.getElementById('cl-codename').value,
-    persistent: document.getElementById('cl-persist').value,
-    visibility: document.getElementById('cl-visibility').value });
-  if (d.status === 'success') {
-    toast('✅ ' + d.message);
-    ['cl-category','cl-fixedpw','cl-codename'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('cl-persist').value = '';
-    document.getElementById('cl-visibility').value = '';
-    loadCategoryLocks();
-  } else toast('❌ ' + d.message, false);
-}
-async function clearCategoryLock(category) {
-  if (!confirm(`確定要解除「${category}」的鎖定嗎？解除後這個分類的商品玩家都能直接購買。`)) return;
-  const d = await api({ action: 'adminSaveCategoryLock', category, fixedPassword: '', codeName: '', persistent: '', visibility: '' });
-  if (d.status === 'success') { toast('✅ 已解除鎖定'); loadCategoryLocks(); }
-  else toast('❌ ' + d.message, false);
-}
+  // 🌟 替代貨幣(例如拍賣幣)折抵功能:查玩家目前持有的指定貨幣欄位餘額
+  const playerHeadersForAlt = playerData[0] || [];
+  let playerRowForAlt = -1;
+  for (let pa = 1; pa < playerData.length; pa++) {
+    if (playerData[pa][0] && playerData[pa][0].toString().replace("'", '') === discordId.toString()) { playerRowForAlt = pa; break; }
+  }
+  function getAuctionAltBalance(altCurrencyName) {
+    if (!altCurrencyName || playerRowForAlt === -1) return 0;
+    const colIdx = playerHeadersForAlt.indexOf(altCurrencyName);
+    if (colIdx === -1) return 0;
+    return parseInt(playerData[playerRowForAlt][colIdx]) || 0;
+  }
 
-// ── 密碼鎖定管理:解鎖序號庫 ──
-async function loadUnlockCodes() {
-  const d = await api({ action: 'adminGetUnlockCodes' });
-  const tbody = document.getElementById('unlock-codes-tbody');
-  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
-  const codes = d.codes || [];
-  tbody.innerHTML = codes.length === 0 ? '<tr><td colspan="4" class="empty">還沒有任何解鎖序號</td></tr>' : codes.map(c => `
-    <tr>
-      <td data-label="對應名稱">${c.name}</td>
-      <td class="cell-id" data-label="序號">${c.code}</td>
-      <td data-label="狀態">${c.used ? '<span class="status status-closed">已使用</span>' : '<span class="status status-open">● 可用</span>'}</td>
-      <td data-label="使用者">${c.usedByName || '—'}</td>
-    </tr>`).join('');
+  // 🌟 讀取「分類排序」工作表 B 欄作為拍賣分類排序依據
+  const categoryOrder = [];
+  if (categoryOrderData && categoryOrderData.length > 1) {
+    for (let c = 1; c < categoryOrderData.length; c++) {
+      if (categoryOrderData[c][1]) categoryOrder.push(categoryOrderData[c][1].toString().trim());
+    }
+  }
+
+  for (let i = 1; i < auctionData.length; i++) {
+    const row = auctionData[i];
+    const name = row[0];
+    if (!name) continue;
+
+    const draftStatus = row[19] ? row[19].toString().trim().toUpperCase() : ''; // T(19) 狀態:DRAFT=草稿,不對玩家顯示
+    if (draftStatus === 'DRAFT') continue;
+
+    let auctionId = row[10] ? row[10].toString().trim() : '';
+    if (!auctionId) auctionId = 'TEMP' + i; // 🌟 唯讀模式沒辦法寫回表格,新拍賣請直接在K欄手動填一個不重複的ID
+
+    const startBid = parseInt(row[1]) || 0;
+    let type = (row[2] || 'PUBLIC').toString().trim().toUpperCase();
+    if (type !== 'SEALED' && type !== 'SEALED_LOW') type = 'PUBLIC'; // 🌟 SEALED_LOW = 暗標,但出價最低者得標
+    const endDate = row[3] ? sheetsSerialToDate(row[3]).getTime() : null;
+    const extendTriggerMin = row[4] !== '' && row[4] !== undefined ? parseInt(row[4]) : null; // E(4) 延長觸發分鐘
+    const extendByMin = row[5] !== '' && row[5] !== undefined ? parseInt(row[5]) : null; // F(5) 延長分鐘數
+    const manualStatus = row[6] ? row[6].toString().trim().toUpperCase() : '';
+    const currencyName = row[7] ? row[7].toString().trim() : '升階2';
+    const displayCurrency = currencyName === '升階2' ? '幻彩水晶' : currencyName;
+    const imageUrl = row[8] ? row[8].toString().trim() : '';
+    const remark = row[9] ? row[9].toString().trim() : '';
+    const currentHighBid = row[11] !== '' && row[11] !== undefined ? parseInt(row[11]) : startBid;
+    const currentHighBidder = row[12] ? row[12].toString().trim() : '';
+    const settled = row[13] === true || row[13] === 'TRUE';
+    const requiredRoleStr = row[14] ? row[14].toString().trim() : '';
+    const startDate = row[15] ? sheetsSerialToDate(row[15]).getTime() : null;
+    const category = row[16] ? row[16].toString().trim() : '未分類'; // Q(16) 🌟 分類
+
+    // 🌟 替代貨幣折抵(例如拍賣幣):R(17)=替代貨幣欄位名稱, S(18)=匯率(1個替代幣可折抵多少個原始貨幣)
+    let altCurrency = row[17] ? row[17].toString().trim() : '';
+    const altCurrencyRate = row[18] !== '' && row[18] !== undefined ? parseFloat(row[18]) : 0;
+    if (!(altCurrencyRate > 0)) altCurrency = '';
+    const altCurrencyBalance = altCurrency ? getAuctionAltBalance(altCurrency) : 0;
+
+    const isNotStarted = !!(startDate && now < startDate);
+    const isEnded = !isNotStarted && (manualStatus === 'CLOSED' || (endDate && now > endDate));
+
+    let requiredRoleNames = [];
+    let roleRequirementMode = 'ANY', roleRequirementMinCount = 1;
+    if (requiredRoleStr) {
+      const roleReq = parseRoleRequirement(requiredRoleStr);
+      roleRequirementMode = roleReq.mode;
+      roleRequirementMinCount = roleReq.minCount;
+      requiredRoleNames = roleReq.ids.map((id) => roleMap[id] || '未知身分組' + id);
+    }
+    const hasRolePermission = checkRolePermission(userRoles, requiredRoleStr);
+
+    let myActiveBid = null;
+    let myActiveBidAlt = 0;
+    for (let b = bidData.length - 1; b >= 1; b--) {
+      if (
+        bidData[b][1] && bidData[b][1].toString() === auctionId &&
+        bidData[b][2] && bidData[b][2].toString().replace("'", '') === discordId.toString() &&
+        bidData[b][4] === 'FROZEN'
+      ) {
+        myActiveBid = parseInt(bidData[b][3]) || 0;
+        myActiveBidAlt = bidData[b][5] !== '' && bidData[b][5] !== undefined ? (parseInt(bidData[b][5]) || 0) : 0;
+        break;
+      }
+    }
+
+    let state;
+    if (isNotStarted) state = 'not_started';
+    else if (isEnded) state = settled ? 'ended' : 'pending_settlement';
+    else if (!hasRolePermission) state = 'no_permission';
+    else state = 'open';
+
+    // 🌟 公開比價模式才公布出價者名稱(暗標模式繼續保密,不洩漏身分)
+    let currentHighBidderName = null;
+    if (type === 'PUBLIC' && currentHighBidder !== '' && currentHighBidder !== discordId.toString()) {
+      currentHighBidderName = getPlayerDisplayNameFromData(currentHighBidder, playerData) || ('玩家' + currentHighBidder.slice(-4));
+    }
+
+    auctions.push({
+      id: auctionId, name, type, startBid,
+      startDate, endDate, currencyName, displayCurrency,
+      imageUrl, remark, state,
+      currentHighBid: type === 'PUBLIC' ? currentHighBid : null,
+      currentHighBidderName,
+      hasAnyBid: currentHighBidder !== '',
+      currentHighBidderIsMe: currentHighBidder !== '' && currentHighBidder === discordId.toString(),
+      myActiveBid, myActiveBidAlt,
+      winnerIsMe: isEnded && settled && currentHighBidder === discordId.toString(),
+      winningBid: isEnded && settled && currentHighBidder !== '' ? currentHighBid : null,
+      requiredRoleNames, hasRolePermission,
+      roleRequirementMode, roleRequirementMinCount,
+      category,
+      altCurrency, altCurrencyRate, altCurrencyBalance,
+      extendTriggerMin, extendByMin,
+    });
+  }
+
+  return { status: 'success', auctions, categoryOrder };
 }
-async function addUnlockCodes() {
-  const name = document.getElementById('uc-name').value.trim();
-  const codes = document.getElementById('uc-codes').value;
-  if (!name) { toast('請填寫對應名稱', false); return; }
-  if (!codes.trim()) { toast('請至少貼一組序號', false); return; }
-  const d = await api({ action: 'adminAddUnlockCodes', name, codes });
-  if (d.status === 'success') {
-    toast('✅ ' + d.message);
-    document.getElementById('uc-name').value = '';
-    document.getElementById('uc-codes').value = '';
-    loadUnlockCodes();
-  } else toast('❌ ' + d.message, false);
-}
-
-// ── 紀錄查詢:兌換/抽獎紀錄 ──
-async function loadHistory() {
-  const q = document.getElementById('hist-search').value;
-  const filterDiscordId = document.getElementById('hist-discordid').value.trim();
-  const gachaOnly = document.getElementById('hist-gacha-only').checked;
-  const d = await api({ action: 'adminGetHistory', q, filterDiscordId, gachaOnly });
-  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
-
-  const tbody = document.getElementById('hist-tbody');
-  tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="7" class="empty">沒有符合條件的紀錄</td></tr>' : d.rows.map(r => `
-    <tr>
-      <td data-label="時間">${r.time ? new Date(r.time).toLocaleString('zh-TW') : '—'}</td>
-      <td data-label="玩家">${r.playerName}<br><span class="cell-id" style="font-size:11px">${r.discordId}</span></td>
-      <td class="cell-name" data-label="商品名稱" title="${r.itemName}">${r.itemName}</td>
-      <td data-label="數量">${r.qty}</td>
-      <td data-label="抽獎結果">${r.drawnResult ? `🎁 ${r.drawnResult}` : '—'}</td>
-      <td data-label="序號">${r.keys || '—'}</td>
-      <td data-label="扣款前→後">${r.balanceBefore} → ${r.balanceAfter}</td>
-    </tr>`).join('');
-
-  document.getElementById('hist-summary').textContent = d.capped
-    ? `符合條件共 ${d.totalMatched} 筆以上,只顯示最新 300 筆`
-    : `符合條件共 ${d.totalMatched} 筆`;
-}
-
-// ── 紀錄查詢:拍賣出價紀錄 ──
-async function openAuctionBidsPage() {
-  if (auctionItems.length === 0) await loadAuctionItems();
-  renderAuctionBidSelect();
-  loadAuctionBids();
-}
-
-function renderAuctionBidSelect() {
-  const sel = document.getElementById('bids-auction-select');
-  const prev = sel.value;
-  const stateLabel = { open: '進行中', ended: '已結標', closed: '已關閉', pending: '待結算', not_started: '未開始' };
-  sel.innerHTML = auctionItems.length === 0
-    ? '<option value="">（尚無拍賣）</option>'
-    : auctionItems.map(a => `<option value="${a.auctionId}">${a.name}（${stateLabel[a.state] || a.state}）</option>`).join('');
-  if (auctionItems.some(a => a.auctionId === prev)) sel.value = prev;
-}
-
-async function loadAuctionBids() {
-  const auctionId = document.getElementById('bids-auction-select').value;
-  const tbody = document.getElementById('bids-tbody');
-  const refreshLabel = document.getElementById('bids-last-refresh');
-  if (!auctionId) { tbody.innerHTML = '<tr><td colspan="5" class="empty">請先選擇一場拍賣</td></tr>'; if (refreshLabel) refreshLabel.textContent = ''; return; }
-  const d = await api({ action: 'adminGetAuctionBids', auctionId });
-  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
-
-  const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>' };
-  tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="5" class="empty">這場拍賣目前還沒有人出價</td></tr>' : d.rows.map(r => `
-    <tr>
-      <td data-label="時間">${r.time ? new Date(r.time).toLocaleString('zh-TW') : '—'}</td>
-      <td data-label="出價者">${r.playerName}<br><span class="cell-id" style="font-size:11px">${r.discordId}</span></td>
-      <td data-label="出價金額">${r.amount}</td>
-      <td data-label="替代幣折抵">${r.altAmount > 0 ? r.altAmount : '—'}</td>
-      <td data-label="狀態">${statusLabel[r.status] || r.status}</td>
-    </tr>`).join('');
-  if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}`;
-}
-
-// close modal on overlay click
-document.querySelectorAll('.overlay').forEach(el => el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); }));
-
-init();
-</script>
-</body>
-</html>
