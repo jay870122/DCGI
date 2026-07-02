@@ -450,20 +450,46 @@
     // 🌟 密碼鎖定:商品模糊顯示模式的解鎖按鈕,驗證成功後就地更新這個商品的狀態並重新渲染
     async function promptUnlockItem(itemId, safeId) {
       const item = currentShopItems.find(it => it.id === itemId);
-      const label = item ? `商品「？？？」` : '此商品';
-      const entered = prompt(`${label}需要密碼才能查看，請輸入密碼：`);
-      if (entered === null || entered.trim() === '') return;
-      try {
-        const res = await fetch(`${GAS_API_URL}?action=unlockItem&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
-        const data = await res.json();
-        if (data.status === 'success') {
-          if (item) item.itemUnlocked = true;
-          renderShop();
-        } else {
-          alert('❌ ' + (data.message || '密碼錯誤'));
+      if (!item) return;
+
+      // 🌟 先判斷卡住這個商品的到底是「分類鎖」還是「商品自己的鎖」,分開處理才會呼叫到正確的解鎖API
+      const needsCategory = item.categoryLocked && !item.categoryUnlocked && !categoryUnlockedThisSession.has(item.category);
+      if (needsCategory) {
+        const entered = prompt(`此商品所在分類「${item.category}」需要密碼才能查看，請輸入密碼：`);
+        if (entered === null || entered.trim() === '') return;
+        try {
+          const res = await fetch(`${GAS_API_URL}?action=unlockCategory&discordId=${currentUser.id}&category=${encodeURIComponent(item.category)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
+          const data = await res.json();
+          if (data.status === 'success') {
+            categoryUnlockedThisSession.add(item.category);
+            currentShopItems.forEach(i => { if (i.category === item.category) i.categoryUnlocked = true; });
+            renderSidebar();
+            renderShop();
+          } else {
+            alert('❌ ' + (data.message || '密碼錯誤'));
+          }
+        } catch (e) {
+          alert('網路錯誤，請稍後再試！');
         }
-      } catch (e) {
-        alert('網路錯誤，請稍後再試！');
+        return;
+      }
+
+      const needsItem = item.itemLocked && !item.itemUnlocked;
+      if (needsItem) {
+        const entered = prompt(`此商品需要密碼才能查看，請輸入密碼：`);
+        if (entered === null || entered.trim() === '') return;
+        try {
+          const res = await fetch(`${GAS_API_URL}?action=unlockItem&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
+          const data = await res.json();
+          if (data.status === 'success') {
+            item.itemUnlocked = true;
+            renderShop();
+          } else {
+            alert('❌ ' + (data.message || '密碼錯誤'));
+          }
+        } catch (e) {
+          alert('網路錯誤，請稍後再試！');
+        }
       }
     }
 
@@ -1141,7 +1167,9 @@ function fetchScoresAndShop(discordId, callback = null) {
         const safeId = "item-" + item.id; 
 
         // 🌟 商品密碼鎖定 + 模糊顯示模式:還沒解鎖的話,只顯示一張模糊卡片,不洩漏商品細節,直接跳過其他資訊組裝
-        const itemBlurLocked = item.itemLocked && !item.itemUnlocked && item.itemLockVisibility === 'BLUR';
+        // 🌟 這個商品是不是還處於「鎖定中」——可能是商品自己設了密碼,也可能是純粹繼承分類的鎖定(商品本身沒設密碼,但分類還沒解鎖)
+        const itemEffectivelyLocked = (item.itemLocked && !item.itemUnlocked) || (item.categoryLocked && !item.categoryUnlocked);
+        const itemBlurLocked = itemEffectivelyLocked && item.itemLockVisibility === 'BLUR';
         if (itemBlurLocked) {
           allCardsHtml += `
             <div class="shop-item-card item-blur-card" id="card-${safeId}">
