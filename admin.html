@@ -342,6 +342,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・純數字是<b>單次獲得數量</b>,例如中獎後給 <code>2</code> 個<br>
               　・其他文字會當作<b>對應的貨幣/道具欄位名稱</b>（跟顯示名稱不同時才需要）<br>
               可以機率制、庫存制混著用；沒填機率的獎項,會用剩餘機率依庫存比例均分。<br>
+              🎁 <b>一個獎項同時發放多種貨幣/道具</b>：把要發放的變數用 <code>+</code> 串起來,每個變數可以用 <code>:數量</code> 指定各自要給多少(不寫預設1個),例如 <code>粽子:1+黃金粽子:1</code> 代表中獎後兩種各發1個。<br>
               🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
               📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
               範例：<br>
@@ -350,6 +351,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <code>黃金粽子,15%,50份</code><br>
               <code>傳說粽子,5%,5份</code><br>
               <code>幻彩水晶碎片X100, 幻彩水晶碎片, 100</code>　<span class="hint">← 顯示名稱可以跟貨幣欄位名稱不同,中獎會給 100 個「幻彩水晶碎片」</span><br>
+              <code>粽子黃金雙拼, 粽子:1+黃金粽子:1, 20%, 30份</code>　<span class="hint">← 一次中獎同時發「粽子」1個+「黃金粽子」1個</span><br>
               <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
             </div>
             <div class="gacha-preview" id="ns-rqty-preview" style="display:none"></div>
@@ -1089,7 +1091,7 @@ function parseGachaRulesPreview(rawText) {
     const line = raw.trim();
     if (!line) continue;
     const parts = line.split(',').map(s => s.trim());
-    let dispName = parts[0], varName = dispName, qty = 1, prob = null, stock = null, bad = false, extraToken = null;
+    let dispName = parts[0], varName = dispName, qty = 1, prob = null, stock = null, bad = false, extraToken = null, varList = null;
     for (let p = 1; p < parts.length; p++) {
       const token = parts[p];
       if (token === '') continue;
@@ -1103,11 +1105,25 @@ function parseGachaRulesPreview(rawText) {
         qty = parseInt(token);
       } else if (varName !== dispName || extraToken) {
         bad = true; // 已經有一個變數名了,又出現一個看不懂的文字
+      } else if (token.indexOf('+') !== -1) {
+        // 🌟 多變數格式:name:qty+name:qty,一個獎項同時發放好幾種貨幣/道具
+        varList = token.split('+').map(seg => {
+          seg = seg.trim();
+          const ci = seg.indexOf(':');
+          if (ci !== -1) return { varName: seg.substring(0, ci).trim(), qty: parseInt(seg.substring(ci + 1)) || 1 };
+          return { varName: seg, qty: 1 };
+        });
+        if (varList.some(v => !v.varName)) bad = true;
+        extraToken = token;
       } else {
-        varName = token; extraToken = token;
+        const ci2 = token.indexOf(':');
+        if (ci2 !== -1) { varName = token.substring(0, ci2).trim(); qty = parseInt(token.substring(ci2 + 1)) || 1; }
+        else varName = token;
+        extraToken = token;
       }
     }
-    pool.push({ dispName, varName, qty, prob, stock, bad, raw: line, isNonInstant: /\[非即時\]/.test(dispName) || /\[非即時\]/.test(varName) });
+    if (varList) { varName = varList[0].varName; qty = varList[0].qty; }
+    pool.push({ dispName, varName, qty, varList, prob, stock, bad, raw: line, isNonInstant: /\[非即時\]/.test(dispName) || /\[非即時\]/.test(varName) || (varList && varList.some(v => /\[非即時\]/.test(v.varName))) });
   }
   return pool;
 }
@@ -1133,8 +1149,12 @@ function renderGachaPreview(textareaId, previewId) {
     if (p.stock !== null) stockCount++;
     const isFallback = !p.bad && p.prob === null && p.stock === null;
     const bits = [];
-    if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
-    if (p.qty !== 1) bits.push(`數量:${p.qty}`);
+    if (p.varList && p.varList.length > 1) {
+      bits.push(`發放:${p.varList.map(v => `${v.varName}×${v.qty}`).join('、')}`);
+    } else {
+      if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
+      if (p.qty !== 1) bits.push(`數量:${p.qty}`);
+    }
     if (p.prob !== null) bits.push(`機率:${p.prob}%`);
     if (p.stock !== null) bits.push(`庫存:${p.stock}份（依庫存比例抽）`);
     if (isFallback) bits.push('🛡️ 保底獎');
