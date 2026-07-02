@@ -140,6 +140,15 @@
       .shop-layout { flex-direction: column; }
       .sidebar { width: 100%; flex-direction: row; overflow-x: auto; position: static; white-space: nowrap; padding: 10px; box-sizing: border-box; }
       .cat-item { flex-shrink: 0; }
+
+      /* 🌟 手機版貨幣顯示改成 2 欄排列 + 縮小字級/間距,避免 4 個貨幣方塊直向疊起來佔掉半個螢幕 */
+      .score-box { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .score-item { font-size: 13px; padding: 5px 8px; gap: 4px; }
+
+      /* 🌟 拍賣彈窗標題區塊(貨幣+重新整理列)在手機版本來就比一般頁首更擠,再多收一點空間留給下面的拍賣列表 */
+      .modal-header { padding: 16px 40px 10px 16px; }
+      #auction-currency-box.score-box { gap: 6px; }
+      #auction-currency-box .score-item { font-size: 12px; padding: 4px 7px; }
     }
 
     /* 🌟 彈出視窗 (歷史紀錄) */
@@ -231,7 +240,7 @@
       <div class="modal-header">
         <span class="modal-close" onclick="closeAuctions()">×</span>
         <h2 style="margin:0;">🔨 拍賣會</h2>
-        <div class="score-box" id="auction-currency-box" style="margin-top: 10px; gap: 8px;"></div>
+        <div class="score-box" id="auction-currency-box" style="margin-top: 10px;"></div>
         <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
           <button class="btn-action" style="padding:5px 12px; font-size:12px;" onclick="loadAuctions()">🔄 重新整理</button>
           <span id="auction-last-refresh" style="font-size:11px; color:#B9BBBE;"></span>
@@ -304,7 +313,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.17.0 (載入分數/商店失敗時顯示錯誤原因並提供重試按鈕,不再卡死在載入畫面)</div>
+    <div class="version-tag">系統版本：v3.17.1 (手機版拍賣會貨幣顯示改為緊湊排版,避免擋住拍賣列表)</div>
   </div>
 
   <script>
