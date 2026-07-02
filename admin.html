@@ -145,6 +145,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .order-add-row{display:flex;gap:8px;margin-top:12px}
 .order-add-row .search{flex:1}
 
+/* 🌟 序號庫統計卡片 */
+.rk-stat-chip{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 14px;font-size:13px;color:var(--t)}
+.rk-stat-chip .rk-avail{color:var(--green);font-weight:700}
+.rk-stat-chip .rk-used{color:var(--mu)}
+.rk-stat-chip.rk-stat-total{background:rgba(240,178,50,0.1);border-color:rgba(240,178,50,0.4)}
+
 /* ============================================================
    🌟 手機版 RWD(≤768px):側邊欄收合成上方橫向選單、表單改單欄、
    表格改成卡片式呈現(不用左右滑動就能看完整筆資料)
@@ -484,6 +490,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="btn btn-del" onclick="deleteSelectedRewardKeys()">🗑️ 刪除選中的序號</button>
             <span id="rk-selected-count" style="font-size:12px;color:var(--mu)"></span>
           </div>
+          <div id="rk-stats" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:10px"></div>
           <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
             <table>
               <thead><tr><th style="width:36px"><input type="checkbox" id="rk-select-all" onchange="toggleAllRewardKeys(this.checked)"></th><th>對應名稱</th><th>序號</th><th>狀態</th><th>使用者</th></tr></thead>
@@ -1499,6 +1506,30 @@ async function loadRewardKeys() {
     </tr>`).join('');
   document.getElementById('rk-select-all').checked = false;
   updateRewardKeySelectedCount();
+  renderRewardKeyStats(keys);
+}
+function renderRewardKeyStats(keys) {
+  const el = document.getElementById('rk-stats');
+  if (keys.length === 0) { el.innerHTML = ''; return; }
+
+  // 🌟 依「對應名稱」分組統計可用/已使用/總數
+  const byName = {};
+  keys.forEach(k => {
+    if (!byName[k.name]) byName[k.name] = { total: 0, avail: 0 };
+    byName[k.name].total++;
+    if (!k.used) byName[k.name].avail++;
+  });
+
+  const totalAll = keys.length;
+  const availAll = keys.filter(k => !k.used).length;
+
+  let html = `<div class="rk-stat-chip rk-stat-total">📦 <b>全部</b>：<span class="rk-avail">${availAll}</span> 組可用 / 共 ${totalAll} 組</div>`;
+  Object.keys(byName).sort().forEach(name => {
+    const s = byName[name];
+    const usedCount = s.total - s.avail;
+    html += `<div class="rk-stat-chip">🎫 <b>${name}</b>：<span class="rk-avail">${s.avail}</span> 組可用${usedCount > 0 ? ` / <span class="rk-used">${usedCount} 組已用</span>` : ''} / 共 ${s.total} 組</div>`;
+  });
+  el.innerHTML = html;
 }
 function toggleAllRewardKeys(checked) {
   document.querySelectorAll('.rk-checkbox').forEach(cb => { cb.checked = checked; });
