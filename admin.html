@@ -987,7 +987,8 @@ async function init() {
 }
 
 async function api(params) {
-  const p = new URLSearchParams({...params, discordId: ME.id});
+  const tok = localStorage.getItem('admin_dc_access_token');
+  const p = new URLSearchParams({...params, accessToken: tok || ''});
   const r = await fetch(`${GAS}?${p}`);
   return r.json();
 }
