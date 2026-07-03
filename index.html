@@ -321,6 +321,9 @@
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'; // 🌟 讀取分數+商店目錄改走這個Worker,速度比較快;買東西/查紀錄/登入還是走上面的GAS_API_URL
+    // 🌟🔒 安全性修正:所有打後端的請求都要帶上這個 accessToken,讓後端自己向 Discord 官方驗證使用者身分,
+    // 不能只靠自己在網址上宣稱的 discordId(那樣任何人都能冒充別人)
+    function getAccessToken() { return localStorage.getItem('dc_access_token') || ''; }
   
     let currentUser = null; 
     let currentShopItems = []; 
@@ -457,7 +460,7 @@
       const entered = prompt(`分類「${cat}」需要密碼才能瀏覽，請輸入密碼：`);
       if (entered === null || entered.trim() === '') return;
       try {
-        const res = await fetch(`${GAS_API_URL}?action=unlockCategory&discordId=${currentUser.id}&category=${encodeURIComponent(cat)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
+        const res = await fetch(`${GAS_API_URL}?action=unlockCategory&discordId=${currentUser.id}&category=${encodeURIComponent(cat)}&unlockPassword=${encodeURIComponent(entered.trim())}&accessToken=${encodeURIComponent(getAccessToken())}`);
         const data = await res.json();
         if (data.status === 'success') {
           categoryUnlockedThisSession.add(cat);
@@ -483,7 +486,7 @@
         const entered = prompt(`此商品所在分類「${item.category}」需要密碼才能查看，請輸入密碼：`);
         if (entered === null || entered.trim() === '') return;
         try {
-          const res = await fetch(`${GAS_API_URL}?action=unlockCategory&discordId=${currentUser.id}&category=${encodeURIComponent(item.category)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
+          const res = await fetch(`${GAS_API_URL}?action=unlockCategory&discordId=${currentUser.id}&category=${encodeURIComponent(item.category)}&unlockPassword=${encodeURIComponent(entered.trim())}&accessToken=${encodeURIComponent(getAccessToken())}`);
           const data = await res.json();
           if (data.status === 'success') {
             categoryUnlockedThisSession.add(item.category);
@@ -504,7 +507,7 @@
         const entered = prompt(`此商品需要密碼才能查看，請輸入密碼：`);
         if (entered === null || entered.trim() === '') return;
         try {
-          const res = await fetch(`${GAS_API_URL}?action=unlockItem&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&unlockPassword=${encodeURIComponent(entered.trim())}`);
+          const res = await fetch(`${GAS_API_URL}?action=unlockItem&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&unlockPassword=${encodeURIComponent(entered.trim())}&accessToken=${encodeURIComponent(getAccessToken())}`);
           const data = await res.json();
           if (data.status === 'success') {
             item.itemUnlocked = true;
@@ -549,7 +552,7 @@
         container.insertAdjacentHTML('beforeend', '<p id="history-loading-more" style="text-align:center; color:#B9BBBE;">載入更多中...</p>');
       }
 
-      fetch(`${DASHBOARD_WORKER_URL}?action=history&discordId=${currentUser.id}&page=${page}&pageSize=${HISTORY_PAGE_SIZE}`)
+      fetch(`${DASHBOARD_WORKER_URL}?action=history&discordId=${currentUser.id}&page=${page}&pageSize=${HISTORY_PAGE_SIZE}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         const loadingMore = document.getElementById('history-loading-more');
@@ -646,7 +649,7 @@
       const prevEndDates = {};
       currentAuctions.forEach(a => { prevEndDates[a.id] = a.endDate; });
 
-      fetch(`${DASHBOARD_WORKER_URL}?action=auctions&discordId=${currentUser.id}`)
+      fetch(`${DASHBOARD_WORKER_URL}?action=auctions&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
@@ -998,7 +1001,7 @@
       btn.innerText = '⏳ 出價中請稍後...';
       input.disabled = true;
 
-      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}`)
+      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
@@ -1025,7 +1028,7 @@
 function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
 
-      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}`)
+      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(result => {
         if (result.status !== "success") {
@@ -1542,7 +1545,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}`)
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
