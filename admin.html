@@ -7,6 +7,21 @@
 :root{--bg:#1E2124;--s:#2F3136;--s2:#36393F;--bd:#4F545C;--t:#DCDDDE;--mu:#72767D;
   --gold:#F0B232;--green:#43B581;--red:#ED4245;--blue:#5865F2;--purple:#9B59B6;--orange:#E67E22;--r:8px}
 *{box-sizing:border-box;margin:0;padding:0}
+/* 🌟 限定身分組多選元件 */
+.role-picker{position:relative}
+.role-picker-trigger{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px;font-size:14px;color:var(--t);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.role-picker-trigger:hover{border-color:var(--gold)}
+.role-picker-chips-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mu)}
+.role-picker-chips-text.has-value{color:var(--t)}
+.role-picker-caret{color:var(--mu);font-size:11px;flex-shrink:0}
+.role-picker-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:80;background:var(--s);border:1px solid var(--bd);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:8px;display:flex;flex-direction:column;gap:6px}
+.role-picker-search{background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:13px;color:var(--t);width:100%}
+.role-picker-search:focus{outline:none;border-color:var(--gold)}
+.role-picker-options{overflow-y:auto;max-height:220px;display:flex;flex-direction:column;gap:1px}
+.role-picker-option{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--t)}
+.role-picker-option:hover{background:rgba(255,255,255,0.06)}
+.role-picker-option input{width:16px;height:16px;flex-shrink:0;cursor:pointer}
+.role-picker-empty{color:var(--mu);font-size:12px;padding:8px;text-align:center}
 body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
 /* topbar */
 .topbar{background:var(--s);border-bottom:1px solid var(--bd);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
@@ -264,12 +279,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <option value="ACTIVE">🟢 上架中</option>
               <option value="DRAFT">📝 草稿</option>
             </select>
+            <button class="btn btn-edit" id="shop-reorder-toggle" onclick="toggleShopReorderMode()">🔀 排序模式</button>
+            <button class="btn-save" id="shop-reorder-save" style="display:none" onclick="saveShopReorderInline()">💾 儲存順序</button>
             <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
           </div>
         </div>
         <div class="tbl-wrap tbl-wrap-table">
           <table>
             <thead><tr>
+              <th id="shop-th-order" style="display:none;width:70px">順序</th>
               <th class="sortable" onclick="sortShopBy('name')">商品名稱<span class="sort-arrow" id="th-shop-name"></span></th>
               <th class="sortable" onclick="sortShopBy('category')">分類<span class="sort-arrow" id="th-shop-category"></span></th>
               <th class="sortable" onclick="sortShopBy('price')">價格<span class="sort-arrow" id="th-shop-price"></span></th>
@@ -296,12 +314,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <option value="ACTIVE">🟢 上架中</option>
               <option value="DRAFT">📝 草稿</option>
             </select>
+            <button class="btn btn-edit" id="auction-reorder-toggle" onclick="toggleAuctionReorderMode()">🔀 排序模式</button>
+            <button class="btn-save" id="auction-reorder-save" style="display:none" onclick="saveAuctionReorderInline()">💾 儲存順序</button>
             <button class="fab" onclick="navTo('add-auction')">➕ 新增拍賣</button>
           </div>
         </div>
         <div class="tbl-wrap tbl-wrap-table">
           <table>
             <thead><tr>
+              <th id="auction-th-order" style="display:none;width:70px">順序</th>
               <th class="sortable" onclick="sortAuctionBy('name')">拍賣名稱<span class="sort-arrow" id="th-auction-name"></span></th>
               <th class="sortable" onclick="sortAuctionBy('type')">類型<span class="sort-arrow" id="th-auction-type"></span></th>
               <th class="sortable" onclick="sortAuctionBy('category')">分類<span class="sort-arrow" id="th-auction-category"></span></th>
@@ -371,9 +392,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
             <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
             <div class="field">
-              <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
-              <input id="ns-role" list="ri-list" placeholder="留空=不限">
-              <datalist id="ri-list"></datalist>
+              <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>
+              <div class="role-picker" id="ns-role-picker">
+                <div class="role-picker-trigger" onclick="toggleRolePicker('ns-role')">
+                  <span class="role-picker-chips-text" id="ns-role-chips">不限(點擊選擇身分組)</span>
+                  <span class="role-picker-caret">▾</span>
+                </div>
+                <div class="role-picker-panel" id="ns-role-panel" style="display:none">
+                  <input class="role-picker-search" placeholder="搜尋身分組..." oninput="filterRolePicker('ns-role', this.value)">
+                  <div class="role-picker-options" id="ns-role-options"></div>
+                </div>
+              </div>
+              <input type="hidden" id="ns-role">
               <div style="display:flex;gap:6px;margin-top:4px">
                 <select id="ns-role-mode" style="flex:1">
                   <option value="ANY">符合其中任一個即可</option>
@@ -385,12 +415,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <div class="role-hint" id="ns-role-hint"></div>
             </div>
             <div class="field"><label>選一群組</label><input id="ns-excl" placeholder="留空=不限"></div>
-            <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
-            <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ns-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
-            <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="ns-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
+            <div class="fsep">替代貨幣折抵（選填,可同時開放多種,例如拍賣幣、活動幣）</div>
+            <div class="field full">
+              <label>替代貨幣清單 <span class="hint">留空=不開放折抵;可新增多種,玩家兌換時自己選要用哪幾種</span></label>
+              <div id="ns-altcurrency-list"></div>
+              <button type="button" class="btn btn-edit" onclick="addAltCurrencyRow('ns')" style="margin-top:6px">➕ 新增一種替代貨幣</button>
+            </div>
+            <input type="hidden" id="ns-altcurrency">
+            <input type="hidden" id="ns-altrate">
             <div class="gacha-guide" style="grid-column:span 2">
-              💱 玩家兌換這個商品時,可以用上面指定的替代貨幣(例如拍賣幣)折抵部分或全部價格,剩下的才用原本標價的貨幣扣。<br>
-              例如匯率填 <code>1</code>,代表 1 個替代幣可以折抵 1 個原始貨幣；玩家可以選擇「自動用掉手上所有替代幣」或「自訂要折抵多少」,系統會自動算出折抵後還要付多少原始貨幣。<br>
+              💱 每一列是一種替代貨幣:填幣種名稱 + 匯率(1個這種幣可以折抵多少原始貨幣),可以新增多列同時開放好幾種。<br>
+              玩家兌換這個商品時,可以自己勾選要用哪幾種折抵、要折抵部分或全部價格,剩下的才用原本標價的貨幣扣;每種都可以選「自動折抵」或自己指定要用多少。<br>
+              例如匯率填 <code>1</code>,代表 1 個替代幣可以折抵 1 個原始貨幣。<br>
               📐 如果匯率<b>小於1</b>(例如 100個碎片才能折抵1個水晶,匯率填 <code>0.01</code>),系統會自動避免湊不滿整數單位的零頭被白白扣掉——例如玩家只有 150 個碎片,只會扣需要用到的 100 個(折抵1個水晶),剩下 50 個完全不會動用。
             </div>
             <div class="fsep">商品密碼鎖定（選填）</div>
@@ -462,8 +498,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field full"><label>圖片網址</label><input id="na-img" type="url"></div>
             <div class="field full"><label>備註</label><textarea id="na-remark"></textarea></div>
             <div class="field full">
-              <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
-              <input id="na-role" list="ri-list" placeholder="留空=不限">
+              <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>
+              <div class="role-picker" id="na-role-picker" style="max-width:360px">
+                <div class="role-picker-trigger" onclick="toggleRolePicker('na-role')">
+                  <span class="role-picker-chips-text" id="na-role-chips">不限(點擊選擇身分組)</span>
+                  <span class="role-picker-caret">▾</span>
+                </div>
+                <div class="role-picker-panel" id="na-role-panel" style="display:none">
+                  <input class="role-picker-search" placeholder="搜尋身分組..." oninput="filterRolePicker('na-role', this.value)">
+                  <div class="role-picker-options" id="na-role-options"></div>
+                </div>
+              </div>
+              <input type="hidden" id="na-role">
               <div style="display:flex;gap:6px;margin-top:4px;max-width:360px">
                 <select id="na-role-mode" style="flex:1">
                   <option value="ANY">符合其中任一個即可</option>
@@ -513,6 +559,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           </div>
           <div class="order-list" id="item-order-list"></div>
           <button class="btn-save" style="margin-top:14px" onclick="saveItemOrder()">💾 儲存商品順序</button>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">🔨 拍賣品顯示順序</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定同一分類內,拍賣品在玩家拍賣頁面出現的先後順序</div>
+          <div class="toolbar" style="margin-top:12px">
+            <select class="filter-sel" id="auction-order-cat-select" onchange="renderAuctionOrderList()"></select>
+          </div>
+          <div class="order-list" id="auction-order-list"></div>
+          <button class="btn-save" style="margin-top:14px" onclick="saveAuctionOrder()">💾 儲存拍賣順序</button>
         </div>
       </div>
 
@@ -742,8 +798,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
       <div class="field">
-        <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
-        <input id="em-role" list="ri-list">
+        <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>
+        <div class="role-picker" id="em-role-picker">
+          <div class="role-picker-trigger" onclick="toggleRolePicker('em-role')">
+            <span class="role-picker-chips-text" id="em-role-chips">不限(點擊選擇身分組)</span>
+            <span class="role-picker-caret">▾</span>
+          </div>
+          <div class="role-picker-panel" id="em-role-panel" style="display:none">
+            <input class="role-picker-search" placeholder="搜尋身分組..." oninput="filterRolePicker('em-role', this.value)">
+            <div class="role-picker-options" id="em-role-options"></div>
+          </div>
+        </div>
+        <input type="hidden" id="em-role">
         <div style="display:flex;gap:6px;margin-top:4px">
           <select id="em-role-mode" style="flex:1">
             <option value="ANY">符合其中任一個即可</option>
@@ -755,9 +821,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="role-hint" id="em-role-hint"></div>
       </div>
       <div class="field"><label>選一群組</label><input id="em-excl"></div>
-      <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
-      <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="em-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
-      <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="em-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
+      <div class="fsep">替代貨幣折抵（選填,可同時開放多種,例如拍賣幣、活動幣）</div>
+      <div class="full field">
+        <label>替代貨幣清單 <span class="hint">留空=不開放折抵;可新增多種,玩家兌換時自己選要用哪幾種</span></label>
+        <div id="em-altcurrency-list"></div>
+        <button type="button" class="btn btn-edit" onclick="addAltCurrencyRow('em')" style="margin-top:6px">➕ 新增一種替代貨幣</button>
+      </div>
+      <input type="hidden" id="em-altcurrency">
+      <input type="hidden" id="em-altrate">
       <div class="fsep">商品密碼鎖定（選填）</div>
       <div class="field"><label>固定密碼 <span class="hint">留空=不用</span></label><input id="em-lockpw" placeholder="所有人共用同一組密碼"></div>
       <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用</span></label><input id="em-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
@@ -822,8 +893,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="full field"><label>圖片網址</label><input id="ea-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="ea-remark"></textarea></div>
       <div class="full field">
-        <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
-        <input id="ea-role" list="ri-list">
+        <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>
+        <div class="role-picker" id="ea-role-picker" style="max-width:360px">
+          <div class="role-picker-trigger" onclick="toggleRolePicker('ea-role')">
+            <span class="role-picker-chips-text" id="ea-role-chips">不限(點擊選擇身分組)</span>
+            <span class="role-picker-caret">▾</span>
+          </div>
+          <div class="role-picker-panel" id="ea-role-panel" style="display:none">
+            <input class="role-picker-search" placeholder="搜尋身分組..." oninput="filterRolePicker('ea-role', this.value)">
+            <div class="role-picker-options" id="ea-role-options"></div>
+          </div>
+        </div>
+        <input type="hidden" id="ea-role">
         <div style="display:flex;gap:6px;margin-top:4px;max-width:360px">
           <select id="ea-role-mode" style="flex:1">
             <option value="ANY">符合其中任一個即可</option>
@@ -851,6 +932,7 @@ const CLIENT_ID = '1365601646448607335';
 const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
 const SUPER_ADMIN_ID = '176681551189377024'; // 🌟 跟 Code.gs 的 SUPER_ADMIN_ID 保持一致,只有這個ID可以新增/移除管理員
 let ME = null, ROLES = {}, shopItems = [], auctionItems = [];
+let ALL_ROLES_LIST = []; // 🌟 限定身分組多選元件用:[{id,name}, ...]
 
 // ── Auth ──
 function loginWithDiscord() {
@@ -917,9 +999,12 @@ async function loadMeta() {
   ROLES = {};
   d.roles.forEach(r => { ROLES[r.id] = r.name; });
 
-  const ri = document.getElementById('ri-list');
-  ri.innerHTML = '';
-  d.roles.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.label = `${r.name} (${r.id})`; ri.appendChild(o); });
+  // 🌟 限定身分組多選元件:用最新的身分組清單重繪四個地方的選項列表
+  ALL_ROLES_LIST = d.roles.slice();
+  ['ns-role','na-role','em-role','ea-role'].forEach(prefix => renderRolePickerOptions(prefix, ''));
+
+  // 🌟 替代貨幣清單元件:新增商品頁面先給一列空白的方便直接填寫
+  if (document.getElementById('ns-altcurrency-list').children.length === 0) addAltCurrencyRow('ns');
 
   const dc = document.getElementById('dc-list');
   d.playerHeaders.forEach(h => { if (h && !h.toString().startsWith('DC')) { const o=document.createElement('option'); o.value=h; dc.appendChild(o); }});
@@ -958,8 +1043,70 @@ async function loadMeta() {
       const ids = el.value.replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
       hint.textContent = ids.map(i => ROLES[i] ? `👤 ${ROLES[i]}` : '').filter(Boolean).join('  ') || '';
     });
+    if (el) el.addEventListener('input', () => updateRoleChips(id));
   });
 }
+
+// 🌟 限定身分組多選元件:點擊觸發器展開/收合下拉面板(展開時同步重繪選項清單、清空搜尋框)
+function toggleRolePicker(prefix) {
+  const panel = document.getElementById(prefix + '-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  document.querySelectorAll('.role-picker-panel').forEach(p => p.style.display = 'none'); // 一次只開一個,先把其他關掉
+  if (!isOpen) {
+    panel.style.display = 'flex';
+    const searchInput = panel.querySelector('.role-picker-search');
+    if (searchInput) searchInput.value = '';
+    renderRolePickerOptions(prefix, '');
+  }
+}
+// 🌟 依搜尋文字重新繪製身分組選項清單(名稱或ID符合都算)
+function renderRolePickerOptions(prefix, filterQuery) {
+  const optionsEl = document.getElementById(prefix + '-options');
+  const idsEl = document.getElementById(prefix);
+  if (!optionsEl || !idsEl) return;
+  const selected = (idsEl.value || '').split(',').map(s => s.trim()).filter(Boolean);
+  const q = (filterQuery || '').trim().toLowerCase();
+  const filtered = ALL_ROLES_LIST.filter(r => !q || r.name.toLowerCase().includes(q) || r.id.includes(q));
+  if (filtered.length === 0) { optionsEl.innerHTML = '<div class="role-picker-empty">找不到符合的身分組</div>'; return; }
+  optionsEl.innerHTML = filtered.map(r => `
+    <label class="role-picker-option">
+      <input type="checkbox" ${selected.includes(r.id) ? 'checked' : ''} onchange="toggleRoleSelection('${prefix}','${r.id}')">
+      <span>${r.name}</span>
+    </label>`).join('');
+}
+function filterRolePicker(prefix, query) { renderRolePickerOptions(prefix, query); }
+// 🌟 勾選/取消勾選一個身分組,寫回隱藏欄位(逗號分隔的ID清單),並觸發 input 事件讓提示文字/自動暫存都同步更新
+function toggleRoleSelection(prefix, roleId) {
+  const el = document.getElementById(prefix);
+  const selected = (el.value || '').split(',').map(s => s.trim()).filter(Boolean);
+  const idx = selected.indexOf(roleId);
+  if (idx === -1) selected.push(roleId); else selected.splice(idx, 1);
+  el.value = selected.join(',');
+  el.dispatchEvent(new Event('input'));
+  const panel = document.getElementById(prefix + '-panel');
+  const searchInput = panel ? panel.querySelector('.role-picker-search') : null;
+  renderRolePickerOptions(prefix, searchInput ? searchInput.value : '');
+}
+// 🌟 更新觸發器上顯示的「目前已選擇哪些身分組」摘要文字
+function updateRoleChips(prefix) {
+  const el = document.getElementById(prefix);
+  const chipsEl = document.getElementById(prefix + '-chips');
+  if (!el || !chipsEl) return;
+  const ids = (el.value || '').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s => s.trim()).filter(Boolean);
+  if (ids.length === 0) { chipsEl.textContent = '不限(點擊選擇身分組)'; chipsEl.classList.remove('has-value'); return; }
+  chipsEl.textContent = ids.map(id => ROLES[id] || id).join('、');
+  chipsEl.classList.add('has-value');
+}
+// 🌟 點擊面板以外的地方要自動收合(選項本身、搜尋框都在 .role-picker 容器內,不會被誤關)
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.role-picker').forEach(picker => {
+    if (!picker.contains(e.target)) {
+      const panel = picker.querySelector('.role-picker-panel');
+      if (panel) panel.style.display = 'none';
+    }
+  });
+});
 
 // 🌟 自動輪替密碼(每日/每週/每月):三個用到這個功能的地方(新增商品/編輯商品/分類鎖定)欄位命名不完全一致,這裡統一對照
 const ROTATING_PW_FIELD_MAP = {
@@ -968,6 +1115,64 @@ const ROTATING_PW_FIELD_MAP = {
   'cl':      { mode: 'cl-pwmode', seed: 'cl-pwseed', seedBtn: 'cl-preview-btn', preview: 'cl-pwseed-preview', schedule: 'cl-pwschedule', scheduleBox: 'cl-pwschedule-box' },
 };
 // 🌟 每日猜測次數上限(可開可關):三個地方(新增商品/編輯商品/分類鎖定)欄位命名對照
+// 🌟 替代貨幣清單元件(可新增多種同時開放):每一列是一個「幣種名稱+匯率」,即時同步回隱藏欄位給送出/自動暫存用
+function addAltCurrencyRow(prefix, name, rate) {
+  const list = document.getElementById(prefix + '-altcurrency-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'alt-currency-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  row.innerHTML = `
+    <input class="search alt-name-input" list="dc-list" placeholder="幣種名稱,例:拍賣幣" style="flex:2">
+    <input class="search alt-rate-input" type="number" min="0" step="0.01" placeholder="匯率(1個可折抵多少)" style="flex:1">
+    <button type="button" class="btn btn-del" onclick="this.closest('.alt-currency-row').remove(); syncAltCurrencyHidden('${prefix}')">✕</button>
+  `;
+  list.appendChild(row);
+  const nameInput = row.querySelector('.alt-name-input'), rateInput = row.querySelector('.alt-rate-input');
+  if (name !== undefined) nameInput.value = name;
+  if (rate !== undefined && rate !== null && rate !== '') rateInput.value = rate;
+  [nameInput, rateInput].forEach(inp => inp.addEventListener('input', () => syncAltCurrencyHidden(prefix)));
+}
+// 🌟 把畫面上的替代貨幣列表整理成逗號分隔的字串,寫回隱藏欄位(送出表單/自動暫存都是讀這兩個隱藏欄位)
+function syncAltCurrencyHidden(prefix) {
+  const collected = collectAltCurrencyRows(prefix);
+  const nameEl = document.getElementById(prefix + '-altcurrency');
+  const rateEl = document.getElementById(prefix + '-altrate');
+  if (nameEl) nameEl.value = collected.names;
+  if (rateEl) rateEl.value = collected.rates;
+}
+function collectAltCurrencyRows(prefix) {
+  const rows = document.querySelectorAll(`#${prefix}-altcurrency-list .alt-currency-row`);
+  const names = [], rates = [];
+  rows.forEach(row => {
+    const n = row.querySelector('.alt-name-input').value.trim();
+    const r = row.querySelector('.alt-rate-input').value;
+    if (n && parseFloat(r) > 0) { names.push(n); rates.push(r); }
+  });
+  return { names: names.join(','), rates: rates.join(',') };
+}
+// 🌟 逐列檢查替代貨幣清單有沒有填一半(名稱填了匯率沒填,或反過來),回傳錯誤訊息字串,沒問題回傳 null
+function validateAltCurrencyRows(prefix) {
+  const rows = document.querySelectorAll(`#${prefix}-altcurrency-list .alt-currency-row`);
+  for (const row of rows) {
+    const n = row.querySelector('.alt-name-input').value.trim();
+    const r = row.querySelector('.alt-rate-input').value;
+    if (n && !(parseFloat(r) > 0)) return `替代貨幣「${n}」還沒填匯率(要填大於0的數字)`;
+    if (!n && r) return '有一列填了匯率卻沒填幣種名稱,請補上名稱或刪除該列';
+  }
+  return null;
+}
+// 🌟 清空並依照「幣種名稱,幣種名稱」「匯率,匯率」重新畫出所有列(編輯商品開啟時、清空表單時用)
+function setAltCurrencyRows(prefix, altCurrencyStr, altRateStr) {
+  const list = document.getElementById(prefix + '-altcurrency-list');
+  if (list) list.innerHTML = '';
+  const names = (altCurrencyStr || '').toString().split(',').map(s => s.trim()).filter(Boolean);
+  const rates = (altRateStr || '').toString().split(',').map(s => s.trim());
+  if (names.length === 0) { addAltCurrencyRow(prefix); return; } // 至少留一列空的方便直接填寫
+  names.forEach((n, i) => addAltCurrencyRow(prefix, n, rates[i]));
+  syncAltCurrencyHidden(prefix);
+}
+
 const GUESS_LIMIT_FIELD_MAP = {
   'ns-lock': { checkbox: 'ns-lockguesslimit', countBox: 'ns-lockguesscount-box' },
   'em-lock': { checkbox: 'em-lockguesslimit', countBox: 'em-lockguesscount-box' },
@@ -1114,7 +1319,68 @@ function updateSortArrows(prefix, sortState) {
   });
 }
 
+// 🌟 商品排序模式:直接在商品管理列表裡用 ▲▼ 調整同分類商品的顯示順序,不用再跳去「排序設定」頁面
+let shopReorderMode = false;
+let shopReorderList = [];
+function toggleShopReorderMode() {
+  if (!shopReorderMode) {
+    const cat = document.getElementById('shop-cat-filter').value;
+    if (!cat) { toast('請先在上面選一個分類,才能排序(排序只能對同一分類內的商品進行)', false); return; }
+    shopReorderList = shopItems.filter(i => i.category === cat).slice()
+      .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
+    shopReorderMode = true;
+  } else {
+    shopReorderMode = false;
+  }
+  document.getElementById('shop-th-order').style.display = shopReorderMode ? '' : 'none';
+  document.getElementById('shop-reorder-save').style.display = shopReorderMode ? '' : 'none';
+  document.getElementById('shop-reorder-toggle').textContent = shopReorderMode ? '✕ 結束排序' : '🔀 排序模式';
+  document.getElementById('shop-search').disabled = shopReorderMode;
+  document.getElementById('shop-status-filter').disabled = shopReorderMode;
+  document.getElementById('shop-cat-filter').disabled = shopReorderMode;
+  renderShopTable();
+}
+function moveShopReorderRow(idx, dir) {
+  const t = idx + dir;
+  if (t < 0 || t >= shopReorderList.length) return;
+  [shopReorderList[idx], shopReorderList[t]] = [shopReorderList[t], shopReorderList[idx]];
+  renderShopTable();
+}
+async function saveShopReorderInline() {
+  if (shopReorderList.length === 0) { toast('這個分類沒有商品可以排序', false); return; }
+  const items = shopReorderList.map((i, idx) => ({ itemId: i.itemId, sortOrder: idx + 1 }));
+  const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) });
+  if (d.status === 'success') {
+    toast('✅ ' + d.message);
+    await loadShopItems();
+    const cat = document.getElementById('shop-cat-filter').value;
+    shopReorderList = shopItems.filter(i => i.category === cat).slice()
+      .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
+    renderShopTable();
+  } else toast('❌ ' + d.message, false);
+}
+
 function renderShopTable() {
+  if (shopReorderMode) {
+    document.getElementById('shop-count').textContent = shopReorderList.length + ' 件';
+    document.getElementById('shop-tbody').innerHTML = shopReorderList.length === 0
+      ? '<tr><td colspan="8" class="empty">此分類沒有商品</td></tr>'
+      : shopReorderList.map((i, idx) => `<tr>
+        <td><div class="btn-row">
+          <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},1)" ${idx===shopReorderList.length-1?'disabled':''}>▼</button>
+        </div></td>
+        <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</td>
+        <td data-label="分類">${i.category||'—'}</td>
+        <td data-label="價格">${i.price}</td>
+        <td data-label="庫存">${i.stock||'無限'}</td>
+        <td></td>
+        <td class="cell-id" data-label="ID">${i.itemId||'—'}</td>
+        <td></td>
+      </tr>`).join('');
+    return;
+  }
+
   const q = document.getElementById('shop-search').value.toLowerCase();
   const cat = document.getElementById('shop-cat-filter').value;
   const statusFilter = document.getElementById('shop-status-filter').value;
@@ -1173,7 +1439,7 @@ function openEditShop(itemId) {
   f('em-rqty').value=i.rewardQty||''; f('em-img').value=i.imageUrl||'';
   f('em-remark').value=i.remark||'';
   f('em-excl').value=i.exclusiveGroup||'';
-  f('em-altcurrency').value=i.altCurrency||''; f('em-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
+  setAltCurrencyRows('em', i.altCurrency||'', i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'');
   f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
   f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
   f('em-lockvis').value=(i.lockVisibility==='BLUR'||i.lockVisibility==='HIDDEN')?i.lockVisibility:'';
@@ -1192,10 +1458,11 @@ function openEditShop(itemId) {
 }
 
 async function saveShopItem() {
+  syncAltCurrencyHidden('em');
   const f = id => document.getElementById(id).value;
   const nonInstantErr = checkNonInstantRule(f('em-name'), f('em-rvar'));
   if (nonInstantErr) { alert(nonInstantErr); return; }
-  if (f('em-altcurrency') && !(parseFloat(f('em-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
+  { const altErr = validateAltCurrencyRows('em'); if (altErr) { toast(altErr, false); return; } }
   const btn = document.getElementById('em-save');
   btn.disabled=true; btn.textContent='儲存中...';
   const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
@@ -1268,7 +1535,69 @@ function sortAuctionBy(key) {
   renderAuctionTable();
 }
 
+// 🌟 拍賣排序模式:直接在拍賣管理列表裡用 ▲▼ 調整同分類拍賣品的顯示順序
+let auctionReorderMode = false;
+let auctionReorderList = [];
+function toggleAuctionReorderMode() {
+  if (!auctionReorderMode) {
+    const cat = document.getElementById('auction-cat-filter').value;
+    if (!cat) { toast('請先在上面選一個分類,才能排序(排序只能對同一分類內的拍賣品進行)', false); return; }
+    auctionReorderList = auctionItems.filter(a => (a.category||'') === cat).slice()
+      .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
+    auctionReorderMode = true;
+  } else {
+    auctionReorderMode = false;
+  }
+  document.getElementById('auction-th-order').style.display = auctionReorderMode ? '' : 'none';
+  document.getElementById('auction-reorder-save').style.display = auctionReorderMode ? '' : 'none';
+  document.getElementById('auction-reorder-toggle').textContent = auctionReorderMode ? '✕ 結束排序' : '🔀 排序模式';
+  document.getElementById('auction-search').disabled = auctionReorderMode;
+  document.getElementById('auction-status-filter').disabled = auctionReorderMode;
+  document.getElementById('auction-cat-filter').disabled = auctionReorderMode;
+  renderAuctionTable();
+}
+function moveAuctionReorderRow(idx, dir) {
+  const t = idx + dir;
+  if (t < 0 || t >= auctionReorderList.length) return;
+  [auctionReorderList[idx], auctionReorderList[t]] = [auctionReorderList[t], auctionReorderList[idx]];
+  renderAuctionTable();
+}
+async function saveAuctionReorderInline() {
+  if (auctionReorderList.length === 0) { toast('這個分類沒有拍賣品可以排序', false); return; }
+  const items = auctionReorderList.map((a, idx) => ({ auctionId: a.auctionId, sortOrder: idx + 1 }));
+  const d = await api({ action: 'adminReorderAuctions', items: JSON.stringify(items) });
+  if (d.status === 'success') {
+    toast('✅ ' + d.message);
+    await loadAuctionItems();
+    const cat = document.getElementById('auction-cat-filter').value;
+    auctionReorderList = auctionItems.filter(a => (a.category||'') === cat).slice()
+      .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
+    renderAuctionTable();
+  } else toast('❌ ' + d.message, false);
+}
+
 function renderAuctionTable() {
+  if (auctionReorderMode) {
+    document.getElementById('auction-tbody').innerHTML = auctionReorderList.length === 0
+      ? '<tr><td colspan="10" class="empty">此分類沒有拍賣品</td></tr>'
+      : auctionReorderList.map((a, idx) => `<tr>
+        <td><div class="btn-row">
+          <button class="btn btn-edit" onclick="moveAuctionReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn btn-edit" onclick="moveAuctionReorderRow(${idx},1)" ${idx===auctionReorderList.length-1?'disabled':''}>▼</button>
+        </div></td>
+        <td class="cell-name" title="${a.name}" data-label="拍賣名稱">${a.name}${a.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</td>
+        <td></td>
+        <td data-label="分類">${a.category||'—'}</td>
+        <td data-label="起標價">${a.startBid}</td>
+        <td></td>
+        <td data-label="結束時間">${a.endDate||'—'}</td>
+        <td></td>
+        <td class="cell-id" data-label="ID">${a.auctionId||'—'}</td>
+        <td></td>
+      </tr>`).join('');
+    return;
+  }
+
   const q = document.getElementById('auction-search').value.toLowerCase();
   const cat = document.getElementById('auction-cat-filter').value;
   const statusFilter = document.getElementById('auction-status-filter').value;
@@ -1391,6 +1720,7 @@ function resetAddShop() {
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
    'ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule'].forEach(id => document.getElementById(id).value='');
+  setAltCurrencyRows('ns', '', '');
   document.getElementById('ns-currency').value='升階2';
   document.getElementById('ns-status').value='';
   document.getElementById('ns-lockpersist').value='';
@@ -1404,6 +1734,7 @@ function resetAddShop() {
   document.getElementById('ns-role-mode').value='ANY';
   document.getElementById('ns-role-count').value='2';
   toggleRoleCount('ns-role');
+  updateRoleChips('ns-role');
   renderGachaPreview('ns-rqty', 'ns-rqty-preview');
   addShopAutosave.clear();
 }
@@ -1417,11 +1748,12 @@ function checkNonInstantRule(name, rewardVar) {
 }
 
 async function submitAddShop(forceStatus) {
+  syncAltCurrencyHidden('ns');
   const f=id=>document.getElementById(id).value;
   if (!f('ns-name')) { toast('請填寫商品名稱', false); return; }
   const nonInstantErr = checkNonInstantRule(f('ns-name'), f('ns-rvar'));
   if (nonInstantErr) { alert(nonInstantErr); return; }
-  if (f('ns-altcurrency') && !(parseFloat(f('ns-altrate')) > 0)) { toast('有填替代貨幣欄位,就要填一個大於0的匯率', false); return; }
+  { const altErr = validateAltCurrencyRows('ns'); if (altErr) { toast(altErr, false); return; } }
   const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('ns-status');
   const isDraft = status === 'DRAFT';
   if (!isDraft && f('ns-price')==='') { toast('請填寫價格', false); return; }
@@ -1455,6 +1787,7 @@ function resetAddAuction() {
   document.getElementById('na-role-mode').value='ANY';
   document.getElementById('na-role-count').value='2';
   toggleRoleCount('na-role');
+  updateRoleChips('na-role');
   addAuctionAutosave.clear();
 }
 async function submitAddAuction(forceStatus) {
@@ -1618,9 +1951,9 @@ function setupFieldAutosave(fieldIds, keyFn) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-altcurrency','em-altrate','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate'];
 
@@ -1649,6 +1982,7 @@ async function loadCategoryOrder() {
   renderCategoryOrderList('shop');
   renderCategoryOrderList('auction');
   renderItemOrderCategorySelect();
+  renderAuctionOrderCategorySelect();
 }
 
 function renderCategoryOrderList(kind) {
@@ -1727,6 +2061,48 @@ async function saveItemOrder() {
   const items = currentItemOrderList.map((i, idx) => ({ itemId: i.itemId, sortOrder: idx + 1 }));
   const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) });
   if (d.status === 'success') { toast('✅ ' + d.message); await loadShopItems(); renderItemOrderList(); }
+  else toast('❌ ' + d.message, false);
+}
+
+// 🌟 拍賣品顯示順序(跟商品顯示順序邏輯完全比照,只是換成 auctionItems / auctionId)
+let currentAuctionOrderList = [];
+function renderAuctionOrderCategorySelect() {
+  const cats = Array.from(new Set(auctionItems.map(a => a.category).filter(Boolean)));
+  const sel = document.getElementById('auction-order-cat-select');
+  const prev = sel.value;
+  sel.innerHTML = cats.length === 0 ? '<option value="">（尚無分類）</option>' : cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (cats.includes(prev)) sel.value = prev;
+  renderAuctionOrderList();
+}
+function renderAuctionOrderList() {
+  const cat = document.getElementById('auction-order-cat-select').value;
+  currentAuctionOrderList = auctionItems.filter(a => a.category === cat).slice()
+    .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined ? Infinity : a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined ? Infinity : b.sortOrder));
+  paintAuctionOrderList();
+}
+function paintAuctionOrderList() {
+  const el = document.getElementById('auction-order-list');
+  el.innerHTML = currentAuctionOrderList.length === 0 ? '<div class="empty">此分類無拍賣品</div>' : currentAuctionOrderList.map((a, idx) => `
+    <div class="order-row">
+      <span class="order-idx">${idx+1}</span>
+      <span class="order-label">${a.name}${a.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</span>
+      <div class="order-btns">
+        <button class="btn btn-edit" onclick="moveAuctionOrder(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
+        <button class="btn btn-edit" onclick="moveAuctionOrder(${idx},1)" ${idx===currentAuctionOrderList.length-1?'disabled':''}>▼</button>
+      </div>
+    </div>`).join('');
+}
+function moveAuctionOrder(idx, dir) {
+  const t = idx + dir;
+  if (t < 0 || t >= currentAuctionOrderList.length) return;
+  [currentAuctionOrderList[idx], currentAuctionOrderList[t]] = [currentAuctionOrderList[t], currentAuctionOrderList[idx]];
+  paintAuctionOrderList();
+}
+async function saveAuctionOrder() {
+  if (currentAuctionOrderList.length === 0) { toast('這個分類沒有拍賣品可以排序', false); return; }
+  const items = currentAuctionOrderList.map((a, idx) => ({ auctionId: a.auctionId, sortOrder: idx + 1 }));
+  const d = await api({ action: 'adminReorderAuctions', items: JSON.stringify(items) });
+  if (d.status === 'success') { toast('✅ ' + d.message); await loadAuctionItems(); renderAuctionOrderList(); }
   else toast('❌ ' + d.message, false);
 }
 
