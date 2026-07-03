@@ -1228,7 +1228,9 @@ async function publishShopItem(itemId) {
     rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
     remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
-    lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility,lockHintText:i.lockHintText});
+    lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility,lockHintText:i.lockHintText,
+    lockPasswordMode:i.lockPasswordMode,lockPasswordSeed:i.lockPasswordSeed,lockPasswordSchedule:i.lockPasswordSchedule,
+    lockGuessLimitEnabled:i.lockGuessLimitEnabled,lockGuessLimitCount:i.lockGuessLimitCount,lockGuessLimitPeriod:i.lockGuessLimitPeriod});
   if (d.status==='success') { toast('🚀 已上架'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
