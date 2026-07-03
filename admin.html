@@ -155,6 +155,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .order-row{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px}
 .order-row .order-idx{color:var(--mu);font-size:12px;width:22px;flex-shrink:0}
 .order-row .order-label{flex:1;font-size:14px}
+.drag-handle{cursor:grab;color:var(--mu);font-size:16px;flex-shrink:0;user-select:none;touch-action:none;padding:0 2px}
+.drag-handle:active{cursor:grabbing}
+.drag-row-dragging{opacity:0.4}
+.drag-row-over{border-top:2px solid var(--gold) !important}
 .order-btns{display:flex;gap:4px}
 .order-btns .btn{padding:4px 9px}
 .order-add-row{display:flex;gap:8px;margin-top:12px}
@@ -1174,6 +1178,39 @@ function setAltCurrencyRows(prefix, altCurrencyStr, altRateStr) {
   syncAltCurrencyHidden(prefix);
 }
 
+// 🌟 通用拖曳排序:container 裡符合 rowSelector 的每個元素都能用滑鼠拖曳調整順序,
+// 放開時呼叫 onReorder(fromIndex, toIndex),呼叫端自己去搬動陣列再重繪(觸控裝置請繼續用旁邊的 ▲▼ 按鈕,手機瀏覽器對原生拖曳支援不穩定)
+function enableDragReorder(container, rowSelector, onReorder) {
+  if (!container) return;
+  const rows = Array.from(container.querySelectorAll(rowSelector));
+  let dragSrcIdx = null;
+  rows.forEach((row, idx) => {
+    row.draggable = true;
+    row.addEventListener('dragstart', (e) => {
+      dragSrcIdx = idx;
+      row.classList.add('drag-row-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', String(idx)); } catch (err) {}
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('drag-row-dragging');
+      rows.forEach(r => r.classList.remove('drag-row-over'));
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.classList.add('drag-row-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-row-over'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-row-over');
+      if (dragSrcIdx === null || dragSrcIdx === idx) return;
+      onReorder(dragSrcIdx, idx);
+    });
+  });
+}
+
 const GUESS_LIMIT_FIELD_MAP = {
   'ns-lock': { checkbox: 'ns-lockguesslimit', countBox: 'ns-lockguesscount-box' },
   'em-lock': { checkbox: 'em-lockguesslimit', countBox: 'em-lockguesscount-box' },
@@ -1366,8 +1403,9 @@ function renderShopTable() {
     document.getElementById('shop-count').textContent = shopReorderList.length + ' 件';
     document.getElementById('shop-tbody').innerHTML = shopReorderList.length === 0
       ? '<tr><td colspan="8" class="empty">此分類沒有商品</td></tr>'
-      : shopReorderList.map((i, idx) => `<tr>
+      : shopReorderList.map((i, idx) => `<tr class="drag-row" data-idx="${idx}">
         <td><div class="btn-row">
+          <span class="drag-handle" title="拖曳調整順序">⠿</span>
           <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
           <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},1)" ${idx===shopReorderList.length-1?'disabled':''}>▼</button>
         </div></td>
@@ -1379,6 +1417,11 @@ function renderShopTable() {
         <td class="cell-id" data-label="ID">${i.itemId||'—'}</td>
         <td></td>
       </tr>`).join('');
+    enableDragReorder(document.getElementById('shop-tbody'), '.drag-row', (from, to) => {
+      const [moved] = shopReorderList.splice(from, 1);
+      shopReorderList.splice(to, 0, moved);
+      renderShopTable();
+    });
     return;
   }
 
@@ -1581,8 +1624,9 @@ function renderAuctionTable() {
   if (auctionReorderMode) {
     document.getElementById('auction-tbody').innerHTML = auctionReorderList.length === 0
       ? '<tr><td colspan="10" class="empty">此分類沒有拍賣品</td></tr>'
-      : auctionReorderList.map((a, idx) => `<tr>
+      : auctionReorderList.map((a, idx) => `<tr class="drag-row" data-idx="${idx}">
         <td><div class="btn-row">
+          <span class="drag-handle" title="拖曳調整順序">⠿</span>
           <button class="btn btn-edit" onclick="moveAuctionReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
           <button class="btn btn-edit" onclick="moveAuctionReorderRow(${idx},1)" ${idx===auctionReorderList.length-1?'disabled':''}>▼</button>
         </div></td>
@@ -1596,6 +1640,11 @@ function renderAuctionTable() {
         <td class="cell-id" data-label="ID">${a.auctionId||'—'}</td>
         <td></td>
       </tr>`).join('');
+    enableDragReorder(document.getElementById('auction-tbody'), '.drag-row', (from, to) => {
+      const [moved] = auctionReorderList.splice(from, 1);
+      auctionReorderList.splice(to, 0, moved);
+      renderAuctionTable();
+    });
     return;
   }
 
@@ -1990,7 +2039,8 @@ function renderCategoryOrderList(kind) {
   const list = categoryOrderData[kind];
   const el = document.getElementById(`${kind}-cat-order-list`);
   el.innerHTML = list.length === 0 ? '<div class="empty">尚無分類,請在下方新增</div>' : list.map((c, i) => `
-    <div class="order-row">
+    <div class="order-row drag-row" data-idx="${i}">
+      <span class="drag-handle" title="拖曳調整順序">⠿</span>
       <span class="order-idx">${i+1}</span>
       <span class="order-label">${c}</span>
       <div class="order-btns">
@@ -1999,6 +2049,11 @@ function renderCategoryOrderList(kind) {
         <button class="btn btn-del" onclick="removeCategory('${kind}',${i})">✕</button>
       </div>
     </div>`).join('');
+  enableDragReorder(el, '.drag-row', (from, to) => {
+    const [moved] = list.splice(from, 1);
+    list.splice(to, 0, moved);
+    renderCategoryOrderList(kind);
+  });
 }
 function moveCategory(kind, idx, dir) {
   const list = categoryOrderData[kind];
@@ -2042,7 +2097,8 @@ function renderItemOrderList() {
 function paintItemOrderList() {
   const el = document.getElementById('item-order-list');
   el.innerHTML = currentItemOrderList.length === 0 ? '<div class="empty">此分類無商品</div>' : currentItemOrderList.map((i, idx) => `
-    <div class="order-row">
+    <div class="order-row drag-row" data-idx="${idx}">
+      <span class="drag-handle" title="拖曳調整順序">⠿</span>
       <span class="order-idx">${idx+1}</span>
       <span class="order-label">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</span>
       <div class="order-btns">
@@ -2050,6 +2106,11 @@ function paintItemOrderList() {
         <button class="btn btn-edit" onclick="moveItemOrder(${idx},1)" ${idx===currentItemOrderList.length-1?'disabled':''}>▼</button>
       </div>
     </div>`).join('');
+  enableDragReorder(el, '.drag-row', (from, to) => {
+    const [moved] = currentItemOrderList.splice(from, 1);
+    currentItemOrderList.splice(to, 0, moved);
+    paintItemOrderList();
+  });
 }
 function moveItemOrder(idx, dir) {
   const t = idx + dir;
@@ -2084,7 +2145,8 @@ function renderAuctionOrderList() {
 function paintAuctionOrderList() {
   const el = document.getElementById('auction-order-list');
   el.innerHTML = currentAuctionOrderList.length === 0 ? '<div class="empty">此分類無拍賣品</div>' : currentAuctionOrderList.map((a, idx) => `
-    <div class="order-row">
+    <div class="order-row drag-row" data-idx="${idx}">
+      <span class="drag-handle" title="拖曳調整順序">⠿</span>
       <span class="order-idx">${idx+1}</span>
       <span class="order-label">${a.name}${a.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</span>
       <div class="order-btns">
@@ -2092,6 +2154,11 @@ function paintAuctionOrderList() {
         <button class="btn btn-edit" onclick="moveAuctionOrder(${idx},1)" ${idx===currentAuctionOrderList.length-1?'disabled':''}>▼</button>
       </div>
     </div>`).join('');
+  enableDragReorder(el, '.drag-row', (from, to) => {
+    const [moved] = currentAuctionOrderList.splice(from, 1);
+    currentAuctionOrderList.splice(to, 0, moved);
+    paintAuctionOrderList();
+  });
 }
 function moveAuctionOrder(idx, dir) {
   const t = idx + dir;
