@@ -120,6 +120,8 @@
     .alt-mode-row label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
     .alt-mode-row input[type="number"] { width: 80px; padding: 4px 6px; border-radius: 4px; border: 1px solid #4F545C; background-color: #2C2F33; color: white; font-size: 13px; }
     .alt-preview { margin-top: 6px; color: #58FF9C; font-weight: bold; font-size: 12px; min-height: 14px; }
+    .alt-manual-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: #B9BBBE; }
+    .alt-manual-row input[type="number"] { width: 80px; padding: 4px 6px; border-radius: 4px; border: 1px solid #4F545C; background-color: #2C2F33; color: white; font-size: 13px; }
     .item-lock-hint { background-color: #2C2530; border: 1px solid #9B59B6; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; font-size: 12px; color: #C99EE0; }
     .category-lock-screen { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #B9BBBE; }
     .category-lock-icon { font-size: 48px; margin-bottom: 12px; }
@@ -1316,19 +1318,21 @@ function fetchScoresAndShop(discordId, callback = null) {
         }
 
         let altHtml = '';
-        if (item.altCurrency && isAvail && !isHold) {
-          itemAltInfo[safeId] = { price: item.price, rate: item.altCurrencyRate, balance: item.altCurrencyBalance, altName: item.altCurrency, mainCurrency: item.displayCurrency };
+        if (item.altCurrencies && item.altCurrencies.length > 0 && isAvail && !isHold) {
+          itemAltInfo[safeId] = { price: item.price, mainCurrency: item.displayCurrency, currencies: item.altCurrencies };
           altHtml = `
             <div class="alt-currency-box" id="altbox-${safeId}">
-              <label class="alt-toggle-label">
-                <input type="checkbox" id="alt-toggle-${safeId}" onchange="onAltToggle('${safeId}')">
-                💱 使用 ${item.altCurrency} 折抵（你有 ${item.altCurrencyBalance}）
-              </label>
+              <div style="color:#FEE75C;font-size:13px;margin-bottom:4px">💱 使用替代貨幣折抵</div>
+              ${item.altCurrencies.map(c => `
+                <label class="alt-toggle-label">
+                  <input type="checkbox" class="alt-cur-checkbox" data-safeid="${safeId}" data-name="${c.name}" onchange="onAltCurrencyToggle('${safeId}')">
+                  ${c.name}（你有 ${c.balance}，匯率 1:${c.rate}）
+                </label>`).join('')}
               <div class="alt-mode-row" id="alt-mode-row-${safeId}" style="display:none">
-                <label><input type="radio" name="alt-mode-${safeId}" id="alt-mode-auto-${safeId}" value="auto" checked onchange="updateAltPreview('${safeId}')"> 自動折抵</label>
-                <label><input type="radio" name="alt-mode-${safeId}" id="alt-mode-manual-${safeId}" value="manual" onchange="updateAltPreview('${safeId}')"> 自訂數量</label>
-                <input type="number" id="alt-amount-${safeId}" min="0" value="0" style="display:none" oninput="updateAltPreview('${safeId}')">
+                <label><input type="radio" name="alt-mode-${safeId}" value="auto" checked onchange="updateAltPreview('${safeId}')"> 自動折抵</label>
+                <label><input type="radio" name="alt-mode-${safeId}" value="manual" onchange="updateAltPreview('${safeId}')"> 自訂數量</label>
               </div>
+              <div id="alt-manual-inputs-${safeId}"></div>
               <div class="alt-preview" id="alt-preview-${safeId}"></div>
             </div>`;
         }
@@ -1411,58 +1415,79 @@ function fetchScoresAndShop(discordId, callback = null) {
     }
 
     // 🌟 替代貨幣折抵:勾選後顯示模式選項,並更新預覽
-    function onAltToggle(safeId) {
-      const enabled = document.getElementById(`alt-toggle-${safeId}`).checked;
+    // 🌟 替代貨幣:勾選任一幣種時顯示「自動/自訂」選擇列;全部取消勾選就收起來
+    function onAltCurrencyToggle(safeId) {
+      const anyChecked = document.querySelectorAll(`.alt-cur-checkbox[data-safeid="${safeId}"]:checked`).length > 0;
       const row = document.getElementById(`alt-mode-row-${safeId}`);
-      if (row) row.style.display = enabled ? 'flex' : 'none';
+      if (row) row.style.display = anyChecked ? 'flex' : 'none';
       updateAltPreview(safeId);
     }
 
-    // 🌟 替代貨幣折抵:即時算出折抵後還要付多少原始貨幣
-    // 🌟 前端預覽用的折抵試算,邏輯要跟後端 Code.gs 的 computeAltUsage_ 完全一致,
-    // 匯率<1時(例如100個碎片才能折抵1個)才不會讓玩家以為零頭也會被扣掉
-    function computeAltUsageClient(totalCost, altBalance, rate, requestedAlt) {
-      if (!(rate > 0) || totalCost <= 0) return { used: 0, mainNeeded: totalCost };
-      const maxUsefulAlt = Math.ceil(totalCost / rate);
-      const cappedAlt = Math.min(requestedAlt, maxUsefulAlt);
-      const coverage = Math.min(totalCost, Math.floor(cappedAlt * rate));
-      const used = coverage > 0 ? Math.min(cappedAlt, Math.ceil(coverage / rate)) : 0;
-      return { used, mainNeeded: totalCost - coverage };
+    // 🌟 替代貨幣折抵(自動模式):依勾選順序依序折抵,邏輯要跟後端 Code.gs 的 computeMultiAltUsage_ 完全一致
+    function computeMultiAltUsageAutoClient(totalCost, selectedCurrencies) {
+      let remaining = totalCost;
+      const used = [];
+      for (const cur of selectedCurrencies) {
+        if (remaining <= 0) break;
+        if (!(cur.balance > 0)) continue;
+        const maxUseful = Math.ceil(remaining / cur.rate);
+        const requested = Math.min(cur.balance, maxUseful);
+        const coverage = Math.min(remaining, Math.floor(requested * cur.rate));
+        const amt = coverage > 0 ? Math.min(requested, Math.ceil(coverage / cur.rate)) : 0;
+        if (amt > 0) { used.push({ name: cur.name, amount: amt }); remaining -= coverage; }
+      }
+      return { mainNeeded: remaining, used };
     }
 
     function updateAltPreview(safeId) {
       const info = itemAltInfo[safeId];
       const previewEl = document.getElementById(`alt-preview-${safeId}`);
+      const manualBox = document.getElementById(`alt-manual-inputs-${safeId}`);
       if (!info || !previewEl) return;
 
-      const toggleEl = document.getElementById(`alt-toggle-${safeId}`);
-      const manualInput = document.getElementById(`alt-amount-${safeId}`);
-      const manualRadio = document.getElementById(`alt-mode-manual-${safeId}`);
-      const isManual = manualRadio && manualRadio.checked;
-      if (manualInput) manualInput.style.display = isManual ? '' : 'none';
+      const checkedBoxes = Array.from(document.querySelectorAll(`.alt-cur-checkbox[data-safeid="${safeId}"]:checked`));
+      const selectedNames = checkedBoxes.map(cb => cb.dataset.name);
+      const selectedCurrencies = info.currencies.filter(c => selectedNames.includes(c.name));
 
-      if (!toggleEl || !toggleEl.checked) { previewEl.textContent = ''; return; }
+      const manualRadio = document.querySelector(`input[name="alt-mode-${safeId}"][value="manual"]`);
+      const isManual = manualRadio && manualRadio.checked;
+
+      if (selectedCurrencies.length === 0) { previewEl.textContent = ''; if (manualBox) manualBox.innerHTML = ''; return; }
 
       const qtyEl = document.getElementById(`qty-${safeId}`);
       const qty = qtyEl ? (parseInt(qtyEl.value) || 1) : 1;
       const totalCost = info.price * qty;
 
-      let requested;
       if (isManual) {
-        const maxUsefulAlt = info.rate > 0 ? Math.ceil(totalCost / info.rate) : 0;
-        const cap = Math.min(info.balance, maxUsefulAlt);
-        if (manualInput) manualInput.max = cap;
-        requested = manualInput ? (parseInt(manualInput.value) || 0) : 0;
-        if (requested < 0) requested = 0;
-        requested = Math.min(requested, cap);
+        // 🌟 自訂數量:每個勾選的幣種各給一個輸入框,沒畫過的才重新畫,避免玩家輸入到一半被重繪清空
+        if (manualBox && manualBox.dataset.for !== selectedNames.join(',')) {
+          manualBox.dataset.for = selectedNames.join(',');
+          manualBox.innerHTML = selectedCurrencies.map(c => `
+            <div class="alt-manual-row">
+              <span>${c.name}：</span>
+              <input type="number" min="0" max="${c.balance}" value="0" id="alt-manual-${safeId}-${c.name}" oninput="updateAltPreview('${safeId}')">
+              <span>（你有 ${c.balance}）</span>
+            </div>`).join('');
+        }
+        let remaining = totalCost, usedText = [];
+        selectedCurrencies.forEach(c => {
+          const inp = document.getElementById(`alt-manual-${safeId}-${c.name}`);
+          let amt = inp ? (parseInt(inp.value) || 0) : 0;
+          if (amt < 0) amt = 0;
+          if (amt > c.balance) amt = c.balance;
+          const coverage = Math.floor(amt * c.rate);
+          if (amt > 0) { usedText.push(`${amt} ${c.name}`); remaining -= coverage; }
+        });
+        previewEl.textContent = usedText.length > 0
+          ? `折抵 ${usedText.join('、')} → 還需支付 ${Math.max(0, remaining)} ${info.mainCurrency}`
+          : `目前折抵 0 個(請輸入要折抵的數量)`;
       } else {
-        requested = info.balance;
+        if (manualBox) { manualBox.innerHTML = ''; manualBox.dataset.for = ''; }
+        const result = computeMultiAltUsageAutoClient(totalCost, selectedCurrencies);
+        previewEl.textContent = result.used.length > 0
+          ? `折抵 ${result.used.map(u => `${u.amount} ${u.name}`).join('、')} → 還需支付 ${result.mainNeeded} ${info.mainCurrency}`
+          : `目前折抵 0 個(選擇的幣種數量不足以湊到最小可折抵單位)`;
       }
-
-      const result = computeAltUsageClient(totalCost, info.balance, info.rate, requested);
-      previewEl.textContent = result.used > 0
-        ? `折抵 ${result.used} 個 ${info.altName} → 還需支付 ${result.mainNeeded} ${info.mainCurrency}`
-        : `目前折抵 0 個(${info.altName} 數量不足以湊到最小可折抵單位,或尚未輸入數量)`;
     }
 
     function buyItem(itemId, itemName, safeId, maxQty, currencyName, unlockPasswordOverride) {
@@ -1490,19 +1515,22 @@ function fetchScoresAndShop(discordId, callback = null) {
         }
       }
 
-      // 🌟 替代貨幣折抵:讀取玩家在卡片上勾選的折抵模式/數量
-      let altMode = 'none', altAmount = 0, altConfirmNote = '';
-      const altToggle = document.getElementById(`alt-toggle-${safeId}`);
-      if (altToggle && altToggle.checked) {
-        const manualRadio = document.getElementById(`alt-mode-manual-${safeId}`);
+      // 🌟 替代貨幣折抵:讀取玩家在卡片上勾選的幣種與折抵模式
+      let altMode = 'none', altSelectedNames = [], altAmountsObj = {}, altConfirmNote = '';
+      const checkedBoxes = Array.from(document.querySelectorAll(`.alt-cur-checkbox[data-safeid="${safeId}"]:checked`));
+      if (checkedBoxes.length > 0) {
+        altSelectedNames = checkedBoxes.map(cb => cb.dataset.name);
+        const manualRadio = document.querySelector(`input[name="alt-mode-${safeId}"][value="manual"]`);
         const isManual = manualRadio && manualRadio.checked;
         altMode = isManual ? 'manual' : 'auto';
         if (isManual) {
-          const manualInput = document.getElementById(`alt-amount-${safeId}`);
-          altAmount = manualInput ? (parseInt(manualInput.value) || 0) : 0;
-          altConfirmNote = `\n💱 折抵方式：自訂折抵 ${altAmount} 個`;
+          altSelectedNames.forEach(name => {
+            const inp = document.getElementById(`alt-manual-${safeId}-${name}`);
+            altAmountsObj[name] = inp ? (parseInt(inp.value) || 0) : 0;
+          });
+          altConfirmNote = `\n💱 折抵方式：自訂數量（${altSelectedNames.map(n => `${n}:${altAmountsObj[n]}`).join('、')}）`;
         } else {
-          altConfirmNote = `\n💱 折抵方式：自動用掉需要的份量`;
+          altConfirmNote = `\n💱 折抵方式：自動折抵（${altSelectedNames.join('、')}）`;
         }
       }
 
@@ -1514,13 +1542,13 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altAmount=${altAmount}&unlockPassword=${encodeURIComponent(unlockPassword)}`)
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
           let successMsg = "✅ 兌換處理完成！";
-          if (data.altAmountUsed > 0 && data.altCurrencyName) {
-            successMsg += `\n💱 已折抵 ${data.altAmountUsed} 個 ${data.altCurrencyName}`;
+          if (data.altUsed && data.altUsed.length > 0) {
+            successMsg += `\n💱 已折抵 ${data.altUsed.map(u => `${u.amount} 個 ${u.name}`).join('、')}`;
           }
           if (data.displayExt) {
             successMsg += `\n\n🎉 恭喜您開出了：\n【 ${data.displayExt} 】！`;
