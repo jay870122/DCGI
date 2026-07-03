@@ -399,6 +399,24 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>解鎖持續性</label><select id="ns-lockpersist"><option value="">🔓 永久解鎖(解鎖過一次就不用再輸入)</option><option value="SESSION">🔁 每次購買都要重新輸入</option></select></div>
             <div class="field"><label>解鎖前顯示模式</label><select id="ns-lockvis"><option value="">👁️ 正常顯示(只鎖購買動作)</option><option value="BLUR">🌫️ 模糊顯示(看不清楚細節,吸引解鎖)</option><option value="HIDDEN">🙈 完全隱藏(商品直接消失不見,不會顯示任何提示)</option></select></div>
             <div class="field full"><label>密碼提示詞 <span class="hint">留空=不顯示。只有「正常顯示」「模糊顯示」時玩家才看得到</span></label><input id="ns-lockhint" placeholder="例：想想上次活動的主題色"></div>
+            <div class="field">
+              <label>🚫 限制嘗試次數 <span class="hint">防止一直亂猜密碼</span></label>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+                <input type="checkbox" id="ns-lockguesslimit" onchange="toggleGuessLimit('ns-lock')" style="width:18px;height:18px">
+                <label for="ns-lockguesslimit" style="font-size:13px;color:var(--t);font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">開啟次數限制</label>
+              </div>
+            </div>
+            <div class="field" id="ns-lockguesscount-box" style="display:none">
+              <label>最多可猜幾次 <span class="hint">猜對不算,超過要等下一期</span></label>
+              <div style="display:flex;gap:6px">
+                <input id="ns-lockguesscount" type="number" min="1" value="5" style="flex:1">
+                <select id="ns-lockguessperiod" style="flex:1">
+                  <option value="DAILY">📅 每日重置</option>
+                  <option value="WEEKLY">🗓️ 每週重置</option>
+                  <option value="MONTHLY">📆 每月重置</option>
+                </select>
+              </div>
+            </div>
             <div class="field"><label>🔁 自動輪替密碼週期 <span class="hint">留空=不啟用</span></label><select id="ns-lockpwmode" onchange="toggleRotatingSeed('ns-lock')"><option value="">不啟用</option><option value="DAILY">📅 每日更換一次</option><option value="WEEKLY">🗓️ 每週更換一次</option><option value="MONTHLY">📆 每月更換一次</option></select></div>
             <div class="field" id="ns-lockseed-box" style="display:none">
               <label>密碼種子 <span class="hint">自訂密碼表留空時才會用這個自動產生</span></label>
@@ -615,6 +633,17 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <option value="HIDE">🙈 側邊欄完全不列出這個分類(只能靠分享連結進入)</option>
             </select>
             <input class="search" id="cl-hinttext" placeholder="密碼提示詞(留空=不顯示,只有正常/模糊顯示時玩家看得到)" style="max-width:300px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t)">
+              <input type="checkbox" id="cl-guesslimit" onchange="toggleGuessLimit('cl')" style="width:18px;height:18px">🚫 限制嘗試次數
+            </label>
+            <span id="cl-guesscount-box" style="display:none;gap:6px">
+              <input class="search" id="cl-guesscount" type="number" min="1" value="5" placeholder="最多可猜幾次" style="max-width:130px">
+              <select class="filter-sel" id="cl-guessperiod" style="max-width:130px">
+                <option value="DAILY">📅 每日重置</option>
+                <option value="WEEKLY">🗓️ 每週重置</option>
+                <option value="MONTHLY">📆 每月重置</option>
+              </select>
+            </span>
             <select class="filter-sel" id="cl-pwmode" onchange="toggleRotatingSeed('cl')">
               <option value="">🔁 自動輪替密碼:不啟用</option>
               <option value="DAILY">📅 每日更換一次</option>
@@ -735,6 +764,24 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>解鎖持續性</label><select id="em-lockpersist"><option value="">🔓 永久解鎖</option><option value="SESSION">🔁 每次購買都要重新輸入</option></select></div>
       <div class="field"><label>解鎖前顯示模式</label><select id="em-lockvis"><option value="">👁️ 正常顯示</option><option value="BLUR">🌫️ 模糊顯示</option><option value="HIDDEN">🙈 完全隱藏(不顯示任何提示)</option></select></div>
       <div class="full field"><label>密碼提示詞 <span class="hint">留空=不顯示</span></label><input id="em-lockhint" placeholder="例：想想上次活動的主題色"></div>
+      <div class="field">
+        <label>🚫 限制嘗試次數 <span class="hint">防止一直亂猜密碼</span></label>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+          <input type="checkbox" id="em-lockguesslimit" onchange="toggleGuessLimit('em-lock')" style="width:18px;height:18px">
+          <label for="em-lockguesslimit" style="font-size:13px;color:var(--t);font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">開啟次數限制</label>
+        </div>
+      </div>
+      <div class="field" id="em-lockguesscount-box" style="display:none">
+        <label>最多可猜幾次 <span class="hint">猜對不算,超過要等下一期</span></label>
+        <div style="display:flex;gap:6px">
+          <input id="em-lockguesscount" type="number" min="1" value="5" style="flex:1">
+          <select id="em-lockguessperiod" style="flex:1">
+            <option value="DAILY">📅 每日重置</option>
+            <option value="WEEKLY">🗓️ 每週重置</option>
+            <option value="MONTHLY">📆 每月重置</option>
+          </select>
+        </div>
+      </div>
       <div class="field"><label>🔁 自動輪替密碼週期 <span class="hint">留空=不啟用</span></label><select id="em-lockpwmode" onchange="toggleRotatingSeed('em-lock')"><option value="">不啟用</option><option value="DAILY">📅 每日更換一次</option><option value="WEEKLY">🗓️ 每週更換一次</option><option value="MONTHLY">📆 每月更換一次</option></select></div>
       <div class="field" id="em-lockseed-box" style="display:none">
         <label>密碼種子 <span class="hint">自訂密碼表留空時才會用這個自動產生</span></label>
@@ -897,6 +944,12 @@ async function loadMeta() {
     if (modeEl) modeEl.addEventListener('input', () => toggleRotatingSeed(key));
   });
 
+  // 🌟 每日猜測次數上限開關 — 切換時顯示或隱藏「最多可猜幾次」輸入框
+  Object.keys(GUESS_LIMIT_FIELD_MAP).forEach(key => {
+    const cbEl = document.getElementById(GUESS_LIMIT_FIELD_MAP[key].checkbox);
+    if (cbEl) cbEl.addEventListener('input', () => toggleGuessLimit(key));
+  });
+
   // role hint on all role inputs
   ['ns-role','na-role','em-role','ea-role'].forEach(id => {
     const el = document.getElementById(id);
@@ -914,6 +967,21 @@ const ROTATING_PW_FIELD_MAP = {
   'em-lock': { mode: 'em-lockpwmode', seed: 'em-lockseed', box: 'em-lockseed-box', preview: 'em-lockseed-preview', schedule: 'em-lockschedule', scheduleBox: 'em-lockschedule-box' },
   'cl':      { mode: 'cl-pwmode', seed: 'cl-pwseed', seedBtn: 'cl-preview-btn', preview: 'cl-pwseed-preview', schedule: 'cl-pwschedule', scheduleBox: 'cl-pwschedule-box' },
 };
+// 🌟 每日猜測次數上限(可開可關):三個地方(新增商品/編輯商品/分類鎖定)欄位命名對照
+const GUESS_LIMIT_FIELD_MAP = {
+  'ns-lock': { checkbox: 'ns-lockguesslimit', countBox: 'ns-lockguesscount-box' },
+  'em-lock': { checkbox: 'em-lockguesslimit', countBox: 'em-lockguesscount-box' },
+  'cl':      { checkbox: 'cl-guesslimit', countBox: 'cl-guesscount-box' },
+};
+// 🌟 切換「最多可猜幾次 + 重置週期」欄位的顯示/隱藏 — 只有勾選開啟才需要填
+function toggleGuessLimit(key) {
+  const m = GUESS_LIMIT_FIELD_MAP[key];
+  if (!m) return;
+  const cbEl = document.getElementById(m.checkbox);
+  const enabled = !!(cbEl && cbEl.checked);
+  const boxEl = document.getElementById(m.countBox);
+  if (boxEl) boxEl.style.display = enabled ? 'flex' : 'none';
+}
 // 🌟 切換「密碼種子」「自訂密碼表」輸入框的顯示/隱藏 — 只有選了週期(不是「不啟用」)才需要填
 function toggleRotatingSeed(key) {
   const m = ROTATING_PW_FIELD_MAP[key];
@@ -1111,6 +1179,10 @@ function openEditShop(itemId) {
   f('em-lockvis').value=(i.lockVisibility==='BLUR'||i.lockVisibility==='HIDDEN')?i.lockVisibility:'';
   f('em-lockhint').value=i.lockHintText||'';
   f('em-lockpwmode').value=i.lockPasswordMode||''; f('em-lockseed').value=i.lockPasswordSeed||''; f('em-lockschedule').value=i.lockPasswordSchedule||'';
+  f('em-lockguesslimit').checked = (i.lockGuessLimitEnabled||'').toString().trim().toUpperCase()==='Y';
+  f('em-lockguesscount').value = i.lockGuessLimitCount || '5';
+  f('em-lockguessperiod').value = i.lockGuessLimitPeriod || 'DAILY';
+  toggleGuessLimit('em-lock');
   toggleRotatingSeed('em-lock');
   applyRoleRequirement('em-role', i.requiredRole||'');
   document.getElementById('em-role').dispatchEvent(new Event('input'));
@@ -1136,7 +1208,8 @@ async function saveShopItem() {
     remark:f('em-remark'),requiredRole:buildRoleRequirement('em-role'),exclusiveGroup:f('em-excl'),
     altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint'),
-    lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule')});
+    lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule'),
+    lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -1322,6 +1395,10 @@ function resetAddShop() {
   document.getElementById('ns-lockvis').value='';
   document.getElementById('ns-lockpwmode').value='';
   toggleRotatingSeed('ns-lock');
+  document.getElementById('ns-lockguesslimit').checked = false;
+  document.getElementById('ns-lockguesscount').value = '5';
+  document.getElementById('ns-lockguessperiod').value = 'DAILY';
+  toggleGuessLimit('ns-lock');
   document.getElementById('ns-role-mode').value='ANY';
   document.getElementById('ns-role-count').value='2';
   toggleRoleCount('ns-role');
@@ -1359,7 +1436,8 @@ async function submitAddShop(forceStatus) {
     remark:f('ns-remark'),requiredRole:buildRoleRequirement('ns-role'),exclusiveGroup:f('ns-excl'),
     altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint'),
-    lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule')});
+    lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule'),
+    lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
@@ -1538,9 +1616,9 @@ function setupFieldAutosave(fieldIds, keyFn) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-altcurrency','em-altrate','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-altcurrency','em-altrate','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate'];
 
@@ -1668,11 +1746,14 @@ function renderCategoryLockList() {
     const visLabel = l.visibility === 'BLUR' ? '🌫️ 模糊顯示' : (l.visibility === 'VISIBLE' ? '👁️ 正常顯示' : '🙈 完全隱藏');
     const hintLabel = (!l.visibility || l.visibility === '') ? (l.showHint === 'HIDE' ? '(側邊欄不列出)' : '(側邊欄顯示🔒)') : '';
     const rotatingLabel = { DAILY: '📅 每日', WEEKLY: '🗓️ 每週', MONTHLY: '📆 每月' }[l.passwordMode] || '';
+    const hasGuessLimit = (l.guessLimitEnabled || '').toString().trim().toUpperCase() === 'Y' && l.guessLimitCount;
+    const guessPeriodLabel = { DAILY: '每日', WEEKLY: '每週', MONTHLY: '每月' }[(l.guessLimitPeriod || 'DAILY').toString().trim().toUpperCase()] || '每日';
     return `<div class="order-row" style="align-items:center">
       <span class="order-label">
         ${isLocked ? '🔒' : '🔓'} <b>${l.category}</b>
         ${l.fixedPassword ? ' · 固定密碼已設定' : ''}${l.codeName ? ` · 一次性序號對應「${l.codeName}」` : ''}${hasRotating ? ` · ${rotatingLabel}自動輪替密碼已設定` : ''}
         ${isLocked ? ` · ${persistLabel} · ${visLabel}${hintLabel}` : ' · 目前未鎖定'}
+        ${hasGuessLimit ? ` · 🚫 ${guessPeriodLabel}限猜${l.guessLimitCount}次` : ''}
         ${l.hintText ? `<br><span style="color:var(--mu);font-size:12px">💡 提示詞:${l.hintText}</span>` : ''}
       </span>
       <div class="order-btns">
@@ -1696,6 +1777,10 @@ function editCategoryLock(category) {
   document.getElementById('cl-pwseed').value = l.passwordSeed || '';
   document.getElementById('cl-pwschedule').value = l.passwordSchedule || '';
   toggleRotatingSeed('cl');
+  document.getElementById('cl-guesslimit').checked = (l.guessLimitEnabled || '').toString().trim().toUpperCase() === 'Y';
+  document.getElementById('cl-guesscount').value = l.guessLimitCount || '5';
+  document.getElementById('cl-guessperiod').value = l.guessLimitPeriod || 'DAILY';
+  toggleGuessLimit('cl');
 }
 async function saveCategoryLock() {
   const category = document.getElementById('cl-category').value.trim();
@@ -1709,7 +1794,10 @@ async function saveCategoryLock() {
     hintText: document.getElementById('cl-hinttext').value,
     passwordMode: document.getElementById('cl-pwmode').value,
     passwordSeed: document.getElementById('cl-pwseed').value,
-    passwordSchedule: document.getElementById('cl-pwschedule').value });
+    passwordSchedule: document.getElementById('cl-pwschedule').value,
+    guessLimitEnabled: document.getElementById('cl-guesslimit').checked,
+    guessLimitCount: document.getElementById('cl-guesscount').value,
+    guessLimitPeriod: document.getElementById('cl-guessperiod').value });
   if (d.status === 'success') {
     toast('✅ ' + d.message);
     ['cl-category','cl-fixedpw','cl-codename','cl-hinttext','cl-pwseed','cl-pwschedule'].forEach(id => document.getElementById(id).value = '');
@@ -1718,12 +1806,16 @@ async function saveCategoryLock() {
     document.getElementById('cl-showhint').value = '';
     document.getElementById('cl-pwmode').value = '';
     toggleRotatingSeed('cl');
+    document.getElementById('cl-guesslimit').checked = false;
+    document.getElementById('cl-guesscount').value = '5';
+    document.getElementById('cl-guessperiod').value = 'DAILY';
+    toggleGuessLimit('cl');
     loadCategoryLocks();
   } else toast('❌ ' + d.message, false);
 }
 async function clearCategoryLock(category) {
   if (!confirm(`確定要解除「${category}」的鎖定嗎？解除後這個分類的商品玩家都能直接購買。`)) return;
-  const d = await api({ action: 'adminSaveCategoryLock', category, fixedPassword: '', codeName: '', persistent: '', visibility: '', showHint: '', hintText: '', passwordMode: '', passwordSeed: '', passwordSchedule: '' });
+  const d = await api({ action: 'adminSaveCategoryLock', category, fixedPassword: '', codeName: '', persistent: '', visibility: '', showHint: '', hintText: '', passwordMode: '', passwordSeed: '', passwordSchedule: '', guessLimitEnabled: false, guessLimitCount: '', guessLimitPeriod: '' });
   if (d.status === 'success') { toast('✅ 已解除鎖定'); loadCategoryLocks(); }
   else toast('❌ ' + d.message, false);
 }
