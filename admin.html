@@ -350,6 +350,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field full"><label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][測試]標籤</span></label><input id="ns-name" type="text" placeholder="例：7日優越童話通行證"></div>
             <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
             <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="升階2" list="dc-list"><datalist id="dc-list"></datalist></div>
+            <div class="field full">
+              <label>額外必付費用 <span class="hint">留空=不用;可新增多種,例如「水晶2+水晶碎片30」,每次購買都會一起收(不是選填折抵)</span></label>
+              <div id="ns-extracost-list"></div>
+              <button type="button" class="btn btn-edit" onclick="addExtraCostRow('ns')" style="margin-top:6px">➕ 新增一種額外費用</button>
+            </div>
+            <input type="hidden" id="ns-extracost">
+            <input type="hidden" id="ns-extracostamount">
             <div class="field"><label>分類</label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
             <div class="field"><label>庫存 <span class="hint">留空=無限</span></label><input id="ns-stock" placeholder="無限"></div>
             <div class="field"><label>狀態</label><select id="ns-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
@@ -756,6 +763,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="full field"><label>商品名稱</label><input id="em-name" type="text"></div>
       <div class="field"><label>價格</label><input id="em-price" type="number" min="0"></div>
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
+      <div class="full field">
+        <label>額外必付費用 <span class="hint">留空=不用;可新增多種,每次購買都會一起收(不是選填折抵)</span></label>
+        <div id="em-extracost-list"></div>
+        <button type="button" class="btn btn-edit" onclick="addExtraCostRow('em')" style="margin-top:6px">➕ 新增一種額外費用</button>
+      </div>
+      <input type="hidden" id="em-extracost">
+      <input type="hidden" id="em-extracostamount">
       <div class="field"><label>分類</label><input id="em-category" list="sc-list"></div>
       <div class="field"><label>庫存</label><input id="em-stock"></div>
       <div class="field"><label>狀態</label><select id="em-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
@@ -1211,6 +1225,62 @@ function enableDragReorder(container, rowSelector, onReorder) {
   });
 }
 
+// 🌟 額外必付費用清單元件(可新增多種同時收費,例如「水晶2+水晶碎片30」):跟替代貨幣清單元件邏輯完全一樣,
+// 差別是這是「每次購買都一定要一起收」的費用,不是玩家可以自己選要不要用的折抵
+function addExtraCostRow(prefix, name, amount) {
+  const list = document.getElementById(prefix + '-extracost-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'extra-cost-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  row.innerHTML = `
+    <input class="search extra-name-input" list="dc-list" placeholder="幣種名稱,例:幻彩水晶碎片" style="flex:2">
+    <input class="search extra-amount-input" type="number" min="0" step="1" placeholder="數量(每個商品要收多少)" style="flex:1">
+    <button type="button" class="btn btn-del" onclick="this.closest('.extra-cost-row').remove(); syncExtraCostHidden('${prefix}')">✕</button>
+  `;
+  list.appendChild(row);
+  const nameInput = row.querySelector('.extra-name-input'), amountInput = row.querySelector('.extra-amount-input');
+  if (name !== undefined) nameInput.value = name;
+  if (amount !== undefined && amount !== null && amount !== '') amountInput.value = amount;
+  [nameInput, amountInput].forEach(inp => inp.addEventListener('input', () => syncExtraCostHidden(prefix)));
+}
+function syncExtraCostHidden(prefix) {
+  const collected = collectExtraCostRows(prefix);
+  const nameEl = document.getElementById(prefix + '-extracost');
+  const amountEl = document.getElementById(prefix + '-extracostamount');
+  if (nameEl) nameEl.value = collected.names;
+  if (amountEl) amountEl.value = collected.amounts;
+}
+function collectExtraCostRows(prefix) {
+  const rows = document.querySelectorAll(`#${prefix}-extracost-list .extra-cost-row`);
+  const names = [], amounts = [];
+  rows.forEach(row => {
+    const n = row.querySelector('.extra-name-input').value.trim();
+    const a = row.querySelector('.extra-amount-input').value;
+    if (n && parseFloat(a) > 0) { names.push(n); amounts.push(a); }
+  });
+  return { names: names.join(','), amounts: amounts.join(',') };
+}
+// 🌟 逐列檢查額外費用清單有沒有填一半,回傳錯誤訊息字串,沒問題回傳 null
+function validateExtraCostRows(prefix) {
+  const rows = document.querySelectorAll(`#${prefix}-extracost-list .extra-cost-row`);
+  for (const row of rows) {
+    const n = row.querySelector('.extra-name-input').value.trim();
+    const a = row.querySelector('.extra-amount-input').value;
+    if (n && !(parseFloat(a) > 0)) return `額外費用「${n}」還沒填數量(要填大於0的數字)`;
+    if (!n && a) return '有一列填了數量卻沒填幣種名稱,請補上名稱或刪除該列';
+  }
+  return null;
+}
+function setExtraCostRows(prefix, extraCostStr, extraAmountStr) {
+  const list = document.getElementById(prefix + '-extracost-list');
+  if (list) list.innerHTML = '';
+  const names = (extraCostStr || '').toString().split(',').map(s => s.trim()).filter(Boolean);
+  const amounts = (extraAmountStr || '').toString().split(',').map(s => s.trim());
+  names.forEach((n, i) => addExtraCostRow(prefix, n, amounts[i]));
+  syncExtraCostHidden(prefix);
+}
+
 const GUESS_LIMIT_FIELD_MAP = {
   'ns-lock': { checkbox: 'ns-lockguesslimit', countBox: 'ns-lockguesscount-box' },
   'em-lock': { checkbox: 'em-lockguesslimit', countBox: 'em-lockguesscount-box' },
@@ -1484,6 +1554,7 @@ function openEditShop(itemId) {
   f('em-remark').value=i.remark||'';
   f('em-excl').value=i.exclusiveGroup||'';
   setAltCurrencyRows('em', i.altCurrency||'', i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'');
+  setExtraCostRows('em', i.extraCost||'', i.extraCostAmount||'');
   f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
   f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
   f('em-lockvis').value=(i.lockVisibility==='BLUR'||i.lockVisibility==='HIDDEN')?i.lockVisibility:'';
@@ -1503,10 +1574,12 @@ function openEditShop(itemId) {
 
 async function saveShopItem() {
   syncAltCurrencyHidden('em');
+  syncExtraCostHidden('em');
   const f = id => document.getElementById(id).value;
   const nonInstantErr = checkNonInstantRule(f('em-name'), f('em-rvar'));
   if (nonInstantErr) { alert(nonInstantErr); return; }
   { const altErr = validateAltCurrencyRows('em'); if (altErr) { toast(altErr, false); return; } }
+  { const extraErr = validateExtraCostRows('em'); if (extraErr) { toast(extraErr, false); return; } }
   const btn = document.getElementById('em-save');
   btn.disabled=true; btn.textContent='儲存中...';
   const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
@@ -1518,6 +1591,7 @@ async function saveShopItem() {
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
     remark:f('em-remark'),requiredRole:buildRoleRequirement('em-role'),exclusiveGroup:f('em-excl'),
     altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
+    extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint'),
     lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod')});
@@ -1539,6 +1613,7 @@ async function publishShopItem(itemId) {
     rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
     remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
+    extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,
     lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility,lockHintText:i.lockHintText,
     lockPasswordMode:i.lockPasswordMode,lockPasswordSeed:i.lockPasswordSeed,lockPasswordSchedule:i.lockPasswordSchedule,
     lockGuessLimitEnabled:i.lockGuessLimitEnabled,lockGuessLimitCount:i.lockGuessLimitCount,lockGuessLimitPeriod:i.lockGuessLimitPeriod});
@@ -1769,8 +1844,9 @@ function resetAddShop() {
   ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
-   'ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule'].forEach(id => document.getElementById(id).value='');
+   'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule'].forEach(id => document.getElementById(id).value='');
   setAltCurrencyRows('ns', '', '');
+  setExtraCostRows('ns', '', '');
   document.getElementById('ns-currency').value='升階2';
   document.getElementById('ns-status').value='';
   document.getElementById('ns-lockpersist').value='';
@@ -1799,11 +1875,13 @@ function checkNonInstantRule(name, rewardVar) {
 
 async function submitAddShop(forceStatus) {
   syncAltCurrencyHidden('ns');
+  syncExtraCostHidden('ns');
   const f=id=>document.getElementById(id).value;
   if (!f('ns-name')) { toast('請填寫商品名稱', false); return; }
   const nonInstantErr = checkNonInstantRule(f('ns-name'), f('ns-rvar'));
   if (nonInstantErr) { alert(nonInstantErr); return; }
   { const altErr = validateAltCurrencyRows('ns'); if (altErr) { toast(altErr, false); return; } }
+  { const extraErr = validateExtraCostRows('ns'); if (extraErr) { toast(extraErr, false); return; } }
   const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('ns-status');
   const isDraft = status === 'DRAFT';
   if (!isDraft && f('ns-price')==='') { toast('請填寫價格', false); return; }
@@ -1819,6 +1897,7 @@ async function submitAddShop(forceStatus) {
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
     remark:f('ns-remark'),requiredRole:buildRoleRequirement('ns-role'),exclusiveGroup:f('ns-excl'),
     altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
+    extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint'),
     lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod')});
