@@ -313,7 +313,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.17.1 (手機版拍賣會貨幣顯示改為緊湊排版,避免擋住拍賣列表)</div>
+    <div class="version-tag">系統版本：v3.18.0 (商品/分類密碼鎖定支援自動輪替密碼、自訂密碼表、每日/每週/每月限猜次數,商品卡片會先顯示剩餘猜測次數)</div>
   </div>
 
   <script>
@@ -441,6 +441,13 @@
                  </div>`;
       });
       sidebar.innerHTML = html;
+    }
+
+    // 🌟 密碼鎖定:算出「還可以再猜幾次」的提示文字(沒開啟次數上限的話回傳空字串,不顯示這段)
+    function guessRemainHint(remain, periodLabel) {
+      if (remain === null || remain === undefined) return '';
+      if (remain <= 0) return `<br>🚫 ${periodLabel}的嘗試次數已經用完了，請等下一期再試`;
+      return `<br>🎯 ${periodLabel}還可以再猜 ${remain} 次`;
     }
 
     // 🌟 密碼鎖定:提示輸入分類密碼並向後端驗證,成功才會真的把分類內容顯示出來
@@ -1160,10 +1167,11 @@ function fetchScoresAndShop(discordId, callback = null) {
             isCatBlurLocked = true;
           } else if (catLockSample.categoryLockVisibility !== 'VISIBLE') {
             // 預設(未設定/HIDDEN):完全隱藏內容,只顯示鎖定畫面
+            const hideGuessHtml = guessRemainHint(catLockSample.categoryLockGuessRemain, catLockSample.categoryLockGuessPeriodLabel);
             container.innerHTML = `
               <div class="category-lock-screen">
                 <div class="category-lock-icon">🔒</div>
-                <div class="category-lock-title">「${currentCategory}」需要密碼才能瀏覽</div>
+                <div class="category-lock-title">「${currentCategory}」需要密碼才能瀏覽${hideGuessHtml}</div>
                 <button class="btn-action" onclick="promptUnlockCategory('${currentCategory.replace(/'/g,"\\'")}')">輸入密碼解鎖</button>
               </div>`;
             return;
@@ -1204,6 +1212,10 @@ function fetchScoresAndShop(discordId, callback = null) {
           const blurCatStillLocked = item.categoryLocked && !item.categoryUnlocked;
           const blurHintText = blurCatStillLocked ? item.categoryLockHintText : item.itemLockHintText;
           const blurHintHtml = blurHintText ? `<div class="item-blur-hint">💡 提示：${blurHintText}</div>` : '';
+          const blurGuessRemain = blurCatStillLocked ? item.categoryLockGuessRemain : item.itemLockGuessRemain;
+          const blurGuessPeriod = blurCatStillLocked ? item.categoryLockGuessPeriodLabel : item.itemLockGuessPeriodLabel;
+          const blurGuessHtml = guessRemainHint(blurGuessRemain, blurGuessPeriod);
+          const blurGuessDivHtml = blurGuessHtml ? `<div class="item-blur-hint">${blurGuessHtml.replace(/^<br>/, '')}</div>` : '';
           allCardsHtml += `
             <div class="shop-item-card item-blur-card" id="card-${safeId}">
               <div class="item-blur-content">
@@ -1211,6 +1223,7 @@ function fetchScoresAndShop(discordId, callback = null) {
                 <div class="item-blur-name">？？？？？</div>
                 <div class="item-blur-price">？？？ ${item.displayCurrency}</div>
                 ${blurHintHtml}
+                ${blurGuessDivHtml}
               </div>
               <button class="btn btn-buy" onclick="promptUnlockItem('${item.id}', '${safeId}')">🔒 輸入密碼解鎖查看</button>
             </div>
@@ -1331,7 +1344,10 @@ function fetchScoresAndShop(discordId, callback = null) {
           // 🌟 優先顯示還鎖著的那一層的提示詞(分類優先於商品,因為分類沒過的話商品那把鎖根本還輪不到)
           const hintText = catStillLocked ? item.categoryLockHintText : item.itemLockHintText;
           const hintHtml = hintText ? `<br>💡 提示：${hintText}` : '';
-          lockHtml = `<div class="item-lock-hint">🔒 ${lockReason}，點擊「兌換」時會請你輸入密碼${hintHtml}</div>`;
+          const guessRemain = catStillLocked ? item.categoryLockGuessRemain : item.itemLockGuessRemain;
+          const guessPeriod = catStillLocked ? item.categoryLockGuessPeriodLabel : item.itemLockGuessPeriodLabel;
+          const guessHtml = guessRemainHint(guessRemain, guessPeriod);
+          lockHtml = `<div class="item-lock-hint">🔒 ${lockReason}，點擊「兌換」時會請你輸入密碼${hintHtml}${guessHtml}</div>`;
         }
 
         let actionHtml = '';
@@ -1378,9 +1394,11 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (isCatBlurLocked) {
         const catHintText = catLockSampleForHint && catLockSampleForHint.categoryLockHintText;
         const catHintHtml = catHintText ? `<br><span style="font-size:12px;opacity:0.85">💡 提示：${catHintText}</span>` : '';
+        const catGuessHtml = catLockSampleForHint ? guessRemainHint(catLockSampleForHint.categoryLockGuessRemain, catLockSampleForHint.categoryLockGuessPeriodLabel) : '';
+        const catGuessSpanHtml = catGuessHtml ? `<span style="font-size:12px;opacity:0.85">${catGuessHtml.replace(/^<br>/, '<br>')}</span>` : '';
         container.innerHTML = `
           <div class="category-lock-banner">
-            <span>🔒 「${currentCategory}」需要密碼才能購買，以下為模糊預覽${catHintHtml}</span>
+            <span>🔒 「${currentCategory}」需要密碼才能購買，以下為模糊預覽${catHintHtml}${catGuessSpanHtml}</span>
             <button class="btn-action" onclick="promptUnlockCategory('${currentCategory.replace(/'/g,"\\'")}')">輸入密碼解鎖</button>
           </div>
           <div class="category-blur-content">${allCardsHtml}</div>
