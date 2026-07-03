@@ -370,7 +370,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="fsep">其他</div>
             <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
             <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
-            <div class="field"><label>限定身分組</label><input id="ns-role" list="ri-list" placeholder="留空=不限"><datalist id="ri-list"></datalist><div class="role-hint" id="ns-role-hint"></div></div>
+            <div class="field">
+              <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
+              <input id="ns-role" list="ri-list" placeholder="留空=不限">
+              <datalist id="ri-list"></datalist>
+              <div style="display:flex;gap:6px;margin-top:4px">
+                <select id="ns-role-mode" style="flex:1">
+                  <option value="ANY">符合其中任一個即可</option>
+                  <option value="ALL">需要全部都持有</option>
+                  <option value="COUNT">需要其中至少 N 個</option>
+                </select>
+                <input id="ns-role-count" type="number" min="1" value="2" style="width:64px;display:none">
+              </div>
+              <div class="role-hint" id="ns-role-hint"></div>
+            </div>
             <div class="field"><label>選一群組</label><input id="ns-excl" placeholder="留空=不限"></div>
             <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
             <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ns-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
@@ -414,7 +427,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="fsep">其他</div>
             <div class="field full"><label>圖片網址</label><input id="na-img" type="url"></div>
             <div class="field full"><label>備註</label><textarea id="na-remark"></textarea></div>
-            <div class="field full"><label>限定身分組</label><input id="na-role" list="ri-list" placeholder="留空=不限"><div class="role-hint" id="na-role-hint"></div></div>
+            <div class="field full">
+              <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
+              <input id="na-role" list="ri-list" placeholder="留空=不限">
+              <div style="display:flex;gap:6px;margin-top:4px;max-width:360px">
+                <select id="na-role-mode" style="flex:1">
+                  <option value="ANY">符合其中任一個即可</option>
+                  <option value="ALL">需要全部都持有</option>
+                  <option value="COUNT">需要其中至少 N 個</option>
+                </select>
+                <input id="na-role-count" type="number" min="1" value="2" style="width:64px;display:none">
+              </div>
+              <div class="role-hint" id="na-role-hint"></div>
+            </div>
             <div class="fsep">替代貨幣折抵（選填,例如出價時可以部分用拍賣幣折抵）</div>
             <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="na-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
             <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="na-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
@@ -653,7 +678,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="fsep">其他</div>
       <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
-      <div class="field"><label>限定身分組</label><input id="em-role" list="ri-list"><div class="role-hint" id="em-role-hint"></div></div>
+      <div class="field">
+        <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
+        <input id="em-role" list="ri-list">
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <select id="em-role-mode" style="flex:1">
+            <option value="ANY">符合其中任一個即可</option>
+            <option value="ALL">需要全部都持有</option>
+            <option value="COUNT">需要其中至少 N 個</option>
+          </select>
+          <input id="em-role-count" type="number" min="1" value="2" style="width:64px;display:none">
+        </div>
+        <div class="role-hint" id="em-role-hint"></div>
+      </div>
       <div class="field"><label>選一群組</label><input id="em-excl"></div>
       <div class="fsep">替代貨幣折抵（選填,例如用拍賣幣折抵）</div>
       <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="em-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
@@ -690,7 +727,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="fsep">其他</div>
       <div class="full field"><label>圖片網址</label><input id="ea-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="ea-remark"></textarea></div>
-      <div class="full field"><label>限定身分組</label><input id="ea-role" list="ri-list"><div class="role-hint" id="ea-role-hint"></div></div>
+      <div class="full field">
+        <label>限定身分組 <span class="hint">可填多個ID,逗號分隔</span></label>
+        <input id="ea-role" list="ri-list">
+        <div style="display:flex;gap:6px;margin-top:4px;max-width:360px">
+          <select id="ea-role-mode" style="flex:1">
+            <option value="ANY">符合其中任一個即可</option>
+            <option value="ALL">需要全部都持有</option>
+            <option value="COUNT">需要其中至少 N 個</option>
+          </select>
+          <input id="ea-role-count" type="number" min="1" value="2" style="width:64px;display:none">
+        </div>
+        <div class="role-hint" id="ea-role-hint"></div>
+      </div>
       <div class="fsep">替代貨幣折抵（選填）</div>
       <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ea-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
       <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="ea-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
@@ -789,6 +838,12 @@ async function loadMeta() {
   d.auctionCategories.forEach(c => { const o=document.createElement('option'); o.value=c; ac.appendChild(o); });
   document.getElementById('auction-cat-filter').innerHTML = '<option value="">全部分類</option>' + d.auctionCategories.map(c => `<option>${c}</option>`).join('');
 
+  // 🌟 限定身分組:任一/全部/其中N個 模式選單 — 切換時顯示或隱藏「N個」的數字輸入框
+  ['ns-role','na-role','em-role','ea-role'].forEach(prefix => {
+    const modeEl = document.getElementById(prefix + '-mode');
+    if (modeEl) modeEl.addEventListener('input', () => toggleRoleCount(prefix));
+  });
+
   // role hint on all role inputs
   ['ns-role','na-role','em-role','ea-role'].forEach(id => {
     const el = document.getElementById(id);
@@ -798,6 +853,48 @@ async function loadMeta() {
       hint.textContent = ids.map(i => ROLES[i] ? `👤 ${ROLES[i]}` : '').filter(Boolean).join('  ') || '';
     });
   });
+}
+
+// 🌟 限定身分組:把「任一/全部/其中N個」模式選單 + N + 身分組ID清單,組合成後端看得懂的字串
+// (ANY 沿用向下相容的舊格式,不加前綴；ALL 加 "ALL:" 前綴；其中N個 加 "N:" 前綴)
+function buildRoleRequirement(prefix) {
+  const idsEl = document.getElementById(prefix);
+  const modeEl = document.getElementById(prefix + '-mode');
+  if (!idsEl) return '';
+  const ids = idsEl.value.trim();
+  if (!ids) return '';
+  const mode = modeEl ? modeEl.value : 'ANY';
+  if (mode === 'ALL') return 'ALL:' + ids;
+  if (mode === 'COUNT') {
+    const countEl = document.getElementById(prefix + '-count');
+    const n = (countEl && parseInt(countEl.value) > 0) ? parseInt(countEl.value) : 2;
+    return n + ':' + ids;
+  }
+  return ids;
+}
+// 🌟 限定身分組:把後端存的字串(可能帶 ANY:/ALL:/N: 前綴)拆解回模式選單 + N + 純ID清單,填回表單
+function applyRoleRequirement(prefix, str) {
+  str = (str || '').toString().trim();
+  let mode = 'ANY', count = 2, ids = str;
+  const m = str.match(/^(ALL|ANY|\d+):([\s\S]*)$/i);
+  if (m) {
+    if (/^\d+$/.test(m[1])) { mode = 'COUNT'; count = parseInt(m[1]); }
+    else mode = m[1].toUpperCase();
+    ids = m[2];
+  }
+  const idsEl = document.getElementById(prefix);
+  const modeEl = document.getElementById(prefix + '-mode');
+  const countEl = document.getElementById(prefix + '-count');
+  if (idsEl) idsEl.value = ids;
+  if (modeEl) modeEl.value = mode;
+  if (countEl) countEl.value = count;
+  toggleRoleCount(prefix);
+}
+// 🌟 限定身分組:模式選「其中N個」時才顯示N的輸入框,其他模式收起來
+function toggleRoleCount(prefix) {
+  const modeEl = document.getElementById(prefix + '-mode');
+  const countEl = document.getElementById(prefix + '-count');
+  if (modeEl && countEl) countEl.style.display = (modeEl.value === 'COUNT') ? '' : 'none';
 }
 
 // ── Navigation ──
@@ -912,15 +1009,15 @@ function openEditShop(itemId) {
   f('em-lgw').value=i.limitGW||''; f('em-lpw').value=i.limitPW||'';
   f('em-lpt').value=i.limitPT||''; f('em-rvar').value=i.rewardVar||'';
   f('em-rqty').value=i.rewardQty||''; f('em-img').value=i.imageUrl||'';
-  f('em-remark').value=i.remark||''; f('em-role').value=i.requiredRole||'';
+  f('em-remark').value=i.remark||'';
   f('em-excl').value=i.exclusiveGroup||'';
   f('em-altcurrency').value=i.altCurrency||''; f('em-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
   f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
   f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
   f('em-lockvis').value=(i.lockVisibility==='BLUR'||i.lockVisibility==='HIDDEN')?i.lockVisibility:'';
   f('em-lockhint').value=i.lockHintText||'';
-  const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
-  f('em-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
+  applyRoleRequirement('em-role', i.requiredRole||'');
+  document.getElementById('em-role').dispatchEvent(new Event('input'));
   document.getElementById('shop-modal').classList.add('open');
   renderGachaPreview('em-rqty', 'em-rqty-preview');
   editShopAutosave.checkAndOffer();
@@ -940,7 +1037,7 @@ async function saveShopItem() {
     limitGD:f('em-lgd'),limitGM:f('em-lgm'),limitPD:f('em-lpd'),limitPM:f('em-lpm'),
     limitGW:f('em-lgw'),limitPW:f('em-lpw'),limitPT:f('em-lpt'),
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
-    remark:f('em-remark'),requiredRole:f('em-role'),exclusiveGroup:f('em-excl'),
+    remark:f('em-remark'),requiredRole:buildRoleRequirement('em-role'),exclusiveGroup:f('em-excl'),
     altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
@@ -1053,11 +1150,11 @@ function openEditAuction(auctionId) {
   f('ea-currency').value=i.currency||'升階2'; f('ea-sdate').value=i.startDate||'';
   f('ea-edate').value=i.endDate||''; f('ea-ext1').value=i.extendTrigger||'';
   f('ea-ext2').value=i.extendBy||''; f('ea-img').value=i.imageUrl||'';
-  f('ea-remark').value=i.remark||''; f('ea-role').value=i.requiredRole||'';
+  f('ea-remark').value=i.remark||'';
   f('ea-altcurrency').value=i.altCurrency||''; f('ea-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
   f('ea-status').value=i.status==='DRAFT'?'DRAFT':'';
-  const ids = (i.requiredRole||'').replace(/^(ANY:|ALL:|\d+:)/i,'').split(',').map(s=>s.trim()).filter(Boolean);
-  f('ea-role-hint').textContent = ids.map(id=>ROLES[id]?`👤 ${ROLES[id]}`:'').filter(Boolean).join('  ');
+  applyRoleRequirement('ea-role', i.requiredRole||'');
+  document.getElementById('ea-role').dispatchEvent(new Event('input'));
   document.getElementById('auction-modal').classList.add('open');
   editAuctionAutosave.checkAndOffer();
 }
@@ -1071,7 +1168,7 @@ async function saveAuction() {
     type:f('ea-type'),category:f('ea-cat'),currency:f('ea-currency'),
     startDate:f('ea-sdate'),endDate:f('ea-edate'),
     extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
-    imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:f('ea-role'),
+    imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:buildRoleRequirement('ea-role'),
     altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate'),status:f('ea-status')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
@@ -1126,6 +1223,9 @@ function resetAddShop() {
   document.getElementById('ns-status').value='';
   document.getElementById('ns-lockpersist').value='';
   document.getElementById('ns-lockvis').value='';
+  document.getElementById('ns-role-mode').value='ANY';
+  document.getElementById('ns-role-count').value='2';
+  toggleRoleCount('ns-role');
   renderGachaPreview('ns-rqty', 'ns-rqty-preview');
   addShopAutosave.clear();
 }
@@ -1157,7 +1257,7 @@ async function submitAddShop(forceStatus) {
     limitGD:f('ns-lgd'),limitGM:f('ns-lgm'),limitPD:f('ns-lpd'),limitPM:f('ns-lpm'),
     limitGW:f('ns-lgw'),limitPW:f('ns-lpw'),limitPT:f('ns-lpt'),
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
-    remark:f('ns-remark'),requiredRole:f('ns-role'),exclusiveGroup:f('ns-excl'),
+    remark:f('ns-remark'),requiredRole:buildRoleRequirement('ns-role'),exclusiveGroup:f('ns-excl'),
     altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint')});
   btn.disabled=false; btn.textContent=originalText;
@@ -1172,6 +1272,9 @@ function resetAddAuction() {
   document.getElementById('na-currency').value='升階2';
   document.getElementById('na-type').value='PUBLIC';
   document.getElementById('na-status').value='';
+  document.getElementById('na-role-mode').value='ANY';
+  document.getElementById('na-role-count').value='2';
+  toggleRoleCount('na-role');
   addAuctionAutosave.clear();
 }
 async function submitAddAuction(forceStatus) {
@@ -1189,7 +1292,7 @@ async function submitAddAuction(forceStatus) {
     type:f('na-type'),category:f('na-cat'),currency:f('na-currency'),
     startDate:f('na-sdate'),endDate:f('na-edate'),
     extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
-    imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:f('na-role'),
+    imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:buildRoleRequirement('na-role'),
     altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate'),status:isDraft?'DRAFT':''});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.auctionId}` : `✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
@@ -1335,11 +1438,11 @@ function setupFieldAutosave(fieldIds, keyFn) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-altcurrency','ns-altrate','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-excl','em-altcurrency','em-altrate','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint'];
-const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-altcurrency','na-altrate'];
-const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-altcurrency','ea-altrate'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-altcurrency','em-altrate','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint'];
+const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate'];
+const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate'];
 
 const addShopAutosave = setupFieldAutosave(NS_FIELDS, () => 'add-shop');
 const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'));
