@@ -497,6 +497,20 @@
       collapsedShopParents = new Set(Array.from(allShopParentNames).filter(p => p !== owningParent));
     }
 
+    // 🌟 查一個分類在「分類順序表」裡的排序位置。如果這個分類本身沒有出現在順序表裡,但它是「父＞子」格式的子分類,
+    // 就改查「父分類名稱」有沒有在順序表裡——這樣管理員只要把父分類名稱填進順序表,就能決定整組子分類的位置,
+    // 不用把每一個子分類都個別填一次(不然像「加布商城物品」這種只填了父分類名稱的,子分類會查不到、被拖到最後面)
+    function getCategoryOrderIndex(cat, orderList) {
+      let idx = orderList.indexOf(cat);
+      if (idx !== -1) return idx;
+      const sep = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
+      if (sep !== -1) {
+        const parentIdx = orderList.indexOf(cat.substring(0, sep).trim());
+        if (parentIdx !== -1) return parentIdx;
+      }
+      return 999;
+    }
+
     function selectCategory(cat) {
       currentCategory = cat;
       applyShopAccordion(cat);
@@ -506,7 +520,7 @@
 
     function renderSidebar() {
       const categories = Array.from(new Set(currentShopItems.map(item => item.category)));
-      const getOrderIndex = (cat) => { const i = CATEGORY_ORDER.indexOf(cat); return i === -1 ? 999 : i; };
+      const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const sidebar = document.getElementById('category-sidebar');
 
       function renderCatItemHtml(cat, displayLabel, indent, iconOverride) {
@@ -857,11 +871,7 @@
         localStorage.removeItem('shared_auction_category_target');
         // 🌟 沒有分類分享目標時,不再有「全部」分類,預設選排序後的第一個分類
         if (!currentAuctionCategory || !allCategories.includes(currentAuctionCategory)) {
-          const sortedForDefault = allCategories.slice().sort((a, b) => {
-            let ia = AUCTION_CATEGORY_ORDER.indexOf(a), ib = AUCTION_CATEGORY_ORDER.indexOf(b);
-            if (ia === -1) ia = 999; if (ib === -1) ib = 999;
-            return ia - ib;
-          });
+          const sortedForDefault = allCategories.slice().sort((a, b) => getCategoryOrderIndex(a, AUCTION_CATEGORY_ORDER) - getCategoryOrderIndex(b, AUCTION_CATEGORY_ORDER));
           currentAuctionCategory = sortedForDefault[0] || null;
         }
       }
@@ -871,7 +881,7 @@
         tabsEl.style.display = 'flex';
         // 🌟 子分類:跟商店側邊欄用同一套「父＞子」命名慣例分組邏輯,父分類做成可展開/收合的群組標籤,
         // 排序位置用群組裡最小的排序索引決定(不是第一個遇到的分類),父分類本身也可以是能直接點選的真分類
-        const getAuctionOrderIndex = (cat) => { const i = AUCTION_CATEGORY_ORDER.indexOf(cat); return i === -1 ? 999 : i; };
+        const getAuctionOrderIndex = (cat) => getCategoryOrderIndex(cat, AUCTION_CATEGORY_ORDER);
         const auctionGroups = buildCategoryGroups(allCategories, getAuctionOrderIndex);
         allAuctionParentNames = new Set(auctionGroups.filter(g => g.type === 'parent').map(g => g.parentName));
         let tabsHtml = '';
@@ -1278,13 +1288,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             localStorage.removeItem('shared_category_target');
             // 🌟 沒有指定分類(或上次選的分類已經不存在)時,預設選排序後的第一個分類,而不是「所有商品」
             if (!currentCategory || !allCats.includes(currentCategory)) {
-              allCats.sort((a, b) => {
-                let idxA = CATEGORY_ORDER.indexOf(a);
-                let idxB = CATEGORY_ORDER.indexOf(b);
-                if (idxA === -1) idxA = 999;
-                if (idxB === -1) idxB = 999;
-                return idxA - idxB;
-              });
+              allCats.sort((a, b) => getCategoryOrderIndex(a, CATEGORY_ORDER) - getCategoryOrderIndex(b, CATEGORY_ORDER));
               currentCategory = allCats[0] || null;
             }
           }
