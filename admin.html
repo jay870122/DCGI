@@ -549,7 +549,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="tbl-wrap" style="padding:24px">
           <div class="page-title" style="font-size:15px">📁 商店分類順序</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定玩家商店頁面左側分類側邊欄的先後順序,由上到下=由左到右/由前到後</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">
+            決定玩家商店頁面左側分類側邊欄的先後順序,由上到下=由左到右/由前到後。<br>
+            🌟 子分類(用「父＞子」命名的分類):填「父分類名稱」單獨一筆,可以決定整組子分類群組排在哪裡；
+            也可以直接填完整的「父＞子」字串,決定某個子分類在群組內部的先後順序(沒填的子分類會維持原本的相對順序)。
+          </div>
           <div class="order-list" id="shop-cat-order-list"></div>
           <div class="order-add-row"><input class="search" id="shop-cat-add-input" placeholder="新增分類名稱..." style="width:auto;flex:1"><button class="btn btn-edit" onclick="addCategoryToOrder('shop')">＋ 加入</button></div>
           <button class="btn-save" style="margin-top:14px" onclick="saveCategoryOrder('shop')">💾 儲存商店分類順序</button>
@@ -557,7 +561,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="tbl-wrap" style="padding:24px">
           <div class="page-title" style="font-size:15px">🔨 拍賣分類順序</div>
-          <div style="color:var(--mu);font-size:12px;margin-top:4px">決定玩家拍賣頁面分類標籤的先後順序</div>
+          <div style="color:var(--mu);font-size:12px;margin-top:4px">
+            決定玩家拍賣頁面分類標籤的先後順序。<br>
+            🌟 子分類:填「父分類名稱」單獨一筆可以決定整組子分類群組的位置;填完整的「父＞子」字串可以決定群組內部子分類的先後順序。
+          </div>
           <div class="order-list" id="auction-cat-order-list"></div>
           <div class="order-add-row"><input class="search" id="auction-cat-add-input" placeholder="新增分類名稱..." style="width:auto;flex:1"><button class="btn btn-edit" onclick="addCategoryToOrder('auction')">＋ 加入</button></div>
           <button class="btn-save" style="margin-top:14px" onclick="saveCategoryOrder('auction')">💾 儲存拍賣分類順序</button>
