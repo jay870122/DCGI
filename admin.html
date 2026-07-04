@@ -445,6 +445,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field full">
               <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
               <textarea id="ns-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
+              <div class="gacha-preview" id="ns-milestone-preview" style="display:none"></div>
             </div>
             <div class="gacha-guide" style="grid-column:span 2">
               🎁 <b>累積兌換次數里程碑獎勵</b>:玩家買這個商品買到「累積第 N 個」的時候,自動額外贈送一次獎勵(不影響原本的價格/盲盒抽獎,是額外多送的)。<br>
@@ -881,6 +882,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="full field">
         <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
         <textarea id="em-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
+        <div class="gacha-preview" id="em-milestone-preview" style="display:none"></div>
       </div>
       <div class="fsep">商品密碼鎖定（選填）</div>
       <div class="field"><label>固定密碼 <span class="hint">留空=不用</span></label><input id="em-lockpw" placeholder="所有人共用同一組密碼"></div>
@@ -1592,6 +1594,7 @@ function openEditShop(itemId) {
   setAltCurrencyRows('em', i.altCurrency||'', i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'');
   setExtraCostRows('em', i.extraCost||'', i.extraCostAmount||'');
   f('em-milestone').value = i.milestoneRules || '';
+  renderMilestonePreview('em-milestone', 'em-milestone-preview');
   f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
   f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
   f('em-lockvis').value=(i.lockVisibility==='BLUR'||i.lockVisibility==='HIDDEN')?i.lockVisibility:'';
@@ -1899,6 +1902,7 @@ function resetAddShop() {
   toggleRoleCount('ns-role');
   updateRoleChips('ns-role');
   renderGachaPreview('ns-rqty', 'ns-rqty-preview');
+  renderMilestonePreview('ns-milestone', 'ns-milestone-preview');
   addShopAutosave.clear();
 }
 // 🌟 [非即時]商品規定要用盲盒格式:名稱帶[非即時]卻用「固定獎勵變數名」直接發放的話,
@@ -2084,6 +2088,121 @@ function renderGachaPreview(textareaId, previewId) {
 ['ns-rqty','em-rqty'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', () => renderGachaPreview(id, id + '-preview'));
+});
+
+// 🌟 里程碑規則的客戶端解析(給即時預覽用,邏輯要跟 Code.gs 的 parseMilestoneRules 保持一致)
+function parseMilestoneRulesPreview(rawText) {
+  const lines = (rawText || '').split('\n');
+  const milestones = [];
+  const headerPattern = /^(每)?\d+\s*=>/;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    i++;
+    if (!line) continue;
+    const arrowIdx = line.indexOf('=>');
+    if (arrowIdx === -1) { milestones.push({ bad: true, raw: line, reason: '缺少「=>」符號' }); continue; }
+    let countPart = line.substring(0, arrowIdx).trim();
+    let rewardPart = line.substring(arrowIdx + 2).trim();
+    let repeat = false;
+    if (countPart.charAt(0) === '每') { repeat = true; countPart = countPart.substring(1).trim(); }
+    const count = parseInt(countPart, 10);
+    if (!count || count <= 0) { milestones.push({ bad: true, raw: line, reason: '累積數量必須是大於0的整數' }); continue; }
+
+    if (rewardPart === '') {
+      // 🌟 盲盒式里程碑:收集接下來的行當作獎池,直到下一個里程碑標頭行為止
+      const poolLines = [];
+      while (i < lines.length) {
+        const peek = lines[i].trim();
+        if (headerPattern.test(peek)) break;
+        if (peek !== '') poolLines.push(peek);
+        i++;
+      }
+      const pool = parseGachaRulesPreview(poolLines.join('\n'));
+      milestones.push({ count, repeat, isGacha: true, gachaPool: pool, bad: pool.length === 0, reason: pool.length === 0 ? '「=>」後面留空,但後面沒有接任何獎池內容' : null });
+      continue;
+    }
+
+    let stock = null;
+    const stockMatch = rewardPart.match(/,\s*(\d+)\s*[份個]\s*$/);
+    if (stockMatch) { stock = parseInt(stockMatch[1], 10); rewardPart = rewardPart.substring(0, stockMatch.index).trim(); }
+    let displayName = null, actualRewardPart = rewardPart;
+    const pipeIdx = rewardPart.indexOf('|');
+    if (pipeIdx !== -1) { displayName = rewardPart.substring(0, pipeIdx).trim(); actualRewardPart = rewardPart.substring(pipeIdx + 1).trim(); }
+    const varList = actualRewardPart.split('+').map(seg => {
+      seg = seg.trim();
+      const ci = seg.indexOf(':');
+      if (ci !== -1) return { varName: seg.substring(0, ci).trim(), qty: parseInt(seg.substring(ci + 1)) || 1 };
+      return { varName: seg, qty: 1 };
+    }).filter(v => v.varName);
+    milestones.push({ count, repeat, isGacha: false, varList, displayName, rewardText: displayName || actualRewardPart, stock, bad: varList.length === 0, reason: varList.length === 0 ? '看不懂的獎勵內容,請確認有寫「變數:數量」' : null });
+  }
+  return milestones;
+}
+
+// 🌟 里程碑規則的即時驗證預覽:抽獎式里程碑會巢狀重用盲盒規則的機率/庫存/保底檢查
+function renderMilestonePreview(textareaId, previewId) {
+  const ta = document.getElementById(textareaId);
+  const box = document.getElementById(previewId);
+  if (!ta || !box) return;
+  const text = ta.value;
+  if (!text.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const milestones = parseMilestoneRulesPreview(text);
+  if (milestones.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  let hasBad = false;
+  const countSeen = {};
+  const lineHtml = milestones.map(m => {
+    if (m.bad) { hasBad = true; return `<div class="gp-line bad">❌ <code>${m.raw || ''}</code>　${m.reason || '格式錯誤,請對照範例檢查'}</div>`; }
+    const label = (m.repeat ? '每' : '第') + m.count + '次';
+    const dupKey = (m.repeat ? 'R' : 'O') + m.count;
+    const dup = countSeen[dupKey]; countSeen[dupKey] = true;
+    if (dup) hasBad = true;
+
+    if (m.isGacha) {
+      const pool = m.gachaPool;
+      const nameCount = {};
+      pool.forEach(p => { nameCount[p.dispName] = (nameCount[p.dispName]||0) + 1; });
+      let totalProb = 0, fallbackCount = 0, poolBad = false;
+      const poolLines = pool.map(p => {
+        const dupName = nameCount[p.dispName] > 1;
+        const bad = p.bad || dupName;
+        if (bad) poolBad = true;
+        if (p.prob !== null) totalProb += p.prob;
+        const isFallback = !p.bad && p.prob === null && p.stock === null;
+        if (isFallback) fallbackCount++;
+        const bits = [];
+        if (p.prob !== null) bits.push(`${p.prob}%`);
+        if (p.stock !== null) bits.push(`${p.stock}份`);
+        if (isFallback) bits.push('🛡️保底');
+        if (bad) bits.push('⚠️格式有問題或名稱重複');
+        return `<div style="padding-left:18px;color:${bad?'#ED4245':'#B9BBBE'}">- ${p.dispName}　${bits.join('　')}</div>`;
+      }).join('');
+      let poolSummary;
+      if (poolBad) { poolSummary = '⚠️ 獎池格式有問題'; hasBad = true; }
+      else if (totalProb > 100) { poolSummary = `⚠️ 機率加總 ${totalProb}% 超過100%`; hasBad = true; }
+      else if (fallbackCount === 0) poolSummary = `⚠️ 共 ${pool.length} 個獎項,沒有保底獎`;
+      else poolSummary = `✅ 共 ${pool.length} 個獎項,合計機率 ${totalProb}%`;
+      return `<div class="gp-line ${dup?'bad':''}">${dup?'❌':'🎰'} <b>${label}</b>${dup?'　⚠️ 這個累積數量已經設定過一次了':''}　抽獎式：${poolSummary}${poolLines}</div>`;
+    }
+
+    const bits = [];
+    if (m.displayName) bits.push(`顯示名稱:${m.displayName}`);
+    bits.push(`發放:${m.varList.map(v => `${v.varName}×${v.qty}`).join('、')}`);
+    if (m.stock !== null && m.stock !== undefined) bits.push(`限量:${m.stock}份`);
+    return `<div class="gp-line ${dup?'bad':''}">${dup?'❌':'✅'} <b>${label}</b>${dup?'　⚠️ 這個累積數量已經設定過一次了':''}　${bits.join('　')}</div>`;
+  }).join('');
+
+  const summaryHtml = hasBad
+    ? `<div class="gp-summary warn">⚠️ 共 ${milestones.length} 條規則,發現格式問題或重複設定,請對照範例檢查</div>`
+    : `<div class="gp-summary ok">✅ 共 ${milestones.length} 條里程碑規則,看起來沒問題</div>`;
+  box.className = 'gacha-preview ' + (hasBad ? 'warn' : 'ok');
+  box.style.display = '';
+  box.innerHTML = summaryHtml + lineHtml;
+}
+['ns-milestone','em-milestone'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => renderMilestonePreview(id, id + '-preview'));
 });
 
 // ── 本機自動暫存(草稿)系統:避免不小心關掉分頁或跳分類遺失輸入 ──
