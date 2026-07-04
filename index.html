@@ -426,50 +426,90 @@
       fetchScoresAndShop(currentUser.id, () => { refreshBtn.innerText = "🔄 重整庫存"; refreshBtn.disabled = false; });
     }
 
-    function selectCategory(cat) {
-      currentCategory = cat;
-      renderSidebar();
-      renderShop();   
-    }
-
     // 🌟 子分類功能:分類名稱裡如果有「＞」,例如「活動＞夏日活動2026」,前半段當父分類分組、後半段是子分類名稱。
     // ⚠️ 特地選「＞」而不是「/」當分隔符,因為很多分類名稱本來就會用「/」表示日期區間(例如「(7/8)道具」「7/1~7/30」),
     // 如果用「/」當分隔符會誤判成子分類、把舊分類的顯示弄壞。
     // 完全用命名慣例達成,沒有「＞」的分類完全不受影響、行為跟以前一模一樣(向下相容舊分類)。
-    // 回傳 [{type:'flat', cat} | {type:'parent', parentName, children:[{cat, label}]}],保持原本傳入的排序順序。
-    function buildCategoryGroups(categories) {
+    // 🌟 父分類本身也可以是一個「真的分類」:如果剛好有商品的分類就叫「活動」(沒有子分類符號),
+    // 而且同時又有「活動＞XXX」這種子分類存在,「活動」會變成可以直接點選查看商品的父分類標題。
+    // getOrderIndex(cat):排序索引產生器(數字越小排越前面);群組的排序位置是「這個群組裡所有分類中最小的索引」,
+    // 不是「第一個遇到的分類」,不然分類順序表排好的順序容易被打亂、整組莫名其妙被拖到很後面。
+    // 回傳 [{type:'flat', cat} | {type:'parent', parentName, selfCat, children:[{cat, label}]}]
+    function buildCategoryGroups(categories, getOrderIndex) {
+      getOrderIndex = getOrderIndex || (() => 999);
       const groups = [];
       const parentIndexMap = {};
+
+      const parentNames = new Set();
       categories.forEach(cat => {
-        const slashIdx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
-        if (slashIdx === -1) {
-          groups.push({ type: 'flat', cat });
+        const idx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
+        if (idx !== -1) parentNames.add(cat.substring(0, idx).trim());
+      });
+
+      categories.forEach(cat => {
+        const idx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
+        if (idx === -1) {
+          if (parentNames.has(cat)) {
+            if (parentIndexMap[cat] === undefined) {
+              parentIndexMap[cat] = groups.length;
+              groups.push({ type: 'parent', parentName: cat, selfCat: null, children: [] });
+            }
+            groups[parentIndexMap[cat]].selfCat = cat;
+          } else {
+            groups.push({ type: 'flat', cat });
+          }
         } else {
-          const parentName = cat.substring(0, slashIdx).trim();
-          const childLabel = cat.substring(slashIdx + 1).trim() || cat;
+          const parentName = cat.substring(0, idx).trim();
+          const childLabel = cat.substring(idx + 1).trim() || cat;
           if (parentIndexMap[parentName] === undefined) {
             parentIndexMap[parentName] = groups.length;
-            groups.push({ type: 'parent', parentName, children: [] });
+            groups.push({ type: 'parent', parentName, selfCat: null, children: [] });
           }
           groups[parentIndexMap[parentName]].children.push({ cat, label: childLabel });
         }
       });
+
+      groups.forEach(g => {
+        if (g.type === 'flat') {
+          g._sortKey = getOrderIndex(g.cat);
+        } else {
+          const keys = g.children.map(c => getOrderIndex(c.cat));
+          if (g.selfCat) keys.push(getOrderIndex(g.selfCat));
+          keys.push(999);
+          g._sortKey = Math.min(...keys);
+        }
+      });
+      groups.sort((a, b) => a._sortKey - b._sortKey);
+
       return groups;
     }
     let collapsedShopParents = new Set(); // 🌟 商店側邊欄:記住哪些父分類被收合了(重新整理會重置)
+    let allShopParentNames = new Set(); // 🌟 目前商店裡所有的父分類名稱,重繪側邊欄時會更新,給手風琴收合邏輯用
+
+    // 🌟 手風琴效果:切換到某個分類時,自動收起其他展開的父分類,只留下這個分類所屬(或本身就是)的父分類
+    function applyShopAccordion(cat) {
+      let owningParent = null;
+      if (cat) {
+        const idx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
+        if (idx !== -1) owningParent = cat.substring(0, idx).trim();
+        else if (allShopParentNames.has(cat)) owningParent = cat;
+      }
+      collapsedShopParents = new Set(Array.from(allShopParentNames).filter(p => p !== owningParent));
+    }
+
+    function selectCategory(cat) {
+      currentCategory = cat;
+      applyShopAccordion(cat);
+      renderSidebar();
+      renderShop();
+    }
 
     function renderSidebar() {
-      let categories = Array.from(new Set(currentShopItems.map(item => item.category)));
-      categories.sort((a, b) => {
-        let idxA = CATEGORY_ORDER.indexOf(a);
-        let idxB = CATEGORY_ORDER.indexOf(b);
-        if (idxA === -1) idxA = 999;
-        if (idxB === -1) idxB = 999;
-        return idxA - idxB;
-      });
+      const categories = Array.from(new Set(currentShopItems.map(item => item.category)));
+      const getOrderIndex = (cat) => { const i = CATEGORY_ORDER.indexOf(cat); return i === -1 ? 999 : i; };
       const sidebar = document.getElementById('category-sidebar');
 
-      function renderCatItemHtml(cat, displayLabel, indent) {
+      function renderCatItemHtml(cat, displayLabel, indent, iconOverride) {
         const sample = currentShopItems.find(i => i.category === cat);
         const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(cat);
 
@@ -479,8 +519,9 @@
         if (isHideFromSidebar && currentCategory !== cat) return '';
 
         const count = currentShopItems.filter(i => i.category === cat).length;
+        const icon = iconOverride || (locked ? '🔒' : '🏷️');
         return `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" style="${indent ? 'padding-left:32px' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
-                   <span>${locked ? '🔒' : '🏷️'} ${displayLabel}</span>
+                   <span>${icon} ${displayLabel}</span>
                    <div style="display:flex; align-items:center; gap:10px;">
                      <span style="font-size:12px; opacity:0.7;">${count}</span>
                      <span class="btn-share-cat" onclick="shareCategory(event, '${cat.replace(/'/g,"\\'")}')" title="分享此分類">🔗</span>
@@ -488,19 +529,37 @@
                  </div>`;
       }
 
-      // 🌟 子分類:依「父/子」命名慣例分組,父分類是可展開/收合的群組標題,子分類縮排顯示在底下
-      const groups = buildCategoryGroups(categories);
+      // 🌟 子分類:依「父＞子」命名慣例分組,父分類是可展開/收合的群組標題,子分類縮排顯示在底下;
+      // 排序位置用群組裡最小的排序索引決定,不會因為分組而被拖到分類順序表排定的位置以外
+      const groups = buildCategoryGroups(categories, getOrderIndex);
+      allShopParentNames = new Set(groups.filter(g => g.type === 'parent').map(g => g.parentName));
+
       let html = "";
       groups.forEach(g => {
         if (g.type === 'flat') {
           html += renderCatItemHtml(g.cat, g.cat, false);
         } else {
           const isCollapsed = collapsedShopParents.has(g.parentName);
-          const hasActiveChild = g.children.some(c => c.cat === currentCategory);
-          html += `<div class="cat-item cat-parent-item" onclick="toggleCategoryParent('${g.parentName.replace(/'/g,"\\'")}')">
-                     <span>${isCollapsed ? '▸' : '▾'} 📂 ${g.parentName}</span>
-                     <span style="font-size:12px; opacity:0.6;">${g.children.length}</span>
-                   </div>`;
+          const hasActiveChild = g.children.some(c => c.cat === currentCategory) || g.selfCat === currentCategory;
+          const toggleArrow = `<span onclick="event.stopPropagation(); toggleCategoryParent('${g.parentName.replace(/'/g,"\\'")}')" style="cursor:pointer;padding:0 4px">${isCollapsed ? '▸' : '▾'}</span>`;
+          if (g.selfCat) {
+            // 🌟 父分類本身也是真的分類,可以直接點選查看商品;箭頭另外做成獨立的收合開關,不影響點選本身
+            const sample = currentShopItems.find(i => i.category === g.selfCat);
+            const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(g.selfCat);
+            const count = currentShopItems.filter(i => i.category === g.selfCat).length;
+            html += `<div class="cat-item cat-parent-item ${currentCategory === g.selfCat ? 'active' : ''}" onclick="selectCategory('${g.selfCat.replace(/'/g,"\\'")}')">
+                       <span>${toggleArrow}${locked ? '🔒' : '📂'} ${g.parentName}</span>
+                       <div style="display:flex; align-items:center; gap:10px;">
+                         <span style="font-size:12px; opacity:0.7;">${count}</span>
+                         <span class="btn-share-cat" onclick="shareCategory(event, '${g.selfCat.replace(/'/g,"\\'")}')" title="分享此分類">🔗</span>
+                       </div>
+                     </div>`;
+          } else {
+            html += `<div class="cat-item cat-parent-item" onclick="toggleCategoryParent('${g.parentName.replace(/'/g,"\\'")}')">
+                       <span>${isCollapsed ? '▸' : '▾'} 📂 ${g.parentName}</span>
+                       <span style="font-size:12px; opacity:0.6;">${g.children.length}</span>
+                     </div>`;
+          }
           if (!isCollapsed || hasActiveChild) {
             g.children.forEach(c => { html += renderCatItemHtml(c.cat, c.label, true); });
           }
@@ -508,7 +567,8 @@
       });
       sidebar.innerHTML = html;
     }
-    // 🌟 點擊父分類標題展開/收合底下的子分類(不會重新抓資料,純粹是畫面上的顯示切換)
+    // 🌟 點擊父分類標題(或旁邊的箭頭)手動展開/收合底下的子分類,只影響這一個父分類,不會連動收掉其他的
+    // (自動把「其他」父分類收起來的手風琴效果是在 selectCategory 切換分類時觸發,這裡只是單純開關)
     function toggleCategoryParent(parentName) {
       if (collapsedShopParents.has(parentName)) collapsedShopParents.delete(parentName);
       else collapsedShopParents.add(parentName);
@@ -702,6 +762,7 @@
     let auctionAltInfo = {}; // 🌟 auctionId -> {rate, balance, altName, mainCurrency},給拍賣替代貨幣折抵預覽用
     let AUCTION_CATEGORY_ORDER = []; // 🌟 拍賣分類排序(從分類排序表B欄讀取)
     let collapsedAuctionParents = new Set(); // 🌟 拍賣分類頁籤:記住哪些父分類被收合了(重新整理會重置)
+    let allAuctionParentNames = new Set(); // 🌟 目前拍賣裡所有的父分類名稱,重繪頁籤時會更新,給手風琴收合邏輯用
     function toggleAuctionCategoryParent(parentName) {
       if (collapsedAuctionParents.has(parentName)) collapsedAuctionParents.delete(parentName);
       else collapsedAuctionParents.add(parentName);
@@ -778,15 +839,7 @@
       if (scoreBoxEl && auctionCurrencyBox) auctionCurrencyBox.innerHTML = scoreBoxEl.innerHTML;
 
       // 🌟 建立分類標籤列(只有超過1個分類時才顯示),依分類排序表B欄的順序排列
-      const rawCategories = [...new Set(currentAuctions.map(a => a.category || '未分類'))];
-      rawCategories.sort((a, b) => {
-        let ia = AUCTION_CATEGORY_ORDER.indexOf(a);
-        let ib = AUCTION_CATEGORY_ORDER.indexOf(b);
-        if (ia === -1) ia = 999;
-        if (ib === -1) ib = 999;
-        return ia - ib;
-      });
-      const allCategories = rawCategories;
+      const allCategories = [...new Set(currentAuctions.map(a => a.category || '未分類'))];
 
       // 🌟 分類分享 / 拍賣分享:分享特定拍賣時要優先切到該拍賣的分類,
       // 不然如果目前分類跟拍賣所在分類不同,會被篩選濾掉、導致捲動定位永遠找不到卡片
@@ -804,23 +857,36 @@
         localStorage.removeItem('shared_auction_category_target');
         // 🌟 沒有分類分享目標時,不再有「全部」分類,預設選排序後的第一個分類
         if (!currentAuctionCategory || !allCategories.includes(currentAuctionCategory)) {
-          currentAuctionCategory = allCategories[0] || null;
+          const sortedForDefault = allCategories.slice().sort((a, b) => {
+            let ia = AUCTION_CATEGORY_ORDER.indexOf(a), ib = AUCTION_CATEGORY_ORDER.indexOf(b);
+            if (ia === -1) ia = 999; if (ib === -1) ib = 999;
+            return ia - ib;
+          });
+          currentAuctionCategory = sortedForDefault[0] || null;
         }
       }
 
       const tabsEl = document.getElementById('auction-category-tabs');
       if (allCategories.length > 1) {
         tabsEl.style.display = 'flex';
-        // 🌟 子分類:跟商店側邊欄用同一套「父/子」命名慣例分組邏輯,父分類做成可展開/收合的群組標籤
-        const auctionGroups = buildCategoryGroups(allCategories);
+        // 🌟 子分類:跟商店側邊欄用同一套「父＞子」命名慣例分組邏輯,父分類做成可展開/收合的群組標籤,
+        // 排序位置用群組裡最小的排序索引決定(不是第一個遇到的分類),父分類本身也可以是能直接點選的真分類
+        const getAuctionOrderIndex = (cat) => { const i = AUCTION_CATEGORY_ORDER.indexOf(cat); return i === -1 ? 999 : i; };
+        const auctionGroups = buildCategoryGroups(allCategories, getAuctionOrderIndex);
+        allAuctionParentNames = new Set(auctionGroups.filter(g => g.type === 'parent').map(g => g.parentName));
         let tabsHtml = '';
         auctionGroups.forEach(g => {
           if (g.type === 'flat') {
             tabsHtml += `<div class="auction-cat-tab ${currentAuctionCategory === g.cat ? 'active' : ''}" onclick="selectAuctionCategory('${g.cat.replace(/'/g, "\\'")}')">${g.cat} <span class="btn-share-cat" onclick="shareAuctionCategory(event, '${g.cat.replace(/'/g, "\\'")}')" title="分享此分類">🔗</span></div>`;
           } else {
             const isCollapsed = collapsedAuctionParents.has(g.parentName);
-            const hasActiveChild = g.children.some(c => c.cat === currentAuctionCategory);
-            tabsHtml += `<div class="auction-cat-tab auction-cat-parent-tab" onclick="toggleAuctionCategoryParent('${g.parentName.replace(/'/g, "\\'")}')">${isCollapsed ? '▸' : '▾'} 📂 ${g.parentName}</div>`;
+            const hasActiveChild = g.children.some(c => c.cat === currentAuctionCategory) || g.selfCat === currentAuctionCategory;
+            const toggleArrow = `<span onclick="event.stopPropagation(); toggleAuctionCategoryParent('${g.parentName.replace(/'/g, "\\'")}')" style="cursor:pointer">${isCollapsed ? '▸' : '▾'}</span>`;
+            if (g.selfCat) {
+              tabsHtml += `<div class="auction-cat-tab auction-cat-parent-tab ${currentAuctionCategory === g.selfCat ? 'active' : ''}" onclick="selectAuctionCategory('${g.selfCat.replace(/'/g, "\\'")}')">${toggleArrow} 📂 ${g.parentName} <span class="btn-share-cat" onclick="shareAuctionCategory(event, '${g.selfCat.replace(/'/g, "\\'")}')" title="分享此分類">🔗</span></div>`;
+            } else {
+              tabsHtml += `<div class="auction-cat-tab auction-cat-parent-tab" onclick="toggleAuctionCategoryParent('${g.parentName.replace(/'/g, "\\'")}')">${isCollapsed ? '▸' : '▾'} 📂 ${g.parentName}</div>`;
+            }
             if (!isCollapsed || hasActiveChild) {
               g.children.forEach(c => {
                 tabsHtml += `<div class="auction-cat-tab ${currentAuctionCategory === c.cat ? 'active' : ''}" onclick="selectAuctionCategory('${c.cat.replace(/'/g, "\\'")}')">↳ ${c.label} <span class="btn-share-cat" onclick="shareAuctionCategory(event, '${c.cat.replace(/'/g, "\\'")}')" title="分享此分類">🔗</span></div>`;
@@ -1223,6 +1289,12 @@ function fetchScoresAndShop(discordId, callback = null) {
             }
           }
 
+          allShopParentNames = new Set();
+          allCats.forEach(cat => {
+            const idx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
+            if (idx !== -1) allShopParentNames.add(cat.substring(0, idx).trim());
+          });
+          applyShopAccordion(currentCategory);
           renderSidebar(); 
           renderShop();    
           document.getElementById('loading').style.display = 'none';
@@ -1794,6 +1866,13 @@ function fetchScoresAndShop(discordId, callback = null) {
     // 🌟 複製商品專屬網址
     function selectAuctionCategory(cat) {
       currentAuctionCategory = cat;
+      let owningParent = null;
+      if (cat) {
+        const idx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
+        if (idx !== -1) owningParent = cat.substring(0, idx).trim();
+        else if (allAuctionParentNames.has(cat)) owningParent = cat;
+      }
+      collapsedAuctionParents = new Set(Array.from(allAuctionParentNames).filter(p => p !== owningParent));
       renderAuctions();
     }
 
