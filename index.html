@@ -777,6 +777,7 @@
     let AUCTION_CATEGORY_ORDER = []; // 🌟 拍賣分類排序(從分類排序表B欄讀取)
     let collapsedAuctionParents = new Set(); // 🌟 拍賣分類頁籤:記住哪些父分類被收合了(重新整理會重置)
     let allAuctionParentNames = new Set(); // 🌟 目前拍賣裡所有的父分類名稱,重繪頁籤時會更新,給手風琴收合邏輯用
+    let lastAuctionAccordionCategory; // 🌟 記錄上次套用手風琴收合時是哪個分類,同一個分類不重複套用(不然手動展開的又會被收回去)
     function toggleAuctionCategoryParent(parentName) {
       if (collapsedAuctionParents.has(parentName)) collapsedAuctionParents.delete(parentName);
       else collapsedAuctionParents.add(parentName);
@@ -884,6 +885,8 @@
         const getAuctionOrderIndex = (cat) => getCategoryOrderIndex(cat, AUCTION_CATEGORY_ORDER);
         const auctionGroups = buildCategoryGroups(allCategories, getAuctionOrderIndex);
         allAuctionParentNames = new Set(auctionGroups.filter(g => g.type === 'parent').map(g => g.parentName));
+        // 🌟 只有分類真的換了(或第一次載入)才套用手風琴自動收合,單純手動點父分類展開/收合觸發的重繪不會被這裡蓋掉
+        if (currentAuctionCategory !== lastAuctionAccordionCategory) applyAuctionAccordion(currentAuctionCategory);
         let tabsHtml = '';
         auctionGroups.forEach(g => {
           if (g.type === 'flat') {
@@ -1867,9 +1870,9 @@ function fetchScoresAndShop(discordId, callback = null) {
       return str;
     }
     
-    // 🌟 複製商品專屬網址
-    function selectAuctionCategory(cat) {
-      currentAuctionCategory = cat;
+    // 🌟 手風琴效果:切換到某個拍賣分類時,自動收起其他展開的父分類,只留下這個分類所屬(或本身就是)的父分類
+    function applyAuctionAccordion(cat) {
+      lastAuctionAccordionCategory = cat;
       let owningParent = null;
       if (cat) {
         const idx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
@@ -1877,6 +1880,11 @@ function fetchScoresAndShop(discordId, callback = null) {
         else if (allAuctionParentNames.has(cat)) owningParent = cat;
       }
       collapsedAuctionParents = new Set(Array.from(allAuctionParentNames).filter(p => p !== owningParent));
+    }
+    // 🌟 複製商品專屬網址
+    function selectAuctionCategory(cat) {
+      currentAuctionCategory = cat;
+      applyAuctionAccordion(cat);
       renderAuctions();
     }
 
