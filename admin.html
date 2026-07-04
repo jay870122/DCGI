@@ -358,7 +358,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             </div>
             <input type="hidden" id="ns-extracost">
             <input type="hidden" id="ns-extracostamount">
-            <div class="field"><label>分類</label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
+            <div class="field"><label>分類 <span class="hint">可用「父分類/子分類」建立子分類,例：活動/夏日活動2026</span></label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
             <div class="field"><label>庫存 <span class="hint">留空=無限</span></label><input id="ns-stock" placeholder="無限"></div>
             <div class="field"><label>狀態</label><select id="ns-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
             <div class="fsep">時間（可選）</div>
@@ -499,7 +499,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>起標價<span style="color:var(--red)">*</span></label><input id="na-bid" type="number" min="0" placeholder="0"></div>
             <div class="field"><label>貨幣欄位</label><input id="na-currency" value="幻彩水晶" list="dc-list"></div>
             <div class="field"><label>拍賣類型</label><select id="na-type"><option value="PUBLIC">📢 公開比價（高者得）</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
-            <div class="field"><label>分類</label><input id="na-cat" list="ac-list"><datalist id="ac-list"></datalist></div>
+            <div class="field"><label>分類 <span class="hint">可用「父分類/子分類」建立子分類</span></label><input id="na-cat" list="ac-list"><datalist id="ac-list"></datalist></div>
             <div class="field"><label>狀態</label><select id="na-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
             <div class="fsep">時間設定</div>
             <div class="field"><label>起標時間 <span class="hint">留空=立即</span></label><input id="na-sdate" type="datetime-local"></div>
@@ -1087,12 +1087,13 @@ function renderRolePickerOptions(prefix, filterQuery) {
   if (!optionsEl || !idsEl) return;
   const selected = (idsEl.value || '').split(',').map(s => s.trim()).filter(Boolean);
   const q = (filterQuery || '').trim().toLowerCase();
-  const filtered = ALL_ROLES_LIST.filter(r => !q || r.name.toLowerCase().includes(q) || r.id.includes(q));
+  const filtered = ALL_ROLES_LIST.filter(r => !q || (r.name || '').toLowerCase().includes(q) || r.id.includes(q));
   if (filtered.length === 0) { optionsEl.innerHTML = '<div class="role-picker-empty">找不到符合的身分組</div>'; return; }
+  // 🌟 這裡刻意全部用 inline style 而不是外部 CSS class,避免其他地方的樣式疊上來把文字蓋掉/擠不見
   optionsEl.innerHTML = filtered.map(r => `
-    <label class="role-picker-option">
-      <input type="checkbox" ${selected.includes(r.id) ? 'checked' : ''} onchange="toggleRoleSelection('${prefix}','${r.id}')">
-      <span>${r.name}</span>
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;width:100%;box-sizing:border-box;min-height:28px">
+      <input type="checkbox" ${selected.includes(r.id) ? 'checked' : ''} onchange="toggleRoleSelection('${prefix}','${r.id}')" style="width:16px;height:16px;flex-shrink:0;cursor:pointer;margin:0">
+      <span style="flex:1;min-width:0;color:#EAEAEA;font-size:13px;text-align:left;white-space:normal;word-break:break-word;line-height:1.4">${r.name || ('身分組 ' + r.id)}</span>
     </label>`).join('');
 }
 function filterRolePicker(prefix, query) { renderRolePickerOptions(prefix, query); }
