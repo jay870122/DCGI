@@ -432,14 +432,16 @@
       renderShop();   
     }
 
-    // 🌟 子分類功能:分類名稱裡如果有「/」,例如「活動/夏日活動2026」,前半段當父分類分組、後半段是子分類名稱。
-    // 完全用命名慣例達成,沒有「/」的分類完全不受影響、行為跟以前一模一樣(向下相容舊分類)。
+    // 🌟 子分類功能:分類名稱裡如果有「＞」,例如「活動＞夏日活動2026」,前半段當父分類分組、後半段是子分類名稱。
+    // ⚠️ 特地選「＞」而不是「/」當分隔符,因為很多分類名稱本來就會用「/」表示日期區間(例如「(7/8)道具」「7/1~7/30」),
+    // 如果用「/」當分隔符會誤判成子分類、把舊分類的顯示弄壞。
+    // 完全用命名慣例達成,沒有「＞」的分類完全不受影響、行為跟以前一模一樣(向下相容舊分類)。
     // 回傳 [{type:'flat', cat} | {type:'parent', parentName, children:[{cat, label}]}],保持原本傳入的排序順序。
     function buildCategoryGroups(categories) {
       const groups = [];
       const parentIndexMap = {};
       categories.forEach(cat => {
-        const slashIdx = cat.indexOf('/');
+        const slashIdx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
         if (slashIdx === -1) {
           groups.push({ type: 'flat', cat });
         } else {
