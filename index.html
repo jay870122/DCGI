@@ -1580,6 +1580,7 @@ function fetchScoresAndShop(discordId, callback = null) {
               📦 庫存：${item.limits.baseStock}
               ${limitsHtml}
               ${gachaHtml}
+              ${item.nextMilestone ? `<div style="color:#FEE75C;font-size:12px;margin-top:6px">🏆 ${item.nextMilestone.repeat ? '(重複)' : ''}累積兌換過 ${item.personalTotalPurchased} 次,再兌換 ${item.nextMilestone.count - item.personalTotalPurchased} 次(達第 ${item.nextMilestone.count} 次)可額外獲得：${item.nextMilestone.rewardText}${(item.nextMilestone.stock !== null && item.nextMilestone.stock !== undefined) ? `(僅剩 ${item.nextMilestone.stock} 份)` : ''}</div>` : ''}
             </div>
             ${actionHtml}
           </div>
@@ -1759,6 +1760,13 @@ function fetchScoresAndShop(discordId, callback = null) {
           }
           if (data.keys && data.keys.length > 0) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
+          }
+          if (data.milestoneRewards && data.milestoneRewards.length > 0) {
+            successMsg += "\n\n🏆 累積兌換里程碑獎勵：";
+            data.milestoneRewards.forEach(m => { successMsg += `\n第 ${m.count} 次${m.repeat ? '(重複)' : ''}：獲得 ${m.rewardText}`; });
+          }
+          if (data.milestoneErrors && data.milestoneErrors.length > 0) {
+            successMsg += "\n\n⚠️ 部分里程碑獎勵發放異常,請聯絡管理員補發：\n" + data.milestoneErrors.join("\n");
           }
           alert(successMsg);
           fetchScoresAndShop(currentUser.id); 
