@@ -441,6 +441,22 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               例如匯率填 <code>1</code>,代表 1 個替代幣可以折抵 1 個原始貨幣。<br>
               📐 如果匯率<b>小於1</b>(例如 100個碎片才能折抵1個水晶,匯率填 <code>0.01</code>),系統會自動避免湊不滿整數單位的零頭被白白扣掉——例如玩家只有 150 個碎片,只會扣需要用到的 100 個(折抵1個水晶),剩下 50 個完全不會動用。
             </div>
+            <div class="fsep">累積兌換次數里程碑獎勵（選填）</div>
+            <div class="field full">
+              <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
+              <textarea id="ns-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
+            </div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              🎁 <b>累積兌換次數里程碑獎勵</b>:玩家買這個商品買到「累積第 N 個」的時候,自動額外贈送一次獎勵(不影響原本的價格/盲盒抽獎,是額外多送的)。<br>
+              ⚠️ 跟上面「盲盒規則」的欄位順序不一樣,不要照抄那種逗號分隔的寫法,里程碑是自己的一套格式,見下面說明。<br>
+              一行一個里程碑,有<b>兩種寫法</b>:<br>
+              　・<code>數量 =&gt; 獎勵</code>:一次性,只有累積剛好到那個數字時發一次。例如 <code>10 => 水晶:100</code> 代表累積買滿10個時,額外送100個水晶,之後不會再發。<br>
+              　・<code>每數量 =&gt; 獎勵</code>:重複性,累積每滿這個數字的倍數就再發一次,不限次數。例如 <code>每5 => 水晶:20</code> 代表第5、10、15、20...次都會再送一次20個水晶。<br>
+              兩種可以同時設定、混著用。「獎勵」的部分只需要 <code>變數:數量</code>,可以用 <code>+</code> 串連同時發多種、支援 <code>[序號]</code> 發放序號庫的序號、支援 <code>[非即時]</code> 標記需要人工發送。例如 <code>20 => 水晶:200+活動幣:5</code> 代表累積買滿20個時,額外送200水晶+5活動幣。<br>
+              💬 <b>想要有一個好看的名稱</b>(而不是直接顯示變數內容給玩家看)?在獎勵前面加「顯示名稱 加一條直線 | 」,例如 <code>10 => 水晶寶箱 | 水晶:100</code>,玩家會看到「獲得：水晶寶箱」,而不是「獲得：水晶:100」。<br>
+              📦 <b>想要限量</b>(跟盲盒一樣,發完就沒有了)?在最後面加「, N份」,例如 <code>每5 => 水晶寶箱 | 水晶:20, 50份</code> 代表這個「每5」的獎勵總共只有50份,發完之後就算玩家累積數量到了,也不會再送(其他還沒限量的里程碑不受影響)。庫存會自動扣減、寫回這個欄位。<br>
+              「累積」是看這個玩家對這個商品的<b>終身總購買數量</b>(不分每日/每週/每月),一次買很多件一口氣跨過好幾個里程碑(或重複里程碑的好幾個倍數)的話,會一次全部發放。
+            </div>
             <div class="fsep">商品密碼鎖定（選填）</div>
             <div class="field"><label>固定密碼 <span class="hint">留空=不用固定密碼</span></label><input id="ns-lockpw" placeholder="所有人共用同一組密碼"></div>
             <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用一次性序號</span></label><input id="ns-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
@@ -855,6 +871,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <input type="hidden" id="em-altcurrency">
       <input type="hidden" id="em-altrate">
+      <div class="fsep">累積兌換次數里程碑獎勵（選填）</div>
+      <div class="full field">
+        <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
+        <textarea id="em-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
+      </div>
       <div class="fsep">商品密碼鎖定（選填）</div>
       <div class="field"><label>固定密碼 <span class="hint">留空=不用</span></label><input id="em-lockpw" placeholder="所有人共用同一組密碼"></div>
       <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用</span></label><input id="em-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
@@ -1564,6 +1585,7 @@ function openEditShop(itemId) {
   f('em-excl').value=i.exclusiveGroup||'';
   setAltCurrencyRows('em', i.altCurrency||'', i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'');
   setExtraCostRows('em', i.extraCost||'', i.extraCostAmount||'');
+  f('em-milestone').value = i.milestoneRules || '';
   f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
   f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
   f('em-lockvis').value=(i.lockVisibility==='BLUR'||i.lockVisibility==='HIDDEN')?i.lockVisibility:'';
@@ -1600,7 +1622,7 @@ async function saveShopItem() {
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
     remark:f('em-remark'),requiredRole:buildRoleRequirement('em-role'),exclusiveGroup:f('em-excl'),
     altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
-    extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),
+    extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),milestoneRules:f('em-milestone'),
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint'),
     lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod')});
@@ -1622,7 +1644,7 @@ async function publishShopItem(itemId) {
     rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
     remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
-    extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,
+    extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,milestoneRules:i.milestoneRules,
     lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility,lockHintText:i.lockHintText,
     lockPasswordMode:i.lockPasswordMode,lockPasswordSeed:i.lockPasswordSeed,lockPasswordSchedule:i.lockPasswordSchedule,
     lockGuessLimitEnabled:i.lockGuessLimitEnabled,lockGuessLimitCount:i.lockGuessLimitCount,lockGuessLimitPeriod:i.lockGuessLimitPeriod});
@@ -1853,7 +1875,7 @@ function resetAddShop() {
   ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
-   'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule'].forEach(id => document.getElementById(id).value='');
+   'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule'].forEach(id => document.getElementById(id).value='');
   setAltCurrencyRows('ns', '', '');
   setExtraCostRows('ns', '', '');
   document.getElementById('ns-currency').value='幻彩水晶';
@@ -1906,7 +1928,7 @@ async function submitAddShop(forceStatus) {
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
     remark:f('ns-remark'),requiredRole:buildRoleRequirement('ns-role'),exclusiveGroup:f('ns-excl'),
     altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
-    extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),
+    extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),milestoneRules:f('ns-milestone'),
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint'),
     lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod')});
