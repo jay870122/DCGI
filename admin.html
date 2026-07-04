@@ -17,10 +17,11 @@
 .role-picker-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:80;background:var(--s);border:1px solid var(--bd);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:8px;display:flex;flex-direction:column;gap:6px}
 .role-picker-search{background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:13px;color:var(--t);width:100%}
 .role-picker-search:focus{outline:none;border-color:var(--gold)}
-.role-picker-options{overflow-y:auto;max-height:220px;display:flex;flex-direction:column;gap:1px}
-.role-picker-option{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--t)}
+.role-picker-options{overflow-y:auto;overflow-x:hidden;max-height:220px;display:flex;flex-direction:column;gap:1px;width:100%}
+.role-picker-option{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--t);width:100%;box-sizing:border-box}
 .role-picker-option:hover{background:rgba(255,255,255,0.06)}
 .role-picker-option input{width:16px;height:16px;flex-shrink:0;cursor:pointer}
+.role-picker-option span{flex:1;min-width:0;white-space:normal;word-break:break-word}
 .role-picker-empty{color:var(--mu);font-size:12px;padding:8px;text-align:center}
 body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
 /* topbar */
@@ -1026,7 +1027,7 @@ async function loadMeta() {
   if (document.getElementById('ns-altcurrency-list').children.length === 0) addAltCurrencyRow('ns');
 
   const dc = document.getElementById('dc-list');
-  d.playerHeaders.forEach(h => { if (h && !h.toString().startsWith('DC')) { const o=document.createElement('option'); o.value=h; dc.appendChild(o); }});
+  d.playerHeaders.forEach(h => { if (h && !h.toString().startsWith('DC')) { const o=document.createElement('option'); o.value = (h.toString() === '升階2') ? '幻彩水晶' : h; dc.appendChild(o); }});
 
   const sc = document.getElementById('sc-list');
   d.shopCategories.forEach(c => { const o=document.createElement('option'); o.value=c; sc.appendChild(o); });
