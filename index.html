@@ -477,6 +477,8 @@
           if (g.selfCat) keys.push(getOrderIndex(g.selfCat));
           keys.push(999);
           g._sortKey = Math.min(...keys);
+          // 🌟 同一個父分類底下的子分類,也依照分類順序表個別設定的順序排(Array.sort 是穩定排序,沒設定順序的子分類會維持原本相對順序,不會被打亂)
+          g.children.sort((a, b) => getOrderIndex(a.cat) - getOrderIndex(b.cat));
         }
       });
       groups.sort((a, b) => a._sortKey - b._sortKey);
