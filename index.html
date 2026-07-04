@@ -1495,6 +1495,31 @@ function fetchScoresAndShop(discordId, callback = null) {
             gachaHtml += `</div>`;
         }
 
+        let milestonePoolHtml = "";
+        if (item.nextMilestone && item.nextMilestone.isGacha && item.nextMilestone.gachaPool && item.nextMilestone.gachaPool.length > 0) {
+          milestonePoolHtml = `<div style="margin-top: 6px; font-size: 12px; background-color: #2C2510; padding: 8px 10px; border-radius: 6px; border: 1px solid #4F4620;">
+              <div style="color: #FEE75C; font-weight: bold; margin-bottom: 4px; border-bottom: 1px dashed #4F4620; padding-bottom: 3px;">🎁 里程碑獎池內容：</div>`;
+          item.nextMilestone.gachaPool.forEach(g => {
+            let detail = [];
+            if (g.prob !== null) detail.push(`${g.prob}%`);
+            if (g.stock !== null) {
+              let stockText = g.stock <= 0 ? `<span style="color:#ED4245; font-weight:bold;">(已抽完)</span>` : `${g.stock} 份`;
+              detail.push(stockText);
+            }
+            if (detail.length === 0) detail.push("保底");
+            let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
+            let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
+            let displayQty = "";
+            if (g.varList && g.varList.length > 1) displayQty = "（" + g.varList.map(v => `${v.varName}×${v.qty}`).join("、") + "）";
+            else if (g.dispName === g.varName && g.qty !== 1) displayQty = ` x ${g.qty}`;
+            milestonePoolHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 3px;">
+                <span>- ${g.dispName}${displayQty}</span>
+                <span style="color: #99AAB5;">${detail.join(" / ")}</span>
+              </div>`;
+          });
+          milestonePoolHtml += `</div>`;
+        }
+
         let timeHtml = "";
         if (item.startDate || item.endDate) {
           timeHtml += `<div class="item-time-info">`;
@@ -1581,6 +1606,7 @@ function fetchScoresAndShop(discordId, callback = null) {
               ${limitsHtml}
               ${gachaHtml}
               ${item.nextMilestone ? `<div style="color:#FEE75C;font-size:12px;margin-top:6px">🏆 ${item.nextMilestone.repeat ? '(重複)' : ''}累積兌換過 ${item.personalTotalPurchased} 次,再兌換 ${item.nextMilestone.count - item.personalTotalPurchased} 次(達第 ${item.nextMilestone.count} 次)可額外獲得：${item.nextMilestone.rewardText}${(item.nextMilestone.stock !== null && item.nextMilestone.stock !== undefined) ? `(僅剩 ${item.nextMilestone.stock} 份)` : ''}</div>` : ''}
+              ${milestonePoolHtml}
             </div>
             ${actionHtml}
           </div>
