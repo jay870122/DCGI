@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="fsep">基本資訊</div>
             <div class="field full"><label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][測試]標籤</span></label><input id="ns-name" type="text" placeholder="例：7日優越童話通行證"></div>
             <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
-            <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="升階2" list="dc-list"><datalist id="dc-list"></datalist></div>
+            <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="幻彩水晶" list="dc-list"><datalist id="dc-list"></datalist></div>
             <div class="field full">
               <label>額外必付費用 <span class="hint">留空=不用;可新增多種,例如「水晶2+水晶碎片30」,每次購買都會一起收(不是選填折抵)</span></label>
               <div id="ns-extracost-list"></div>
@@ -496,7 +496,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="fsep">基本資訊</div>
             <div class="field full"><label>拍賣名稱<span style="color:var(--red)">*</span></label><input id="na-name" type="text" placeholder="例：星之支配者頭冠(煉金)"></div>
             <div class="field"><label>起標價<span style="color:var(--red)">*</span></label><input id="na-bid" type="number" min="0" placeholder="0"></div>
-            <div class="field"><label>貨幣欄位</label><input id="na-currency" value="升階2" list="dc-list"></div>
+            <div class="field"><label>貨幣欄位</label><input id="na-currency" value="幻彩水晶" list="dc-list"></div>
             <div class="field"><label>拍賣類型</label><select id="na-type"><option value="PUBLIC">📢 公開比價（高者得）</option><option value="SEALED">🕵️ 暗標（高者得）</option><option value="SEALED_LOW" title="出價互相保密；若最低價有2人以上出價相同金額（互撞），這些人全部淘汰，改由下一個不重複的最低價得標；若一路撞到底則流標退款">🔻 暗標（低者得，同價互撞則淘汰改由次低價得標）</option></select></div>
             <div class="field"><label>分類</label><input id="na-cat" list="ac-list"><datalist id="ac-list"></datalist></div>
             <div class="field"><label>狀態</label><select id="na-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
@@ -1541,7 +1541,7 @@ function openEditShop(itemId) {
   if (!i) return;
   const f = id => document.getElementById(id);
   f('em-id').value=i.itemId; f('em-name').value=i.name; f('em-price').value=i.price;
-  f('em-currency').value=i.currency||'升階2'; f('em-category').value=i.category||'';
+  f('em-currency').value=i.currency||'幻彩水晶'; f('em-category').value=i.category||'';
   f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
   f('em-status').value=i.status==='DRAFT'?'DRAFT':'';
   f('em-sortorder').value=i.sortOrder!==null&&i.sortOrder!==undefined?i.sortOrder:'';
@@ -1773,7 +1773,7 @@ function openEditAuction(auctionId) {
   const f = id => document.getElementById(id);
   f('ea-id').value=i.auctionId; f('ea-name').value=i.name; f('ea-bid').value=i.startBid;
   f('ea-type').value=i.type||'PUBLIC'; f('ea-cat').value=i.category||'';
-  f('ea-currency').value=i.currency||'升階2'; f('ea-sdate').value=i.startDate||'';
+  f('ea-currency').value=i.currency||'幻彩水晶'; f('ea-sdate').value=i.startDate||'';
   f('ea-edate').value=i.endDate||''; f('ea-ext1').value=i.extendTrigger||'';
   f('ea-ext2').value=i.extendBy||''; f('ea-img').value=i.imageUrl||'';
   f('ea-remark').value=i.remark||'';
@@ -1847,7 +1847,7 @@ function resetAddShop() {
    'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule'].forEach(id => document.getElementById(id).value='');
   setAltCurrencyRows('ns', '', '');
   setExtraCostRows('ns', '', '');
-  document.getElementById('ns-currency').value='升階2';
+  document.getElementById('ns-currency').value='幻彩水晶';
   document.getElementById('ns-status').value='';
   document.getElementById('ns-lockpersist').value='';
   document.getElementById('ns-lockvis').value='';
@@ -1910,7 +1910,7 @@ async function submitAddShop(forceStatus) {
 function resetAddAuction() {
   ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat',
    'na-altcurrency','na-altrate'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('na-currency').value='升階2';
+  document.getElementById('na-currency').value='幻彩水晶';
   document.getElementById('na-type').value='PUBLIC';
   document.getElementById('na-status').value='';
   document.getElementById('na-role-mode').value='ANY';
