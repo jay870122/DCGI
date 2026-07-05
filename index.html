@@ -274,6 +274,21 @@
     </div>
   </div>
 
+  <!-- 🌟 抽獎名單彈窗 -->
+  <div id="raffle-participants-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeRaffleParticipants()">×</span>
+        <h2 style="margin:0;" id="raffle-participants-title">🎫 投票名單</h2>
+      </div>
+      <div class="modal-body">
+        <div id="raffle-participants-container">
+          <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 🌟 圖片放大模態視窗 -->
   <div id="image-overlay" class="image-overlay" onclick="closeImage()">
     <span class="image-close">×</span>
@@ -784,6 +799,49 @@
       if (collapsedAuctionParents.has(parentName)) collapsedAuctionParents.delete(parentName);
       else collapsedAuctionParents.add(parentName);
       renderAuctions();
+    }
+
+    // ============================================================
+    // 🎫 抽獎名單:點「查看名單」時彈窗顯示這個抽獎商品目前所有人投了幾張、機率多少
+    // ============================================================
+    function showRaffleParticipants(itemId, itemName) {
+      document.getElementById('raffle-participants-title').textContent = '🎫 投票名單：' + itemName;
+      document.getElementById('raffle-participants-modal').style.display = 'flex';
+      document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
+
+      fetch(`${GAS_API_URL}?action=getRaffleParticipants&itemId=${itemId}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById('raffle-participants-container');
+        if (data.status !== 'success') { container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message||'') + '</p>'; return; }
+        if (!data.list || data.list.length === 0) { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前還沒有人投票</p>'; return; }
+        container.innerHTML = `
+          <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <thead><tr style="border-bottom:1px solid #4F545C; color:#B9BBBE;">
+              <th style="text-align:left; padding:6px 4px;">名次</th>
+              <th style="text-align:left; padding:6px 4px;">玩家</th>
+              <th style="text-align:right; padding:6px 4px;">票數(加權)</th>
+              <th style="text-align:right; padding:6px 4px;">機率</th>
+            </tr></thead>
+            <tbody>
+              ${data.list.map((p, idx) => `
+                <tr style="border-bottom:1px solid #40444B;">
+                  <td style="padding:6px 4px;">#${idx + 1}</td>
+                  <td style="padding:6px 4px;">${p.name}</td>
+                  <td style="padding:6px 4px; text-align:right;">${p.raw}(${p.weighted})</td>
+                  <td style="padding:6px 4px; text-align:right;"><b>${p.odds}%</b></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`;
+      })
+      .catch(err => {
+        console.error('讀取抽獎名單失敗:', err);
+        document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+      });
+    }
+
+    function closeRaffleParticipants() {
+      document.getElementById('raffle-participants-modal').style.display = 'none';
     }
 
     function showAuctions() {
@@ -1636,7 +1694,8 @@ function fetchScoresAndShop(discordId, callback = null) {
                 `💰 ${item.isRaffle ? '投1花費' : '價格'}：<span class="item-price">${item.price} ${item.displayCurrency}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => `${e.amount} ${e.displayName}`).join(' + ') : ''}</span><br>`}
               ${item.isRaffle ? `
                 🎰 <b>抽獎模式</b>：投1次算 ${item.raffleMultiplier > 1 ? ('x' + item.raffleMultiplier + ' 張(依身分組加權)') : '1 張'}<br>
-                🎫 目前全場總票數(加權後)：${item.raffleTotalWeightedTickets}<br>
+                🎫 目前全場總票數(加權後)：${item.raffleTotalWeightedTickets}
+                ${item.raffleTotalWeightedTickets > 0 ? ` <span class="btn-share" onclick="showRaffleParticipants('${item.id}', '${item.name.replace(/'/g,"\\'")}')" title="查看投票名單">📋 查看名單</span>` : ''}<br>
                 🙋 我已投入：${item.raffleMyRawTickets} 張(加權後 ${item.raffleMyWeightedTickets} 張)<br>
                 📊 我目前中獎機率：<b>${item.raffleOdds}%</b><br>
                 ${item.raffleWinners ? `🏆 得獎名單：${item.raffleWinners.map(w => w.prize).join('、')}<br>` : ''}
