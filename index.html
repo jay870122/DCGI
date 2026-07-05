@@ -348,6 +348,7 @@
     let itemAltInfo = {}; // 🌟 safeId -> {price, rate, balance, altName, mainCurrency},給替代貨幣折抵預覽用
     let categoryUnlockedThisSession = new Set(); // 🌟 密碼鎖定:這次瀏覽期間(重新整理網頁會重置)已經解鎖過的分類,不用每次切換分類都重問一次
     let currentCategory = null;
+    let currentRaffles = []; // 🌟 抽獎活動清單,依「分類」欄位跟商品混在同一個分類清單裡顯示
     let CATEGORY_ORDER = []; 
     
     let countdownInterval = null;
@@ -521,7 +522,10 @@
     }
 
     function renderSidebar() {
-      const categories = Array.from(new Set(currentShopItems.map(item => item.category)));
+      const categories = Array.from(new Set([
+        ...currentShopItems.map(item => item.category),
+        ...currentRaffles.map(r => r.category).filter(c => c),
+      ]));
       const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const sidebar = document.getElementById('category-sidebar');
 
@@ -534,7 +538,9 @@
         const isHideFromSidebar = locked && (!sample.categoryLockVisibility || sample.categoryLockVisibility === '') && sample.categoryLockShowHint === 'HIDE';
         if (isHideFromSidebar && currentCategory !== cat) return '';
 
-        const count = currentShopItems.filter(i => i.category === cat).length;
+        // 🌟 分類裡的數量顯示 = 商品數 + 這個分類底下進行中的抽獎活動數
+        const count = currentShopItems.filter(i => i.category === cat).length
+          + currentRaffles.filter(r => r.category === cat).length;
         const icon = iconOverride || (locked ? '🔒' : '🏷️');
         return `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" style="${indent ? 'padding-left:32px' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
                    <span>${icon} ${displayLabel}</span>
@@ -784,6 +790,72 @@
       if (collapsedAuctionParents.has(parentName)) collapsedAuctionParents.delete(parentName);
       else collapsedAuctionParents.add(parentName);
       renderAuctions();
+    }
+
+    // ============================================================
+    // 🎰 抽獎活動:卡片跟商品混在同一個分類網格裡顯示(見 renderShop 裡的 categoryRaffles)
+    // ============================================================
+    function renderRaffleCardHtml(r) {
+      const stateLabelMap = {
+        available: '<span class="item-badge badge-avail">🟢 進行中</span>',
+        not_started: '<span class="item-badge badge-unavail">⏳ 尚未開始</span>',
+        pending_draw: '<span class="item-badge badge-unavail">⌛ 等待開獎</span>',
+        drawn: '<span class="item-badge badge-unavail">🏆 已開獎</span>',
+        closed: '<span class="item-badge badge-unavail">🔒 已關閉</span>',
+      };
+      const imageHtml = r.image ? `<img src="${r.image}" class="item-image" alt="抽獎活動圖片" title="點擊放大觀看" onclick="openImage('${r.image}')">` : '';
+      const descHtml = r.desc ? `<div class="item-remark" style="margin-bottom:10px;">📝 ${r.desc}</div>` : '';
+      const endText = r.endDate ? new Date(r.endDate).toLocaleString('zh-TW') : '未設定';
+      const limitText = r.perPersonLimit ? `(每人限購 ${r.perPersonLimit} 張,已投 ${r.myRawTickets} 張)` : '';
+
+      let actionHtml = '';
+      if (r.state === 'available') {
+        actionHtml = `
+          <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+            <input type="number" min="1" value="1" id="raffle-qty-${r.id}" class="shop-input" style="width:70px;">
+            <button class="btn-action" style="padding:6px 14px; font-size:13px;" onclick="buyRaffleTicket('${r.id}')">🎟️ 投票</button>
+          </div>`;
+      } else if (r.state === 'drawn' && r.winners && r.winners.length) {
+        actionHtml = `<div class="item-remark" style="margin-top:8px;">🏆 得獎名單:${r.winners.map(w => w.prize).join('、')}</div>`;
+      }
+
+      return `
+        <div class="shop-item-card" id="card-raffle-${r.id}">
+          ${imageHtml}
+          <div class="item-header">
+            <div style="display: flex; align-items: center;">
+              <span class="item-name">🎰 ${r.name}</span>
+            </div>
+            ${stateLabelMap[r.state] || ''}
+          </div>
+          ${descHtml}
+          <div class="item-info">
+            💰 投1花費:${r.priceEach} ${r.currency}${limitText}<br>
+            🎫 目前全場總票數(加權後):${r.totalWeightedTickets}<br>
+            🙋 我已投入:${r.myRawTickets} 張(加權後 ${r.myWeightedTickets} 張${r.myMultiplier > 1 ? '，倍率 x' + r.myMultiplier : ''})<br>
+            📊 我目前中獎機率:<b>${r.odds}%</b><br>
+            ⏳ 開獎時間:${endText}
+          </div>
+          ${actionHtml}
+        </div>`;
+    }
+
+    function buyRaffleTicket(raffleId) {
+      const qtyInput = document.getElementById(`raffle-qty-${raffleId}`);
+      const qty = (qtyInput && parseInt(qtyInput.value) > 0) ? parseInt(qtyInput.value) : 1;
+
+      fetch(`${GAS_API_URL}?action=buyRaffleTicket&discordId=${currentUser.id}&raffleId=${raffleId}&qty=${qty}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        if (data.status === 'success') {
+          fetchScoresAndShop(currentUser.id); // 🌟 投票會扣款,直接整批重新整理(分數+商品+抽獎)最簡單也最不容易漏更新
+        }
+      })
+      .catch(err => {
+        console.error('抽獎投票錯誤:', err);
+        alert('投票失敗,請稍後再試');
+      });
     }
 
     function showAuctions() {
@@ -1214,9 +1286,13 @@
 function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
 
-      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
-      .then(result => {
+      Promise.all([
+        fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}`).then(res => res.json()),
+        // 🌟 抽獎活動資料獨立打 GAS 拿(不像商品走 Worker 快取),抓不到就當作沒有任何抽獎活動,不擋主要商店流程
+        fetch(`${GAS_API_URL}?action=getRaffles&discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}`).then(res => res.json()).catch(() => []),
+      ])
+      .then(([result, raffleData]) => {
+        currentRaffles = Array.isArray(raffleData) ? raffleData : [];
         if (result.status !== "success") {
           // 🌟 原本這裡只有 return,Worker 回傳失敗(例如試算表暫時讀取失敗、Google 認證過期、玩家資料格式異常等)
           // 時畫面會永遠停在「⏳ 載入分數與商店目錄...」不會有任何提示,也叫不出重整鈕。
@@ -1278,7 +1354,10 @@ function fetchScoresAndShop(discordId, callback = null) {
 
           // 🌟 檢查是否有待跳轉的分享分類 / 分享商品(分享特定商品時要優先切到該商品的分類,
           // 不然如果目前分類跟商品所在分類不同,商品會被篩選濾掉、導致捲動定位永遠找不到卡片)
-          const allCats = Array.from(new Set(currentShopItems.map(item => item.category)));
+          const allCats = Array.from(new Set([
+            ...currentShopItems.map(item => item.category),
+            ...currentRaffles.map(r => r.category).filter(c => c), // 🌟 抽獎活動有自己的分類欄位,沒填分類的抽獎不會出現在任何分類裡
+          ]));
           const targetCategory = localStorage.getItem('shared_category_target');
           const targetItemId = localStorage.getItem('shared_item_target');
           const targetItem = targetItemId ? currentShopItems.find(item => item.id === targetItemId) : null;
@@ -1384,13 +1463,16 @@ function fetchScoresAndShop(discordId, callback = null) {
       } else if (sortType === 'price-low') displayItems.sort((a, b) => a.price - b.price);
       else if (sortType === 'price-high') displayItems.sort((a, b) => b.price - a.price);
 
+      // 🌟 這個分類底下有沒有進行中/可顯示的抽獎活動,要跟商品卡片混在同一個網格裡顯示
+      const categoryRaffles = currentCategory ? currentRaffles.filter(r => r.category === currentCategory) : [];
+
       container.innerHTML = "";
-      if (displayItems.length === 0) {
+      if (displayItems.length === 0 && categoryRaffles.length === 0) {
         container.innerHTML = "<div style='color:#B9BBBE; padding: 20px;'>此分類目前無商品</div>";
         return;
       }
 
-      let allCardsHtml = '';
+      let allCardsHtml = categoryRaffles.map(renderRaffleCardHtml).join('');
       displayItems.forEach((item) => {
         const isAvail = item.state === "available";
         const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
