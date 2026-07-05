@@ -1008,6 +1008,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   </div>
 </div>
 
+<!-- 抽獎名單彈窗 -->
+<div class="overlay" id="raffle-participants-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header"><h3 id="raffle-participants-title">🎫 投票名單</h3><button class="modal-close" onclick="closeModal('raffle-participants-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="raffle-participants-container">讀取中...</div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1610,11 +1620,43 @@ function renderShopTable() {
       <td class="cell-actions" data-label="操作"><div class="btn-row">
         ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
+        ${i.isRaffle ? `<button class="btn btn-edit" onclick="showRaffleParticipants('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看名單</button>` : ''}
         ${i.isRaffle && !i.raffleResult ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
         <button class="btn btn-edit" onclick="duplicateShopItem('${i.itemId}')">📋 複製</button>
         <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
       </div></td>
     </tr>`).join('');
+}
+
+// 🌟 抽獎商品:查看目前投票名單(誰投了幾張、機率多少),管理員/玩家前台共用同一支 API
+async function showRaffleParticipants(itemId, name) {
+  document.getElementById('raffle-participants-title').textContent = '🎫 投票名單：' + name;
+  document.getElementById('raffle-participants-modal').classList.add('open');
+  const box = document.getElementById('raffle-participants-container');
+  box.innerHTML = '讀取中...';
+  const d = await api({action:'getRaffleParticipants', itemId});
+  if (d.status !== 'success') { box.innerHTML = `<span style="color:var(--red)">讀取失敗:${d.message}</span>`; return; }
+  if (!d.list || d.list.length === 0) { box.innerHTML = '目前還沒有人投票'; return; }
+  box.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead><tr style="border-bottom:1px solid var(--bd);color:var(--mu)">
+        <th style="text-align:left;padding:6px 4px">名次</th>
+        <th style="text-align:left;padding:6px 4px">玩家</th>
+        <th style="text-align:left;padding:6px 4px">DiscordID</th>
+        <th style="text-align:right;padding:6px 4px">票數(加權)</th>
+        <th style="text-align:right;padding:6px 4px">機率</th>
+      </tr></thead>
+      <tbody>
+        ${d.list.map((p, idx) => `
+          <tr style="border-bottom:1px solid var(--bd)">
+            <td style="padding:6px 4px">#${idx+1}</td>
+            <td style="padding:6px 4px">${p.name}</td>
+            <td class="cell-id" style="padding:6px 4px">${p.discordId}</td>
+            <td style="padding:6px 4px;text-align:right">${p.raw}(${p.weighted})</td>
+            <td style="padding:6px 4px;text-align:right"><b>${p.odds}%</b></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
 }
 
 // 🌟 抽獎商品:管理員手動立即開獎(不用等時間到,方便測試或臨時提前開獎)
