@@ -1125,7 +1125,10 @@ async function init() {
 
 async function api(params) {
   const tok = localStorage.getItem('admin_dc_access_token');
-  const p = new URLSearchParams({...params, accessToken: tok || ''});
+  // 🌟🔧 修正:之前這裡只送 accessToken,沒有一併送 discordId,導致後端 isAdmin_(undefined) 直接爆炸
+  // (undefined.toString() 噴出 TypeError)。ME 是登入時從 Discord /users/@me 拿到的使用者物件,
+  // 一定要把 ME.id 也加進去,後端才知道「這個 accessToken 對應的到底是誰」。
+  const p = new URLSearchParams({...params, discordId: (ME && ME.id) || '', accessToken: tok || ''});
   const r = await fetch(`${GAS}?${p}`);
   return r.json();
 }
