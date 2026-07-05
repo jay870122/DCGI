@@ -255,9 +255,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="sidebar">
       <div class="nav-item active" onclick="navTo('shop-list')">📦 商品管理</div>
       <div class="nav-item" onclick="navTo('auction-list')">🔨 拍賣管理</div>
+      <div class="nav-item" onclick="navTo('raffle-list')">🎰 抽獎管理</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('add-shop')">➕ 新增商品</div>
       <div class="nav-item" onclick="navTo('add-auction')">➕ 新增拍賣</div>
+      <div class="nav-item" onclick="navTo('add-raffle')">➕ 新增抽獎</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('sort-settings')">🔀 排序設定</div>
       <hr class="nav-sep">
@@ -339,6 +341,39 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <th>操作</th>
             </tr></thead>
             <tbody id="auction-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 抽獎活動管理 -->
+      <div id="page-raffle-list" style="display:none">
+        <div class="page-header">
+          <div class="page-title">🎰 抽獎管理 <span class="count-badge" id="raffle-count">—</span></div>
+          <div class="toolbar">
+            <input class="search" id="raffle-search" placeholder="搜尋活動名稱..." oninput="renderRaffleTable()">
+            <select class="filter-sel" id="raffle-status-filter" onchange="renderRaffleTable()">
+              <option value="">全部狀態</option>
+              <option value="ACTIVE">🟢 進行中</option>
+              <option value="DRAFT">📝 草稿</option>
+              <option value="DRAWN">🏆 已開獎</option>
+              <option value="CLOSED">🔒 已關閉</option>
+            </select>
+            <button class="fab" onclick="navTo('add-raffle')">➕ 新增抽獎</button>
+          </div>
+        </div>
+        <div class="tbl-wrap tbl-wrap-table">
+          <table>
+            <thead><tr>
+              <th>活動名稱</th>
+              <th>分類</th>
+              <th>投1花費</th>
+              <th>身分組加權</th>
+              <th>每人限購</th>
+              <th>結束時間(自動開獎)</th>
+              <th>狀態</th>
+              <th>ID</th>
+              <th>操作</th>
+            </tr></thead>
+            <tbody id="raffle-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -563,6 +598,53 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               📐 匯率小於1時(例如100個碎片才折抵1個),系統會自動避免湊不滿整數單位的零頭被白白扣掉,只會扣真正有折抵到的數量。
             </div>
             <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-cancel" id="na-draft-btn" onclick="submitAddAuction('DRAFT')">📝 存為草稿</button><button class="btn-save" id="na-btn" onclick="submitAddAuction(null)">➕ 新增到試算表</button></div>
+          </div>
+        </div>
+      </div>
+      <!-- 新增/編輯抽獎 -->
+      <div id="page-add-raffle" style="display:none">
+        <div class="page-header"><div class="page-title" id="raffle-form-title">➕ 新增抽獎活動</div></div>
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="add-form" id="add-raffle-form">
+            <input type="hidden" id="nr-edit-id">
+            <div class="fsep">基本資訊</div>
+            <div class="field full"><label>活動名稱<span style="color:var(--red)">*</span></label><input id="nr-name" type="text" placeholder="例：夏日祭典抽獎"></div>
+            <div class="field full"><label>說明</label><input id="nr-desc" placeholder="給玩家看的活動說明(選填)"></div>
+            <div class="field"><label>貨幣欄位</label><input id="nr-currency" value="幻彩水晶" list="dc-list"></div>
+            <div class="field"><label>投1所需花費<span style="color:var(--red)">*</span></label><input id="nr-price" type="number" min="0" placeholder="0"></div>
+            <div class="field"><label>分類 <span class="hint">填了就會跟商品混在同一個分類清單裡顯示;留空則不會顯示在玩家畫面的任何分類裡</span></label><input id="nr-category" list="sc-list"></div>
+            <div class="field"><label>每人限購張數 <span class="hint">留空=不限</span></label><input id="nr-limit" type="number" min="1"></div>
+            <div class="field"><label>狀態</label><select id="nr-status"><option value="">🟢 開放中</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
+            <div class="fsep">時間設定</div>
+            <div class="field"><label>開始時間 <span class="hint">留空=立即開放</span></label><input id="nr-sdate" type="datetime-local"></div>
+            <div class="field"><label>結束時間(=自動開獎時間)<span style="color:var(--red)">*</span></label><input id="nr-edate" type="datetime-local"></div>
+            <div class="fsep">身分組加權（選填）</div>
+            <div class="field full">
+              <label>身分組加權清單 <span class="hint">格式:身分組ID:倍數,用逗號分隔多組;沒列出的身分組一律算1倍;同時符合多組取最高倍率(不疊加)</span></label>
+              <input id="nr-weights" placeholder="例：111111111111111111:3,222222222222222222:2">
+              <div class="role-hint" id="nr-weights-hint"></div>
+            </div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              🎯 <b>身分組加權怎麼填？</b>把要加權的身分組「數字ID」跟「倍數」用冒號連起來,多組用逗號分隔。例如某個VIP身分組ID是 <code>111111111111111111</code>,想讓他們投1張算3張,就填 <code>111111111111111111:3</code>。下方會列出目前伺服器的身分組ID供你複製。
+            </div>
+            <div class="fsep">獎池設定</div>
+            <div class="field full">
+              <label>獎池規則<span style="color:var(--red)">*</span> <span class="hint">跟商店盲盒同格式,可多獎項、多得獎人</span></label>
+              <textarea id="nr-pool" placeholder="幻彩水晶大獎, 幻彩水晶:500, 20份&#10;普通獎, 幻彩水晶:50"></textarea>
+            </div>
+            <div class="gacha-preview" id="nr-pool-preview" style="display:none"></div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              📖 一行 = 一個獎項,格式跟商店的「盲盒規則」完全相同:名稱,機率(選填),份數(選填)。<br>
+              沒填機率的獎項會被當成「保底/固定份數獎」,份數就是這個獎項要抽出的得獎人數(例如 <code>20份</code> 代表這個獎項會抽出20位得獎者)。想只抽1位,獎池就一行、不填機率、不填份數即可。<br>
+              支援 <code>[序號]</code> 發序號庫、<code>[非即時]</code> 標記需人工發送、用 <code>+</code> 一次發多種變數,寫法都跟商店盲盒一致。
+            </div>
+            <div class="fsep">其他</div>
+            <div class="field full"><label>圖片網址</label><input id="nr-img" type="url"></div>
+            <div class="actions">
+              <button class="btn-cancel" onclick="resetAddRaffle()">清空</button>
+              <button class="btn-cancel" id="nr-draft-btn" onclick="submitAddRaffle('DRAFT')">📝 存為草稿</button>
+              <button class="btn-save" id="nr-btn" onclick="submitAddRaffle(null)">➕ 新增到試算表</button>
+            </div>
           </div>
         </div>
       </div>
@@ -986,7 +1068,7 @@ const GAS = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pP
 const CLIENT_ID = '1365601646448607335';
 const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
 const SUPER_ADMIN_ID = '176681551189377024'; // 🌟 跟 Code.gs 的 SUPER_ADMIN_ID 保持一致,只有這個ID可以新增/移除管理員
-let ME = null, ROLES = {}, shopItems = [], auctionItems = [];
+let ME = null, ROLES = {}, shopItems = [], auctionItems = [], raffleItems = [];
 let ALL_ROLES_LIST = []; // 🌟 限定身分組多選元件用:[{id,name}, ...]
 
 // ── Auth ──
@@ -1411,7 +1493,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','raffle-list','add-shop','add-auction','add-raffle','sort-settings','admin-users','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -1419,8 +1501,10 @@ function navTo(p) {
   if (auctionBidsAutoRefreshInterval) { clearInterval(auctionBidsAutoRefreshInterval); auctionBidsAutoRefreshInterval = null; }
   if (p==='shop-list') loadShopItems();
   if (p==='auction-list') loadAuctionItems();
+  if (p==='raffle-list') loadRaffleItems();
   if (p==='add-shop') addShopAutosave.checkAndOffer();
   if (p==='add-auction') addAuctionAutosave.checkAndOffer();
+  if (p==='add-raffle') renderRoleIdHint();
   if (p==='sort-settings') openSortSettings();
   if (p==='admin-users') loadAdminUsers();
   if (p==='history') loadHistory();
@@ -1879,6 +1963,139 @@ async function duplicateAuction(id) {
   else toast('❌ '+d.message, false);
 }
 
+// ── 抽獎活動管理 ──
+async function loadRaffleItems() {
+  document.getElementById('raffle-tbody').innerHTML = '<tr><td colspan="9" class="empty">讀取中...</td></tr>';
+  const d = await api({action:'adminGetRaffles'});
+  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
+  raffleItems = d.list;
+  document.getElementById('raffle-count').textContent = raffleItems.length + ' 場';
+  renderRaffleTable();
+}
+
+function renderRaffleTable() {
+  const q = document.getElementById('raffle-search').value.toLowerCase();
+  const statusFilter = document.getElementById('raffle-status-filter').value;
+  let items = raffleItems.filter(i => !q || (i.name||'').toLowerCase().includes(q));
+  if (statusFilter === 'ACTIVE') items = items.filter(i => (i.status||'').toString().trim() === '');
+  else if (statusFilter) items = items.filter(i => (i.status||'').toString().trim().toUpperCase() === statusFilter);
+
+  const statusLabel = { '': '<span class="status status-open">🟢 進行中</span>', DRAFT: '<span class="status status-draft">📝 草稿</span>', DRAWN: '<span class="status status-ended">🏆 已開獎</span>', CLOSED: '<span class="status status-closed">🔒 已關閉</span>' };
+  document.getElementById('raffle-tbody').innerHTML = items.length===0
+    ? '<tr><td colspan="9" class="empty">沒有符合條件的抽獎活動</td></tr>'
+    : items.map(i => {
+      const st = (i.status||'').toString().trim().toUpperCase();
+      const weightsSummary = (i.roleWeights||'').toString().trim()
+        ? (i.roleWeights.toString().split(',').map(pair => {
+            const [rid, mult] = pair.split(':');
+            const rname = ROLES[(rid||'').trim()] || (rid||'').trim();
+            return rname ? `${rname} x${(mult||'').trim()}` : '';
+          }).filter(Boolean).join('、') || '—')
+        : '不加權';
+      return `<tr>
+        <td class="cell-name" title="${i.name}" data-label="活動名稱">${i.name}</td>
+        <td data-label="分類">${i.category || '—'}</td>
+        <td data-label="投1花費">${i.priceEach} ${i.currency||''}</td>
+        <td data-label="身分組加權">${weightsSummary}</td>
+        <td data-label="每人限購">${i.perPersonLimit || '不限'}</td>
+        <td data-label="結束時間">${i.endDate ? new Date(i.endDate).toLocaleString('zh-TW') : '—'}</td>
+        <td data-label="狀態">${statusLabel[st] || st}</td>
+        <td class="cell-id" data-label="ID">${i.id||'—'}</td>
+        <td class="cell-actions" data-label="操作"><div class="btn-row">
+          <button class="btn btn-edit" onclick="openEditRaffle('${i.id}')">編輯</button>
+          ${st !== 'DRAWN' && st !== 'CLOSED' ? `<button class="btn btn-close" onclick="drawRaffleNow('${i.id}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
+          <button class="btn btn-del" onclick="delRaffle('${i.id}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+}
+
+function openEditRaffle(id) {
+  const i = raffleItems.find(x => x.id === id);
+  if (!i) return;
+  navTo('add-raffle');
+  const f = fid => document.getElementById(fid);
+  f('nr-edit-id').value = i.id;
+  f('nr-name').value = i.name || '';
+  f('nr-desc').value = i.desc || '';
+  f('nr-currency').value = i.currency || '幻彩水晶';
+  f('nr-price').value = i.priceEach || '';
+  f('nr-category').value = i.category || '';
+  f('nr-limit').value = i.perPersonLimit || '';
+  f('nr-status').value = i.status === 'DRAFT' ? 'DRAFT' : '';
+  f('nr-sdate').value = i.startDate || '';
+  f('nr-edate').value = i.endDate || '';
+  f('nr-weights').value = i.roleWeights || '';
+  f('nr-pool').value = i.gachaPool || '';
+  f('nr-img').value = i.image || '';
+  document.getElementById('raffle-form-title').textContent = '✏️ 編輯抽獎活動:' + i.name;
+  renderGachaPreview('nr-pool', 'nr-pool-preview');
+  renderRoleIdHint();
+}
+
+async function drawRaffleNow(id, name) {
+  if (!confirm(`確定要立即開獎「${name}」嗎？不會等到原本設定的結束時間,會馬上依目前已投入的票數開獎(此動作無法復原)。`)) return;
+  const d = await api({action:'adminDrawRaffleNow', id});
+  if (d.status==='success') { toast('🎲 已執行開獎!'); loadRaffleItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+async function delRaffle(id, name) {
+  if (!confirm(`確定要刪除抽獎活動「${name}」嗎？此動作無法復原(不會自動退還玩家已投入的票券花費)。`)) return;
+  const d = await api({action:'adminDeleteRaffle', id});
+  if (d.status==='success') { toast('🗑️ 抽獎活動已刪除'); loadRaffleItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+// 🌟 列出目前伺服器身分組ID供填寫加權清單時參考複製
+function renderRoleIdHint() {
+  const box = document.getElementById('nr-weights-hint');
+  if (!box) return;
+  const entries = Object.entries(ROLES || {});
+  box.innerHTML = entries.length === 0 ? '' : ('目前身分組對照表:' + entries.map(([id, name]) => `${name}(${id})`).join('、'));
+}
+
+// ── Add/Edit Raffle ──
+function resetAddRaffle() {
+  ['nr-edit-id','nr-name','nr-desc','nr-price','nr-limit','nr-sdate','nr-edate','nr-weights','nr-pool','nr-img','nr-category']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nr-currency').value = '幻彩水晶';
+  document.getElementById('nr-status').value = '';
+  document.getElementById('raffle-form-title').textContent = '➕ 新增抽獎活動';
+  renderGachaPreview('nr-pool', 'nr-pool-preview');
+}
+
+async function submitAddRaffle(forceStatus) {
+  const f = id => document.getElementById(id).value;
+  if (!f('nr-name')) { toast('請填寫活動名稱', false); return; }
+  if (f('nr-price') === '') { toast('請填寫投1所需花費', false); return; }
+  if (!f('nr-edate')) { toast('請填寫結束時間(=自動開獎時間)', false); return; }
+  if (!f('nr-pool').trim()) { toast('請至少設定一行獎池規則', false); return; }
+  const status = (forceStatus !== null && forceStatus !== undefined) ? forceStatus : f('nr-status');
+  const isDraft = status === 'DRAFT';
+  const editId = f('nr-edit-id');
+  const btn = document.getElementById(isDraft ? 'nr-draft-btn' : 'nr-btn');
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = isDraft ? '存草稿中...' : (editId ? '更新中...' : '新增中...');
+  const payload = {
+    action: editId ? 'adminUpdateRaffle' : 'adminAddRaffle',
+    id: editId || undefined,
+    name: f('nr-name'), desc: f('nr-desc'),
+    currency: f('nr-currency'), priceEach: f('nr-price'),
+    perPersonLimit: f('nr-limit'), status: isDraft ? 'DRAFT' : '',
+    startDate: f('nr-sdate'), endDate: f('nr-edate'),
+    roleWeights: f('nr-weights'), gachaPool: f('nr-pool'), image: f('nr-img'),
+    category: f('nr-category'),
+  };
+  const d = await api(payload);
+  btn.disabled = false; btn.textContent = originalText;
+  if (d.status === 'success') {
+    toast(editId ? '✅ 抽獎活動已更新!' : (isDraft ? `📝 草稿已儲存!ID: ${d.id}` : `✅ 抽獎活動已新增!ID: ${d.id}`));
+    resetAddRaffle();
+    navTo('raffle-list');
+  } else toast('❌ ' + d.message, false);
+}
+
 // ── Add Shop ──
 function resetAddShop() {
   ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
@@ -2085,7 +2302,7 @@ function renderGachaPreview(textareaId, previewId) {
   box.innerHTML = summaryHtml + lineHtml;
 }
 
-['ns-rqty','em-rqty'].forEach(id => {
+['ns-rqty','em-rqty','nr-pool'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', () => renderGachaPreview(id, id + '-preview'));
 });
