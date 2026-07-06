@@ -1882,6 +1882,9 @@ function fetchScoresAndShop(discordId, callback = null) {
           } else if (data.rewardVar && data.totalReward > 0) {
             successMsg += `\n\n🎉 恭喜您獲得了：【 ${data.totalReward} 點 ${data.rewardVar} 】！`;
           }
+          if (data.totalRewards && data.totalRewards.length > 0) {
+            successMsg += `\n📊 總共獲得：${data.totalRewards.join('、')}`;
+          }
           if (data.keys && data.keys.length > 0) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
           }
