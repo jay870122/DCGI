@@ -738,6 +738,15 @@
             if(record.beforeBal !== null && record.afterBal !== null) {
               balanceHtml = `<div style="margin-top: 6px; font-size: 12px; color: #99AAB5;">💰 餘額變化：${record.beforeBal} ➔ <span style="color: #FFF; font-weight: bold;">${record.afterBal}</span></div>`;
             }
+            // 🌟 如果同時折抵了替代貨幣或收取額外必付費用,也一起列出來(可能不只一種)
+            let extraCostHtml = "";
+            if (record.altCost) extraCostHtml += `<div style="margin-top: 4px; font-size: 12px; color: #99AAB5;">💱 替代貨幣折抵：${record.altCost}</div>`;
+            if (record.extraCost) extraCostHtml += `<div style="margin-top: 4px; font-size: 12px; color: #99AAB5;">➕ 額外費用：${record.extraCost}</div>`;
+            // 🌟 總共獲得(盲盒抽多次時,同一種變數已經加總成一個數字)
+            let totalRewardsHtml = "";
+            if (record.totalRewards) {
+              totalRewardsHtml = `<div style="margin-top: 6px; padding: 6px; background-color: #2F3136; border-radius: 4px; font-size: 13px; color: #58FF9C; border: 1px solid #40444B;">📊 總共獲得：${record.totalRewards}</div>`;
+            }
 
             let displayName = record.itemName.replace('[持有]', '').replace('[隱藏]', '').trim();
 
@@ -746,7 +755,9 @@
                 <div class="history-time">${record.time}</div>
                 <div class="history-name">${displayName} <span class="history-qty">x ${record.qty}</span></div>
                 ${balanceHtml}
+                ${extraCostHtml}
                 ${drawnHtml}
+                ${totalRewardsHtml}
                 ${keyHtml}
               </div>`);
           });
