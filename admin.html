@@ -666,7 +666,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           </div>
           <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
             <table>
-              <thead><tr><th>時間</th><th>玩家</th><th>商品名稱</th><th>數量</th><th>抽獎結果</th><th>序號</th><th>扣款前→後</th></tr></thead>
+              <thead><tr><th>時間</th><th>玩家</th><th>商品名稱</th><th>數量</th><th>抽獎結果</th><th>序號</th><th>扣款前→後</th><th>其他異動明細</th></tr></thead>
               <tbody id="hist-tbody"></tbody>
             </table>
           </div>
@@ -2639,7 +2639,12 @@ async function loadHistory() {
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
   const tbody = document.getElementById('hist-tbody');
-  tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="7" class="empty">沒有符合條件的紀錄</td></tr>' : d.rows.map(r => `
+  tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="8" class="empty">沒有符合條件的紀錄</td></tr>' : d.rows.map(r => {
+    const extraParts = [];
+    if (r.altCost) extraParts.push('💱 ' + r.altCost);
+    if (r.extraCost) extraParts.push('➕ ' + r.extraCost);
+    if (r.totalRewards) extraParts.push('📊 總共獲得 ' + r.totalRewards);
+    return `
     <tr>
       <td data-label="時間">${r.time ? new Date(r.time).toLocaleString('zh-TW') : '—'}</td>
       <td data-label="玩家">${r.playerName}<br><span class="cell-id" style="font-size:11px">${r.discordId}</span></td>
@@ -2648,7 +2653,9 @@ async function loadHistory() {
       <td data-label="抽獎結果">${r.drawnResult ? `🎁 ${r.drawnResult}` : '—'}</td>
       <td data-label="序號">${r.keys || '—'}</td>
       <td data-label="扣款前→後">${r.balanceBefore} → ${r.balanceAfter}</td>
-    </tr>`).join('');
+      <td data-label="其他異動明細" style="font-size:12px">${extraParts.length ? extraParts.join('<br>') : '—'}</td>
+    </tr>`;
+  }).join('');
 
   document.getElementById('hist-summary').textContent = d.capped
     ? `符合條件共 ${d.totalMatched} 筆以上,只顯示最新 300 筆`
