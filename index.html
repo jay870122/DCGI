@@ -1871,6 +1871,16 @@ function fetchScoresAndShop(discordId, callback = null) {
       .then(data => {
         if(data.status === "success") {
           let successMsg = "✅ 兌換處理完成！";
+          if (data.cost !== undefined && data.cost > 0) {
+            successMsg += `\n💰 花費：${data.cost} ${data.costCurrencyName || currencyName}`;
+          }
+          if (data.isRaffle) {
+            // 🌟 抽獎模式:買=投票,沒有開盲盒/里程碑那些東西,直接顯示後端組好的投票結果訊息就好
+            successMsg += `\n\n🎟️ ${data.message}`;
+            alert(successMsg);
+            fetchScoresAndShop(currentUser.id);
+            return;
+          }
           if (data.altUsed && data.altUsed.length > 0) {
             successMsg += `\n💱 已折抵 ${data.altUsed.map(u => `${u.amount} 個 ${u.displayName || u.name}`).join('、')}`;
           }
