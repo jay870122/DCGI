@@ -592,7 +592,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="gacha-preview" id="na-rafflepool-preview" style="display:none"></div>
             <div class="gacha-guide" style="grid-column:span 2">
               ⚠️ 這兩個功能只對「暗標(SEALED/SEALED_LOW)」類型的拍賣有效果,因為公開比價任何時刻都只會留一筆凍結出價,沒有完整名單可以排名次或抽獎,公開比價設了也不會有任何效果。<br>
-              🎁 安慰獎的資格是「有出價但沒得標的人」,每人機會均等(不管出多少錢),抽中的人會各自從獎池抽一個獎項自動發放,不會抽中兩次。
+              🏆 前X名得獎的排名規則,高標跟低標不一樣:<b>高標</b>單純依出價金額高到低排,金額相同就看誰先出價、先出價的排前面(不會因為金額一樣而淘汰);<b>低標</b>則是金額相同視為撞價,整組全部淘汰、不計入贏家。<br>
+              🎁 安慰獎的資格是「有出價但沒得標的人」(含低標撞價被淘汰的人),每人機會均等(不管出多少錢),抽中的人會各自從獎池抽一個獎項自動發放,不會抽中兩次。
             </div>
             <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-cancel" id="na-draft-btn" onclick="submitAddAuction('DRAFT')">📝 存為草稿</button><button class="btn-save" id="na-btn" onclick="submitAddAuction(null)">➕ 新增到試算表</button></div>
           </div>
