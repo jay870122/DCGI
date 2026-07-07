@@ -576,6 +576,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               💱 玩家出價時,可以用上面指定的替代貨幣(例如拍賣幣)折抵部分或全部出價金額,剩下的才凍結原本標價的貨幣。得標/被蓋過出價/流標退款時,兩種貨幣都會一起處理,不會漏退。<br>
               📐 匯率小於1時(例如100個碎片才折抵1個),系統會自動避免湊不滿整數單位的零頭被白白扣掉,只會扣真正有折抵到的數量。
             </div>
+            <div class="fsep">🎰 前X名得獎 / 安慰獎抽獎（選填,只對「暗標」類型有效果）</div>
+            <div class="field"><label>得獎人數 <span class="hint">留空/1=一般單一得標者;填2以上=前X名各自付自己出的價格都得標</span></label><input id="na-wincount" type="number" min="1" placeholder="1"></div>
+            <div class="field"><label>安慰獎抽獎名額 <span class="hint">留空/0=不開放;從沒得標的人裡抽,機會均等</span></label><input id="na-raffleslots" type="number" min="0" placeholder="0"></div>
+            <div class="field full">
+              <label>安慰獎獎池 <span class="hint">跟商店盲盒同格式,可多獎項,自動發放</span></label>
+              <textarea id="na-rafflepool" placeholder="幻彩水晶小獎, 幻彩水晶:50"></textarea>
+            </div>
+            <div class="gacha-preview" id="na-rafflepool-preview" style="display:none"></div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              ⚠️ 這兩個功能只對「暗標(SEALED/SEALED_LOW)」類型的拍賣有效果,因為公開比價任何時刻都只會留一筆凍結出價,沒有完整名單可以排名次或抽獎,公開比價設了也不會有任何效果。<br>
+              🎁 安慰獎的資格是「有出價但沒得標的人」,每人機會均等(不管出多少錢),抽中的人會各自從獎池抽一個獎項自動發放,不會抽中兩次。
+            </div>
             <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-cancel" id="na-draft-btn" onclick="submitAddAuction('DRAFT')">📝 存為草稿</button><button class="btn-save" id="na-btn" onclick="submitAddAuction(null)">➕ 新增到試算表</button></div>
           </div>
         </div>
@@ -1002,6 +1014,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="fsep">替代貨幣折抵（選填）</div>
       <div class="field"><label>替代貨幣欄位 <span class="hint">留空=不開放折抵</span></label><input id="ea-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
       <div class="field"><label>匯率 <span class="hint">1個替代幣可折抵多少原始貨幣</span></label><input id="ea-altrate" type="number" min="0" step="0.01" placeholder="例：1"></div>
+      <div class="fsep">🎰 前X名得獎 / 安慰獎抽獎（選填,只對「暗標」類型有效果）</div>
+      <div class="field"><label>得獎人數 <span class="hint">留空/1=一般模式;填2以上=前X名都得標</span></label><input id="ea-wincount" type="number" min="1" placeholder="1"></div>
+      <div class="field"><label>安慰獎抽獎名額 <span class="hint">留空/0=不開放</span></label><input id="ea-raffleslots" type="number" min="0" placeholder="0"></div>
+      <div class="field full">
+        <label>安慰獎獎池 <span class="hint">跟商店盲盒同格式</span></label>
+        <textarea id="ea-rafflepool" placeholder="幻彩水晶小獎, 幻彩水晶:50"></textarea>
+      </div>
+      <div class="gacha-preview" id="ea-rafflepool-preview" style="display:none"></div>
+      <div id="ea-raffle-drawn-hint" style="display:none;grid-column:span 2;color:#F0B232;font-size:13px;padding:8px 0">⚠️ 這場拍賣的安慰獎已經抽過了,再次儲存不會重新開獎。</div>
       <input type="hidden" id="ea-id">
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('auction-modal')">取消</button><button class="btn-save" id="ea-save" onclick="saveAuction()">💾 儲存變更</button></div>
@@ -1887,7 +1908,7 @@ function renderAuctionTable() {
   document.getElementById('auction-tbody').innerHTML = items.length===0
     ? '<tr><td colspan="9" class="empty">沒有符合條件的拍賣</td></tr>'
     : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}" data-label="拍賣名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}</td>
+      <td class="cell-name" title="${i.name}" data-label="拍賣名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${i.winnerCount > 1 ? ` <span class="type-badge type-low" title="前${i.winnerCount}名都得標">🏆 前${i.winnerCount}名</span>` : ''}${i.raffleSlots > 0 ? ` <span class="type-badge type-seal" title="安慰獎抽${i.raffleSlots}位">🎰 安慰獎x${i.raffleSlots}</span>` : ''}</td>
       <td data-label="類型">${typeLabel[i.type]||i.type}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="起標價">${i.startBid}</td>
@@ -1917,6 +1938,11 @@ function openEditAuction(auctionId) {
   f('ea-remark').value=i.remark||'';
   f('ea-altcurrency').value=i.altCurrency||''; f('ea-altrate').value=i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'';
   f('ea-status').value=i.status==='DRAFT'?'DRAFT':'';
+  f('ea-wincount').value = i.winnerCount && i.winnerCount > 1 ? i.winnerCount : '';
+  f('ea-raffleslots').value = i.raffleSlots || '';
+  f('ea-rafflepool').value = i.rafflePool || '';
+  document.getElementById('ea-raffle-drawn-hint').style.display = i.raffleResult ? '' : 'none';
+  renderGachaPreview('ea-rafflepool', 'ea-rafflepool-preview');
   applyRoleRequirement('ea-role', i.requiredRole||'');
   document.getElementById('ea-role').dispatchEvent(new Event('input'));
   document.getElementById('auction-modal').classList.add('open');
@@ -1933,7 +1959,8 @@ async function saveAuction() {
     startDate:f('ea-sdate'),endDate:f('ea-edate'),
     extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
     imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:buildRoleRequirement('ea-role'),
-    altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate'),status:f('ea-status')});
+    altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate'),status:f('ea-status'),
+    winnerCount:f('ea-wincount'),raffleSlots:f('ea-raffleslots'),rafflePool:f('ea-rafflepool')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
@@ -1948,7 +1975,8 @@ async function publishAuction(auctionId) {
     startDate:i.startDate,endDate:i.endDate,
     extendTrigger:i.extendTrigger,extendBy:i.extendBy,
     imageUrl:i.imageUrl,remark:i.remark,requiredRole:i.requiredRole,
-    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,status:''});
+    altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,status:'',
+    winnerCount:i.winnerCount,raffleSlots:i.raffleSlots,rafflePool:i.rafflePool});
   if (d.status==='success') { toast('🚀 已上架'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
 }
@@ -2051,7 +2079,7 @@ async function submitAddShop(forceStatus) {
 // ── Add Auction ──
 function resetAddAuction() {
   ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat',
-   'na-altcurrency','na-altrate'].forEach(id=>document.getElementById(id).value='');
+   'na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('na-currency').value='幻彩水晶';
   document.getElementById('na-type').value='PUBLIC';
   document.getElementById('na-status').value='';
@@ -2059,6 +2087,7 @@ function resetAddAuction() {
   document.getElementById('na-role-count').value='2';
   toggleRoleCount('na-role');
   updateRoleChips('na-role');
+  renderGachaPreview('na-rafflepool', 'na-rafflepool-preview');
   addAuctionAutosave.clear();
 }
 async function submitAddAuction(forceStatus) {
@@ -2077,7 +2106,8 @@ async function submitAddAuction(forceStatus) {
     startDate:f('na-sdate'),endDate:f('na-edate'),
     extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
     imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:buildRoleRequirement('na-role'),
-    altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate'),status:isDraft?'DRAFT':''});
+    altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate'),status:isDraft?'DRAFT':'',
+    winnerCount:f('na-wincount'),raffleSlots:f('na-raffleslots'),rafflePool:f('na-rafflepool')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.auctionId}` : `✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
   else toast('❌ '+d.message, false);
@@ -2186,7 +2216,7 @@ function renderGachaPreview(textareaId, previewId) {
   box.innerHTML = summaryHtml + lineHtml;
 }
 
-['ns-rqty','em-rqty'].forEach(id => {
+['ns-rqty','em-rqty','na-rafflepool','ea-rafflepool'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', () => renderGachaPreview(id, id + '-preview'));
 });
@@ -2340,8 +2370,8 @@ const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','
   'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
   'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights'];
-const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate'];
-const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate'];
+const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'];
+const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate','ea-wincount','ea-raffleslots','ea-rafflepool'];
 
 const addShopAutosave = setupFieldAutosave(NS_FIELDS, () => 'add-shop');
 const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'));
