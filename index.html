@@ -1013,13 +1013,16 @@
         } else {
           priceInfoHtml = `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價金額互相保密）`;
         }
+        if (a.winnerCount > 1) priceInfoHtml += `<br>🏆 前 ${a.winnerCount} 名出價者都會得標(各自付自己出的價格)`;
+        if (a.raffleSlots > 0) priceInfoHtml += `<br>🎰 沒得標的人還有機會抽中安慰獎(共 ${a.raffleSlots} 個名額)`;
         const myBidHtml = a.myActiveBid !== null ? `<br>您目前出價：<span class="auction-bid-value">${a.myActiveBid} ${a.displayCurrency}</span>${a.myActiveBidAlt > 0 ? `（已折抵 ${a.myActiveBidAlt} ${a.altCurrencyDisplay || a.altCurrency || ''}）` : ''}` : '';
 
         let statusHtml = '';
         if (a.state === 'ended') {
-          if (a.winnerIsMe) statusHtml = `<div class="auction-status win">🎉 恭喜！您以 ${a.winningBid} ${a.displayCurrency} 得標！</div>`;
-          else if (a.winningBid !== null) statusHtml = `<div class="auction-status lose">已結標，未得標</div>`;
-          else statusHtml = `<div class="auction-status lose">流標（無人出價，或暗標(低者得)出價互撞找不到唯一得標者）</div>`;
+          if (a.winnerIsMe) statusHtml = `<div class="auction-status win">🎉 恭喜！您以 ${a.myActiveBid !== null ? a.myActiveBid : a.winningBid} ${a.displayCurrency} 得標！</div>`;
+          else if (a.myRafflePrize) statusHtml = `<div class="auction-status win">🎰 雖然沒得標，但抽中安慰獎「${a.myRafflePrize}」！</div>`;
+          else if (a.winningBid !== null) statusHtml = `<div class="auction-status lose">已結標，未得標${a.raffleSlots > 0 ? '，也沒抽中安慰獎' : ''}</div>`;
+          else statusHtml = `<div class="auction-status lose">流標（無人出價，或暗標出價互撞找不到唯一得標者）</div>`;
         } else if (a.state === 'pending_settlement') {
           statusHtml = `<div class="auction-status">⏳ 拍賣已截止，等待系統結算中...</div>`;
         } else if (a.state === 'not_started') {
