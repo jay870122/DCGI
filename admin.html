@@ -580,6 +580,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>得獎人數 <span class="hint">留空/1=一般單一得標者;填2以上=前X名各自付自己出的價格都得標</span></label><input id="na-wincount" type="number" min="1" placeholder="1"></div>
             <div class="field"><label>安慰獎抽獎名額 <span class="hint">留空/0=不開放;從沒得標的人裡抽,機會均等</span></label><input id="na-raffleslots" type="number" min="0" placeholder="0"></div>
             <div class="field full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="na-rafflenorefund" style="width:auto">
+                安慰獎中獎不退費(勾選後,中安慰獎的人原本出價不退還,當作已經付了安慰獎的費用;沒勾=中安慰獎的人出價一樣全額退還)
+              </label>
+            </div>
+            <div class="field full">
               <label>安慰獎獎池 <span class="hint">跟商店盲盒同格式,可多獎項,自動發放</span></label>
               <textarea id="na-rafflepool" placeholder="幻彩水晶小獎, 幻彩水晶:50"></textarea>
             </div>
@@ -1017,6 +1023,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="fsep">🎰 前X名得獎 / 安慰獎抽獎（選填,只對「暗標」類型有效果）</div>
       <div class="field"><label>得獎人數 <span class="hint">留空/1=一般模式;填2以上=前X名都得標</span></label><input id="ea-wincount" type="number" min="1" placeholder="1"></div>
       <div class="field"><label>安慰獎抽獎名額 <span class="hint">留空/0=不開放</span></label><input id="ea-raffleslots" type="number" min="0" placeholder="0"></div>
+      <div class="field full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="ea-rafflenorefund" style="width:auto">
+          安慰獎中獎不退費(勾選後,中安慰獎的人原本出價不退還)
+        </label>
+      </div>
       <div class="field full">
         <label>安慰獎獎池 <span class="hint">跟商店盲盒同格式</span></label>
         <textarea id="ea-rafflepool" placeholder="幻彩水晶小獎, 幻彩水晶:50"></textarea>
@@ -1941,6 +1953,7 @@ function openEditAuction(auctionId) {
   f('ea-wincount').value = i.winnerCount && i.winnerCount > 1 ? i.winnerCount : '';
   f('ea-raffleslots').value = i.raffleSlots || '';
   f('ea-rafflepool').value = i.rafflePool || '';
+  document.getElementById('ea-rafflenorefund').checked = !!i.raffleNoRefund;
   document.getElementById('ea-raffle-drawn-hint').style.display = i.raffleResult ? '' : 'none';
   renderGachaPreview('ea-rafflepool', 'ea-rafflepool-preview');
   applyRoleRequirement('ea-role', i.requiredRole||'');
@@ -1960,7 +1973,8 @@ async function saveAuction() {
     extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
     imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:buildRoleRequirement('ea-role'),
     altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate'),status:f('ea-status'),
-    winnerCount:f('ea-wincount'),raffleSlots:f('ea-raffleslots'),rafflePool:f('ea-rafflepool')});
+    winnerCount:f('ea-wincount'),raffleSlots:f('ea-raffleslots'),rafflePool:f('ea-rafflepool'),
+    raffleNoRefund:document.getElementById('ea-rafflenorefund').checked});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
@@ -1976,7 +1990,7 @@ async function publishAuction(auctionId) {
     extendTrigger:i.extendTrigger,extendBy:i.extendBy,
     imageUrl:i.imageUrl,remark:i.remark,requiredRole:i.requiredRole,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,status:'',
-    winnerCount:i.winnerCount,raffleSlots:i.raffleSlots,rafflePool:i.rafflePool});
+    winnerCount:i.winnerCount,raffleSlots:i.raffleSlots,rafflePool:i.rafflePool,raffleNoRefund:i.raffleNoRefund});
   if (d.status==='success') { toast('🚀 已上架'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
 }
@@ -2080,6 +2094,7 @@ async function submitAddShop(forceStatus) {
 function resetAddAuction() {
   ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat',
    'na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('na-rafflenorefund').checked = false;
   document.getElementById('na-currency').value='幻彩水晶';
   document.getElementById('na-type').value='PUBLIC';
   document.getElementById('na-status').value='';
@@ -2107,7 +2122,8 @@ async function submitAddAuction(forceStatus) {
     extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
     imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:buildRoleRequirement('na-role'),
     altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate'),status:isDraft?'DRAFT':'',
-    winnerCount:f('na-wincount'),raffleSlots:f('na-raffleslots'),rafflePool:f('na-rafflepool')});
+    winnerCount:f('na-wincount'),raffleSlots:f('na-raffleslots'),rafflePool:f('na-rafflepool'),
+    raffleNoRefund:document.getElementById('na-rafflenorefund').checked});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.auctionId}` : `✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
   else toast('❌ '+d.message, false);
@@ -2834,7 +2850,7 @@ async function loadAuctionBids() {
   const d = await api({ action: 'adminGetAuctionBids', auctionId });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
-  const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>' };
+  const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>', CONSOLATION: '<span class="status status-open" style="background:rgba(88,101,242,0.2);color:#8891F5">🎰 中安慰獎(不退費)</span>' };
   tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="5" class="empty">這場拍賣目前還沒有人出價</td></tr>' : d.rows.map(r => `
     <tr>
       <td data-label="時間">${r.time ? new Date(r.time).toLocaleString('zh-TW') : '—'}</td>
