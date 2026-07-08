@@ -1683,7 +1683,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             <select id="gopt-${safeId}" class="qty-input" style="width:100%;margin-bottom:4px" onchange="updateGamblingPreview('${safeId}')">
               <option value="">請選擇下注選項...</option>
               ${item.gamblingOptions.map(o => {
-                const oddsLabel = item.gamblingOddsMode === 'FIXED' ? ` (x${o.odds})` : (o.impliedOdds !== null ? ` (目前約x${o.impliedOdds}${item.gamblingPoolLockMode === 'BETTIME' ? '，還沒算入這筆下注' : '，僅供參考'})` : ' (尚無人下注)');
+                const oddsLabel = item.gamblingOddsMode === 'FIXED' ? ` (x${o.odds})` : (o.impliedOdds !== null ? ` (目前x${o.impliedOdds}${item.gamblingPoolLockMode === 'BETTIME' ? '，此時下注就是這個倍率，不受金額影響' : '，僅供參考'})` : ' (尚無人下注)');
                 return `<option value="${o.name}">${o.name}${oddsLabel} — ${o.poolPercent}%</option>`;
               }).join('')}
             </select>
@@ -1726,10 +1726,10 @@ function fetchScoresAndShop(discordId, callback = null) {
                 ${item.raffleWinners ? `🏆 得獎名單：${item.raffleWinners.map(w => w.prize).join('、')}<br>` : ''}
               ` : item.isGambling ? `
                 🎲 <b>賭博模式</b>：${item.gamblingOddsMode === 'POOL' ? `集資池分配(${item.gamblingPoolLockMode === 'BETTIME' ? '以下注當下賠率為主，下注就鎖定' : '依最終結算總額計算'})` : '固定賠率'}<br>
-                ${item.isGambling && item.gamblingOddsMode === 'POOL' && item.gamblingPoolLockMode === 'BETTIME' ? `<span style="color:#B9BBBE;font-size:12px">ℹ️ 下面每個選項寫的賠率是「目前」的參考值(還沒把你準備下的這筆算進去);選好選項、填好數量後,下方會另外顯示「送出後真正會鎖定」的賠率，以那個為準</span><br>` : ''}
+                ${item.isGambling && item.gamblingOddsMode === 'POOL' && item.gamblingPoolLockMode === 'BETTIME' ? `<span style="color:#B9BBBE;font-size:12px">ℹ️ 下面每個選項的賠率就是「此時此刻下注」會鎖定的倍率，跟你填的金額/數量無關(下注100跟下注1000倍率一樣，差別只在拿到的錢等比例變多)；只有在你送出的瞬間剛好有別人插隊下注，賠率才會變動</span><br>` : ''}
                 ${item.gamblingOptions.map(o => {
                   const myBetLine = o.myBet > 0 ? `　我已下注 ${o.myBet}` : '';
-                  const oddsLine = item.gamblingOddsMode === 'FIXED' ? `x${o.odds}` : (o.impliedOdds !== null ? `目前約x${o.impliedOdds}（下注 ${o.pool}，不含你這筆）` : `目前 ${o.pool}`);
+                  const oddsLine = item.gamblingOddsMode === 'FIXED' ? `x${o.odds}` : (o.impliedOdds !== null ? `x${o.impliedOdds}（目前下注 ${o.pool}）` : `目前 ${o.pool}`);
                   const winnerMark = o.isWinner === true ? ' 🏆獲勝' : (o.isWinner === false ? ' (未中)' : '');
                   const barHtml = `<div style="background:#40444B;border-radius:3px;height:6px;margin:2px 0 4px;overflow:hidden;"><div style="background:${o.isWinner === true ? '#58FF9C' : '#5865F2'};height:100%;width:${o.poolPercent}%;"></div></div>`;
                   return `　${o.name}：${oddsLine}${myBetLine}${winnerMark}　<b>${o.poolPercent}%</b>${barHtml}`;
@@ -1845,15 +1845,13 @@ function fetchScoresAndShop(discordId, callback = null) {
       }
     }
 
-    // 🌟 賭博集資池「下注當下鎖定」模式:算出「如果現在送出這筆下注,會鎖定的賠率」,公式要跟 Code.gs 的
-    // gOddsAtBetTime 完全一致(= 全場總下注含這筆 ÷ 這個選項總下注含這筆),不然前台看到的賠率會跟後端實際鎖定的對不起來
-    function computeGamblingLockOdds(item, optionName, betAmount) {
+    // 🌟🔧 賭博集資池「下注當下鎖定」模式:賠率只看「下注前」的池子狀態(不含這筆金額本身),
+    // 所以同一筆下注不管金額多少,倍率都一樣(公式要跟 Code.gs 的 gOddsAtBetTime 完全一致)
+    function computeGamblingLockOdds(item, optionName) {
       const opt = item.gamblingOptions.find(o => o.name === optionName);
-      if (!opt || betAmount <= 0) return null;
-      const totalAfter = item.gamblingTotalPool + betAmount;
-      const optionAfter = opt.pool + betAmount;
-      if (optionAfter <= 0) return null;
-      return Math.round((totalAfter / optionAfter) * 100) / 100;
+      if (!opt) return null;
+      if (opt.pool === 0) return item.gamblingOptions.length; // 這個選項還沒人下注過:用選項數量當參考值
+      return Math.round((item.gamblingTotalPool / opt.pool) * 100) / 100;
     }
 
     // 🌟 下拉選單/數量輸入框一變動就即時重算一次「送出後會鎖定的賠率」,顯示給玩家看,
@@ -1870,8 +1868,8 @@ function fetchScoresAndShop(discordId, callback = null) {
       const item = currentShopItems.find(it => it.id === targetItemId);
       if (!item) { previewEl.textContent = ''; return; }
       const betAmount = qty * item.price;
-      const odds = computeGamblingLockOdds(item, optionName, betAmount);
-      previewEl.textContent = odds !== null ? `📌 送出後「實際會鎖定」的賠率：x${odds}（若中獎可得約 ${Math.floor(betAmount * odds)} ${item.displayCurrency}，以這個數字為準）` : '';
+      const odds = computeGamblingLockOdds(item, optionName);
+      previewEl.textContent = odds !== null ? `📌 這次會鎖定的賠率：x${odds}（不會因為你填的數量而改變；若中獎可得約 ${Math.floor(betAmount * odds)} ${item.displayCurrency}）` : '';
     }
 
     function buyItem(itemId, itemName, safeId, maxQty, currencyName, unlockPasswordOverride) {
@@ -1935,7 +1933,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         // 一起送給後端比對,如果送出的當下被別人插隊改變了池子,後端會直接拒絕,不會用玩家沒看過的賠率成交
         const gItemForOdds = currentShopItems.find(it => it.id === itemId);
         if (gItemForOdds && gItemForOdds.gamblingOddsMode === 'POOL' && gItemForOdds.gamblingPoolLockMode === 'BETTIME') {
-          const gLockOdds = computeGamblingLockOdds(gItemForOdds, gamblingOption, qty * gItemForOdds.price);
+          const gLockOdds = computeGamblingLockOdds(gItemForOdds, gamblingOption);
           if (gLockOdds !== null) expectedGamblingOdds = gLockOdds;
         }
       }
