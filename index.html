@@ -1680,7 +1680,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (isAvail) {
           let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
           const gamblingSelectHtml = item.isGambling ? `
-            <select id="gopt-${safeId}" class="qty-input" style="width:auto;flex:1;margin-right:6px">
+            <select id="gopt-${safeId}" class="qty-input" style="width:100%;margin-bottom:8px">
               <option value="">請選擇下注選項...</option>
               ${item.gamblingOptions.map(o => {
                 const oddsLabel = item.gamblingOddsMode === 'FIXED' ? ` (x${o.odds})` : (o.impliedOdds !== null ? ` (目前約x${o.impliedOdds}${item.gamblingPoolLockMode === 'BETTIME' ? '，下注當下鎖定' : '，僅供參考'})` : ' (尚無人下注)');
@@ -1691,8 +1691,8 @@ function fetchScoresAndShop(discordId, callback = null) {
           actionHtml = `
             ${lockHtml}
             ${altHtml}
+            ${gamblingSelectHtml}
             <div class="item-actions">
-              ${gamblingSelectHtml}
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}" oninput="updateAltPreview('${safeId}')">
               <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : (item.isGambling ? '下注' : '兌換')}</button>
             </div>
