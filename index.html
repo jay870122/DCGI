@@ -1735,7 +1735,7 @@ function fetchScoresAndShop(discordId, callback = null) {
                   return `　${o.name}：${oddsLine}${myBetLine}${winnerMark}　<b>${o.poolPercent}%</b>${barHtml}`;
                 }).join('')}
                 💰 全場總下注：${item.gamblingTotalPool}${item.gamblingLoserRefundPercent > 0 ? `　輸家可退還 ${item.gamblingLoserRefundPercent}%` : ''}<br>
-                ${item.gamblingResult ? `🎉 獲勝選項：「${item.gamblingResult.winningOption}」` : ''}
+                ${item.gamblingResult ? (item.gamblingResult.isSweep ? `🔪 結果：通殺(全員未中獎)` : `🎉 獲勝選項：「${item.gamblingResult.winningOption}」`) : ''}
               ` : `📦 庫存：${item.limits.baseStock}`}
               ${limitsHtml}
               ${gachaHtml}
