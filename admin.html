@@ -453,6 +453,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               🎲 <b>賭博模式怎麼用？</b>勾選後,玩家兌換這個商品時要先選一個下注選項,價格/數量就是下注金額(可以多次下注、也可以同時下注不同選項);上面的「結束時間」是截止下注時間,時間到就不能再下注,但<b>不會自動公布結果</b>,要到商品列表按「🎲 公布結果」手動選出獲勝選項,系統才會依賠率模式自動結算發放。<br>
               🏆 <b>固定賠率</b>:贏家 = 下注金額 × 賠率;輸家依「輸家退還比例」拿回一部分(0%就是全輸不退)。<br>
               🎰 <b>集資池分配</b>:所有人下注的錢混在一起,結果出來後,輸家那邊的錢(扣掉退還比例後)全部依下注金額比例分給贏家,贏家的本金也會拿回來。集資池分配還可以選「賠率計算基準」:選<b>依最終結算總額</b>,賠率會隨大家陸續下注一直變動,要等結算才知道確切倍率;選<b>以下注當下的即時賠率為主</b>,你下注那一刻系統就依當時的池子狀況幫你鎖定賠率,之後不管誰再下注多少都不會影響你已經下的那幾筆。<br>
+              ⚠️ <b>「依最終結算總額」保證不會超發</b>(發出去的錢一定等於收進來的錢);<b>「以下注當下賠率為主」不保證</b>——如果押某個選項的人多、押其他選項的人少或完全沒人押,結算時有可能發出去的獎金比實際收到的下注總額還多(等於系統自己貼錢)。這是這個玩法本來就有的風險,概念上你(管理員)扮演的是「莊家」的角色,要自行承擔這個風險,選這個模式前請注意。<br>
               ⚠️ 上面的「獎勵數量/盲盒規則」欄位對賭博模式沒有作用,不用填。
             </div>
             <div class="fsep">其他</div>
@@ -1851,7 +1852,8 @@ function openSettleGambling(itemId, name, optionsRaw) {
   document.getElementById('settle-gambling-warning').textContent = '';
   const sel = document.getElementById('settle-gambling-option');
   const options = (optionsRaw || '').split(',').map(s => s.trim().split(':')[0].trim()).filter(Boolean);
-  sel.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
+  sel.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('')
+    + `<option value="__SWEEP__">🔪 通殺(全部下注者都算輸,不發任何中獎金額;仍會照「輸家退還比例」處理)</option>`;
   document.getElementById('settle-gambling-modal').dataset.itemId = itemId;
   document.getElementById('settle-gambling-modal').classList.add('open');
 }
@@ -1861,14 +1863,18 @@ async function confirmSettleGambling() {
   const itemId = modal.dataset.itemId;
   const winningOption = document.getElementById('settle-gambling-option').value;
   if (!winningOption) { document.getElementById('settle-gambling-warning').textContent = '請選擇一個選項'; return; }
-  if (!confirm(`確定「${winningOption}」獲勝嗎？公布後會立刻依下注金額結算發放,無法復原！`)) return;
+  const isSweep = winningOption === '__SWEEP__';
+  const confirmMsg = isSweep
+    ? '確定要「通殺」嗎？這場所有下注者都會算輸,不會有任何人拿到中獎金額(只會照設定的「輸家退還比例」退錢),公布後無法復原！'
+    : `確定「${winningOption}」獲勝嗎？公布後會立刻依下注金額結算發放,無法復原！`;
+  if (!confirm(confirmMsg)) return;
 
   const btn = document.getElementById('settle-gambling-confirm');
   btn.disabled = true; btn.textContent = '結算中...';
   const d = await api({action:'adminSettleGambling', itemId, winningOption});
   btn.disabled = false; btn.textContent = '✅ 確認公布並結算';
   if (d.status === 'success') {
-    toast('🎲 已公布結果並完成結算!');
+    toast(isSweep ? '🔪 已通殺,全員未中獎!' : '🎲 已公布結果並完成結算!');
     closeModal('settle-gambling-modal');
     loadShopItems();
   } else {
