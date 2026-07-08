@@ -1895,23 +1895,31 @@ function fetchScoresAndShop(discordId, callback = null) {
 
       // 🌟 賭博模式:讀取玩家在卡片上選的下注選項
       let gamblingOption = '';
+      let expectedGamblingOdds = '';
       const gOptSelect = document.getElementById(`gopt-${safeId}`);
       if (gOptSelect) {
         gamblingOption = gOptSelect.value;
         if (!gamblingOption) { alert('請選擇要下注的選項！'); return; }
+        // 🌟 集資池「以下注當下賠率為主」模式:把玩家畫面上看到的目前隱含賠率一起送給後端比對,
+        // 如果送出的當下被別人插隊改變了池子,後端會直接拒絕,不會用玩家沒看過的賠率成交
+        const gItemForOdds = currentShopItems.find(it => it.id === itemId);
+        if (gItemForOdds && gItemForOdds.gamblingOddsMode === 'POOL' && gItemForOdds.gamblingPoolLockMode === 'BETTIME') {
+          const gOptData = gItemForOdds.gamblingOptions.find(o => o.name === gamblingOption);
+          if (gOptData && gOptData.impliedOdds !== null) expectedGamblingOdds = gOptData.impliedOdds;
+        }
       }
 
       let confirmMsg = isHold 
         ? `🎁 此為條件福利！\n\n系統僅會驗證您是否持有足夠的【${currencyName}】作為領取條件，實際扣款為 0。\n確定要領取 ${qty} 個 ${displayItemName} 嗎？` 
         : gOptSelect
-        ? `確定要花費 ${qty * (itemForExtraCost ? itemForExtraCost.price : 0)} ${currencyName} 下注「${gamblingOption}」嗎？${extraCostNote}${altConfirmNote}\n\n⚠️ 賭博下注後無法取消,請確認清楚再送出。`
+        ? `確定要花費 ${qty * (itemForExtraCost ? itemForExtraCost.price : 0)} ${currencyName} 下注「${gamblingOption}」嗎？${expectedGamblingOdds !== '' ? `\n📌 目前預計鎖定賠率：x${expectedGamblingOdds}（送出時如果賠率剛好變動，系統會拒絕下注，不會用您沒看過的賠率成交）` : ''}${extraCostNote}${altConfirmNote}\n\n⚠️ 賭博下注後無法取消,請確認清楚再送出。`
         : `確定要花費 ${currencyName} 兌換 ${qty} 個 ${displayItemName} 嗎？${extraCostNote}${altConfirmNote}`;
       if (!confirm(confirmMsg)) return;
 
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
@@ -1968,6 +1976,11 @@ function fetchScoresAndShop(discordId, callback = null) {
           if (retryEntered !== null && retryEntered.trim() !== '') {
             buyItem(itemId, itemName, safeId, maxQty, currencyName, retryEntered.trim());
           }
+        } else if (data.oddsChanged) {
+          // 🌟 賭博集資池「下注當下鎖定」模式:送出的瞬間賠率被別人插隊改變了,拒絕成交,重新整理拿最新賠率給玩家重新確認
+          alert("⚠️ " + data.message);
+          document.getElementById('loading-text').innerText = "🔄 正在同步最新賠率...";
+          fetchScoresAndShop(currentUser.id);
         } else {
           alert("❌ 兌換失敗：" + data.message);
           if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限") || data.message.includes("條件")) {
