@@ -1014,7 +1014,7 @@
           priceInfoHtml = `起標價：<span class="auction-bid-value">${a.startBid} ${a.displayCurrency}</span>（暗標，出價金額互相保密）`;
         }
         if (a.winnerCount > 1) priceInfoHtml += `<br>🏆 前 ${a.winnerCount} 名出價者都會得標(各自付自己出的價格)`;
-        if (a.raffleSlots > 0) priceInfoHtml += `<br>🎰 沒得標的人還有機會抽中安慰獎(共 ${a.raffleSlots} 個名額)${a.raffleNoRefund ? '<span style="color:#F0B232">（⚠️ 中安慰獎的話，原出價不會退還）</span>' : ''}`;
+        if (a.raffleSlots > 0) priceInfoHtml += `<br>🎰 沒得標的人還有機會抽中安慰獎(共 ${a.raffleSlots} 個名額)`;
         const myBidHtml = a.myActiveBid !== null ? `<br>您目前出價：<span class="auction-bid-value">${a.myActiveBid} ${a.displayCurrency}</span>${a.myActiveBidAlt > 0 ? `（已折抵 ${a.myActiveBidAlt} ${a.altCurrencyDisplay || a.altCurrency || ''}）` : ''}` : '';
 
         let statusHtml = '';
@@ -1679,12 +1679,22 @@ function fetchScoresAndShop(discordId, callback = null) {
         let actionHtml = '';
         if (isAvail) {
           let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
+          const gamblingSelectHtml = item.isGambling ? `
+            <select id="gopt-${safeId}" class="qty-input" style="width:auto;flex:1;margin-right:6px">
+              <option value="">請選擇下注選項...</option>
+              ${item.gamblingOptions.map(o => {
+                const oddsLabel = item.gamblingOddsMode === 'FIXED' ? ` (x${o.odds})` : (o.impliedOdds !== null ? ` (目前約x${o.impliedOdds}${item.gamblingPoolLockMode === 'BETTIME' ? '，下注當下鎖定' : '，僅供參考'})` : ' (尚無人下注)');
+                return `<option value="${o.name}">${o.name}${oddsLabel} — ${o.poolPercent}%</option>`;
+              }).join('')}
+            </select>
+          ` : '';
           actionHtml = `
             ${lockHtml}
             ${altHtml}
             <div class="item-actions">
+              ${gamblingSelectHtml}
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}" oninput="updateAltPreview('${safeId}')">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : '兌換'}</button>
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : (item.isGambling ? '下注' : '兌換')}</button>
             </div>
           `;
         } else {
@@ -1705,7 +1715,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             ${timeHtml} 
             <div class="item-info">
               ${isHold ? `✨ 條件：<span class="item-price" style="color:#58FF9C;">需持有 ${item.price} ${item.displayCurrency}</span><br>` : 
-                `💰 ${item.isRaffle ? '投1花費' : '價格'}：<span class="item-price">${item.price} ${item.displayCurrency}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => `${e.amount} ${e.displayName}`).join(' + ') : ''}</span><br>`}
+                `💰 ${item.isRaffle ? '投1花費' : item.isGambling ? '每單位下注' : '價格'}：<span class="item-price">${item.price} ${item.displayCurrency}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => `${e.amount} ${e.displayName}`).join(' + ') : ''}</span><br>`}
               ${item.isRaffle ? `
                 🎰 <b>抽獎模式</b>：投1次算 ${item.raffleMultiplier > 1 ? ('x' + item.raffleMultiplier + ' 張(依身分組加權)') : '1 張'}<br>
                 🎫 目前全場總票數(加權後)：${item.raffleTotalWeightedTickets}
@@ -1713,6 +1723,17 @@ function fetchScoresAndShop(discordId, callback = null) {
                 🙋 我已投入：${item.raffleMyRawTickets} 張(加權後 ${item.raffleMyWeightedTickets} 張)<br>
                 📊 我目前中獎機率：<b>${item.raffleOdds}%</b><br>
                 ${item.raffleWinners ? `🏆 得獎名單：${item.raffleWinners.map(w => w.prize).join('、')}<br>` : ''}
+              ` : item.isGambling ? `
+                🎲 <b>賭博模式</b>：${item.gamblingOddsMode === 'POOL' ? `集資池分配(${item.gamblingPoolLockMode === 'BETTIME' ? '以下注當下賠率為主，下注就鎖定' : '依最終結算總額計算'})` : '固定賠率'}<br>
+                ${item.gamblingOptions.map(o => {
+                  const myBetLine = o.myBet > 0 ? `　我已下注 ${o.myBet}` : '';
+                  const oddsLine = item.gamblingOddsMode === 'FIXED' ? `x${o.odds}` : (o.impliedOdds !== null ? `目前約x${o.impliedOdds}（下注 ${o.pool}）` : `目前 ${o.pool}`);
+                  const winnerMark = o.isWinner === true ? ' 🏆獲勝' : (o.isWinner === false ? ' (未中)' : '');
+                  const barHtml = `<div style="background:#40444B;border-radius:3px;height:6px;margin:2px 0 4px;overflow:hidden;"><div style="background:${o.isWinner === true ? '#58FF9C' : '#5865F2'};height:100%;width:${o.poolPercent}%;"></div></div>`;
+                  return `　${o.name}：${oddsLine}${myBetLine}${winnerMark}　<b>${o.poolPercent}%</b>${barHtml}`;
+                }).join('')}
+                💰 全場總下注：${item.gamblingTotalPool}${item.gamblingLoserRefundPercent > 0 ? `　輸家可退還 ${item.gamblingLoserRefundPercent}%` : ''}<br>
+                ${item.gamblingResult ? `🎉 獲勝選項：「${item.gamblingResult.winningOption}」` : ''}
               ` : `📦 庫存：${item.limits.baseStock}`}
               ${limitsHtml}
               ${gachaHtml}
@@ -1872,15 +1893,25 @@ function fetchScoresAndShop(discordId, callback = null) {
         ? `\n➕ 另外還需要：${itemForExtraCost.extraCost.map(e => `${e.amount * qty} ${e.displayName}`).join('、')}`
         : '';
 
+      // 🌟 賭博模式:讀取玩家在卡片上選的下注選項
+      let gamblingOption = '';
+      const gOptSelect = document.getElementById(`gopt-${safeId}`);
+      if (gOptSelect) {
+        gamblingOption = gOptSelect.value;
+        if (!gamblingOption) { alert('請選擇要下注的選項！'); return; }
+      }
+
       let confirmMsg = isHold 
         ? `🎁 此為條件福利！\n\n系統僅會驗證您是否持有足夠的【${currencyName}】作為領取條件，實際扣款為 0。\n確定要領取 ${qty} 個 ${displayItemName} 嗎？` 
+        : gOptSelect
+        ? `確定要花費 ${qty * (itemForExtraCost ? itemForExtraCost.price : 0)} ${currencyName} 下注「${gamblingOption}」嗎？${extraCostNote}${altConfirmNote}\n\n⚠️ 賭博下注後無法取消,請確認清楚再送出。`
         : `確定要花費 ${currencyName} 兌換 ${qty} 個 ${displayItemName} 嗎？${extraCostNote}${altConfirmNote}`;
       if (!confirm(confirmMsg)) return;
 
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if(data.status === "success") {
@@ -1891,6 +1922,13 @@ function fetchScoresAndShop(discordId, callback = null) {
           if (data.isRaffle) {
             // 🌟 抽獎模式:買=投票,沒有開盲盒/里程碑那些東西,直接顯示後端組好的投票結果訊息就好
             successMsg += `\n\n🎟️ ${data.message}`;
+            alert(successMsg);
+            fetchScoresAndShop(currentUser.id);
+            return;
+          }
+          if (data.isGambling) {
+            // 🌟 賭博模式:買=下注,結果要等管理員手動公布,直接顯示後端組好的下注結果訊息就好
+            successMsg += `\n\n🎲 ${data.message}`;
             alert(successMsg);
             fetchScoresAndShop(currentUser.id);
             return;
