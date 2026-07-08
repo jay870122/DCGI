@@ -414,6 +414,41 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="gacha-guide" id="ns-raffle-guide" style="display:none;grid-column:span 2">
               🎰 <b>抽獎模式怎麼用？</b>勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池(格式跟盲盒完全一樣,可多獎項多得獎人,份數=要抽出幾位得獎者)。玩家兌換這個商品 = 投票,不會立即拿到獎勵;時間到系統每5~10分鐘會自動檢查一次,自動依加權票數抽出得獎者、自動發獎、自動公告。分類/價格/貨幣/限購/身分組限定/替代貨幣折抵/密碼鎖定/圖片/備註等其他設定完全比照一般商品,照樣可以用。
             </div>
+            <div class="fsep">🎲 賭博模式(選填)</div>
+            <div class="field full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ns-gambling" onchange="toggleGamblingFields('ns')" style="width:auto">
+                設為賭博模式(買=下注,管理員手動公布結果才結算發放)
+              </label>
+            </div>
+            <div class="field" id="ns-gambling-mode-box" style="display:none">
+              <label>賠率計算方式</label>
+              <select id="ns-gambling-mode" onchange="toggleGamblingPoolLockField('ns')">
+                <option value="FIXED">固定賠率(下注前就知道贏了拿多少)</option>
+                <option value="POOL">集資池分配(輸家的錢依比例分給贏家)</option>
+              </select>
+            </div>
+            <div class="field" id="ns-gambling-refund-box" style="display:none">
+              <label>輸家退還比例(%) <span class="hint">0=全輸不退,像真實運彩;100=輸了也全額退還</span></label>
+              <input id="ns-gambling-refund" type="number" min="0" max="100" placeholder="0">
+            </div>
+            <div class="field full" id="ns-gambling-poollock-box" style="display:none">
+              <label>集資池賠率計算基準</label>
+              <select id="ns-gambling-poollock">
+                <option value="FINAL">依最終結算總額計算(標準集資池,賠率會隨大家下注一直變動,結算才知道最終賠率)</option>
+                <option value="BETTIME">以下注當下的即時賠率為主(下注那一刻就鎖定賠率,之後池子再怎麼變化都不影響你)</option>
+              </select>
+            </div>
+            <div class="field full" id="ns-gambling-options-box" style="display:none">
+              <label>下注選項 <span class="hint">格式:選項名稱:賠率,選項名稱:賠率,...(集資池模式賠率可以不填,填了也不影響計算,例如「A隊獲勝,B隊獲勝」)</span></label>
+              <textarea id="ns-gambling-options" placeholder="A隊獲勝:2.0,B隊獲勝:1.8,平手:5.0"></textarea>
+            </div>
+            <div class="gacha-guide" id="ns-gambling-guide" style="display:none;grid-column:span 2">
+              🎲 <b>賭博模式怎麼用？</b>勾選後,玩家兌換這個商品時要先選一個下注選項,價格/數量就是下注金額(可以多次下注、也可以同時下注不同選項);上面的「結束時間」是截止下注時間,時間到就不能再下注,但<b>不會自動公布結果</b>,要到商品列表按「🎲 公布結果」手動選出獲勝選項,系統才會依賠率模式自動結算發放。<br>
+              🏆 <b>固定賠率</b>:贏家 = 下注金額 × 賠率;輸家依「輸家退還比例」拿回一部分(0%就是全輸不退)。<br>
+              🎰 <b>集資池分配</b>:所有人下注的錢混在一起,結果出來後,輸家那邊的錢(扣掉退還比例後)全部依下注金額比例分給贏家,贏家的本金也會拿回來。集資池分配還可以選「賠率計算基準」:選<b>依最終結算總額</b>,賠率會隨大家陸續下注一直變動,要等結算才知道確切倍率;選<b>以下注當下的即時賠率為主</b>,你下注那一刻系統就依當時的池子狀況幫你鎖定賠率,之後不管誰再下注多少都不會影響你已經下的那幾筆。<br>
+              ⚠️ 上面的「獎勵數量/盲盒規則」欄位對賭博模式沒有作用,不用填。
+            </div>
             <div class="fsep">其他</div>
             <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
             <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
@@ -580,20 +615,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>得獎人數 <span class="hint">留空/1=一般單一得標者;填2以上=前X名各自付自己出的價格都得標</span></label><input id="na-wincount" type="number" min="1" placeholder="1"></div>
             <div class="field"><label>安慰獎抽獎名額 <span class="hint">留空/0=不開放;從沒得標的人裡抽,機會均等</span></label><input id="na-raffleslots" type="number" min="0" placeholder="0"></div>
             <div class="field full">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                <input type="checkbox" id="na-rafflenorefund" style="width:auto">
-                安慰獎中獎不退費(勾選後,中安慰獎的人原本出價不退還,當作已經付了安慰獎的費用;沒勾=中安慰獎的人出價一樣全額退還)
-              </label>
-            </div>
-            <div class="field full">
               <label>安慰獎獎池 <span class="hint">跟商店盲盒同格式,可多獎項,自動發放</span></label>
               <textarea id="na-rafflepool" placeholder="幻彩水晶小獎, 幻彩水晶:50"></textarea>
             </div>
             <div class="gacha-preview" id="na-rafflepool-preview" style="display:none"></div>
             <div class="gacha-guide" style="grid-column:span 2">
               ⚠️ 這兩個功能只對「暗標(SEALED/SEALED_LOW)」類型的拍賣有效果,因為公開比價任何時刻都只會留一筆凍結出價,沒有完整名單可以排名次或抽獎,公開比價設了也不會有任何效果。<br>
-              🏆 前X名得獎的排名規則,高標跟低標不一樣:<b>高標</b>單純依出價金額高到低排,金額相同就看誰先出價、先出價的排前面(不會因為金額一樣而淘汰);<b>低標</b>則是金額相同視為撞價,整組全部淘汰、不計入贏家。<br>
-              🎁 安慰獎的資格是「有出價但沒得標的人」(含低標撞價被淘汰的人),每人機會均等(不管出多少錢),抽中的人會各自從獎池抽一個獎項自動發放,不會抽中兩次。
+              🎁 安慰獎的資格是「有出價但沒得標的人」,每人機會均等(不管出多少錢),抽中的人會各自從獎池抽一個獎項自動發放,不會抽中兩次。
             </div>
             <div class="actions"><button class="btn-cancel" onclick="resetAddAuction()">清空</button><button class="btn-cancel" id="na-draft-btn" onclick="submitAddAuction('DRAFT')">📝 存為草稿</button><button class="btn-save" id="na-btn" onclick="submitAddAuction(null)">➕ 新增到試算表</button></div>
           </div>
@@ -891,6 +919,36 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         🎰 勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池。玩家兌換 = 投票,時間到系統會自動抽出得獎者、自動發獎、自動公告。
       </div>
       <div id="em-raffle-drawn-hint" style="display:none;grid-column:span 2;color:#F0B232;font-size:13px;padding:8px 0">⚠️ 這個抽獎已經開獎過了,再次儲存不會重新開獎,但也不會清掉開獎結果。</div>
+      <div class="fsep">🎲 賭博模式(選填)</div>
+      <div class="field full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="em-gambling" onchange="toggleGamblingFields('em')" style="width:auto">
+          設為賭博模式(買=下注,管理員手動公布結果才結算發放)
+        </label>
+      </div>
+      <div class="field" id="em-gambling-mode-box" style="display:none">
+        <label>賠率計算方式</label>
+        <select id="em-gambling-mode" onchange="toggleGamblingPoolLockField('em')">
+          <option value="FIXED">固定賠率</option>
+          <option value="POOL">集資池分配</option>
+        </select>
+      </div>
+      <div class="field" id="em-gambling-refund-box" style="display:none">
+        <label>輸家退還比例(%) <span class="hint">0=全輸不退</span></label>
+        <input id="em-gambling-refund" type="number" min="0" max="100" placeholder="0">
+      </div>
+      <div class="field full" id="em-gambling-poollock-box" style="display:none">
+        <label>集資池賠率計算基準</label>
+        <select id="em-gambling-poollock">
+          <option value="FINAL">依最終結算總額計算(標準集資池)</option>
+          <option value="BETTIME">以下注當下的即時賠率為主(鎖定)</option>
+        </select>
+      </div>
+      <div class="field full" id="em-gambling-options-box" style="display:none">
+        <label>下注選項 <span class="hint">格式:選項名稱:賠率,選項名稱:賠率,...</span></label>
+        <textarea id="em-gambling-options" placeholder="A隊獲勝:2.0,B隊獲勝:1.8,平手:5.0"></textarea>
+      </div>
+      <div id="em-gambling-settled-hint" style="display:none;grid-column:span 2;color:#F0B232;font-size:13px;padding:8px 0">⚠️ 這場賭博已經公布結果並結算完成了,再次儲存不會重新結算。</div>
       <div class="fsep">其他</div>
       <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
@@ -1025,12 +1083,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>得獎人數 <span class="hint">留空/1=一般模式;填2以上=前X名都得標</span></label><input id="ea-wincount" type="number" min="1" placeholder="1"></div>
       <div class="field"><label>安慰獎抽獎名額 <span class="hint">留空/0=不開放</span></label><input id="ea-raffleslots" type="number" min="0" placeholder="0"></div>
       <div class="field full">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="ea-rafflenorefund" style="width:auto">
-          安慰獎中獎不退費(勾選後,中安慰獎的人原本出價不退還)
-        </label>
-      </div>
-      <div class="field full">
         <label>安慰獎獎池 <span class="hint">跟商店盲盒同格式</span></label>
         <textarea id="ea-rafflepool" placeholder="幻彩水晶小獎, 幻彩水晶:50"></textarea>
       </div>
@@ -1049,6 +1101,31 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-body">
       <div id="raffle-participants-container">讀取中...</div>
     </div>
+  </div>
+</div>
+
+<!-- 賭博下注名單彈窗 -->
+<div class="overlay" id="gambling-bets-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3 id="gambling-bets-title">🎲 下注明細</h3><button class="modal-close" onclick="closeModal('gambling-bets-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="gambling-bets-container">讀取中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 賭博公布結果彈窗 -->
+<div class="overlay" id="settle-gambling-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><h3 id="settle-gambling-title">🎲 公布結果</h3><button class="modal-close" onclick="closeModal('settle-gambling-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="field full">
+        <label>哪個選項獲勝？<span class="hint">選定後點下方按鈕才會真的結算發放,選錯無法復原,請確認清楚</span></label>
+        <select id="settle-gambling-option"></select>
+      </div>
+      <div id="settle-gambling-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('settle-gambling-modal')">取消</button><button class="btn-save" id="settle-gambling-confirm" onclick="confirmSettleGambling()">✅ 確認公布並結算</button></div>
   </div>
 </div>
 
@@ -1411,6 +1488,26 @@ function toggleRaffleFields(prefix) {
   if (guide) guide.style.display = enabled ? '' : 'none';
 }
 
+// 🌟 賭博模式:勾選後才顯示賠率模式/下注選項/輸家退還比例等欄位跟說明文字
+function toggleGamblingFields(prefix) {
+  const cb = document.getElementById(prefix + '-gambling');
+  const enabled = !!(cb && cb.checked);
+  ['-gambling-mode-box', '-gambling-refund-box', '-gambling-options-box', '-gambling-guide'].forEach(suffix => {
+    const el = document.getElementById(prefix + suffix);
+    if (el) el.style.display = enabled ? '' : 'none';
+  });
+  toggleGamblingPoolLockField(prefix);
+}
+
+// 🌟 「集資池賠率計算基準」只有在賭博模式開啟、且賠率算法選「集資池分配」時才顯示
+function toggleGamblingPoolLockField(prefix) {
+  const cb = document.getElementById(prefix + '-gambling');
+  const modeSel = document.getElementById(prefix + '-gambling-mode');
+  const enabled = !!(cb && cb.checked) && !!(modeSel && modeSel.value === 'POOL');
+  const box = document.getElementById(prefix + '-gambling-poollock-box');
+  if (box) box.style.display = enabled ? '' : 'none';
+}
+
 function toggleGuessLimit(key) {
   const m = GUESS_LIMIT_FIELD_MAP[key];
   if (!m) return;
@@ -1645,17 +1742,19 @@ function renderShopTable() {
   document.getElementById('shop-tbody').innerHTML = items.length === 0
     ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
-      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
+      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
       <td data-label="庫存">${i.stock||'無限'}</td>
-      <td data-label="狀態">${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (i.isRaffle && i.raffleResult ? '<span class="status status-ended">🏆 已開獎</span>' : (stateLabel[i.state]||''))}</td>
+      <td data-label="狀態">${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (i.isRaffle && i.raffleResult ? '<span class="status status-ended">🏆 已開獎</span>' : (i.isGambling && i.gamblingResult ? '<span class="status status-ended">🎲 已公布結果</span>' : (stateLabel[i.state]||'')))}</td>
       <td class="cell-id" data-label="ID">${i.itemId||'—'}</td>
       <td class="cell-actions" data-label="操作"><div class="btn-row">
         ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         ${i.isRaffle ? `<button class="btn btn-edit" onclick="showRaffleParticipants('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看名單</button>` : ''}
         ${i.isRaffle && !i.raffleResult ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
+        ${i.isGambling ? `<button class="btn btn-edit" onclick="showGamblingBets('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看下注</button>` : ''}
+        ${i.isGambling && !i.gamblingResult ? `<button class="btn btn-close" onclick="openSettleGambling('${i.itemId}','${i.name.replace(/'/g,"\\'")}','${(i.gamblingOptions||'').replace(/'/g,"\\'")}')">🎲 公布結果</button>` : ''}
         <button class="btn btn-edit" onclick="duplicateShopItem('${i.itemId}')">📋 複製</button>
         <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
       </div></td>
@@ -1701,6 +1800,70 @@ async function drawShopRaffleNow(itemId, name) {
   else toast('❌ '+d.message, false);
 }
 
+// 🌟 賭博模式:查看某個賭博商品目前每一筆下注明細(依選項分組並統計總額,方便公布結果前參考)
+async function showGamblingBets(itemId, name) {
+  document.getElementById('gambling-bets-title').textContent = '🎲 下注明細：' + name;
+  document.getElementById('gambling-bets-modal').classList.add('open');
+  const box = document.getElementById('gambling-bets-container');
+  box.innerHTML = '讀取中...';
+  const d = await api({action:'adminGetGamblingBets', itemId});
+  if (d.status !== 'success') { box.innerHTML = `<span style="color:var(--red)">讀取失敗:${d.message}</span>`; return; }
+  if (!d.list || d.list.length === 0) { box.innerHTML = '目前還沒有人下注'; return; }
+
+  // 🌟 依選項分組,先顯示每個選項的總額,底下再列出逐筆明細
+  const byOption = {};
+  d.list.forEach(b => { (byOption[b.option] = byOption[b.option] || []).push(b); });
+  const totalAll = d.list.reduce((s, b) => s + b.amount, 0);
+
+  let html = `<div style="margin-bottom:10px;font-size:13px;color:var(--mu)">總下注金額:${totalAll}</div>`;
+  Object.keys(byOption).forEach(opt => {
+    const rows = byOption[opt];
+    const optTotal = rows.reduce((s, b) => s + b.amount, 0);
+    html += `<div style="margin-bottom:12px">
+      <div style="font-weight:bold;margin-bottom:4px">「${opt}」— 共 ${optTotal}(${rows.length} 筆)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        ${rows.map(b => `<tr style="border-bottom:1px solid var(--bd)">
+          <td style="padding:4px">${b.name}</td>
+          <td class="cell-id" style="padding:4px">${b.discordId}</td>
+          <td style="padding:4px;text-align:right">${b.amount}</td>
+        </tr>`).join('')}
+      </table>
+    </div>`;
+  });
+  box.innerHTML = html;
+}
+
+// 🌟 賭博模式:打開「公布結果」選單,列出這場的所有下注選項供管理員挑選獲勝方
+function openSettleGambling(itemId, name, optionsRaw) {
+  document.getElementById('settle-gambling-title').textContent = '🎲 公布結果：' + name;
+  document.getElementById('settle-gambling-warning').textContent = '';
+  const sel = document.getElementById('settle-gambling-option');
+  const options = (optionsRaw || '').split(',').map(s => s.trim().split(':')[0].trim()).filter(Boolean);
+  sel.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
+  document.getElementById('settle-gambling-modal').dataset.itemId = itemId;
+  document.getElementById('settle-gambling-modal').classList.add('open');
+}
+
+async function confirmSettleGambling() {
+  const modal = document.getElementById('settle-gambling-modal');
+  const itemId = modal.dataset.itemId;
+  const winningOption = document.getElementById('settle-gambling-option').value;
+  if (!winningOption) { document.getElementById('settle-gambling-warning').textContent = '請選擇一個選項'; return; }
+  if (!confirm(`確定「${winningOption}」獲勝嗎？公布後會立刻依下注金額結算發放,無法復原！`)) return;
+
+  const btn = document.getElementById('settle-gambling-confirm');
+  btn.disabled = true; btn.textContent = '結算中...';
+  const d = await api({action:'adminSettleGambling', itemId, winningOption});
+  btn.disabled = false; btn.textContent = '✅ 確認公布並結算';
+  if (d.status === 'success') {
+    toast('🎲 已公布結果並完成結算!');
+    closeModal('settle-gambling-modal');
+    loadShopItems();
+  } else {
+    document.getElementById('settle-gambling-warning').textContent = '❌ ' + d.message;
+  }
+}
+
 function openEditShop(itemId) {
   const i = shopItems.find(x => x.itemId === itemId);
   if (!i) return;
@@ -1740,6 +1903,13 @@ function openEditShop(itemId) {
   f('em-raffle-weights').value = i.raffleRoleWeights || '';
   document.getElementById('em-raffle-drawn-hint').style.display = (i.isRaffle && i.raffleResult) ? '' : 'none';
   toggleRaffleFields('em');
+  f('em-gambling').checked = !!i.isGambling;
+  f('em-gambling-mode').value = i.gamblingOddsMode === 'POOL' ? 'POOL' : 'FIXED';
+  f('em-gambling-refund').value = i.gamblingLoserRefundPercent || '';
+  f('em-gambling-options').value = i.gamblingOptions || '';
+  f('em-gambling-poollock').value = i.gamblingPoolLockMode === 'BETTIME' ? 'BETTIME' : 'FINAL';
+  document.getElementById('em-gambling-settled-hint').style.display = (i.isGambling && i.gamblingResult) ? '' : 'none';
+  toggleGamblingFields('em');
   editShopAutosave.checkAndOffer();
 }
 
@@ -1766,7 +1936,10 @@ async function saveShopItem() {
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint'),
     lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod'),
-    isRaffle:document.getElementById('em-raffle').checked,raffleRoleWeights:f('em-raffle-weights')});
+    isRaffle:document.getElementById('em-raffle').checked,raffleRoleWeights:f('em-raffle-weights'),
+    isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
+    gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
+    gamblingPoolLockMode:f('em-gambling-poollock')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -1954,7 +2127,6 @@ function openEditAuction(auctionId) {
   f('ea-wincount').value = i.winnerCount && i.winnerCount > 1 ? i.winnerCount : '';
   f('ea-raffleslots').value = i.raffleSlots || '';
   f('ea-rafflepool').value = i.rafflePool || '';
-  document.getElementById('ea-rafflenorefund').checked = !!i.raffleNoRefund;
   document.getElementById('ea-raffle-drawn-hint').style.display = i.raffleResult ? '' : 'none';
   renderGachaPreview('ea-rafflepool', 'ea-rafflepool-preview');
   applyRoleRequirement('ea-role', i.requiredRole||'');
@@ -1974,8 +2146,7 @@ async function saveAuction() {
     extendTrigger:f('ea-ext1'),extendBy:f('ea-ext2'),
     imageUrl:f('ea-img'),remark:f('ea-remark'),requiredRole:buildRoleRequirement('ea-role'),
     altCurrency:f('ea-altcurrency'),altCurrencyRate:f('ea-altrate'),status:f('ea-status'),
-    winnerCount:f('ea-wincount'),raffleSlots:f('ea-raffleslots'),rafflePool:f('ea-rafflepool'),
-    raffleNoRefund:document.getElementById('ea-rafflenorefund').checked});
+    winnerCount:f('ea-wincount'),raffleSlots:f('ea-raffleslots'),rafflePool:f('ea-rafflepool')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 拍賣已更新'); editAuctionAutosave.clear(); closeModal('auction-modal'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
@@ -1991,7 +2162,7 @@ async function publishAuction(auctionId) {
     extendTrigger:i.extendTrigger,extendBy:i.extendBy,
     imageUrl:i.imageUrl,remark:i.remark,requiredRole:i.requiredRole,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,status:'',
-    winnerCount:i.winnerCount,raffleSlots:i.raffleSlots,rafflePool:i.rafflePool,raffleNoRefund:i.raffleNoRefund});
+    winnerCount:i.winnerCount,raffleSlots:i.raffleSlots,rafflePool:i.rafflePool});
   if (d.status==='success') { toast('🚀 已上架'); loadAuctionItems(); }
   else toast('❌ '+d.message, false);
 }
@@ -2025,9 +2196,14 @@ function resetAddShop() {
   ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
-   'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule','ns-raffle-weights'].forEach(id => document.getElementById(id).value='');
+   'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule','ns-raffle-weights',
+   'ns-gambling-mode','ns-gambling-refund','ns-gambling-options'].forEach(id => document.getElementById(id).value='');
   document.getElementById('ns-raffle').checked = false;
   toggleRaffleFields('ns');
+  document.getElementById('ns-gambling').checked = false;
+  document.getElementById('ns-gambling-mode').value = 'FIXED';
+  document.getElementById('ns-gambling-poollock').value = 'FINAL';
+  toggleGamblingFields('ns');
   setAltCurrencyRows('ns', '', '');
   setExtraCostRows('ns', '', '');
   document.getElementById('ns-currency').value='幻彩水晶';
@@ -2085,7 +2261,10 @@ async function submitAddShop(forceStatus) {
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint'),
     lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod'),
-    isRaffle:document.getElementById('ns-raffle').checked,raffleRoleWeights:f('ns-raffle-weights')});
+    isRaffle:document.getElementById('ns-raffle').checked,raffleRoleWeights:f('ns-raffle-weights'),
+    isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
+    gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
+    gamblingPoolLockMode:f('ns-gambling-poollock')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
@@ -2095,7 +2274,6 @@ async function submitAddShop(forceStatus) {
 function resetAddAuction() {
   ['na-name','na-bid','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-cat',
    'na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('na-rafflenorefund').checked = false;
   document.getElementById('na-currency').value='幻彩水晶';
   document.getElementById('na-type').value='PUBLIC';
   document.getElementById('na-status').value='';
@@ -2123,8 +2301,7 @@ async function submitAddAuction(forceStatus) {
     extendTrigger:f('na-ext1'),extendBy:f('na-ext2'),
     imageUrl:f('na-img'),remark:f('na-remark'),requiredRole:buildRoleRequirement('na-role'),
     altCurrency:f('na-altcurrency'),altCurrencyRate:f('na-altrate'),status:isDraft?'DRAFT':'',
-    winnerCount:f('na-wincount'),raffleSlots:f('na-raffleslots'),rafflePool:f('na-rafflepool'),
-    raffleNoRefund:document.getElementById('na-rafflenorefund').checked});
+    winnerCount:f('na-wincount'),raffleSlots:f('na-raffleslots'),rafflePool:f('na-rafflepool')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.auctionId}` : `✅ 拍賣已新增！ID: ${d.auctionId}`); resetAddAuction(); }
   else toast('❌ '+d.message, false);
@@ -2384,9 +2561,9 @@ function setupFieldAutosave(fieldIds, keyFn) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights','ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-poollock'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights','em-gambling-mode','em-gambling-refund','em-gambling-options','em-gambling-poollock'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate','ea-wincount','ea-raffleslots','ea-rafflepool'];
 
@@ -2851,7 +3028,7 @@ async function loadAuctionBids() {
   const d = await api({ action: 'adminGetAuctionBids', auctionId });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
-  const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>', CONSOLATION: '<span class="status status-open" style="background:rgba(88,101,242,0.2);color:#8891F5">🎰 中安慰獎(不退費)</span>' };
+  const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>' };
   tbody.innerHTML = d.rows.length === 0 ? '<tr><td colspan="5" class="empty">這場拍賣目前還沒有人出價</td></tr>' : d.rows.map(r => `
     <tr>
       <td data-label="時間">${r.time ? new Date(r.time).toLocaleString('zh-TW') : '—'}</td>
