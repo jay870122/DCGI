@@ -443,6 +443,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <label>下注選項 <span class="hint">格式:選項名稱:賠率,選項名稱:賠率,...(集資池模式賠率可以不填,填了也不影響計算,例如「A隊獲勝,B隊獲勝」)</span></label>
               <textarea id="ns-gambling-options" placeholder="A隊獲勝:2.0,B隊獲勝:1.8,平手:5.0"></textarea>
             </div>
+            <div class="field full" id="ns-gambling-broadcast-box" style="display:none">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ns-gambling-broadcast" style="width:auto">
+                公布結果、完成結算時,額外發一則公開摘要公告(留空不勾=只私訊/同步每個人自己的結果,不公開發摘要)
+              </label>
+            </div>
             <div class="gacha-guide" id="ns-gambling-guide" style="display:none;grid-column:span 2">
               🎲 <b>賭博模式怎麼用？</b>勾選後,玩家兌換這個商品時要先選一個下注選項,價格/數量就是下注金額(可以多次下注、也可以同時下注不同選項);上面的「結束時間」是截止下注時間,時間到就不能再下注,但<b>不會自動公布結果</b>,要到商品列表按「🎲 公布結果」手動選出獲勝選項,系統才會依賠率模式自動結算發放。<br>
               🏆 <b>固定賠率</b>:贏家 = 下注金額 × 賠率;輸家依「輸家退還比例」拿回一部分(0%就是全輸不退)。<br>
@@ -947,6 +953,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" id="em-gambling-options-box" style="display:none">
         <label>下注選項 <span class="hint">格式:選項名稱:賠率,選項名稱:賠率,...</span></label>
         <textarea id="em-gambling-options" placeholder="A隊獲勝:2.0,B隊獲勝:1.8,平手:5.0"></textarea>
+      </div>
+      <div class="field full" id="em-gambling-broadcast-box" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="em-gambling-broadcast" style="width:auto">
+          公布結果、完成結算時,額外發一則公開摘要公告
+        </label>
       </div>
       <div id="em-gambling-settled-hint" style="display:none;grid-column:span 2;color:#F0B232;font-size:13px;padding:8px 0">⚠️ 這場賭博已經公布結果並結算完成了,再次儲存不會重新結算。</div>
       <div class="fsep">其他</div>
@@ -1492,7 +1504,7 @@ function toggleRaffleFields(prefix) {
 function toggleGamblingFields(prefix) {
   const cb = document.getElementById(prefix + '-gambling');
   const enabled = !!(cb && cb.checked);
-  ['-gambling-mode-box', '-gambling-refund-box', '-gambling-options-box', '-gambling-guide'].forEach(suffix => {
+  ['-gambling-mode-box', '-gambling-refund-box', '-gambling-options-box', '-gambling-broadcast-box', '-gambling-guide'].forEach(suffix => {
     const el = document.getElementById(prefix + suffix);
     if (el) el.style.display = enabled ? '' : 'none';
   });
@@ -1908,6 +1920,7 @@ function openEditShop(itemId) {
   f('em-gambling-refund').value = i.gamblingLoserRefundPercent || '';
   f('em-gambling-options').value = i.gamblingOptions || '';
   f('em-gambling-poollock').value = i.gamblingPoolLockMode === 'BETTIME' ? 'BETTIME' : 'FINAL';
+  document.getElementById('em-gambling-broadcast').checked = !!i.gamblingBroadcast;
   document.getElementById('em-gambling-settled-hint').style.display = (i.isGambling && i.gamblingResult) ? '' : 'none';
   toggleGamblingFields('em');
   editShopAutosave.checkAndOffer();
@@ -1939,7 +1952,7 @@ async function saveShopItem() {
     isRaffle:document.getElementById('em-raffle').checked,raffleRoleWeights:f('em-raffle-weights'),
     isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
     gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
-    gamblingPoolLockMode:f('em-gambling-poollock')});
+    gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -2203,6 +2216,7 @@ function resetAddShop() {
   document.getElementById('ns-gambling').checked = false;
   document.getElementById('ns-gambling-mode').value = 'FIXED';
   document.getElementById('ns-gambling-poollock').value = 'FINAL';
+  document.getElementById('ns-gambling-broadcast').checked = false;
   toggleGamblingFields('ns');
   setAltCurrencyRows('ns', '', '');
   setExtraCostRows('ns', '', '');
@@ -2264,7 +2278,7 @@ async function submitAddShop(forceStatus) {
     isRaffle:document.getElementById('ns-raffle').checked,raffleRoleWeights:f('ns-raffle-weights'),
     isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
-    gamblingPoolLockMode:f('ns-gambling-poollock')});
+    gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
