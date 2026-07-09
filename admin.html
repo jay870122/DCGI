@@ -788,6 +788,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="fab" onclick="openAdjustPanel()">🛠️ 批次調整(已選 <span id="pc-selected-count">0</span> 人)</button>
           </div>
         </div>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:0 4px 12px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="pc-only-named" checked onchange="renderPlayerCurrencyTable()">
+            只顯示有暱稱的玩家(隱藏沒有名字、只看得到一串ID的資料)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+            篩選身分組：
+            <select id="pc-role-filter" onchange="renderPlayerCurrencyTable()" style="width:auto">
+              <option value="">全部</option>
+            </select>
+          </label>
+        </div>
         <div class="tbl-wrap tbl-wrap-table">
           <table>
             <thead><tr id="pc-thead-row">
@@ -1174,20 +1186,22 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <!-- 玩家貨幣批次調整彈窗 -->
 <div class="overlay" id="adjust-currency-modal">
-  <div class="modal" style="max-width:560px">
+  <div class="modal" style="max-width:820px">
     <div class="modal-header"><h3>🛠️ 批次調整貨幣</h3><button class="modal-close" onclick="closeModal('adjust-currency-modal')">×</button></div>
     <div class="modal-body">
       <div class="field full">
-        <label>調整對象</label>
-        <div id="adjust-target-list" style="max-height:100px;overflow-y:auto;font-size:13px;color:var(--mu);background:var(--s2);border-radius:6px;padding:8px"></div>
-      </div>
-      <div class="field full">
-        <label>原因/備註 <span class="hint">會顯示在私訊通知跟歷史紀錄裡</span></label>
+        <label>原因/備註 <span class="hint">整批玩家共用同一個,會顯示在私訊通知跟歷史紀錄裡</span></label>
         <input id="adjust-reason" placeholder="例：活動獎勵補發、客服補償...">
       </div>
-      <div class="fsep">貨幣調整項目</div>
-      <div id="adjust-rows-container"></div>
-      <button class="btn-cancel" style="margin-top:6px" onclick="addAdjustRow()">➕ 新增一項貨幣調整</button>
+      <div class="fsep">要調整的貨幣 <span class="hint">先加要調整的貨幣種類,底下每個玩家再各自填自己的金額(可以都不一樣)</span></div>
+      <div id="adjust-columns-container" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px"></div>
+      <button class="btn-cancel" onclick="addAdjustCurrencyColumn()">➕ 新增一種貨幣</button>
+
+      <div class="fsep">每位玩家的調整金額 <span class="hint">留空 = 這位玩家這項不調整</span></div>
+      <div class="tbl-wrap" style="max-height:320px;overflow-y:auto">
+        <table id="adjust-player-table"><thead><tr id="adjust-player-thead"><th>玩家</th></tr></thead><tbody id="adjust-player-tbody"></tbody></table>
+      </div>
+
       <div class="field full" style="margin-top:14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="adjust-notify" style="width:auto">
@@ -3048,8 +3062,9 @@ async function addRewardKeys() {
 // ── 管理員管理 ──
 let adminUsersCanManage = false;
 // ── 玩家貨幣管理 ──
-let pcPlayers = [], pcCurrencyFields = [];
+let pcPlayers = [], pcCurrencyFields = [], pcRoleMap = {};
 let pcSelectedIds = new Set();
+let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動用哪幾種貨幣
 
 async function loadPlayerCurrency() {
   document.getElementById('pc-tbody').innerHTML = '<tr><td colspan="10" class="empty">讀取中...</td></tr>';
@@ -3057,19 +3072,31 @@ async function loadPlayerCurrency() {
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   pcPlayers = d.players;
   pcCurrencyFields = d.currencyFields;
-  document.getElementById('pc-count').textContent = pcPlayers.length + ' 人';
+  pcRoleMap = d.roleMap || {};
 
   // 🌟 依貨幣欄位清單動態組表頭
   const thead = document.getElementById('pc-thead-row');
   thead.innerHTML = '<th style="width:36px"><input type="checkbox" id="pc-select-all" onchange="toggleAllPlayerCurrency(this.checked)"></th><th>玩家</th>'
     + pcCurrencyFields.map(f => `<th>${f.display}</th>`).join('');
 
+  // 🌟 依身分組對照表組出篩選下拉選單
+  const roleSel = document.getElementById('pc-role-filter');
+  roleSel.innerHTML = '<option value="">全部</option>' + Object.keys(pcRoleMap).map(rid => `<option value="${rid}">${pcRoleMap[rid]}</option>`).join('');
+
   renderPlayerCurrencyTable();
 }
 
 function renderPlayerCurrencyTable() {
   const q = document.getElementById('pc-search').value.toLowerCase();
-  const items = pcPlayers.filter(p => !q || p.nickname.toLowerCase().includes(q) || p.discordId.includes(q));
+  const onlyNamed = document.getElementById('pc-only-named').checked;
+  const roleFilter = document.getElementById('pc-role-filter').value;
+  const items = pcPlayers.filter(p => {
+    if (onlyNamed && !p.hasName) return false;
+    if (roleFilter && !(p.roleIds || []).includes(roleFilter)) return false;
+    if (q && !p.nickname.toLowerCase().includes(q) && !p.discordId.includes(q)) return false;
+    return true;
+  });
+  document.getElementById('pc-count').textContent = `${items.length} / ${pcPlayers.length} 人`;
   document.getElementById('pc-tbody').innerHTML = items.length === 0
     ? `<tr><td colspan="${pcCurrencyFields.length+2}" class="empty">沒有符合條件的玩家</td></tr>`
     : items.map(p => `<tr>
@@ -3094,58 +3121,95 @@ function togglePlayerCurrencySelect(discordId, checked) {
 
 function openAdjustPanel() {
   if (pcSelectedIds.size === 0) { toast('請先在表格裡勾選至少一位玩家', false); return; }
-  const names = pcPlayers.filter(p => pcSelectedIds.has(p.discordId)).map(p => p.nickname);
-  document.getElementById('adjust-target-list').textContent = `共 ${names.length} 人：${names.join('、')}`;
   document.getElementById('adjust-reason').value = '';
   document.getElementById('adjust-notify').checked = false;
   document.getElementById('adjust-warning').textContent = '';
-  document.getElementById('adjust-rows-container').innerHTML = '';
-  addAdjustRow();
+  adjustColumns = [];
+  document.getElementById('adjust-columns-container').innerHTML = '';
+  addAdjustCurrencyColumn(); // 預設先放一種貨幣,省一次點擊
   document.getElementById('adjust-currency-modal').classList.add('open');
 }
 
-function addAdjustRow() {
-  const container = document.getElementById('adjust-rows-container');
-  const rowId = 'adjrow_' + Date.now() + '_' + Math.floor(Math.random()*10000);
-  const row = document.createElement('div');
-  row.id = rowId;
-  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px';
-  row.innerHTML = `
-    <select class="adj-currency" style="flex:2">
+// 🌟 新增一種要調整的貨幣(每種貨幣一組「選貨幣+選模式」,底下的玩家表格會自動多一欄可以各自填金額)
+function addAdjustCurrencyColumn() {
+  const colId = 'adjcol_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  adjustColumns.push({ id: colId, internal: pcCurrencyFields[0].internal, display: pcCurrencyFields[0].display, mode: 'ADD' });
+
+  const wrap = document.createElement('div');
+  wrap.id = colId;
+  wrap.style.cssText = 'display:flex;gap:6px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px';
+  wrap.innerHTML = `
+    <select class="adjcol-currency" onchange="updateAdjustColumn('${colId}')" style="width:auto">
       ${pcCurrencyFields.map(f => `<option value="${f.internal}" data-display="${f.display}">${f.display}</option>`).join('')}
     </select>
-    <select class="adj-mode" style="flex:1">
+    <select class="adjcol-mode" onchange="updateAdjustColumn('${colId}')" style="width:auto">
       <option value="ADD">增加</option>
       <option value="SUBTRACT">減少</option>
       <option value="SET">設定為</option>
     </select>
-    <input class="adj-amount" type="number" step="any" placeholder="數量" style="flex:1">
-    <button class="btn btn-del" onclick="document.getElementById('${rowId}').remove()">✕</button>
+    <button class="btn btn-del" onclick="removeAdjustColumn('${colId}')">✕</button>
   `;
-  container.appendChild(row);
+  document.getElementById('adjust-columns-container').appendChild(wrap);
+  renderAdjustPlayerTable();
+}
+
+function updateAdjustColumn(colId) {
+  const col = adjustColumns.find(c => c.id === colId);
+  if (!col) return;
+  const wrap = document.getElementById(colId);
+  const sel = wrap.querySelector('.adjcol-currency');
+  col.internal = sel.value;
+  col.display = sel.selectedOptions[0].dataset.display;
+  col.mode = wrap.querySelector('.adjcol-mode').value;
+  renderAdjustPlayerTable(true); // 保留玩家已經填的金額,只更新表頭文字
+}
+
+function removeAdjustColumn(colId) {
+  adjustColumns = adjustColumns.filter(c => c.id !== colId);
+  document.getElementById(colId).remove();
+  renderAdjustPlayerTable();
+}
+
+// 🌟 畫出「每位玩家 x 每種貨幣」的金額輸入表格,keepValues=true時會盡量保留玩家已經輸入的數字
+function renderAdjustPlayerTable(keepValues) {
+  const oldValues = {};
+  if (keepValues) {
+    document.querySelectorAll('.adj-amount-input').forEach(inp => {
+      if (inp.value !== '') oldValues[inp.dataset.pid + '|' + inp.dataset.colid] = inp.value;
+    });
+  }
+  const targets = pcPlayers.filter(p => pcSelectedIds.has(p.discordId));
+  document.getElementById('adjust-player-thead').innerHTML = '<th>玩家</th>' + adjustColumns.map(c => `<th>${c.display}</th>`).join('');
+  document.getElementById('adjust-player-tbody').innerHTML = targets.map(p => `<tr>
+      <td>${p.nickname}<br><span class="cell-id" style="font-size:11px">${p.discordId}</span></td>
+      ${adjustColumns.map(c => `<td><input class="adj-amount-input" type="number" step="any" style="width:90px" data-pid="${p.discordId}" data-colid="${c.id}" value="${oldValues[p.discordId+'|'+c.id]||''}" placeholder="留空=不調"></td>`).join('')}
+    </tr>`).join('');
 }
 
 async function confirmAdjustCurrency() {
-  const rows = document.querySelectorAll('#adjust-rows-container > div');
-  const adjustments = [];
-  rows.forEach(row => {
-    const sel = row.querySelector('.adj-currency');
-    const mode = row.querySelector('.adj-mode').value;
-    const amount = row.querySelector('.adj-amount').value;
-    if (amount === '' || isNaN(parseFloat(amount))) return;
-    adjustments.push({ internal: sel.value, display: sel.selectedOptions[0].dataset.display, mode, amount: parseFloat(amount) });
+  if (adjustColumns.length === 0) { document.getElementById('adjust-warning').textContent = '請至少新增一種貨幣'; return; }
+
+  // 🌟 組出「每個玩家各自要調整哪幾項、各自金額多少」的物件,留空的欄位不會被放進去
+  const playerAdjustments = {};
+  document.querySelectorAll('.adj-amount-input').forEach(inp => {
+    if (inp.value === '' || isNaN(parseFloat(inp.value))) return;
+    const col = adjustColumns.find(c => c.id === inp.dataset.colid);
+    if (!col) return;
+    const pid = inp.dataset.pid;
+    if (!playerAdjustments[pid]) playerAdjustments[pid] = [];
+    playerAdjustments[pid].push({ internal: col.internal, display: col.display, mode: col.mode, amount: parseFloat(inp.value) });
   });
-  if (adjustments.length === 0) { document.getElementById('adjust-warning').textContent = '請至少填寫一項有效的貨幣調整數量'; return; }
+
+  const affectedCount = Object.keys(playerAdjustments).length;
+  if (affectedCount === 0) { document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額'; return; }
 
   const btn = document.getElementById('adjust-confirm-btn');
-  const targetCount = pcSelectedIds.size;
-  if (!confirm(`確定要對 ${targetCount} 位玩家套用這 ${adjustments.length} 項貨幣調整嗎？此動作無法復原！`)) return;
+  if (!confirm(`確定要對 ${affectedCount} 位玩家套用各自填寫的貨幣調整嗎？此動作無法復原！`)) return;
   btn.disabled = true; btn.textContent = '處理中...';
 
   const d = await api({
     action: 'adminAdjustPlayerCurrency',
-    playerIds: JSON.stringify(Array.from(pcSelectedIds)),
-    adjustments: JSON.stringify(adjustments),
+    playerAdjustments: JSON.stringify(playerAdjustments),
     notify: document.getElementById('adjust-notify').checked,
     reason: document.getElementById('adjust-reason').value,
   });
