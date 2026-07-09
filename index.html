@@ -1855,8 +1855,12 @@ function fetchScoresAndShop(discordId, callback = null) {
     function computeGamblingLockOdds(item, optionName) {
       const opt = item.gamblingOptions.find(o => o.name === optionName);
       if (!opt) return null;
-      if (opt.pool === 0) return item.gamblingOptions.length; // 這個選項還沒人下注過:用選項數量當參考值
-      return Math.round((item.gamblingTotalPool / opt.pool) * 100) / 100;
+      let odds;
+      if (opt.pool === 0) odds = item.gamblingOptions.length; // 這個選項還沒人下注過:用選項數量當參考值
+      else odds = Math.round((item.gamblingTotalPool / opt.pool) * 100) / 100;
+      // 🌟 套用最高賠率上限封頂(如果商品有設定),跟後端算出來的鎖定賠率保持一致,避免出現誇張倍率
+      if (item.gamblingMaxOdds > 0 && odds > item.gamblingMaxOdds) odds = item.gamblingMaxOdds;
+      return odds;
     }
 
     // 🌟 下拉選單/數量輸入框一變動就即時重算一次「送出後會鎖定的賠率」,顯示給玩家看,
