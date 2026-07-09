@@ -263,6 +263,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('admin-users')">👑 管理員管理</div>
       <hr class="nav-sep">
+      <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
+      <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
       <div class="nav-item" onclick="navTo('reward-keys')">🎫 序號庫管理</div>
       <div class="nav-item" onclick="navTo('auction-bids')">🔨 拍賣出價紀錄</div>
@@ -777,6 +779,26 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
       </div>
 
+      <!-- 玩家貨幣管理 -->
+      <div id="page-player-currency" style="display:none">
+        <div class="page-header">
+          <div class="page-title">💰 玩家貨幣管理 <span class="count-badge" id="pc-count">—</span></div>
+          <div class="toolbar">
+            <input class="search" id="pc-search" placeholder="搜尋暱稱/DiscordID..." oninput="renderPlayerCurrencyTable()">
+            <button class="fab" onclick="openAdjustPanel()">🛠️ 批次調整(已選 <span id="pc-selected-count">0</span> 人)</button>
+          </div>
+        </div>
+        <div class="tbl-wrap tbl-wrap-table">
+          <table>
+            <thead><tr id="pc-thead-row">
+              <th style="width:36px"><input type="checkbox" id="pc-select-all" onchange="toggleAllPlayerCurrency(this.checked)"></th>
+              <th>玩家</th>
+            </tr></thead>
+            <tbody id="pc-tbody"><tr><td colspan="10" class="empty">讀取中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 密碼鎖定管理 -->
       <div id="page-lock-settings" style="display:none">
         <div class="page-header"><div class="page-title">🔒 密碼鎖定管理</div></div>
@@ -1147,6 +1169,34 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="settle-gambling-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('settle-gambling-modal')">取消</button><button class="btn-save" id="settle-gambling-confirm" onclick="confirmSettleGambling()">✅ 確認公布並結算</button></div>
+  </div>
+</div>
+
+<!-- 玩家貨幣批次調整彈窗 -->
+<div class="overlay" id="adjust-currency-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3>🛠️ 批次調整貨幣</h3><button class="modal-close" onclick="closeModal('adjust-currency-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="field full">
+        <label>調整對象</label>
+        <div id="adjust-target-list" style="max-height:100px;overflow-y:auto;font-size:13px;color:var(--mu);background:var(--s2);border-radius:6px;padding:8px"></div>
+      </div>
+      <div class="field full">
+        <label>原因/備註 <span class="hint">會顯示在私訊通知跟歷史紀錄裡</span></label>
+        <input id="adjust-reason" placeholder="例：活動獎勵補發、客服補償...">
+      </div>
+      <div class="fsep">貨幣調整項目</div>
+      <div id="adjust-rows-container"></div>
+      <button class="btn-cancel" style="margin-top:6px" onclick="addAdjustRow()">➕ 新增一項貨幣調整</button>
+      <div class="field full" style="margin-top:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="adjust-notify" style="width:auto">
+          調整完成後私訊通知玩家(需要瓜機器人配合處理)
+        </label>
+      </div>
+      <div id="adjust-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('adjust-currency-modal')">取消</button><button class="btn-save" id="adjust-confirm-btn" onclick="confirmAdjustCurrency()">✅ 確認套用</button></div>
   </div>
 </div>
 
@@ -1619,7 +1669,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -1631,6 +1681,7 @@ function navTo(p) {
   if (p==='add-auction') addAuctionAutosave.checkAndOffer();
   if (p==='sort-settings') openSortSettings();
   if (p==='admin-users') loadAdminUsers();
+  if (p==='player-currency') loadPlayerCurrency();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
   if (p==='auction-bids') {
@@ -2996,6 +3047,122 @@ async function addRewardKeys() {
 
 // ── 管理員管理 ──
 let adminUsersCanManage = false;
+// ── 玩家貨幣管理 ──
+let pcPlayers = [], pcCurrencyFields = [];
+let pcSelectedIds = new Set();
+
+async function loadPlayerCurrency() {
+  document.getElementById('pc-tbody').innerHTML = '<tr><td colspan="10" class="empty">讀取中...</td></tr>';
+  const d = await api({action:'adminGetAllPlayersCurrency'});
+  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
+  pcPlayers = d.players;
+  pcCurrencyFields = d.currencyFields;
+  document.getElementById('pc-count').textContent = pcPlayers.length + ' 人';
+
+  // 🌟 依貨幣欄位清單動態組表頭
+  const thead = document.getElementById('pc-thead-row');
+  thead.innerHTML = '<th style="width:36px"><input type="checkbox" id="pc-select-all" onchange="toggleAllPlayerCurrency(this.checked)"></th><th>玩家</th>'
+    + pcCurrencyFields.map(f => `<th>${f.display}</th>`).join('');
+
+  renderPlayerCurrencyTable();
+}
+
+function renderPlayerCurrencyTable() {
+  const q = document.getElementById('pc-search').value.toLowerCase();
+  const items = pcPlayers.filter(p => !q || p.nickname.toLowerCase().includes(q) || p.discordId.includes(q));
+  document.getElementById('pc-tbody').innerHTML = items.length === 0
+    ? `<tr><td colspan="${pcCurrencyFields.length+2}" class="empty">沒有符合條件的玩家</td></tr>`
+    : items.map(p => `<tr>
+        <td><input type="checkbox" class="pc-row-check" data-id="${p.discordId}" ${pcSelectedIds.has(p.discordId)?'checked':''} onchange="togglePlayerCurrencySelect('${p.discordId}', this.checked)"></td>
+        <td>${p.nickname}<br><span class="cell-id" style="font-size:11px">${p.discordId}</span></td>
+        ${pcCurrencyFields.map(f => `<td>${p.balances[f.internal]}</td>`).join('')}
+      </tr>`).join('');
+}
+
+function toggleAllPlayerCurrency(checked) {
+  document.querySelectorAll('.pc-row-check').forEach(cb => {
+    cb.checked = checked;
+    if (checked) pcSelectedIds.add(cb.dataset.id); else pcSelectedIds.delete(cb.dataset.id);
+  });
+  document.getElementById('pc-selected-count').textContent = pcSelectedIds.size;
+}
+
+function togglePlayerCurrencySelect(discordId, checked) {
+  if (checked) pcSelectedIds.add(discordId); else pcSelectedIds.delete(discordId);
+  document.getElementById('pc-selected-count').textContent = pcSelectedIds.size;
+}
+
+function openAdjustPanel() {
+  if (pcSelectedIds.size === 0) { toast('請先在表格裡勾選至少一位玩家', false); return; }
+  const names = pcPlayers.filter(p => pcSelectedIds.has(p.discordId)).map(p => p.nickname);
+  document.getElementById('adjust-target-list').textContent = `共 ${names.length} 人：${names.join('、')}`;
+  document.getElementById('adjust-reason').value = '';
+  document.getElementById('adjust-notify').checked = false;
+  document.getElementById('adjust-warning').textContent = '';
+  document.getElementById('adjust-rows-container').innerHTML = '';
+  addAdjustRow();
+  document.getElementById('adjust-currency-modal').classList.add('open');
+}
+
+function addAdjustRow() {
+  const container = document.getElementById('adjust-rows-container');
+  const rowId = 'adjrow_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  const row = document.createElement('div');
+  row.id = rowId;
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px';
+  row.innerHTML = `
+    <select class="adj-currency" style="flex:2">
+      ${pcCurrencyFields.map(f => `<option value="${f.internal}" data-display="${f.display}">${f.display}</option>`).join('')}
+    </select>
+    <select class="adj-mode" style="flex:1">
+      <option value="ADD">增加</option>
+      <option value="SUBTRACT">減少</option>
+      <option value="SET">設定為</option>
+    </select>
+    <input class="adj-amount" type="number" step="any" placeholder="數量" style="flex:1">
+    <button class="btn btn-del" onclick="document.getElementById('${rowId}').remove()">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+async function confirmAdjustCurrency() {
+  const rows = document.querySelectorAll('#adjust-rows-container > div');
+  const adjustments = [];
+  rows.forEach(row => {
+    const sel = row.querySelector('.adj-currency');
+    const mode = row.querySelector('.adj-mode').value;
+    const amount = row.querySelector('.adj-amount').value;
+    if (amount === '' || isNaN(parseFloat(amount))) return;
+    adjustments.push({ internal: sel.value, display: sel.selectedOptions[0].dataset.display, mode, amount: parseFloat(amount) });
+  });
+  if (adjustments.length === 0) { document.getElementById('adjust-warning').textContent = '請至少填寫一項有效的貨幣調整數量'; return; }
+
+  const btn = document.getElementById('adjust-confirm-btn');
+  const targetCount = pcSelectedIds.size;
+  if (!confirm(`確定要對 ${targetCount} 位玩家套用這 ${adjustments.length} 項貨幣調整嗎？此動作無法復原！`)) return;
+  btn.disabled = true; btn.textContent = '處理中...';
+
+  const d = await api({
+    action: 'adminAdjustPlayerCurrency',
+    playerIds: JSON.stringify(Array.from(pcSelectedIds)),
+    adjustments: JSON.stringify(adjustments),
+    notify: document.getElementById('adjust-notify').checked,
+    reason: document.getElementById('adjust-reason').value,
+  });
+  btn.disabled = false; btn.textContent = '✅ 確認套用';
+
+  if (d.status === 'success') {
+    toast(`🛠️ 已完成調整！`);
+    closeModal('adjust-currency-modal');
+    pcSelectedIds.clear();
+    loadPlayerCurrency();
+  } else {
+    document.getElementById('adjust-warning').textContent = '❌ ' + d.message;
+  }
+}
+
+// ── 玩家貨幣管理結束 ──
+
 async function loadAdminUsers() {
   const el = document.getElementById('admin-users-list');
   el.innerHTML = '<div class="empty">讀取中...</div>';
