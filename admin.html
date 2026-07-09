@@ -434,10 +434,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             </div>
             <div class="field full" id="ns-gambling-poollock-box" style="display:none">
               <label>集資池賠率計算基準</label>
-              <select id="ns-gambling-poollock">
+              <select id="ns-gambling-poollock" onchange="toggleGamblingPoolLockField('ns')">
                 <option value="FINAL">依最終結算總額計算(標準集資池,賠率會隨大家下注一直變動,結算才知道最終賠率)</option>
                 <option value="BETTIME">以下注當下的即時賠率為主(下注那一刻就鎖定賠率,之後池子再怎麼變化都不影響你)</option>
               </select>
+            </div>
+            <div class="field full" id="ns-gambling-maxodds-box" style="display:none">
+              <label>最高賠率上限 <span class="hint">留空=不封頂;某個選項池子太薄時,算出來的賠率可能會非常誇張(例如x1900),設這個可以把賠率封頂,降低風險</span></label>
+              <input id="ns-gambling-maxodds" type="number" min="1" step="0.1" placeholder="例：10(代表賠率最高只會鎖到x10)">
             </div>
             <div class="field full" id="ns-gambling-options-box" style="display:none">
               <label>下注選項 <span class="hint">格式:選項名稱:賠率,選項名稱:賠率,...(集資池模式賠率可以不填,填了也不影響計算,例如「A隊獲勝,B隊獲勝」)</span></label>
@@ -946,10 +950,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full" id="em-gambling-poollock-box" style="display:none">
         <label>集資池賠率計算基準</label>
-        <select id="em-gambling-poollock">
+        <select id="em-gambling-poollock" onchange="toggleGamblingPoolLockField('em')">
           <option value="FINAL">依最終結算總額計算(標準集資池)</option>
           <option value="BETTIME">以下注當下的即時賠率為主(鎖定)</option>
         </select>
+      </div>
+      <div class="field full" id="em-gambling-maxodds-box" style="display:none">
+        <label>最高賠率上限 <span class="hint">留空=不封頂</span></label>
+        <input id="em-gambling-maxodds" type="number" min="1" step="0.1" placeholder="例：10">
       </div>
       <div class="field full" id="em-gambling-options-box" style="display:none">
         <label>下注選項 <span class="hint">格式:選項名稱:賠率,選項名稱:賠率,...</span></label>
@@ -1512,13 +1520,17 @@ function toggleGamblingFields(prefix) {
   toggleGamblingPoolLockField(prefix);
 }
 
-// 🌟 「集資池賠率計算基準」只有在賭博模式開啟、且賠率算法選「集資池分配」時才顯示
+// 🌟 「集資池賠率計算基準」「最高賠率上限」只有在賭博模式開啟、且賠率算法選「集資池分配」時才顯示;
+// 最高賠率上限更進一步只在選「下注當下鎖定」時才有意義顯示(依最終結算模式不會有鎖定賠率這個概念)
 function toggleGamblingPoolLockField(prefix) {
   const cb = document.getElementById(prefix + '-gambling');
   const modeSel = document.getElementById(prefix + '-gambling-mode');
+  const poolLockSel = document.getElementById(prefix + '-gambling-poollock');
   const enabled = !!(cb && cb.checked) && !!(modeSel && modeSel.value === 'POOL');
   const box = document.getElementById(prefix + '-gambling-poollock-box');
   if (box) box.style.display = enabled ? '' : 'none';
+  const maxOddsBox = document.getElementById(prefix + '-gambling-maxodds-box');
+  if (maxOddsBox) maxOddsBox.style.display = (enabled && poolLockSel && poolLockSel.value === 'BETTIME') ? '' : 'none';
 }
 
 function toggleGuessLimit(key) {
@@ -1926,6 +1938,7 @@ function openEditShop(itemId) {
   f('em-gambling-refund').value = i.gamblingLoserRefundPercent || '';
   f('em-gambling-options').value = i.gamblingOptions || '';
   f('em-gambling-poollock').value = i.gamblingPoolLockMode === 'BETTIME' ? 'BETTIME' : 'FINAL';
+  f('em-gambling-maxodds').value = i.gamblingMaxOdds || '';
   document.getElementById('em-gambling-broadcast').checked = !!i.gamblingBroadcast;
   document.getElementById('em-gambling-settled-hint').style.display = (i.isGambling && i.gamblingResult) ? '' : 'none';
   toggleGamblingFields('em');
@@ -1958,7 +1971,8 @@ async function saveShopItem() {
     isRaffle:document.getElementById('em-raffle').checked,raffleRoleWeights:f('em-raffle-weights'),
     isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
     gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
-    gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked});
+    gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked,
+    gamblingMaxOdds:f('em-gambling-maxodds')});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -2216,7 +2230,7 @@ function resetAddShop() {
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
    'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule','ns-raffle-weights',
-   'ns-gambling-mode','ns-gambling-refund','ns-gambling-options'].forEach(id => document.getElementById(id).value='');
+   'ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-maxodds'].forEach(id => document.getElementById(id).value='');
   document.getElementById('ns-raffle').checked = false;
   toggleRaffleFields('ns');
   document.getElementById('ns-gambling').checked = false;
@@ -2284,7 +2298,8 @@ async function submitAddShop(forceStatus) {
     isRaffle:document.getElementById('ns-raffle').checked,raffleRoleWeights:f('ns-raffle-weights'),
     isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
-    gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked});
+    gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked,
+    gamblingMaxOdds:f('ns-gambling-maxodds')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
@@ -2581,9 +2596,9 @@ function setupFieldAutosave(fieldIds, keyFn) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights','ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-poollock'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights','ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-poollock','ns-gambling-maxodds'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights','em-gambling-mode','em-gambling-refund','em-gambling-options','em-gambling-poollock'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights','em-gambling-mode','em-gambling-refund','em-gambling-options','em-gambling-poollock','em-gambling-maxodds'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate','ea-wincount','ea-raffleslots','ea-rafflepool'];
 
