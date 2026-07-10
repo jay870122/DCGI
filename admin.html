@@ -1202,11 +1202,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <table id="adjust-player-table"><thead><tr id="adjust-player-thead"><th>玩家</th></tr></thead><tbody id="adjust-player-tbody"></tbody></table>
       </div>
 
-      <div class="fsep">同時發放序號(選填)</div>
-      <div class="field full">
-        <label>序號庫對應名稱 <span class="hint">對應「序號庫」工作表A欄的名稱,留空=不發序號;這次勾選的每位玩家各發一組(不夠會跳過該玩家並提示),不管下面「私訊通知」有沒有勾,序號一定會私訊給玩家</span></label>
-        <input id="adjust-serial-keyname" placeholder="例：GASH100點">
-      </div>
+      <div class="fsep">同時發放序號(選填) <span class="hint">這次勾選的每位玩家,每種序號都各發一組;不管下面「私訊通知」有沒有勾,序號一定會私訊給玩家</span></div>
+      <div id="adjust-serial-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+      <button class="btn-cancel" onclick="addAdjustSerialRow()">➕ 新增一種序號</button>
 
       <div class="field full" style="margin-top:14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -3075,6 +3073,7 @@ async function addRewardKeys() {
 let adminUsersCanManage = false;
 // ── 玩家貨幣管理 ──
 let pcPlayers = [], pcCurrencyFields = [], pcTableColumns = [], pcRoleMap = {};
+let pcKeyPools = []; // 🌟 序號庫摘要(名稱+剩餘可用數),開批次調整面板時才去抓,不用每次載入頁面都抓
 let pcSelectedIds = new Set();
 let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動用哪幾種貨幣
 
@@ -3132,17 +3131,57 @@ function togglePlayerCurrencySelect(discordId, checked) {
   document.getElementById('pc-selected-count').textContent = pcSelectedIds.size;
 }
 
-function openAdjustPanel() {
+async function openAdjustPanel() {
   if (pcSelectedIds.size === 0) { toast('請先在表格裡勾選至少一位玩家', false); return; }
   document.getElementById('adjust-reason').value = '';
   document.getElementById('adjust-notify').checked = false;
   document.getElementById('adjust-broadcast').checked = false;
-  document.getElementById('adjust-serial-keyname').value = '';
   document.getElementById('adjust-warning').textContent = '';
   adjustColumns = [];
   document.getElementById('adjust-columns-container').innerHTML = '';
   addAdjustCurrencyColumn(); // 預設先放一種貨幣,省一次點擊
+  document.getElementById('adjust-serial-container').innerHTML = '';
   document.getElementById('adjust-currency-modal').classList.add('open');
+
+  // 🌟 抓序號庫摘要(名稱+剩餘可用數),給序號下拉選單用
+  const d = await api({action:'adminGetKeyPoolSummary'});
+  pcKeyPools = (d.status === 'success') ? d.pools : [];
+}
+
+// 🌟 新增一種要發放的序號(下拉選單選對應名稱,選好之後即時顯示「預計發X組/剩X組可用」)
+function addAdjustSerialRow() {
+  if (pcKeyPools.length === 0) { toast('目前序號庫是空的,沒有可以選的對應名稱', false); return; }
+  const rowId = 'serialrow_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  const row = document.createElement('div');
+  row.id = rowId;
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px';
+  row.innerHTML = `
+    <select class="adjserial-pool" onchange="updateAdjustSerialRow('${rowId}')" style="width:auto;flex:1">
+      ${pcKeyPools.map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
+    </select>
+    <span class="adjserial-info" id="${rowId}_info" style="font-size:12px;color:var(--mu);white-space:nowrap"></span>
+    <button class="btn btn-del" onclick="document.getElementById('${rowId}').remove()">✕</button>
+  `;
+  document.getElementById('adjust-serial-container').appendChild(row);
+  updateAdjustSerialRow(rowId);
+}
+
+// 🌟 更新某一列序號的「預計發X組/剩X組可用」顯示文字(選的對應名稱改變、或勾選的玩家人數改變時都要重算)
+function updateAdjustSerialRow(rowId) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  const poolName = row.querySelector('.adjserial-pool').value;
+  const pool = pcKeyPools.find(p => p.name === poolName);
+  const wantCount = pcSelectedIds.size;
+  const available = pool ? pool.available : 0;
+  const info = document.getElementById(rowId + '_info');
+  const enoughText = wantCount > available ? `<span style="color:var(--red)">(不夠!)</span>` : '';
+  info.innerHTML = `預計發 ${wantCount} 組 / 剩 ${available} 組可用 ${enoughText}`;
+}
+
+// 🌟 重新整理所有序號列的「預計發X組」顯示(勾選的玩家人數變了就要重算全部列)
+function refreshAllAdjustSerialRows() {
+  document.querySelectorAll('#adjust-serial-container > div').forEach(row => updateAdjustSerialRow(row.id));
 }
 
 // 🌟 新增一種要調整的貨幣(每種貨幣一組「選貨幣+選模式」,底下的玩家表格會自動多一欄可以各自填金額)
@@ -3193,7 +3232,9 @@ function renderAdjustPlayerTable(keepValues) {
       if (inp.value !== '') oldValues[inp.dataset.pid + '|' + inp.dataset.colid] = inp.value;
     });
   }
-  const targets = pcPlayers.filter(p => pcSelectedIds.has(p.discordId));
+  // 🌟 依照「勾選的順序」排列,不是照系統清單原本的順序——Set本身就會記得插入順序(取消勾選再勾回去會排到最後面),
+  // 這樣管理員照著自己準備好的清單依序勾選,這裡的表格順序就會完全對得上,不用再逐一去找人
+  const targets = Array.from(pcSelectedIds).map(id => pcPlayers.find(p => p.discordId === id)).filter(Boolean);
   document.getElementById('adjust-player-thead').innerHTML = '<th>玩家</th>' + adjustColumns.map(c => `<th>${c.display}</th>`).join('');
   document.getElementById('adjust-player-tbody').innerHTML = targets.map(p => `<tr>
       <td>${p.nickname}<br><span class="cell-id" style="font-size:11px">${p.discordId}</span></td>
@@ -3202,7 +3243,7 @@ function renderAdjustPlayerTable(keepValues) {
 }
 
 async function confirmAdjustCurrency() {
-  const serialKeyName = document.getElementById('adjust-serial-keyname').value.trim();
+  const serialKeyNames = Array.from(document.querySelectorAll('.adjserial-pool')).map(sel => sel.value).filter(Boolean);
 
   // 🌟 組出「每個玩家各自要調整哪幾項、各自金額多少」的物件,留空的欄位不會被放進去
   const playerAdjustments = {};
@@ -3216,14 +3257,14 @@ async function confirmAdjustCurrency() {
   });
 
   const affectedCount = Object.keys(playerAdjustments).length;
-  if (affectedCount === 0 && !serialKeyName) {
-    document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額,或填寫要發放的序號名稱';
+  if (affectedCount === 0 && serialKeyNames.length === 0) {
+    document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額,或新增要發放的序號';
     return;
   }
 
   const btn = document.getElementById('adjust-confirm-btn');
-  const confirmMsg = serialKeyName
-    ? `確定要套用貨幣調整(${affectedCount}位玩家有異動)並發放「${serialKeyName}」序號給已勾選的 ${pcSelectedIds.size} 位玩家嗎？此動作無法復原！`
+  const confirmMsg = serialKeyNames.length > 0
+    ? `確定要套用貨幣調整(${affectedCount}位玩家有異動)並發放「${serialKeyNames.join('、')}」序號給已勾選的 ${pcSelectedIds.size} 位玩家嗎？此動作無法復原！`
     : `確定要對 ${affectedCount} 位玩家套用各自填寫的貨幣調整嗎？此動作無法復原！`;
   if (!confirm(confirmMsg)) return;
   btn.disabled = true; btn.textContent = '處理中...';
@@ -3234,7 +3275,7 @@ async function confirmAdjustCurrency() {
     notify: document.getElementById('adjust-notify').checked,
     broadcast: document.getElementById('adjust-broadcast').checked,
     reason: document.getElementById('adjust-reason').value,
-    serialKeyName: serialKeyName,
+    serialKeyNames: JSON.stringify(serialKeyNames),
     serialTargetIds: JSON.stringify(Array.from(pcSelectedIds)),
   });
   btn.disabled = false; btn.textContent = '✅ 確認套用';
