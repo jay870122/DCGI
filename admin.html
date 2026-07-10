@@ -1202,6 +1202,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <table id="adjust-player-table"><thead><tr id="adjust-player-thead"><th>玩家</th></tr></thead><tbody id="adjust-player-tbody"></tbody></table>
       </div>
 
+      <div class="fsep">同時發放序號(選填)</div>
+      <div class="field full">
+        <label>序號庫對應名稱 <span class="hint">對應「序號庫」工作表A欄的名稱,留空=不發序號;這次勾選的每位玩家各發一組(不夠會跳過該玩家並提示),不管下面「私訊通知」有沒有勾,序號一定會私訊給玩家</span></label>
+        <input id="adjust-serial-keyname" placeholder="例：GASH100點">
+      </div>
+
       <div class="field full" style="margin-top:14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="adjust-notify" style="width:auto">
@@ -1211,7 +1217,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" style="margin-top:6px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="adjust-broadcast" style="width:auto">
-          同時發送公開摘要到大獎頻道(用 @ 標記所有這次有異動的玩家)
+          同時發送公開摘要到大獎頻道(用 @ 標記所有這次有異動的玩家；序號絕對不會公開廣播,只會私訊)
         </label>
       </div>
       <div id="adjust-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
@@ -3131,6 +3137,7 @@ function openAdjustPanel() {
   document.getElementById('adjust-reason').value = '';
   document.getElementById('adjust-notify').checked = false;
   document.getElementById('adjust-broadcast').checked = false;
+  document.getElementById('adjust-serial-keyname').value = '';
   document.getElementById('adjust-warning').textContent = '';
   adjustColumns = [];
   document.getElementById('adjust-columns-container').innerHTML = '';
@@ -3195,7 +3202,7 @@ function renderAdjustPlayerTable(keepValues) {
 }
 
 async function confirmAdjustCurrency() {
-  if (adjustColumns.length === 0) { document.getElementById('adjust-warning').textContent = '請至少新增一種貨幣'; return; }
+  const serialKeyName = document.getElementById('adjust-serial-keyname').value.trim();
 
   // 🌟 組出「每個玩家各自要調整哪幾項、各自金額多少」的物件,留空的欄位不會被放進去
   const playerAdjustments = {};
@@ -3209,10 +3216,16 @@ async function confirmAdjustCurrency() {
   });
 
   const affectedCount = Object.keys(playerAdjustments).length;
-  if (affectedCount === 0) { document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額'; return; }
+  if (affectedCount === 0 && !serialKeyName) {
+    document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額,或填寫要發放的序號名稱';
+    return;
+  }
 
   const btn = document.getElementById('adjust-confirm-btn');
-  if (!confirm(`確定要對 ${affectedCount} 位玩家套用各自填寫的貨幣調整嗎？此動作無法復原！`)) return;
+  const confirmMsg = serialKeyName
+    ? `確定要套用貨幣調整(${affectedCount}位玩家有異動)並發放「${serialKeyName}」序號給已勾選的 ${pcSelectedIds.size} 位玩家嗎？此動作無法復原！`
+    : `確定要對 ${affectedCount} 位玩家套用各自填寫的貨幣調整嗎？此動作無法復原！`;
+  if (!confirm(confirmMsg)) return;
   btn.disabled = true; btn.textContent = '處理中...';
 
   const d = await api({
@@ -3221,6 +3234,8 @@ async function confirmAdjustCurrency() {
     notify: document.getElementById('adjust-notify').checked,
     broadcast: document.getElementById('adjust-broadcast').checked,
     reason: document.getElementById('adjust-reason').value,
+    serialKeyName: serialKeyName,
+    serialTargetIds: JSON.stringify(Array.from(pcSelectedIds)),
   });
   btn.disabled = false; btn.textContent = '✅ 確認套用';
 
