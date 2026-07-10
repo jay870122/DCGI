@@ -1205,7 +1205,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" style="margin-top:14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="adjust-notify" style="width:auto">
-          調整完成後私訊通知玩家(需要瓜機器人配合處理)
+          調整完成後私訊通知玩家(需要瓜機器人配合處理;整批合併成一則訊息處理,不會洗頻)
+        </label>
+      </div>
+      <div class="field full" style="margin-top:6px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="adjust-broadcast" style="width:auto">
+          同時發送公開摘要到大獎頻道(用 @ 標記所有這次有異動的玩家)
         </label>
       </div>
       <div id="adjust-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
@@ -3124,6 +3130,7 @@ function openAdjustPanel() {
   if (pcSelectedIds.size === 0) { toast('請先在表格裡勾選至少一位玩家', false); return; }
   document.getElementById('adjust-reason').value = '';
   document.getElementById('adjust-notify').checked = false;
+  document.getElementById('adjust-broadcast').checked = false;
   document.getElementById('adjust-warning').textContent = '';
   adjustColumns = [];
   document.getElementById('adjust-columns-container').innerHTML = '';
@@ -3212,6 +3219,7 @@ async function confirmAdjustCurrency() {
     action: 'adminAdjustPlayerCurrency',
     playerAdjustments: JSON.stringify(playerAdjustments),
     notify: document.getElementById('adjust-notify').checked,
+    broadcast: document.getElementById('adjust-broadcast').checked,
     reason: document.getElementById('adjust-reason').value,
   });
   btn.disabled = false; btn.textContent = '✅ 確認套用';
