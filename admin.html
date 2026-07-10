@@ -3062,7 +3062,7 @@ async function addRewardKeys() {
 // ── 管理員管理 ──
 let adminUsersCanManage = false;
 // ── 玩家貨幣管理 ──
-let pcPlayers = [], pcCurrencyFields = [], pcRoleMap = {};
+let pcPlayers = [], pcCurrencyFields = [], pcTableColumns = [], pcRoleMap = {};
 let pcSelectedIds = new Set();
 let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動用哪幾種貨幣
 
@@ -3071,13 +3071,14 @@ async function loadPlayerCurrency() {
   const d = await api({action:'adminGetAllPlayersCurrency'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   pcPlayers = d.players;
-  pcCurrencyFields = d.currencyFields;
+  pcCurrencyFields = d.currencyFields; // 🌟 給批次調整選單用,含「幻彩水晶(總獲得+可用)」合併選項
+  pcTableColumns = d.tableColumns; // 🌟 給主表格欄位用,不含合併選項(那個不是真實欄位,沒有獨立餘額)
   pcRoleMap = d.roleMap || {};
 
-  // 🌟 依貨幣欄位清單動態組表頭
+  // 🌟 依表格欄位清單動態組表頭
   const thead = document.getElementById('pc-thead-row');
   thead.innerHTML = '<th style="width:36px"><input type="checkbox" id="pc-select-all" onchange="toggleAllPlayerCurrency(this.checked)"></th><th>玩家</th>'
-    + pcCurrencyFields.map(f => `<th>${f.display}</th>`).join('');
+    + pcTableColumns.map(f => `<th>${f.display}</th>`).join('');
 
   // 🌟 依身分組對照表組出篩選下拉選單
   const roleSel = document.getElementById('pc-role-filter');
@@ -3098,11 +3099,11 @@ function renderPlayerCurrencyTable() {
   });
   document.getElementById('pc-count').textContent = `${items.length} / ${pcPlayers.length} 人`;
   document.getElementById('pc-tbody').innerHTML = items.length === 0
-    ? `<tr><td colspan="${pcCurrencyFields.length+2}" class="empty">沒有符合條件的玩家</td></tr>`
+    ? `<tr><td colspan="${pcTableColumns.length+2}" class="empty">沒有符合條件的玩家</td></tr>`
     : items.map(p => `<tr>
         <td><input type="checkbox" class="pc-row-check" data-id="${p.discordId}" ${pcSelectedIds.has(p.discordId)?'checked':''} onchange="togglePlayerCurrencySelect('${p.discordId}', this.checked)"></td>
         <td>${p.nickname}<br><span class="cell-id" style="font-size:11px">${p.discordId}</span></td>
-        ${pcCurrencyFields.map(f => `<td>${p.balances[f.internal]}</td>`).join('')}
+        ${pcTableColumns.map(f => `<td>${p.balances[f.internal]}</td>`).join('')}
       </tr>`).join('');
 }
 
