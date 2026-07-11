@@ -240,6 +240,21 @@
     </div>
   </div>
 
+  <!-- 🌟 BINGO賓果卡彈窗 -->
+  <div id="bingo-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeBingo()">×</span>
+        <h2 style="margin:0;">🎰 BINGO 賓果卡</h2>
+      </div>
+      <div class="modal-body">
+        <div id="bingo-body-container">
+          <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 🌟 背包彈窗:顯示完整的自訂變數清單(包含主頁面沒顯示的0值/隱藏項目) -->
   <div id="backpack-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 500px;">
@@ -321,6 +336,7 @@
         </div>
         <div style="display: flex; gap: 10px; flex-direction: column;">
           <button class="btn-action" onclick="showAuctions()" style="background-color: #F0B232;">🔨 拍賣會</button>
+          <button class="btn-action" id="bingo-entry-btn" onclick="showBingo()" style="background-color: #EB459E; display:none;">🎰 BINGO賓果</button>
           <button class="btn-action" onclick="showHistory()" style="background-color: #5865F2;">📜 我的紀錄</button>
           <button class="btn-action" onclick="showBackpack()" style="background-color: #43B581;">🎒 背包</button>
           <button class="btn-action" onclick="logout()" style="background-color: #ED4245;">登出帳號</button>
@@ -427,6 +443,7 @@
           document.getElementById('user-name').innerText = user.global_name || user.username;
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
+          checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
         }).catch(err => {
           localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
           document.getElementById('loading').style.display = 'none'; document.getElementById('login-section').style.display = 'block';
@@ -778,6 +795,108 @@
     }
 
     function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
+
+    // ── BINGO 賓果卡 ──
+    function checkBingoAvailability() {
+      fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.enabled) {
+          document.getElementById('bingo-entry-btn').style.display = '';
+        }
+      })
+      .catch(() => {});
+    }
+
+    function showBingo() {
+      document.getElementById('bingo-modal').style.display = 'flex';
+      loadBingoStatus();
+    }
+    function closeBingo() { document.getElementById('bingo-modal').style.display = 'none'; }
+
+    function loadBingoStatus() {
+      document.getElementById('bingo-body-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
+      fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status !== 'success') {
+          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ ${data.message || '讀取失敗'}</p>`;
+          return;
+        }
+        if (!data.enabled) {
+          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#B9BBBE;">目前沒有開放 BINGO 活動</p>`;
+          return;
+        }
+        renderBingoModal(data);
+      })
+      .catch(() => {
+        document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ 讀取失敗，請稍後再試</p>`;
+      });
+    }
+
+    function renderBingoModal(data) {
+      // 🌟 5x5棋盤,標記過的格子(在marked陣列裡的數字)特別上色
+      let gridHtml = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px">';
+      data.card.forEach(num => {
+        const isMarked = data.marked.includes(num);
+        gridHtml += `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-weight:bold;font-size:16px;
+          background-color:${isMarked ? '#43B581' : '#2F3136'};color:${isMarked ? '#fff' : '#B9BBBE'};border:1px solid ${isMarked ? '#43B581' : '#40444B'}">${num}</div>`;
+      });
+      gridHtml += '</div>';
+
+      const progressHtml = `
+        <div style="text-align:center;margin-bottom:12px;color:#B9BBBE;font-size:14px">
+          已標記 ${data.marked.length} / 25　｜　已連線 ${data.linesCount} 條${data.full ? '　｜　🏆 已完成整卡！' : ''}
+        </div>`;
+
+      const balanceHtml = `<div style="text-align:center;margin-bottom:12px;color:#FEE75C">💰 我的餘額：${data.myBalance} ${data.currencyDisplayName}</div>`;
+
+      const buyHtml = `
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn-action" style="background-color:#5865F2" onclick="buyBingoNumberAction('RANDOM')">
+            🎲 隨機抽號(花費 ${data.randomCost} ${data.currencyDisplayName})
+          </button>
+          <div style="display:flex;gap:8px">
+            <input id="bingo-pick-input" type="number" min="${data.numberMin}" max="${data.numberMax}" placeholder="輸入 ${data.numberMin}~${data.numberMax}" class="qty-input" style="flex:1">
+            <button class="btn-action" style="background-color:#F0B232;flex:1" onclick="buyBingoNumberAction('PICK')">
+              🎯 指定抽號(${data.pickCost} ${data.currencyDisplayName})
+            </button>
+          </div>
+        </div>`;
+
+      const rewardNoteHtml = `<div style="text-align:center;margin-top:12px;font-size:12px;color:#72767D">
+        ${data.hasLineReward ? '每連成一條線就有連線獎勵　' : ''}${data.hasFullReward ? '集滿25個數字有完成整卡大獎' : ''}
+      </div>`;
+
+      document.getElementById('bingo-body-container').innerHTML = gridHtml + progressHtml + balanceHtml + buyHtml + rewardNoteHtml;
+    }
+
+    function buyBingoNumberAction(mode) {
+      let targetNumber = '';
+      if (mode === 'PICK') {
+        targetNumber = document.getElementById('bingo-pick-input').value;
+        if (targetNumber === '') { alert('請先輸入要指定的數字！'); return; }
+      }
+      fetch(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status !== 'success') { alert('❌ ' + data.message); return; }
+        let msg = `🎲 開出數字：${data.number}\n💰 花費：${data.cost} ${data.currencyDisplayName}\n`;
+        if (data.alreadyMarked) msg += '這個數字之前就已經標記過了！';
+        else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
+        else {
+          msg += '✅ 命中！已標記在卡片上。';
+          if (data.newLines && data.newLines.length > 0) msg += `\n🎉 新連成 ${data.newLines.length} 條線！`;
+          if (data.fullCompleted) msg += `\n🏆 恭喜完成整張賓果卡！`;
+          if (data.rewardTexts && data.rewardTexts.length > 0) msg += `\n\n${data.rewardTexts.join('\n')}`;
+        }
+        alert(msg);
+        loadBingoStatus();
+        fetchScoresAndShop(currentUser.id); // 🌟 花了錢、可能拿了獎勵,順便刷新一下分數欄
+      })
+      .catch(() => alert('❌ 連線失敗，請稍後再試'));
+    }
+    // ── BINGO 賓果卡結束 ──
 
     // 🌟 背包:顯示完整的自訂變數清單(不管主頁面有沒有顯示,這裡一律列出來)
     let latestCustomVars = [];
