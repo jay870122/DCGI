@@ -808,9 +808,10 @@
 
     // ── BINGO 賓果卡 ──
     let currentBingoActivityId = null; // 🌟 目前正在看的是哪個BINGO活動的卡片(在活動列表畫面時是null)
+    let lastDrawnNumbers = []; // 🌟 這次抽號動作命中的號碼(給棋盤用不同顏色特別標示剛剛才中的格子),換活動/重開/重抽都要清空
 
     function checkBingoAvailability() {
-      fetch(`${GAS_API_URL}?action=getBingoActivityList&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${DASHBOARD_WORKER_URL}?action=bingoActivities&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success' && data.activities && data.activities.length > 0) {
@@ -828,10 +829,11 @@
     }
     function closeBingo() { document.getElementById('bingo-modal').style.display = 'none'; }
 
-    // 🌟 第一層畫面:列出目前開放中的BINGO活動,玩家自己選要玩哪一個(可以同時玩好幾個,各自獨立的卡片)
+    // 🌟 第一層畫面:列出目前開放中的BINGO活動,玩家自己選要玩哪一個(可以同時玩好幾個,各自獨立的卡片)。
+    // 🌟 這個列表改走 Worker(有快取,讀取比較快),個別賓果卡的狀態(點進某個活動之後)還是走 GAS,確保剛抽完號碼馬上看到最新結果。
     function loadBingoActivityList() {
       document.getElementById('bingo-body-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
-      fetch(`${GAS_API_URL}?action=getBingoActivityList&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${DASHBOARD_WORKER_URL}?action=bingoActivities&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status !== 'success') {
@@ -844,7 +846,7 @@
         }
         const html = data.activities.map(a => `
           <div style="background:#2F3136;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="showBingoActivity('${a.id}')">
-            <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name}${a.entryCost > 0 ? ` <span style="font-size:11px;color:#F0B232;font-weight:normal">(開盤 ${a.entryCost} ${a.currencyDisplayName})</span>` : ''}</div>
+            <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name}${a.entryCost > 0 ? ` <span style="font-size:11px;color:#F0B232;font-weight:normal">(開盤 ${a.entryCost} ${a.currencyDisplayName})</span>` : ''}${a.hasAltCurrency ? ` <span style="font-size:11px;color:#7289DA;font-weight:normal">💱可用替代貨幣</span>` : ''}</div>
             <div style="font-size:12px;color:#B9BBBE">數字範圍 ${a.numberMin}~${a.numberMax}　｜　隨機抽 ${a.randomCost} ${a.currencyDisplayName}${a.pickCost ? `　｜　指定抽 ${a.pickCost} ${a.currencyDisplayName}` : ''}</div>
             ${a.endTime ? `<div style="font-size:11px;color:#F0B232;margin-top:4px">⏰ 到 ${new Date(a.endTime).toLocaleString()} 結束</div>` : ''}
           </div>`).join('');
@@ -858,6 +860,7 @@
     // 🌟 第二層畫面:進去看某個特定活動的賓果卡
     function showBingoActivity(activityId) {
       currentBingoActivityId = activityId;
+      lastDrawnNumbers = []; // 🌟 剛進來這個活動,清空上次(可能是別的活動)的抽號標記
       loadBingoStatus();
     }
     // 🌟 從賓果卡畫面返回活動列表
@@ -917,8 +920,12 @@
         for (let c = 0; c < 5; c++) {
           const num = data.card[r * 5 + c];
           const isMarked = data.marked.includes(num);
+          const isJustDrawn = isMarked && lastDrawnNumbers.includes(num); // 🌟 這次抽號動作剛好命中、標記上去的格子,用金色特別標示出來
+          const bg = isJustDrawn ? '#FEE75C' : (isMarked ? '#43B581' : '#2F3136');
+          const fg = isJustDrawn ? '#1e1e1e' : (isMarked ? '#fff' : '#B9BBBE');
+          const border = isJustDrawn ? '#FEE75C' : (isMarked ? '#43B581' : '#40444B');
           gridHtml += `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-weight:bold;font-size:16px;
-            background-color:${isMarked ? '#43B581' : '#2F3136'};color:${isMarked ? '#fff' : '#B9BBBE'};border:1px solid ${isMarked ? '#43B581' : '#40444B'}">${num}</div>`;
+            background-color:${bg};color:${fg};border:1px solid ${border}${isJustDrawn ? ';box-shadow:0 0 8px #FEE75C' : ''}">${num}</div>`;
         }
       }
       gridHtml += '</div>';
@@ -930,7 +937,7 @@
         <span>↙ ${data.lineLabels['D1']}：${d1 ? `<b style="color:#F0B232">${d1.dispName}</b>` : '未設定'}</span>
       </div>`;
 
-      const lineNoteHtml = `<div style="text-align:center;font-size:12px;color:#B9BBBE;margin-bottom:6px">周圍色塊 = 連成那排/那列會拿到的獎勵</div>`;
+      const lineNoteHtml = `<div style="text-align:center;font-size:12px;color:#B9BBBE;margin-bottom:6px">周圍色塊 = 連成那排/那列會拿到的獎勵${lastDrawnNumbers.length > 0 ? '　｜　🟡 金色 = 這次剛抽到的號碼' : ''}</div>`;
 
       // 🌟 重抽按鈕:只能在「還沒抽過任何數字」的時候用,一旦開始抽號碼,就只能等重開新盤才能重新分配。
       // 免費次數用完之後,如果活動沒開放「付費繼續」,按鈕會整個鎖住,不會出現要花錢的選項。
@@ -978,7 +985,16 @@
           已標記 ${data.marked.length} / 25　｜　已連線 ${data.linesCount} 條${data.full ? '　｜　🏆 已完成整卡！' : ''}
         </div>`;
 
-      const balanceHtml = `<div style="text-align:center;margin-bottom:12px;color:#FEE75C">💰 我的餘額：${data.myBalance} ${data.currencyDisplayName}</div>`;
+      const balanceHtml = `<div style="text-align:center;margin-bottom:8px;color:#FEE75C">💰 我的餘額：${data.myBalance} ${data.currencyDisplayName}${data.hasAltCurrency ? `　｜　${data.altBalance} ${data.altCurrencyDisplayName}` : ''}</div>`;
+
+      // 🌟 替代貨幣選擇器:活動有開放才會顯示,選好之後底下所有付費按鈕(隨機抽/指定抽/重抽/重開)都會用這個貨幣支付
+      const payWithHtml = data.hasAltCurrency ? `
+        <div style="text-align:center;margin-bottom:12px">
+          <select id="bingo-paywith" class="qty-input" style="width:auto">
+            <option value="PRIMARY">用 ${data.currencyDisplayName} 支付</option>
+            <option value="ALT">用 ${data.altCurrencyDisplayName} 支付(匯率 1:${data.altCurrencyRate})</option>
+          </select>
+        </div>` : '';
 
       // 🌟 指定抽號:給一個下拉建議清單(datalist),列出自己卡上「還沒中」的號碼,不用自己一格一格找;
       // 管理員如果關掉這個功能,這一整塊就不會顯示出來
@@ -1009,13 +1025,19 @@
           ${pickHtml}
         </div>`;
 
-      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + diagHtml + lineNoteHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + buyHtml;
+      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + diagHtml + lineNoteHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
+    }
+
+    // 🌟 讀取目前選的付款方式('PRIMARY'/'ALT'),沒有替代貨幣選擇器的話(活動沒開放)就一律用主要貨幣
+    function getBingoPayWith() {
+      const sel = document.getElementById('bingo-paywith');
+      return sel ? sel.value : 'PRIMARY';
     }
 
     function rerollBingoLineRewardsAction() {
       const btn = document.getElementById('bingo-reroll-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-      fetch(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         btn.disabled = false; btn.textContent = originalText;
@@ -1031,7 +1053,7 @@
       if (!confirm('確定要重開新盤嗎？目前的標記進度、卡片數字、連線獎勵分配都會清空換成全新的一張，此動作無法復原！')) return;
       const btn = document.getElementById('bingo-newboard-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-      fetch(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status !== 'success') {
@@ -1040,6 +1062,7 @@
           return;
         }
         alert(data.wasFree ? '🆕 已免費重開新盤！' : `🆕 已花費 ${data.cost} ${data.currencyDisplayName} 重開新盤！`);
+        lastDrawnNumbers = []; // 🌟 卡片已經換新的了,舊的金色標示沒有意義,清空
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id);
       })
@@ -1063,7 +1086,7 @@
       randomBtn.disabled = true; if (pickBtn) pickBtn.disabled = true;
       randomBtn.textContent = '⏳ 處理中...'; if (pickBtn) pickBtn.textContent = '⏳ 處理中...';
 
-      fetch(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         bingoActionInFlight = false;
@@ -1072,6 +1095,7 @@
         if (data.status !== 'success') { alert('❌ ' + data.message); return; }
 
         const hitDraws = data.draws.filter(d => d.hit && !d.alreadyMarked);
+        lastDrawnNumbers = hitDraws.map(d => d.number); // 🌟 記下這次命中的號碼,等一下重新畫棋盤時用金色特別標示
         let msg = `🎲 這次共抽了 ${data.draws.length} 次：${data.draws.map(d => d.number).join('、')}\n💰 花費：${data.cost} ${data.currencyDisplayName}\n`;
         if (hitDraws.length === 0) msg += '這次都沒有命中卡片上的號碼，殘念！';
         else {
