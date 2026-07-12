@@ -844,7 +844,7 @@
         }
         const html = data.activities.map(a => `
           <div style="background:#2F3136;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="showBingoActivity('${a.id}')">
-            <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name}</div>
+            <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name}${a.entryCost > 0 ? ` <span style="font-size:11px;color:#F0B232;font-weight:normal">(開盤 ${a.entryCost} ${a.currencyDisplayName})</span>` : ''}</div>
             <div style="font-size:12px;color:#B9BBBE">數字範圍 ${a.numberMin}~${a.numberMax}　｜　隨機抽 ${a.randomCost} ${a.currencyDisplayName}${a.pickCost ? `　｜　指定抽 ${a.pickCost} ${a.currencyDisplayName}` : ''}</div>
             ${a.endTime ? `<div style="font-size:11px;color:#F0B232;margin-top:4px">⏰ 到 ${new Date(a.endTime).toLocaleString()} 結束</div>` : ''}
           </div>`).join('');
@@ -932,25 +932,37 @@
 
       const lineNoteHtml = `<div style="text-align:center;font-size:12px;color:#B9BBBE;margin-bottom:6px">周圍色塊 = 連成那排/那列會拿到的獎勵</div>`;
 
-      // 🌟 重抽按鈕:只能在「還沒抽過任何數字」的時候用,一旦開始抽號碼,就只能等重開新盤才能重新分配
-      // (免費次數用完就顯示要花多少錢;已經抽過數字的話,整個按鈕換成提示文字)
-      const rerollLabel = data.freeRerollLeft > 0 ? `🔄 免費重抽連線獎勵(剩 ${data.freeRerollLeft} 次)` : `🔄 重抽連線獎勵(花費 ${data.rerollCost} ${data.currencyDisplayName})`;
+      // 🌟 重抽按鈕:只能在「還沒抽過任何數字」的時候用,一旦開始抽號碼,就只能等重開新盤才能重新分配。
+      // 免費次數用完之後,如果活動沒開放「付費繼續」,按鈕會整個鎖住,不會出現要花錢的選項。
+      const rerollFreeUsedUp = data.freeRerollLeft <= 0;
+      const rerollLocked = rerollFreeUsedUp && !data.rerollAfterFreeAllowed;
+      const rerollLabel = rerollLocked
+        ? `🔒 免費重抽次數已用完`
+        : (data.freeRerollLeft > 0 ? `🔄 免費重抽連線獎勵(剩 ${data.freeRerollLeft} 次)` : `🔄 重抽連線獎勵(花費 ${data.rerollCost} ${data.currencyDisplayName})`);
       const rerollHtml = data.marked.length === 0
         ? `<div style="text-align:center;margin-bottom:8px">
-            <button class="btn-action" id="bingo-reroll-btn" style="background-color:#7289DA" onclick="rerollBingoLineRewardsAction()">${rerollLabel}</button>
+            <button class="btn-action" id="bingo-reroll-btn" style="background-color:${rerollLocked ? '#4F545C' : '#7289DA'}" onclick="rerollBingoLineRewardsAction()" ${rerollLocked ? 'disabled' : ''}>${rerollLabel}</button>
           </div>`
         : `<div style="text-align:center;margin-bottom:8px;font-size:12px;color:#72767D">已經開始抽數字了，連線獎勵分配不能再重抽，只能等重開新盤</div>`;
 
-      // 🌟 重開新盤按鈕:管理員開放的話才會顯示。已經達到總次數上限的話,按鈕會鎖住並顯示原因。
+      // 🌟 重開新盤按鈕:管理員開放的話才會顯示。已經達到總次數上限、或免費用完且不給付費的話,按鈕會鎖住。
+      // 如果這張卡剛好已經完成整卡、活動又有開「完成後永遠免費」,會特別標示這次重開不用錢。
       let resetNewBoardHtml = '';
       if (data.resetEnabled) {
         const reachedMax = data.resetTimesLeft !== null && data.resetTimesLeft <= 0;
+        const resetFreeUsedUp = data.freeResetLeft <= 0;
+        const completeBonus = data.full && data.completeResetFree;
+        const resetLocked = reachedMax || (resetFreeUsedUp && !data.resetAfterFreeAllowed && !completeBonus);
         const resetLabel = reachedMax
-          ? `🆕 已達重開上限`
+          ? `🔒 已達重開上限`
+          : resetLocked
+          ? `🔒 免費重開次數已用完`
+          : completeBonus
+          ? `🆕 完成整卡！免費重開新盤`
           : (data.freeResetLeft > 0 ? `🆕 免費重開新盤(剩 ${data.freeResetLeft} 次)` : `🆕 重開新盤(花費 ${data.resetCost} ${data.currencyDisplayName})`);
         const timesNote = data.resetTimesLeft !== null ? `<div style="font-size:11px;color:#72767D">總重開次數還剩 ${data.resetTimesLeft} 次</div>` : '';
         resetNewBoardHtml = `<div style="text-align:center;margin-bottom:12px">
-          <button class="btn-action" id="bingo-newboard-btn" style="background-color:#ED4245" onclick="resetOwnBingoCardAction()" ${reachedMax ? 'disabled' : ''}>${resetLabel}</button>
+          <button class="btn-action" id="bingo-newboard-btn" style="background-color:${resetLocked ? '#4F545C' : '#ED4245'}" onclick="resetOwnBingoCardAction()" ${resetLocked ? 'disabled' : ''}>${resetLabel}</button>
           ${timesNote}
           <div style="font-size:11px;color:#72767D;margin-top:2px">⚠️ 重開會清空目前的標記進度、換一張全新的卡</div>
         </div>`;
