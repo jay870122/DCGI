@@ -863,6 +863,21 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="tbl-wrap" style="padding:24px;margin-top:16px">
+          <div class="page-title" style="font-size:15px">🆕 玩家自助重開新盤 <span class="hint">整張卡(數字、標記、連線紀錄、連線獎勵分配)全部重來一張新的</span></div>
+          <div class="add-form" style="margin-top:12px">
+            <div class="field full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="bingo-resetenabled" style="width:auto">
+                開放玩家自己重開新盤(關掉的話只有管理員能重置)
+              </label>
+            </div>
+            <div class="field"><label>免費重開次數</label><input id="bingo-resetfreelimit" type="number" min="0" placeholder="0"></div>
+            <div class="field"><label>免費次數用完後,每次重開費用</label><input id="bingo-resetcost" type="number" min="0" placeholder="0"></div>
+            <div class="field"><label>總共最多能重開幾次 <span class="hint">0=不限制次數(但還是要照付費規則);超過這個次數,不管花不花錢都不能再重開</span></label><input id="bingo-resetmaxtimes" type="number" min="0" placeholder="0"></div>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
           <div class="page-title" style="font-size:15px">🎁 管理員直接給號碼</div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
             <input id="bingo-give-number" type="number" placeholder="要發放的數字" style="width:160px">
@@ -3381,6 +3396,10 @@ async function loadBingoConfig() {
   document.getElementById('bingo-fullreward').value = c.fullReward || '';
   document.getElementById('bingo-freererolls').value = c.freeRerollLimit;
   document.getElementById('bingo-rerollcost').value = c.rerollCost;
+  document.getElementById('bingo-resetenabled').checked = !!c.resetEnabled;
+  document.getElementById('bingo-resetfreelimit').value = c.resetFreeLimit;
+  document.getElementById('bingo-resetcost').value = c.resetCost;
+  document.getElementById('bingo-resetmaxtimes').value = c.resetMaxTimes;
 
   // 🌟 連線獎勵改成單一共用獎池,套用跟商店盲盒一樣的即時預覽機制
   document.getElementById('bingo-linerewardpool').value = c.lineRewardPool || '';
@@ -3409,6 +3428,10 @@ async function saveBingoConfig() {
     lineRewardPool: document.getElementById('bingo-linerewardpool').value,
     freeRerollLimit: document.getElementById('bingo-freererolls').value,
     rerollCost: document.getElementById('bingo-rerollcost').value,
+    resetEnabled: document.getElementById('bingo-resetenabled').checked,
+    resetFreeLimit: document.getElementById('bingo-resetfreelimit').value,
+    resetCost: document.getElementById('bingo-resetcost').value,
+    resetMaxTimes: document.getElementById('bingo-resetmaxtimes').value,
     fullReward: document.getElementById('bingo-fullreward').value,
   });
   if (d.status === 'success') toast('⚙️ BINGO設定已儲存！');
