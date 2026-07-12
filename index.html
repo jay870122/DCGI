@@ -807,11 +807,13 @@
     function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
 
     // ── BINGO 賓果卡 ──
+    let currentBingoActivityId = null; // 🌟 目前正在看的是哪個BINGO活動的卡片(在活動列表畫面時是null)
+
     function checkBingoAvailability() {
-      fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=getBingoActivityList&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
-        if (data.status === 'success' && data.enabled) {
+        if (data.status === 'success' && data.activities && data.activities.length > 0) {
           bingoAvailable = true;
           renderSidebar(); // 🌟 分類清單這時候可能已經渲染過一次了(沒有BINGO入口),重新渲染一次把入口補上
         }
@@ -821,13 +823,52 @@
 
     function showBingo() {
       document.getElementById('bingo-modal').style.display = 'flex';
-      loadBingoStatus();
+      currentBingoActivityId = null;
+      loadBingoActivityList();
     }
     function closeBingo() { document.getElementById('bingo-modal').style.display = 'none'; }
 
+    // 🌟 第一層畫面:列出目前開放中的BINGO活動,玩家自己選要玩哪一個(可以同時玩好幾個,各自獨立的卡片)
+    function loadBingoActivityList() {
+      document.getElementById('bingo-body-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
+      fetch(`${GAS_API_URL}?action=getBingoActivityList&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status !== 'success') {
+          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ ${data.message || '讀取失敗'}</p>`;
+          return;
+        }
+        if (!data.activities || data.activities.length === 0) {
+          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#B9BBBE;">目前沒有開放中的 BINGO 活動</p>`;
+          return;
+        }
+        const html = data.activities.map(a => `
+          <div style="background:#2F3136;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="showBingoActivity('${a.id}')">
+            <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name}</div>
+            <div style="font-size:12px;color:#B9BBBE">數字範圍 ${a.numberMin}~${a.numberMax}　｜　隨機抽 ${a.randomCost} ${a.currencyDisplayName}${a.pickCost ? `　｜　指定抽 ${a.pickCost} ${a.currencyDisplayName}` : ''}</div>
+            ${a.endTime ? `<div style="font-size:11px;color:#F0B232;margin-top:4px">⏰ 到 ${new Date(a.endTime).toLocaleString()} 結束</div>` : ''}
+          </div>`).join('');
+        document.getElementById('bingo-body-container').innerHTML = html;
+      })
+      .catch(() => {
+        document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ 讀取失敗，請稍後再試</p>`;
+      });
+    }
+
+    // 🌟 第二層畫面:進去看某個特定活動的賓果卡
+    function showBingoActivity(activityId) {
+      currentBingoActivityId = activityId;
+      loadBingoStatus();
+    }
+    // 🌟 從賓果卡畫面返回活動列表
+    function backToBingoActivityList() {
+      currentBingoActivityId = null;
+      loadBingoActivityList();
+    }
+
     function loadBingoStatus() {
       document.getElementById('bingo-body-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
-      fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status !== 'success') {
@@ -835,7 +876,7 @@
           return;
         }
         if (!data.enabled) {
-          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#B9BBBE;">目前沒有開放 BINGO 活動</p>`;
+          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#B9BBBE;">${data.message || '這個BINGO活動目前沒有開放'}</p>`;
           return;
         }
         renderBingoModal(data);
@@ -849,6 +890,11 @@
       const info = data.lineDisplayInfo || {};
       const rowIds = ['R0','R1','R2','R3','R4'];
       const colIds = ['C0','C1','C2','C3','C4'];
+
+      const backHtml = `<div style="margin-bottom:10px">
+        <button onclick="backToBingoActivityList()" style="background:none;border:none;color:#B9BBBE;font-size:13px;cursor:pointer;padding:0">← 返回活動列表</button>
+        <div style="font-weight:bold;font-size:16px;margin-top:4px">🎰 ${data.activityName || ''}</div>
+      </div>`;
 
       // 🌟 6x6棋盤:左上角空白,第一列是「直排」連線圖示,左邊那一欄是「橫排」連線圖示,中間5x5才是真正的數字。
       // 每個圖示格直接顯示這條線實際會拿到的獎勵名稱(不是神秘的🎁了,滑鼠移上去/點兩下手機上會看到完整內容)
@@ -951,13 +997,13 @@
           ${pickHtml}
         </div>`;
 
-      document.getElementById('bingo-body-container').innerHTML = gridHtml + diagHtml + lineNoteHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + buyHtml;
+      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + diagHtml + lineNoteHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + buyHtml;
     }
 
     function rerollBingoLineRewardsAction() {
       const btn = document.getElementById('bingo-reroll-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-      fetch(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         btn.disabled = false; btn.textContent = originalText;
@@ -973,7 +1019,7 @@
       if (!confirm('確定要重開新盤嗎？目前的標記進度、卡片數字、連線獎勵分配都會清空換成全新的一張，此動作無法復原！')) return;
       const btn = document.getElementById('bingo-newboard-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-      fetch(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status !== 'success') {
@@ -1005,7 +1051,7 @@
       randomBtn.disabled = true; if (pickBtn) pickBtn.disabled = true;
       randomBtn.textContent = '⏳ 處理中...'; if (pickBtn) pickBtn.textContent = '⏳ 處理中...';
 
-      fetch(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         bingoActionInFlight = false;
