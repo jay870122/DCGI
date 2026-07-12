@@ -1246,6 +1246,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3 id="bingo-activity-modal-title">🎰 新增BINGO活動</h3><button class="modal-close" onclick="closeModal('bingo-activity-modal')">×</button></div>
     <div class="modal-body">
       <div class="add-form">
+        <div class="fsep">📋 基本資訊</div>
         <div class="field full"><label>活動名稱</label><input id="ba-name" placeholder="例：夏日賓果嘉年華"></div>
         <div class="field"><label>開始時間 <span class="hint">留空=不限制</span></label><input id="ba-start" type="datetime-local"></div>
         <div class="field"><label>結束時間 <span class="hint">留空=不限制</span></label><input id="ba-end" type="datetime-local"></div>
@@ -1257,7 +1258,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="field"><label>數字範圍 最小值</label><input id="ba-min" type="number" placeholder="1"></div>
         <div class="field"><label>數字範圍 最大值 <span class="hint">最小~最大至少要有25個數字</span></label><input id="ba-max" type="number" placeholder="49"></div>
-        <div class="field"><label>使用的貨幣</label><input id="ba-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
+
+        <div class="fsep">🎲 抽號設定</div>
+        <div class="field full"><label>使用的貨幣</label><input id="ba-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
+        <div class="field full">
+          <label>開盤費用 <span class="hint">留空/0=免費入場;玩家第一次點進來玩這個活動、拿到第一張卡的時候要收多少錢</span></label>
+          <input id="ba-entrycost" type="number" min="0" placeholder="0">
+        </div>
         <div class="field full">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="ba-pickenabled" style="width:auto">
@@ -1266,6 +1273,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="field"><label>隨機抽號費用</label><input id="ba-randomcost" type="number" min="0" placeholder="10"></div>
         <div class="field"><label>指定抽號費用</label><input id="ba-pickcost" type="number" min="0" placeholder="30"></div>
+
+        <div class="fsep">🎁 連線獎勵</div>
         <div class="field full">
           <label>連線獎勵共用獎池 <span class="hint">盲盒格式(可設機率、多獎項)。每條線各自從這抽一個獎項分配好,玩家看得到內容</span></label>
           <textarea id="ba-linerewardpool" rows="4" placeholder="幻彩水晶小獎, 幻彩水晶:50&#10;幻彩水晶大獎, 幻彩水晶:500 @10%&#10;GASH100點, GASH100點:1 @5%"></textarea>
@@ -1274,9 +1283,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="field"><label>連線獎勵免費重抽次數</label><input id="ba-freererolls" type="number" min="0" placeholder="1"></div>
         <div class="field"><label>免費用完後每次重抽費用</label><input id="ba-rerollcost" type="number" min="0" placeholder="50"></div>
         <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-rerollafterfree" style="width:auto">
+            免費次數用完後,還允許花錢繼續重抽 <span class="hint">不勾的話,免費次數用完就整個鎖住,不會出現付費選項</span>
+          </label>
+        </div>
+
+        <div class="fsep">🏆 整卡獎勵</div>
+        <div class="field full">
           <label>完成整卡獎勵 <span class="hint">格式:變數:數量+變數:數量,只會發一次</span></label>
           <input id="ba-fullreward" placeholder="例：幻彩水晶:1000+GASH100點:1">
         </div>
+
+        <div class="fsep">🆕 重開新盤</div>
         <div class="field full">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="ba-resetenabled" style="width:auto">
@@ -1286,6 +1305,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="field"><label>免費重開次數</label><input id="ba-resetfreelimit" type="number" min="0" placeholder="0"></div>
         <div class="field"><label>免費用完後每次重開費用</label><input id="ba-resetcost" type="number" min="0" placeholder="0"></div>
         <div class="field full"><label>總共最多能重開幾次 <span class="hint">0=不限制</span></label><input id="ba-resetmaxtimes" type="number" min="0" placeholder="0"></div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-resetafterfree" style="width:auto">
+            免費次數用完後,還允許花錢繼續重開 <span class="hint">不勾的話,免費次數用完就整個鎖住,不會出現付費選項</span>
+          </label>
+        </div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-completeresetfree" style="width:auto">
+            完成整卡(拿到BINGO)後,重新開盤永遠免費 <span class="hint">跟一般的免費次數是兩回事,不管免費額度用完了沒,完成整卡後這次重開都算免費,鼓勵玩家繼續玩</span>
+          </label>
+        </div>
+
         <div class="actions"><button class="btn-save" onclick="saveBingoActivity()">💾 儲存</button></div>
       </div>
     </div>
@@ -3431,6 +3463,7 @@ function openBingoActivityForm(activityId) {
   f('ba-min').value = a ? a.numberMin : 1;
   f('ba-max').value = a ? a.numberMax : 49;
   f('ba-currency').value = a ? getDisplayCurrencyNameLocal_(a.currencyName) : '幻彩水晶';
+  f('ba-entrycost').value = a ? a.entryCost : 0;
   document.getElementById('ba-pickenabled').checked = a ? !!a.pickEnabled : true;
   f('ba-randomcost').value = a ? a.randomCost : 10;
   f('ba-pickcost').value = a ? a.pickCost : 30;
@@ -3440,11 +3473,14 @@ function openBingoActivityForm(activityId) {
   document.getElementById('ba-linerewardpool').addEventListener('input', bingoPoolPreviewHandler);
   f('ba-freererolls').value = a ? a.freeRerollLimit : 1;
   f('ba-rerollcost').value = a ? a.rerollCost : 50;
+  document.getElementById('ba-rerollafterfree').checked = a ? !!a.rerollAfterFreeAllowed : true;
   f('ba-fullreward').value = a ? (a.fullReward || '') : '';
   document.getElementById('ba-resetenabled').checked = a ? !!a.resetEnabled : false;
   f('ba-resetfreelimit').value = a ? a.resetFreeLimit : 0;
   f('ba-resetcost').value = a ? a.resetCost : 0;
   f('ba-resetmaxtimes').value = a ? a.resetMaxTimes : 0;
+  document.getElementById('ba-resetafterfree').checked = a ? !!a.resetAfterFreeAllowed : true;
+  document.getElementById('ba-completeresetfree').checked = a ? !!a.completeResetFree : false;
 
   document.getElementById('bingo-activity-modal').classList.add('open');
 }
@@ -3487,6 +3523,10 @@ async function saveBingoActivity() {
     resetFreeLimit: document.getElementById('ba-resetfreelimit').value,
     resetCost: document.getElementById('ba-resetcost').value,
     resetMaxTimes: document.getElementById('ba-resetmaxtimes').value,
+    entryCost: document.getElementById('ba-entrycost').value,
+    rerollAfterFreeAllowed: document.getElementById('ba-rerollafterfree').checked,
+    resetAfterFreeAllowed: document.getElementById('ba-resetafterfree').checked,
+    completeResetFree: document.getElementById('ba-completeresetfree').checked,
   };
   const d = await api(params);
   if (d.status === 'success') {
@@ -3620,7 +3660,7 @@ async function loadAuctionBids() {
 // 🌟 點擊彈窗背景關閉(但編輯商品/拍賣這兩個表單欄位很多,很容易滑鼠稍微點歪就整個關掉、資料等於白填,
 // 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉)
 document.querySelectorAll('.overlay').forEach(el => {
-  if (el.id === 'shop-modal' || el.id === 'auction-modal') return;
+  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal') return;
   el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
 });
 
