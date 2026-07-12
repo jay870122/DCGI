@@ -1261,8 +1261,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="fsep">🎲 抽號設定</div>
         <div class="field full"><label>使用的貨幣</label><input id="ba-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
+        <div class="field"><label>替代貨幣(選填) <span class="hint">留空=不開放,玩家所有付費動作都可以選擇改用這個貨幣支付</span></label><input id="ba-altcurrency" list="dc-list" placeholder="例：拍賣幣"></div>
+        <div class="field"><label>替代貨幣匯率 <span class="hint">1個替代幣可以折抵多少個主要貨幣,例如填2代表1個替代幣抵2個主要貨幣</span></label><input id="ba-altrate" type="number" min="0" step="0.01" placeholder="1"></div>
         <div class="field full">
-          <label>開盤費用 <span class="hint">留空/0=免費入場;玩家第一次點進來玩這個活動、拿到第一張卡的時候要收多少錢</span></label>
+          <label>開盤費用 <span class="hint">留空/0=免費入場;玩家第一次點進來玩這個活動、拿到第一張卡的時候要收多少錢(只能用主要貨幣支付,因為這是自動觸發的,還沒機會讓玩家選付款方式)</span></label>
           <input id="ba-entrycost" type="number" min="0" placeholder="0">
         </div>
         <div class="field full">
@@ -3464,6 +3466,8 @@ function openBingoActivityForm(activityId) {
   f('ba-max').value = a ? a.numberMax : 49;
   f('ba-currency').value = a ? getDisplayCurrencyNameLocal_(a.currencyName) : '幻彩水晶';
   f('ba-entrycost').value = a ? a.entryCost : 0;
+  f('ba-altcurrency').value = a ? getDisplayCurrencyNameLocal_(a.altCurrencyName || '') : '';
+  f('ba-altrate').value = a && a.altCurrencyRate ? a.altCurrencyRate : '';
   document.getElementById('ba-pickenabled').checked = a ? !!a.pickEnabled : true;
   f('ba-randomcost').value = a ? a.randomCost : 10;
   f('ba-pickcost').value = a ? a.pickCost : 30;
@@ -3524,6 +3528,8 @@ async function saveBingoActivity() {
     resetCost: document.getElementById('ba-resetcost').value,
     resetMaxTimes: document.getElementById('ba-resetmaxtimes').value,
     entryCost: document.getElementById('ba-entrycost').value,
+    altCurrencyName: document.getElementById('ba-altcurrency').value,
+    altCurrencyRate: document.getElementById('ba-altrate').value,
     rerollAfterFreeAllowed: document.getElementById('ba-rerollafterfree').checked,
     resetAfterFreeAllowed: document.getElementById('ba-resetafterfree').checked,
     completeResetFree: document.getElementById('ba-completeresetfree').checked,
