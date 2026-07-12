@@ -814,88 +814,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
       <!-- BINGO 賓果卡管理 -->
       <div id="page-bingo" style="display:none">
-        <div class="page-header"><div class="page-title">🎰 BINGO 賓果卡</div></div>
-
-        <div class="tbl-wrap" style="padding:24px">
-          <div class="page-title" style="font-size:15px">⚙️ 全域設定</div>
-          <div class="add-form" style="margin-top:12px">
-            <div class="field full">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                <input type="checkbox" id="bingo-enabled" style="width:auto">
-                啟用 BINGO 功能(玩家前台才會顯示這個活動)
-              </label>
-            </div>
-            <div class="field full">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                <input type="checkbox" id="bingo-pickenabled" style="width:auto">
-                開放「指定抽號」功能(關掉的話玩家只能隨機抽,不能自己選要哪個數字)
-              </label>
-            </div>
-            <div class="field"><label>數字範圍 最小值</label><input id="bingo-min" type="number" placeholder="1"></div>
-            <div class="field"><label>數字範圍 最大值 <span class="hint">最小~最大至少要有25個數字,才能湊成一張5x5的卡</span></label><input id="bingo-max" type="number" placeholder="49"></div>
-            <div class="field"><label>使用的貨幣</label><input id="bingo-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
-            <div class="field"><label>隨機抽號費用 <span class="hint">隨機抽一個範圍內的數字,不保證在你卡上</span></label><input id="bingo-randomcost" type="number" min="0" placeholder="10"></div>
-            <div class="field"><label>指定抽號費用 <span class="hint">自己指定要哪個數字,通常比隨機貴</span></label><input id="bingo-pickcost" type="number" min="0" placeholder="30"></div>
-            <div class="field full">
-              <label>完成整卡獎勵 <span class="hint">格式:變數:數量+變數:數量,25個數字全部標記才會發,只會發一次,不需要機率就用簡單格式</span></label>
-              <input id="bingo-fullreward" placeholder="例：幻彩水晶:1000+GASH100點:1">
-            </div>
-            <div class="actions"><button class="btn-save" onclick="saveBingoConfig()">💾 儲存設定</button></div>
-          </div>
+        <div class="page-header">
+          <div class="page-title">🎰 BINGO 賓果卡</div>
+          <button class="fab" onclick="openBingoActivityForm()">➕ 新增BINGO活動</button>
         </div>
 
-        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
-          <div class="page-title" style="font-size:15px">🎁 連線獎勵獎池 <span class="hint">格式跟商店盲盒一樣(可以設定機率、多獎項)。玩家拿到卡片(或重抽)時,系統會幫12條線各自從這個池子抽一個獎項出來、直接分配好給玩家看,不是神秘獎勵——玩家抽數字前可以看到每條線會拿到什麼,連成那條線才會真的發放</span></div>
-          <div class="add-form" style="margin-top:12px">
-            <div class="field full">
-              <textarea id="bingo-linerewardpool" rows="4" placeholder="幻彩水晶小獎, 幻彩水晶:50&#10;幻彩水晶大獎, 幻彩水晶:500 @10%&#10;GASH100點, GASH100點:1 @5%"></textarea>
-              <div class="gacha-preview" id="bingo-linerewardpool-preview" style="display:none"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
-          <div class="page-title" style="font-size:15px">🔄 重抽連線獎勵分配</div>
-          <div class="add-form" style="margin-top:12px">
-            <div class="field"><label>每張卡免費重抽次數 <span class="hint">用完之後就要花錢</span></label><input id="bingo-freererolls" type="number" min="0" placeholder="1"></div>
-            <div class="field"><label>免費次數用完後,每次重抽費用</label><input id="bingo-rerollcost" type="number" min="0" placeholder="50"></div>
-          </div>
-        </div>
-
-        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
-          <div class="page-title" style="font-size:15px">🆕 玩家自助重開新盤 <span class="hint">整張卡(數字、標記、連線紀錄、連線獎勵分配)全部重來一張新的</span></div>
-          <div class="add-form" style="margin-top:12px">
-            <div class="field full">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                <input type="checkbox" id="bingo-resetenabled" style="width:auto">
-                開放玩家自己重開新盤(關掉的話只有管理員能重置)
-              </label>
-            </div>
-            <div class="field"><label>免費重開次數</label><input id="bingo-resetfreelimit" type="number" min="0" placeholder="0"></div>
-            <div class="field"><label>免費次數用完後,每次重開費用</label><input id="bingo-resetcost" type="number" min="0" placeholder="0"></div>
-            <div class="field"><label>總共最多能重開幾次 <span class="hint">0=不限制次數(但還是要照付費規則);超過這個次數,不管花不花錢都不能再重開</span></label><input id="bingo-resetmaxtimes" type="number" min="0" placeholder="0"></div>
-          </div>
-        </div>
-
-        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
-          <div class="page-title" style="font-size:15px">🎁 管理員直接給號碼</div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
-            <input id="bingo-give-number" type="number" placeholder="要發放的數字" style="width:160px">
-            <button class="btn-save" onclick="giveBingoNumberToSelected()">🎁 發給玩家貨幣管理頁面已勾選的玩家</button>
-          </div>
-          <div class="gacha-guide" style="margin-top:10px">
-            ⚠️ 要先到「💰 玩家貨幣管理」頁面勾選要發放的玩家,回到這裡輸入數字送出。命中會自動檢查連線/整卡並發獎,沒中卡片的話什麼都不會發生(不會扣錢,這是管理員直接給的)。
-          </div>
-        </div>
-
-        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
-          <div class="page-title" style="font-size:15px">🔄 重置賓果卡</div>
-          <div style="margin-top:12px">
-            <button class="btn-del" onclick="resetBingoCardsForSelected()">🔄 重置「玩家貨幣管理」頁面已勾選玩家的賓果卡</button>
-          </div>
-          <div class="gacha-guide" style="margin-top:10px">
-            ⚠️ 重置後,該玩家的卡片、已標記數字、連線紀錄全部清空,下次查詢時會拿到一張全新的隨機卡。此動作無法復原。
-          </div>
+        <div class="tbl-wrap tbl-wrap-table">
+          <table>
+            <thead><tr><th>活動名稱</th><th>時間</th><th>數字範圍</th><th>狀態</th><th>操作</th></tr></thead>
+            <tbody id="bingo-activity-tbody"><tr><td colspan="5" class="empty">讀取中...</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -1309,6 +1237,78 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="adjust-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('adjust-currency-modal')">取消</button><button class="btn-save" id="adjust-confirm-btn" onclick="confirmAdjustCurrency()">✅ 確認套用</button></div>
+  </div>
+</div>
+
+<!-- BINGO活動新增/編輯彈窗 -->
+<div class="overlay" id="bingo-activity-modal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><h3 id="bingo-activity-modal-title">🎰 新增BINGO活動</h3><button class="modal-close" onclick="closeModal('bingo-activity-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="add-form">
+        <div class="field full"><label>活動名稱</label><input id="ba-name" placeholder="例：夏日賓果嘉年華"></div>
+        <div class="field"><label>開始時間 <span class="hint">留空=不限制</span></label><input id="ba-start" type="datetime-local"></div>
+        <div class="field"><label>結束時間 <span class="hint">留空=不限制</span></label><input id="ba-end" type="datetime-local"></div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-isdraft" style="width:auto">
+            存成草稿(玩家前台不會顯示,先設定好、還沒要開放)
+          </label>
+        </div>
+        <div class="field"><label>數字範圍 最小值</label><input id="ba-min" type="number" placeholder="1"></div>
+        <div class="field"><label>數字範圍 最大值 <span class="hint">最小~最大至少要有25個數字</span></label><input id="ba-max" type="number" placeholder="49"></div>
+        <div class="field"><label>使用的貨幣</label><input id="ba-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-pickenabled" style="width:auto">
+            開放「指定抽號」功能
+          </label>
+        </div>
+        <div class="field"><label>隨機抽號費用</label><input id="ba-randomcost" type="number" min="0" placeholder="10"></div>
+        <div class="field"><label>指定抽號費用</label><input id="ba-pickcost" type="number" min="0" placeholder="30"></div>
+        <div class="field full">
+          <label>連線獎勵共用獎池 <span class="hint">盲盒格式(可設機率、多獎項)。每條線各自從這抽一個獎項分配好,玩家看得到內容</span></label>
+          <textarea id="ba-linerewardpool" rows="4" placeholder="幻彩水晶小獎, 幻彩水晶:50&#10;幻彩水晶大獎, 幻彩水晶:500 @10%&#10;GASH100點, GASH100點:1 @5%"></textarea>
+          <div class="gacha-preview" id="ba-linerewardpool-preview" style="display:none"></div>
+        </div>
+        <div class="field"><label>連線獎勵免費重抽次數</label><input id="ba-freererolls" type="number" min="0" placeholder="1"></div>
+        <div class="field"><label>免費用完後每次重抽費用</label><input id="ba-rerollcost" type="number" min="0" placeholder="50"></div>
+        <div class="field full">
+          <label>完成整卡獎勵 <span class="hint">格式:變數:數量+變數:數量,只會發一次</span></label>
+          <input id="ba-fullreward" placeholder="例：幻彩水晶:1000+GASH100點:1">
+        </div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-resetenabled" style="width:auto">
+            開放玩家自己重開新盤
+          </label>
+        </div>
+        <div class="field"><label>免費重開次數</label><input id="ba-resetfreelimit" type="number" min="0" placeholder="0"></div>
+        <div class="field"><label>免費用完後每次重開費用</label><input id="ba-resetcost" type="number" min="0" placeholder="0"></div>
+        <div class="field full"><label>總共最多能重開幾次 <span class="hint">0=不限制</span></label><input id="ba-resetmaxtimes" type="number" min="0" placeholder="0"></div>
+        <div class="actions"><button class="btn-save" onclick="saveBingoActivity()">💾 儲存</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BINGO 發放序號/重置 彈窗(針對某一個特定活動) -->
+<div class="overlay" id="bingo-action-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h3 id="bingo-action-modal-title">🎁 管理操作</h3><button class="modal-close" onclick="closeModal('bingo-action-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="bingo-action-give-box">
+        <div class="field full">
+          <label>要發放的數字 <span class="hint">會發給「玩家貨幣管理」頁面目前已勾選的玩家</span></label>
+          <input id="bingo-action-number" type="number" placeholder="要發放的數字">
+        </div>
+        <div class="actions"><button class="btn-save" onclick="giveBingoNumberToSelected()">🎁 發放</button></div>
+      </div>
+      <div id="bingo-action-reset-box" style="display:none">
+        <div class="gacha-guide">⚠️ 會重置「玩家貨幣管理」頁面目前已勾選玩家、在這個活動裡的賓果卡,清空後下次查詢會拿到全新一張。此動作無法復原。</div>
+        <div class="actions"><button class="btn-del" onclick="resetBingoCardsForSelected()">🔄 確認重置</button></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3382,32 +3382,80 @@ async function confirmAdjustCurrency() {
 // ── 玩家貨幣管理結束 ──
 
 // ── BINGO 賓果卡管理 ──
-async function loadBingoConfig() {
-  const d = await api({action:'adminGetBingoConfig'});
-  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
-  const c = d.config;
-  document.getElementById('bingo-enabled').checked = !!c.enabled;
-  document.getElementById('bingo-pickenabled').checked = !!c.pickEnabled;
-  document.getElementById('bingo-min').value = c.numberMin;
-  document.getElementById('bingo-max').value = c.numberMax;
-  document.getElementById('bingo-currency').value = getDisplayCurrencyNameLocal_(c.currencyName);
-  document.getElementById('bingo-randomcost').value = c.randomCost;
-  document.getElementById('bingo-pickcost').value = c.pickCost;
-  document.getElementById('bingo-fullreward').value = c.fullReward || '';
-  document.getElementById('bingo-freererolls').value = c.freeRerollLimit;
-  document.getElementById('bingo-rerollcost').value = c.rerollCost;
-  document.getElementById('bingo-resetenabled').checked = !!c.resetEnabled;
-  document.getElementById('bingo-resetfreelimit').value = c.resetFreeLimit;
-  document.getElementById('bingo-resetcost').value = c.resetCost;
-  document.getElementById('bingo-resetmaxtimes').value = c.resetMaxTimes;
+let bingoActivities = [];
+let bingoActionTargetId = null; // 🌟 目前「發放序號/重置」彈窗是針對哪個活動ID
 
-  // 🌟 連線獎勵改成單一共用獎池,套用跟商店盲盒一樣的即時預覽機制
-  document.getElementById('bingo-linerewardpool').value = c.lineRewardPool || '';
-  renderGachaPreview('bingo-linerewardpool', 'bingo-linerewardpool-preview');
-  document.getElementById('bingo-linerewardpool').removeEventListener('input', bingoPoolPreviewHandler);
-  document.getElementById('bingo-linerewardpool').addEventListener('input', bingoPoolPreviewHandler);
+async function loadBingoConfig() {
+  const d = await api({action:'adminGetBingoActivities'});
+  if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
+  bingoActivities = d.activities;
+  renderBingoActivityTable();
 }
-function bingoPoolPreviewHandler() { renderGachaPreview('bingo-linerewardpool', 'bingo-linerewardpool-preview'); }
+
+function renderBingoActivityTable() {
+  const tbody = document.getElementById('bingo-activity-tbody');
+  if (bingoActivities.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">還沒有任何BINGO活動,點右上角新增一個吧</td></tr>'; return; }
+  tbody.innerHTML = bingoActivities.map(a => {
+    let statusHtml;
+    if (a.status === 'DRAFT') statusHtml = '<span class="status status-draft">📝 草稿</span>';
+    else if (a.isActive) statusHtml = '<span class="status status-active">🟢 進行中</span>';
+    else if (a.startTime && new Date(a.startTime) > new Date()) statusHtml = '<span class="status status-draft">⏳ 尚未開始</span>';
+    else statusHtml = '<span class="status status-ended">⏹️ 已結束</span>';
+    const timeText = `${a.startTime ? new Date(a.startTime).toLocaleString() : '不限'} ~ ${a.endTime ? new Date(a.endTime).toLocaleString() : '不限'}`;
+    return `<tr>
+      <td>${a.name}</td>
+      <td style="font-size:12px">${timeText}</td>
+      <td>${a.numberMin} ~ ${a.numberMax}</td>
+      <td>${statusHtml}</td>
+      <td class="cell-actions"><div class="btn-row">
+        <button class="btn btn-edit" onclick="openBingoActivityForm('${a.id}')">編輯</button>
+        <button class="btn btn-edit" onclick="openBingoActionModal('${a.id}','${a.name.replace(/'/g,"\\'")}','give')">🎁 給號碼</button>
+        <button class="btn btn-edit" onclick="openBingoActionModal('${a.id}','${a.name.replace(/'/g,"\\'")}','reset')">🔄 重置</button>
+        <button class="btn btn-del" onclick="deleteBingoActivity('${a.id}','${a.name.replace(/'/g,"\\'")}')">刪除</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function openBingoActivityForm(activityId) {
+  const isEdit = !!activityId;
+  document.getElementById('bingo-activity-modal-title').textContent = isEdit ? '🎰 編輯BINGO活動' : '🎰 新增BINGO活動';
+  document.getElementById('bingo-activity-modal').dataset.activityId = activityId || '';
+
+  const a = isEdit ? bingoActivities.find(x => x.id === activityId) : null;
+  const f = (id) => document.getElementById(id);
+  f('ba-name').value = a ? a.name : '';
+  f('ba-start').value = a && a.startTime ? toDatetimeLocalValue_(a.startTime) : '';
+  f('ba-end').value = a && a.endTime ? toDatetimeLocalValue_(a.endTime) : '';
+  document.getElementById('ba-isdraft').checked = a ? a.status === 'DRAFT' : false;
+  f('ba-min').value = a ? a.numberMin : 1;
+  f('ba-max').value = a ? a.numberMax : 49;
+  f('ba-currency').value = a ? getDisplayCurrencyNameLocal_(a.currencyName) : '幻彩水晶';
+  document.getElementById('ba-pickenabled').checked = a ? !!a.pickEnabled : true;
+  f('ba-randomcost').value = a ? a.randomCost : 10;
+  f('ba-pickcost').value = a ? a.pickCost : 30;
+  f('ba-linerewardpool').value = a ? (a.lineRewardPool || '') : '';
+  renderGachaPreview('ba-linerewardpool', 'ba-linerewardpool-preview');
+  document.getElementById('ba-linerewardpool').removeEventListener('input', bingoPoolPreviewHandler);
+  document.getElementById('ba-linerewardpool').addEventListener('input', bingoPoolPreviewHandler);
+  f('ba-freererolls').value = a ? a.freeRerollLimit : 1;
+  f('ba-rerollcost').value = a ? a.rerollCost : 50;
+  f('ba-fullreward').value = a ? (a.fullReward || '') : '';
+  document.getElementById('ba-resetenabled').checked = a ? !!a.resetEnabled : false;
+  f('ba-resetfreelimit').value = a ? a.resetFreeLimit : 0;
+  f('ba-resetcost').value = a ? a.resetCost : 0;
+  f('ba-resetmaxtimes').value = a ? a.resetMaxTimes : 0;
+
+  document.getElementById('bingo-activity-modal').classList.add('open');
+}
+function bingoPoolPreviewHandler() { renderGachaPreview('ba-linerewardpool', 'ba-linerewardpool-preview'); }
+
+// 🌟 datetime-local輸入框需要「YYYY-MM-DDTHH:mm」這種沒有時區符號的格式,跟後端存的ISO字串做個轉換
+function toDatetimeLocalValue_(isoStr) {
+  const d = new Date(isoStr);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 // 🌟 後台沒有現成的內部名稱->顯示名稱轉換,這裡簡單處理一下「升階2」這種常見別名,其餘直接顯示原字串就好
 function getDisplayCurrencyNameLocal_(internalName) {
@@ -3415,38 +3463,67 @@ function getDisplayCurrencyNameLocal_(internalName) {
   return internalName;
 }
 
-async function saveBingoConfig() {
-  const d = await api({
-    action: 'adminSetBingoConfig',
-    enabled: document.getElementById('bingo-enabled').checked,
-    pickEnabled: document.getElementById('bingo-pickenabled').checked,
-    numberMin: document.getElementById('bingo-min').value,
-    numberMax: document.getElementById('bingo-max').value,
-    currencyName: document.getElementById('bingo-currency').value,
-    randomCost: document.getElementById('bingo-randomcost').value,
-    pickCost: document.getElementById('bingo-pickcost').value,
-    lineRewardPool: document.getElementById('bingo-linerewardpool').value,
-    freeRerollLimit: document.getElementById('bingo-freererolls').value,
-    rerollCost: document.getElementById('bingo-rerollcost').value,
-    resetEnabled: document.getElementById('bingo-resetenabled').checked,
-    resetFreeLimit: document.getElementById('bingo-resetfreelimit').value,
-    resetCost: document.getElementById('bingo-resetcost').value,
-    resetMaxTimes: document.getElementById('bingo-resetmaxtimes').value,
-    fullReward: document.getElementById('bingo-fullreward').value,
-  });
-  if (d.status === 'success') toast('⚙️ BINGO設定已儲存！');
+async function saveBingoActivity() {
+  const activityId = document.getElementById('bingo-activity-modal').dataset.activityId;
+  const isEdit = !!activityId;
+  const params = {
+    action: isEdit ? 'adminUpdateBingoActivity' : 'adminAddBingoActivity',
+    activityId: activityId,
+    name: document.getElementById('ba-name').value,
+    startTime: document.getElementById('ba-start').value,
+    endTime: document.getElementById('ba-end').value,
+    isDraft: document.getElementById('ba-isdraft').checked,
+    numberMin: document.getElementById('ba-min').value,
+    numberMax: document.getElementById('ba-max').value,
+    currencyName: document.getElementById('ba-currency').value,
+    pickEnabled: document.getElementById('ba-pickenabled').checked,
+    randomCost: document.getElementById('ba-randomcost').value,
+    pickCost: document.getElementById('ba-pickcost').value,
+    lineRewardPool: document.getElementById('ba-linerewardpool').value,
+    freeRerollLimit: document.getElementById('ba-freererolls').value,
+    rerollCost: document.getElementById('ba-rerollcost').value,
+    fullReward: document.getElementById('ba-fullreward').value,
+    resetEnabled: document.getElementById('ba-resetenabled').checked,
+    resetFreeLimit: document.getElementById('ba-resetfreelimit').value,
+    resetCost: document.getElementById('ba-resetcost').value,
+    resetMaxTimes: document.getElementById('ba-resetmaxtimes').value,
+  };
+  const d = await api(params);
+  if (d.status === 'success') {
+    toast(isEdit ? '💾 已更新BINGO活動！' : '💾 已新增BINGO活動！');
+    closeModal('bingo-activity-modal');
+    loadBingoConfig();
+  } else {
+    toast('❌ ' + d.message, false);
+  }
+}
+
+async function deleteBingoActivity(activityId, name) {
+  if (!confirm(`確定要刪除「${name}」這個BINGO活動嗎？玩家已經拿到的卡片跟獎勵不會被收回,但這個活動會從列表消失。此動作無法復原！`)) return;
+  const d = await api({ action: 'adminDeleteBingoActivity', activityId });
+  if (d.status === 'success') { toast('🗑️ 已刪除！'); loadBingoConfig(); }
   else toast('❌ ' + d.message, false);
+}
+
+function openBingoActionModal(activityId, name, mode) {
+  bingoActionTargetId = activityId;
+  document.getElementById('bingo-action-modal-title').textContent = (mode === 'give' ? '🎁 給號碼：' : '🔄 重置賓果卡：') + name;
+  document.getElementById('bingo-action-give-box').style.display = mode === 'give' ? '' : 'none';
+  document.getElementById('bingo-action-reset-box').style.display = mode === 'reset' ? '' : 'none';
+  document.getElementById('bingo-action-number').value = '';
+  document.getElementById('bingo-action-modal').classList.add('open');
 }
 
 async function giveBingoNumberToSelected() {
   if (pcSelectedIds.size === 0) { toast('請先到「玩家貨幣管理」頁面勾選要發放的玩家', false); return; }
-  const number = document.getElementById('bingo-give-number').value;
+  const number = document.getElementById('bingo-action-number').value;
   if (number === '') { toast('請輸入要發放的數字', false); return; }
   if (!confirm(`確定要給已勾選的 ${pcSelectedIds.size} 位玩家數字「${number}」嗎？`)) return;
-  const d = await api({ action: 'adminGiveBingoNumber', playerIds: JSON.stringify(Array.from(pcSelectedIds)), number });
+  const d = await api({ action: 'adminGiveBingoNumber', activityId: bingoActionTargetId, playerIds: JSON.stringify(Array.from(pcSelectedIds)), number });
   if (d.status === 'success') {
     const hitCount = (d.results || []).filter(r => r.status === 'success' && r.hit && !r.alreadyMarked).length;
     toast(`🎁 已發放！其中 ${hitCount} 位玩家命中卡片`);
+    closeModal('bingo-action-modal');
   } else {
     toast('❌ ' + d.message, false);
   }
@@ -3455,8 +3532,8 @@ async function giveBingoNumberToSelected() {
 async function resetBingoCardsForSelected() {
   if (pcSelectedIds.size === 0) { toast('請先到「玩家貨幣管理」頁面勾選要重置的玩家', false); return; }
   if (!confirm(`確定要重置已勾選的 ${pcSelectedIds.size} 位玩家的賓果卡嗎？此動作無法復原！`)) return;
-  const d = await api({ action: 'adminResetBingoCards', playerIds: JSON.stringify(Array.from(pcSelectedIds)) });
-  if (d.status === 'success') toast('🔄 ' + d.message);
+  const d = await api({ action: 'adminResetBingoCards', activityId: bingoActionTargetId, playerIds: JSON.stringify(Array.from(pcSelectedIds)) });
+  if (d.status === 'success') { toast('🔄 ' + d.message); closeModal('bingo-action-modal'); }
   else toast('❌ ' + d.message, false);
 }
 // ── BINGO 賓果卡管理結束 ──
