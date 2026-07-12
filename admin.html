@@ -825,20 +825,40 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
                 啟用 BINGO 功能(玩家前台才會顯示這個活動)
               </label>
             </div>
+            <div class="field full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="bingo-pickenabled" style="width:auto">
+                開放「指定抽號」功能(關掉的話玩家只能隨機抽,不能自己選要哪個數字)
+              </label>
+            </div>
             <div class="field"><label>數字範圍 最小值</label><input id="bingo-min" type="number" placeholder="1"></div>
             <div class="field"><label>數字範圍 最大值 <span class="hint">最小~最大至少要有25個數字,才能湊成一張5x5的卡</span></label><input id="bingo-max" type="number" placeholder="49"></div>
             <div class="field"><label>使用的貨幣</label><input id="bingo-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
             <div class="field"><label>隨機抽號費用 <span class="hint">隨機抽一個範圍內的數字,不保證在你卡上</span></label><input id="bingo-randomcost" type="number" min="0" placeholder="10"></div>
             <div class="field"><label>指定抽號費用 <span class="hint">自己指定要哪個數字,通常比隨機貴</span></label><input id="bingo-pickcost" type="number" min="0" placeholder="30"></div>
             <div class="field full">
-              <label>連線獎勵 <span class="hint">格式:變數:數量+變數:數量,留空=沒有連線獎勵;每條線第一次連成才會發,同一條線不會重複發</span></label>
-              <input id="bingo-linereward" placeholder="例：幻彩水晶:100">
-            </div>
-            <div class="field full">
-              <label>完成整卡獎勵 <span class="hint">格式同上,25個數字全部標記才會發,只會發一次</span></label>
+              <label>完成整卡獎勵 <span class="hint">格式:變數:數量+變數:數量,25個數字全部標記才會發,只會發一次,不需要機率就用簡單格式</span></label>
               <input id="bingo-fullreward" placeholder="例：幻彩水晶:1000+GASH100點:1">
             </div>
             <div class="actions"><button class="btn-save" onclick="saveBingoConfig()">💾 儲存設定</button></div>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
+          <div class="page-title" style="font-size:15px">🎁 連線獎勵獎池 <span class="hint">格式跟商店盲盒一樣(可以設定機率、多獎項)。玩家拿到卡片(或重抽)時,系統會幫12條線各自從這個池子抽一個獎項出來、直接分配好給玩家看,不是神秘獎勵——玩家抽數字前可以看到每條線會拿到什麼,連成那條線才會真的發放</span></div>
+          <div class="add-form" style="margin-top:12px">
+            <div class="field full">
+              <textarea id="bingo-linerewardpool" rows="4" placeholder="幻彩水晶小獎, 幻彩水晶:50&#10;幻彩水晶大獎, 幻彩水晶:500 @10%&#10;GASH100點, GASH100點:1 @5%"></textarea>
+              <div class="gacha-preview" id="bingo-linerewardpool-preview" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
+          <div class="page-title" style="font-size:15px">🔄 重抽連線獎勵分配</div>
+          <div class="add-form" style="margin-top:12px">
+            <div class="field"><label>每張卡免費重抽次數 <span class="hint">用完之後就要花錢</span></label><input id="bingo-freererolls" type="number" min="0" placeholder="1"></div>
+            <div class="field"><label>免費次數用完後,每次重抽費用</label><input id="bingo-rerollcost" type="number" min="0" placeholder="50"></div>
           </div>
         </div>
 
@@ -3352,14 +3372,23 @@ async function loadBingoConfig() {
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   const c = d.config;
   document.getElementById('bingo-enabled').checked = !!c.enabled;
+  document.getElementById('bingo-pickenabled').checked = !!c.pickEnabled;
   document.getElementById('bingo-min').value = c.numberMin;
   document.getElementById('bingo-max').value = c.numberMax;
   document.getElementById('bingo-currency').value = getDisplayCurrencyNameLocal_(c.currencyName);
   document.getElementById('bingo-randomcost').value = c.randomCost;
   document.getElementById('bingo-pickcost').value = c.pickCost;
-  document.getElementById('bingo-linereward').value = c.lineReward || '';
   document.getElementById('bingo-fullreward').value = c.fullReward || '';
+  document.getElementById('bingo-freererolls').value = c.freeRerollLimit;
+  document.getElementById('bingo-rerollcost').value = c.rerollCost;
+
+  // 🌟 連線獎勵改成單一共用獎池,套用跟商店盲盒一樣的即時預覽機制
+  document.getElementById('bingo-linerewardpool').value = c.lineRewardPool || '';
+  renderGachaPreview('bingo-linerewardpool', 'bingo-linerewardpool-preview');
+  document.getElementById('bingo-linerewardpool').removeEventListener('input', bingoPoolPreviewHandler);
+  document.getElementById('bingo-linerewardpool').addEventListener('input', bingoPoolPreviewHandler);
 }
+function bingoPoolPreviewHandler() { renderGachaPreview('bingo-linerewardpool', 'bingo-linerewardpool-preview'); }
 
 // 🌟 後台沒有現成的內部名稱->顯示名稱轉換,這裡簡單處理一下「升階2」這種常見別名,其餘直接顯示原字串就好
 function getDisplayCurrencyNameLocal_(internalName) {
@@ -3371,12 +3400,15 @@ async function saveBingoConfig() {
   const d = await api({
     action: 'adminSetBingoConfig',
     enabled: document.getElementById('bingo-enabled').checked,
+    pickEnabled: document.getElementById('bingo-pickenabled').checked,
     numberMin: document.getElementById('bingo-min').value,
     numberMax: document.getElementById('bingo-max').value,
     currencyName: document.getElementById('bingo-currency').value,
     randomCost: document.getElementById('bingo-randomcost').value,
     pickCost: document.getElementById('bingo-pickcost').value,
-    lineReward: document.getElementById('bingo-linereward').value,
+    lineRewardPool: document.getElementById('bingo-linerewardpool').value,
+    freeRerollLimit: document.getElementById('bingo-freererolls').value,
+    rerollCost: document.getElementById('bingo-rerollcost').value,
     fullReward: document.getElementById('bingo-fullreward').value,
   });
   if (d.status === 'success') toast('⚙️ BINGO設定已儲存！');
