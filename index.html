@@ -254,6 +254,16 @@
       </div>
     </div>
   </div>
+  <style>
+    /* 🌟 BINGO格子懸浮提示:文字放不下(被截斷)時,滑鼠移上去/手機點一下會浮出完整內容 */
+    .bingo-tt-wrap { position: relative; cursor: default; }
+    .bingo-tt-wrap .bingo-tt-content {
+      display: none; position: absolute; bottom: 105%; left: 50%; transform: translateX(-50%);
+      background: #18191c; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px;
+      white-space: nowrap; z-index: 50; box-shadow: 0 2px 8px rgba(0,0,0,0.5); pointer-events: none;
+    }
+    .bingo-tt-wrap:hover .bingo-tt-content, .bingo-tt-wrap:active .bingo-tt-content { display: block; }
+  </style>
 
   <!-- 🌟 背包彈窗:顯示完整的自訂變數清單(包含主頁面沒顯示的0值/隱藏項目) -->
   <div id="backpack-modal" class="modal-overlay">
@@ -899,20 +909,19 @@
         <div style="font-weight:bold;font-size:16px;margin-top:4px">🎰 ${data.activityName || ''}</div>
       </div>`;
 
-      // 🌟 6x6棋盤:左上角空白,第一列是「直排」連線圖示,左邊那一欄是「橫排」連線圖示,中間5x5才是真正的數字。
-      // 每個圖示格直接顯示這條線實際會拿到的獎勵名稱(不是神秘的🎁了,滑鼠移上去/點兩下手機上會看到完整內容)
+      // 🌟 6x6棋盤,6欄等寬(包含左上角那欄),讓橫排跟直排的圖示格子大小完全一致,不會一邊比較小
       const iconCell = (lid) => {
         const item = info[lid];
         const style = item
-          ? `aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;font-size:9px;line-height:1.1;text-align:center;padding:2px;overflow:hidden;
+          ? `aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;font-size:10px;line-height:1.15;text-align:center;padding:2px;overflow:hidden;
              background:linear-gradient(135deg,#F0B232,#EB459E);border:1px solid #F0B232;color:#1e1e1e;font-weight:bold`
           : `aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:18px;background-color:#202225;border:1px solid #40444B;color:#4F545C`;
         const label = item ? item.dispName : '➖';
-        const title = item ? `${data.lineLabels[lid]}：連成可得 ${item.text}` : `${data.lineLabels[lid]}：目前沒有設定獎勵`;
-        return `<div style="${style}" title="${title}">${label}</div>`;
+        const tooltip = item ? `${data.lineLabels[lid]}：連成可得 ${item.text}` : `${data.lineLabels[lid]}：目前沒有設定獎勵`;
+        return `<div class="bingo-tt-wrap" style="${style}">${label}<div class="bingo-tt-content">${tooltip}</div></div>`;
       };
 
-      let gridHtml = '<div style="display:grid;grid-template-columns:44px repeat(5,1fr);gap:6px;margin-bottom:10px">';
+      let gridHtml = '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px">';
       gridHtml += `<div></div>`;
       colIds.forEach(cid => { gridHtml += iconCell(cid); });
       for (let r = 0; r < 5; r++) {
@@ -977,7 +986,10 @@
 
       const fullRewardHtml = data.hasFullReward ? `
         <div style="text-align:center;background:linear-gradient(90deg,#F0B232,#EB459E);border-radius:8px;padding:8px;margin-bottom:12px;font-size:13px">
-          🏆 集滿25個數字可得：<b>${data.fullRewardText}</b>
+          🏆 <b>集滿25個數字可以抽獎！可能拿到：</b>
+          <div style="font-size:12px;margin-top:4px;color:#1e1e1e">
+            ${(data.fullRewardPool || []).map(p => `${p.dispName}(${p.contentText})${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、')}
+          </div>
         </div>` : '';
 
       const progressHtml = `
