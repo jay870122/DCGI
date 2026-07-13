@@ -819,6 +819,15 @@
     // ── BINGO 賓果卡 ──
     let currentBingoActivityId = null; // 🌟 目前正在看的是哪個BINGO活動的卡片(在活動列表畫面時是null)
     let lastDrawnNumbers = []; // 🌟 這次抽號動作命中的號碼(給棋盤用不同顏色特別標示剛剛才中的格子),換活動/重開/重抽都要清空
+    let lineRewardPoolExpanded = false; // 🌟 連線獎池詳細內容是不是展開狀態,記住這個狀態,不然每次重新渲染畫面又會跳回收合
+
+    function toggleLineRewardPoolDetail() {
+      lineRewardPoolExpanded = !lineRewardPoolExpanded;
+      const detail = document.getElementById('bingo-line-pool-detail');
+      if (detail) detail.style.display = lineRewardPoolExpanded ? '' : 'none';
+      event.target.textContent = lineRewardPoolExpanded ? '▲ 收合' : '▼ 展開查看';
+    }
+
 
     function checkBingoAvailability() {
       fetch(`${DASHBOARD_WORKER_URL}?action=bingoActivities&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
@@ -871,6 +880,7 @@
     function showBingoActivity(activityId) {
       currentBingoActivityId = activityId;
       lastDrawnNumbers = []; // 🌟 剛進來這個活動,清空上次(可能是別的活動)的抽號標記
+      lineRewardPoolExpanded = false; // 🌟 換活動了,展開狀態也重置回收合
       loadBingoStatus();
     }
     // 🌟 從賓果卡畫面返回活動列表
@@ -948,7 +958,8 @@
 
       const lineNoteHtml = `<div style="text-align:center;font-size:12px;color:#B9BBBE;margin-bottom:6px">周圍色塊 = 連成那排/那列會拿到的獎勵${lastDrawnNumbers.length > 0 ? '　｜　🟡 金色 = 這次剛抽到的號碼' : ''}</div>`;
 
-      // 🌟 連線獎勵獎池的完整內容(所有可能獎項+機率),讓玩家知道整個池子裡有什麼、不是只看到自己分配到的那個
+      // 🌟 連線獎勵獎池的完整內容(所有可能獎項+機率),讓玩家知道整個池子裡有什麼、不是只看到自己分配到的那個。
+      // 保底(只有一種結果)的話內容很短,直接顯示;有多個獎項的話預設收合,旁邊放按鈕可以展開查看,避免佔太多版面。
       const lineRewardPool = data.lineRewardPool || { items: [], guaranteed: null };
       let lineRewardPoolHtml = '';
       if (lineRewardPool.guaranteed) {
@@ -956,8 +967,11 @@
           🎁 連線獎池：每條線連成必定獲得 <b style="color:#F0B232">${lineRewardPool.guaranteed.dispName}</b>
         </div>`;
       } else if (lineRewardPool.items.length > 0) {
+        const detailHtml = lineRewardPool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、');
         lineRewardPoolHtml = `<div style="text-align:center;font-size:12px;background:#2F3136;border-radius:6px;padding:6px 10px;margin-bottom:10px;color:#B9BBBE">
-          🎁 連線獎池可能拿到：${lineRewardPool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、')}
+          <span>🎁 連線獎池共有 ${lineRewardPool.items.length} 種可能獎項</span>
+          <button onclick="toggleLineRewardPoolDetail()" style="background:none;border:none;color:#7289DA;font-size:12px;cursor:pointer;padding:0 0 0 6px;text-decoration:underline">${lineRewardPoolExpanded ? '▲ 收合' : '▼ 展開查看'}</button>
+          <div style="margin-top:4px;${lineRewardPoolExpanded ? '' : 'display:none'}" id="bingo-line-pool-detail">${detailHtml}</div>
         </div>`;
       }
 
