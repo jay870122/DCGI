@@ -948,6 +948,19 @@
 
       const lineNoteHtml = `<div style="text-align:center;font-size:12px;color:#B9BBBE;margin-bottom:6px">周圍色塊 = 連成那排/那列會拿到的獎勵${lastDrawnNumbers.length > 0 ? '　｜　🟡 金色 = 這次剛抽到的號碼' : ''}</div>`;
 
+      // 🌟 連線獎勵獎池的完整內容(所有可能獎項+機率),讓玩家知道整個池子裡有什麼、不是只看到自己分配到的那個
+      const lineRewardPool = data.lineRewardPool || { items: [], guaranteed: null };
+      let lineRewardPoolHtml = '';
+      if (lineRewardPool.guaranteed) {
+        lineRewardPoolHtml = `<div style="text-align:center;font-size:12px;background:#2F3136;border-radius:6px;padding:6px 10px;margin-bottom:10px;color:#B9BBBE">
+          🎁 連線獎池：每條線連成必定獲得 <b style="color:#F0B232">${lineRewardPool.guaranteed.dispName}</b>
+        </div>`;
+      } else if (lineRewardPool.items.length > 0) {
+        lineRewardPoolHtml = `<div style="text-align:center;font-size:12px;background:#2F3136;border-radius:6px;padding:6px 10px;margin-bottom:10px;color:#B9BBBE">
+          🎁 連線獎池可能拿到：${lineRewardPool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、')}
+        </div>`;
+      }
+
       // 🌟 重抽按鈕:只能在「還沒抽過任何數字」的時候用,一旦開始抽號碼,就只能等重開新盤才能重新分配。
       // 免費次數用完之後,如果活動沒開放「付費繼續」,按鈕會整個鎖住,不會出現要花錢的選項。
       const rerollFreeUsedUp = data.freeRerollLeft <= 0;
@@ -962,24 +975,31 @@
         : `<div style="text-align:center;margin-bottom:8px;font-size:12px;color:#72767D">已經開始抽數字了，連線獎勵分配不能再重抽，只能等重開新盤</div>`;
 
       // 🌟 重開新盤按鈕:管理員開放的話才會顯示。已經達到總次數上限、或免費用完且不給付費的話,按鈕會鎖住。
-      // 如果這張卡剛好已經完成整卡、活動又有開「完成後永遠免費」,會特別標示這次重開不用錢。
+      // 完成整卡後如果活動有設定特別模式(FREE/PAID),會顯示對應的標示跟這個優惠自己的次數上限。
       let resetNewBoardHtml = '';
       if (data.resetEnabled) {
         const reachedMax = data.resetTimesLeft !== null && data.resetTimesLeft <= 0;
         const resetFreeUsedUp = data.freeResetLeft <= 0;
-        const completeBonus = data.full && data.completeResetFree;
-        const resetLocked = reachedMax || (resetFreeUsedUp && !data.resetAfterFreeAllowed && !completeBonus);
+        const completeTriggerReachedMax = data.completeResetTimesLeft !== null && data.completeResetTimesLeft <= 0;
+        const isCompleteFree = data.full && data.completeResetMode === 'FREE' && !completeTriggerReachedMax;
+        const isCompletePaid = data.full && data.completeResetMode === 'PAID' && !completeTriggerReachedMax;
+        const resetLocked = reachedMax || (resetFreeUsedUp && !data.resetAfterFreeAllowed && !isCompleteFree && !isCompletePaid);
         const resetLabel = reachedMax
           ? `🔒 已達重開上限`
           : resetLocked
           ? `🔒 免費重開次數已用完`
-          : completeBonus
+          : isCompleteFree
           ? `🆕 完成整卡！免費重開新盤`
+          : isCompletePaid
+          ? `🆕 完成整卡重開(${data.completeResetCost} ${data.currencyDisplayName})`
           : (data.freeResetLeft > 0 ? `🆕 免費重開新盤(剩 ${data.freeResetLeft} 次)` : `🆕 重開新盤(花費 ${data.resetCost} ${data.currencyDisplayName})`);
         const timesNote = data.resetTimesLeft !== null ? `<div style="font-size:11px;color:#72767D">總重開次數還剩 ${data.resetTimesLeft} 次</div>` : '';
+        const completeTimesNote = (isCompleteFree || isCompletePaid) && data.completeResetTimesLeft !== null
+          ? `<div style="font-size:11px;color:#72767D">完成整卡優惠還剩 ${data.completeResetTimesLeft} 次</div>` : '';
         resetNewBoardHtml = `<div style="text-align:center;margin-bottom:12px">
           <button class="btn-action" id="bingo-newboard-btn" style="background-color:${resetLocked ? '#4F545C' : '#ED4245'}" onclick="resetOwnBingoCardAction()" ${resetLocked ? 'disabled' : ''}>${resetLabel}</button>
           ${timesNote}
+          ${completeTimesNote}
           <div style="font-size:11px;color:#72767D;margin-top:2px">⚠️ 重開會清空目前的標記進度、換一張全新的卡</div>
         </div>`;
       }
@@ -1048,7 +1068,7 @@
           ${pickHtml}
         </div>`;
 
-      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + diagHtml + lineNoteHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
+      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + diagHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
     }
 
     // 🌟 讀取目前選的付款方式('PRIMARY'/'ALT'),沒有替代貨幣選擇器的話(活動沒開放)就一律用主要貨幣
