@@ -1293,8 +1293,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="fsep">🏆 整卡獎勵</div>
         <div class="field full">
-          <label>完成整卡獎勵 <span class="hint">格式:變數:數量+變數:數量,只會發一次</span></label>
-          <input id="ba-fullreward" placeholder="例：幻彩水晶:1000+GASH100點:1">
+          <label>完成整卡獎勵 <span class="hint">盲盒格式(可設機率、多獎項),只會發一次;跟連線獎勵一樣,玩家看不到確切內容(保留神秘感)</span></label>
+          <textarea id="ba-fullreward" rows="4" placeholder="幻彩水晶大獎, 幻彩水晶:1000&#10;傳說車輛, GASH100點:1 @5%"></textarea>
+          <div class="gacha-preview" id="ba-fullreward-preview" style="display:none"></div>
         </div>
 
         <div class="fsep">🆕 重開新盤</div>
@@ -3479,6 +3480,9 @@ function openBingoActivityForm(activityId) {
   f('ba-rerollcost').value = a ? a.rerollCost : 50;
   document.getElementById('ba-rerollafterfree').checked = a ? !!a.rerollAfterFreeAllowed : true;
   f('ba-fullreward').value = a ? (a.fullReward || '') : '';
+  renderGachaPreview('ba-fullreward', 'ba-fullreward-preview');
+  document.getElementById('ba-fullreward').removeEventListener('input', bingoFullRewardPreviewHandler);
+  document.getElementById('ba-fullreward').addEventListener('input', bingoFullRewardPreviewHandler);
   document.getElementById('ba-resetenabled').checked = a ? !!a.resetEnabled : false;
   f('ba-resetfreelimit').value = a ? a.resetFreeLimit : 0;
   f('ba-resetcost').value = a ? a.resetCost : 0;
@@ -3489,6 +3493,7 @@ function openBingoActivityForm(activityId) {
   document.getElementById('bingo-activity-modal').classList.add('open');
 }
 function bingoPoolPreviewHandler() { renderGachaPreview('ba-linerewardpool', 'ba-linerewardpool-preview'); }
+function bingoFullRewardPreviewHandler() { renderGachaPreview('ba-fullreward', 'ba-fullreward-preview'); }
 
 // 🌟 datetime-local輸入框需要「YYYY-MM-DDTHH:mm」這種沒有時區符號的格式,跟後端存的ISO字串做個轉換
 function toDatetimeLocalValue_(isoStr) {
