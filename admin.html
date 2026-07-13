@@ -1242,9 +1242,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <!-- BINGO活動新增/編輯彈窗 -->
 <div class="overlay" id="bingo-activity-modal">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-header"><h3 id="bingo-activity-modal-title">🎰 新增BINGO活動</h3><button class="modal-close" onclick="closeModal('bingo-activity-modal')">×</button></div>
-    <div class="modal-body">
+  <div class="modal" style="max-width:640px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0"><h3 id="bingo-activity-modal-title">🎰 新增BINGO活動</h3><button class="modal-close" onclick="closeModal('bingo-activity-modal')">×</button></div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
       <div class="add-form">
         <div class="fsep">📋 基本資訊</div>
         <div class="field full"><label>活動名稱</label><input id="ba-name" placeholder="例：夏日賓果嘉年華"></div>
@@ -1320,10 +1320,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             完成整卡(拿到BINGO)後,重新開盤永遠免費 <span class="hint">跟一般的免費次數是兩回事,不管免費額度用完了沒,完成整卡後這次重開都算免費,鼓勵玩家繼續玩</span>
           </label>
         </div>
-
-        <div class="actions"><button class="btn-save" onclick="saveBingoActivity()">💾 儲存</button></div>
       </div>
     </div>
+    <div class="modal-footer" style="flex-shrink:0"><button class="btn-cancel" onclick="closeModal('bingo-activity-modal')">取消</button><button class="btn-save" onclick="saveBingoActivity()">💾 儲存</button></div>
   </div>
 </div>
 
