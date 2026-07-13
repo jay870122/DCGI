@@ -3572,8 +3572,20 @@ async function giveBingoNumberToSelected() {
   if (!confirm(`確定要給已勾選的 ${pcSelectedIds.size} 位玩家數字「${number}」嗎？`)) return;
   const d = await api({ action: 'adminGiveBingoNumber', activityId: bingoActionTargetId, playerIds: JSON.stringify(Array.from(pcSelectedIds)), number });
   if (d.status === 'success') {
-    const hitCount = (d.results || []).filter(r => r.status === 'success' && r.hit && !r.alreadyMarked).length;
-    toast(`🎁 已發放！其中 ${hitCount} 位玩家命中卡片`);
+    const results = d.results || [];
+    const hitCount = results.filter(r => r.status === 'success' && r.hit && !r.alreadyMarked).length;
+    const lineCount = results.reduce((sum, r) => sum + ((r.newLines && r.newLines.length) || 0), 0);
+    const fullCount = results.filter(r => r.fullCompleted).length;
+    let msg = `🎁 已發放！其中 ${hitCount} 位玩家命中卡片`;
+    if (lineCount > 0) msg += `，共完成 ${lineCount} 條連線`;
+    if (fullCount > 0) msg += `，${fullCount} 位完成整卡！`;
+    // 🌟 把每個人實際拿到的獎勵內容也列出來,不用再自己去查歷史紀錄
+    const rewardLines = [];
+    results.forEach(r => {
+      if (r.rewardTexts && r.rewardTexts.length > 0) rewardLines.push(`<@${r.discordId}>：${r.rewardTexts.join('、')}`);
+    });
+    if (rewardLines.length > 0) alert(msg + '\n\n' + rewardLines.join('\n'));
+    else toast(msg);
     closeModal('bingo-action-modal');
   } else {
     toast('❌ ' + d.message, false);
