@@ -988,12 +988,12 @@
       const fullRewardHtml = data.hasFullReward ? (
         fullPool.guaranteed
           ? `<div style="text-align:center;background:linear-gradient(90deg,#F0B232,#EB459E);border-radius:8px;padding:8px;margin-bottom:12px;font-size:13px;color:#1e1e1e">
-              🏆 <b>集滿25個數字必定獲得：${fullPool.guaranteed.dispName}(${fullPool.guaranteed.contentText})</b>
+              🏆 <b>集滿25個數字必定獲得：${fullPool.guaranteed.dispName}</b>
             </div>`
           : `<div style="text-align:center;background:linear-gradient(90deg,#F0B232,#EB459E);border-radius:8px;padding:8px;margin-bottom:12px;font-size:13px">
               🏆 <b>集滿25個數字可以抽獎！可能拿到：</b>
               <div style="font-size:12px;margin-top:4px;color:#1e1e1e">
-                ${fullPool.items.map(p => `${p.dispName}(${p.contentText})${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、')}
+                ${fullPool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、')}
               </div>
             </div>`
       ) : '';
