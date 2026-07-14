@@ -2251,7 +2251,9 @@ function fetchScoresAndShop(discordId, callback = null) {
       const opt = item.gamblingOptions.find(o => o.name === optionName);
       if (!opt) return null;
       let odds;
-      if (opt.pool === 0) odds = item.gamblingOptions.length; // 這個選項還沒人下注過:用選項數量當參考值
+      // 🌟 這個選項還沒人下注過:用虛擬種子公式(其他選項總額+選項數量),讓賠率隨其他選項已投入的金額連動,
+      // 不是死板地用選項數量當保底值——A投越多,B(還沒人投)的賠率就跟著等比放大
+      if (opt.pool === 0) odds = item.gamblingTotalPool + item.gamblingOptions.length;
       else odds = Math.round((item.gamblingTotalPool / opt.pool) * 100) / 100;
       // 🌟 套用最高賠率上限封頂(如果商品有設定),跟後端算出來的鎖定賠率保持一致,避免出現誇張倍率
       if (item.gamblingMaxOdds > 0 && odds > item.gamblingMaxOdds) odds = item.gamblingMaxOdds;
