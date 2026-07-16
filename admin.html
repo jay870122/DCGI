@@ -1231,7 +1231,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" style="margin-top:6px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="adjust-broadcast" style="width:auto">
-          同時發送公開摘要到大獎頻道(用 @ 標記所有這次有異動的玩家；序號絕對不會公開廣播,只會私訊)
+          同時發送公開摘要到大獎頻道(用 @ 標記所有這次有異動的玩家；如果有發序號,只會公告項目名稱,絕對不會公開實際的序號字串,序號本身只透過私訊給本人)
         </label>
       </div>
       <div id="adjust-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
@@ -2548,11 +2548,21 @@ async function submitAddAuction(forceStatus) {
 function parseGachaRulesPreview(rawText) {
   const lines = (rawText || '').split('\n');
   const pool = [];
+  // 🌟 解析「數量」字串:支援固定數字(50)或隨機範圍(1~100),回傳 {qty, qtyRange}
+  function parseQtyToken(qtyStr) {
+    if (qtyStr.indexOf('~') !== -1) {
+      const rp = qtyStr.split('~');
+      let lo = parseInt(rp[0]) || 1, hi = parseInt(rp[1]) || lo;
+      if (hi < lo) { const t = lo; lo = hi; hi = t; }
+      return { qty: null, qtyRange: [lo, hi] };
+    }
+    return { qty: parseInt(qtyStr) || 1, qtyRange: null };
+  }
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
     const parts = line.split(',').map(s => s.trim());
-    let dispName = parts[0], varName = dispName, qty = 1, prob = null, stock = null, bad = false, extraToken = null, varList = null;
+    let dispName = parts[0], varName = dispName, qty = 1, qtyRange = null, prob = null, stock = null, bad = false, extraToken = null, varList = null;
     for (let p = 1; p < parts.length; p++) {
       const token = parts[p];
       if (token === '') continue;
@@ -2562,29 +2572,39 @@ function parseGachaRulesPreview(rawText) {
       } else if (token.indexOf('份') !== -1 || token.indexOf('個') !== -1) {
         const v = parseInt(token.replace(/[^0-9-]/g, ''));
         if (isNaN(v)) bad = true; else stock = v;
+      } else if (token.indexOf('~') !== -1 && !isNaN(parseInt(token))) {
+        // 🌟 純數量範圍(沒有變數名稱前綴),例如獨立寫一個 token "1~100"
+        const qr = parseQtyToken(token);
+        qty = qr.qty; qtyRange = qr.qtyRange;
       } else if (!isNaN(token) && !isNaN(parseFloat(token))) {
         qty = parseInt(token);
       } else if (varName !== dispName || extraToken) {
         bad = true; // 已經有一個變數名了,又出現一個看不懂的文字
       } else if (token.indexOf('+') !== -1) {
-        // 🌟 多變數格式:name:qty+name:qty,一個獎項同時發放好幾種貨幣/道具
+        // 🌟 多變數格式:name:qty+name:qty,一個獎項同時發放好幾種貨幣/道具,數量部分一樣支援 min~max 範圍
         varList = token.split('+').map(seg => {
           seg = seg.trim();
           const ci = seg.indexOf(':');
-          if (ci !== -1) return { varName: seg.substring(0, ci).trim(), qty: parseInt(seg.substring(ci + 1)) || 1 };
-          return { varName: seg, qty: 1 };
+          if (ci !== -1) {
+            const qr2 = parseQtyToken(seg.substring(ci + 1).trim());
+            return { varName: seg.substring(0, ci).trim(), qty: qr2.qty, qtyRange: qr2.qtyRange };
+          }
+          return { varName: seg, qty: 1, qtyRange: null };
         });
         if (varList.some(v => !v.varName)) bad = true;
         extraToken = token;
       } else {
         const ci2 = token.indexOf(':');
-        if (ci2 !== -1) { varName = token.substring(0, ci2).trim(); qty = parseInt(token.substring(ci2 + 1)) || 1; }
-        else varName = token;
+        if (ci2 !== -1) {
+          varName = token.substring(0, ci2).trim();
+          const qr3 = parseQtyToken(token.substring(ci2 + 1).trim());
+          qty = qr3.qty; qtyRange = qr3.qtyRange;
+        } else varName = token;
         extraToken = token;
       }
     }
-    if (varList) { varName = varList[0].varName; qty = varList[0].qty; }
-    pool.push({ dispName, varName, qty, varList, prob, stock, bad, raw: line,
+    if (varList) { varName = varList[0].varName; qty = varList[0].qty; qtyRange = varList[0].qtyRange; }
+    pool.push({ dispName, varName, qty, qtyRange, varList, prob, stock, bad, raw: line,
       isNonInstant: /\[非即時\]/.test(dispName) || /\[非即時\]/.test(varName) || (varList && varList.some(v => /\[非即時\]/.test(v.varName))),
       isKeyItem: /\[序號\]/.test(varName) || (varList && varList.some(v => /\[序號\]/.test(v.varName))) });
   }
@@ -2613,10 +2633,11 @@ function renderGachaPreview(textareaId, previewId) {
     const isFallback = !p.bad && p.prob === null && p.stock === null;
     const bits = [];
     if (p.varList && p.varList.length > 1) {
-      bits.push(`發放:${p.varList.map(v => `${v.varName}×${v.qty}`).join('、')}`);
+      bits.push(`發放:${p.varList.map(v => `${v.varName}×${v.qtyRange ? (v.qtyRange[0]+'~'+v.qtyRange[1]) : v.qty}`).join('、')}`);
     } else {
       if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
-      if (p.qty !== 1) bits.push(`數量:${p.qty}`);
+      if (p.qtyRange) bits.push(`數量:${p.qtyRange[0]}~${p.qtyRange[1]}(隨機)`);
+      else if (p.qty !== 1) bits.push(`數量:${p.qty}`);
     }
     if (p.prob !== null) bits.push(`機率:${p.prob}%`);
     if (p.stock !== null) bits.push(`庫存:${p.stock}份（依庫存比例抽）`);
@@ -3408,7 +3429,15 @@ async function confirmAdjustCurrency() {
   btn.disabled = false; btn.textContent = '✅ 確認套用';
 
   if (d.status === 'success') {
-    toast(`🛠️ 已完成調整！`);
+    // 🌟 就算整體回傳success,序號發放還是可能個別失敗(例如名稱打錯字、庫存用完),要把詳細原因秀出來,
+    // 不然管理員只看到「已完成調整」會誤以為都成功了
+    const serialFails = (d.results || []).filter(r => r.status === 'error');
+    if (serialFails.length > 0) {
+      const uniqueMsgs = [...new Set(serialFails.map(r => r.message))];
+      alert(`🛠️ 貨幣調整已完成，但有 ${serialFails.length} 筆序號發放失敗：\n\n${uniqueMsgs.join('\n')}`);
+    } else {
+      toast(`🛠️ 已完成調整！`);
+    }
     closeModal('adjust-currency-modal');
     pcSelectedIds.clear();
     loadPlayerCurrency();
