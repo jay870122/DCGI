@@ -1245,7 +1245,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal" style="max-width:640px">
     <div class="modal-header"><h3 id="bingo-activity-modal-title">🎰 新增BINGO活動</h3><button class="modal-close" onclick="closeModal('bingo-activity-modal')">×</button></div>
     <div class="modal-body" style="max-height:65vh;overflow-y:auto">
-      <div class="add-form">
         <div class="fsep">📋 基本資訊</div>
         <div class="field full"><label>活動名稱</label><input id="ba-name" placeholder="例：夏日賓果嘉年華"></div>
         <div class="field"><label>開始時間 <span class="hint">留空=不限制</span></label><input id="ba-start" type="datetime-local"></div>
@@ -1324,7 +1323,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="field"><label>完成整卡重開費用 <span class="hint">模式選「固定收費」才會用到</span></label><input id="ba-completeresetcost" type="number" min="0" placeholder="0"></div>
         <div class="field"><label>完成整卡重開次數上限 <span class="hint">0=不限制;這個優惠(免費或固定收費)最多能用幾次,用完之後重開就照一般規則走</span></label><input id="ba-completeresetmaxtimes" type="number" min="0" placeholder="0"></div>
-      </div>
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('bingo-activity-modal')">取消</button><button class="btn-save" onclick="saveBingoActivity()">💾 儲存</button></div>
   </div>
