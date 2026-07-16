@@ -71,7 +71,7 @@
     .shop-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; }
     .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px;
                       padding: 15px; display: flex; flex-direction: column; position: relative; overflow: hidden; height: 100%; box-sizing: border-box; }
-    .shop-item-card.disabled { opacity: 0.6; }
+    .shop-item-card.disabled { }
     
     /* 🌟 圖片樣式更新：加入游標與 hover 放大提示效果 */
     .item-image { 
@@ -835,11 +835,11 @@
       const roleTagClass = hasRolePermission ? 'tag-role-ok' : 'tag-role-locked';
       const roleIcon = hasRolePermission ? '✅' : '🔒';
 
-      // 🌟 每個身分組名稱各自標色:有的話綠色、沒有的話維持原本的灰白色,一眼就看得出還差哪幾個
+      // 🌟 每個身分組名稱各自標色、一行一個(不是逗號接在一起擠成一團):有的話綠色、沒有的話維持原本的灰白色
       const nameSpansHtml = requiredRoleNames.map(name => {
         const has = myRoleNames.has(name);
-        return `<span style="${has ? 'color:#43B581;font-weight:bold' : 'color:#B9BBBE'}">${has ? '✓ ' : ''}${name}</span>`;
-      }).join('、');
+        return `<div style="${has ? 'color:#43B581;font-weight:bold' : 'color:#B9BBBE'}">${has ? '✓ ' : '－ '}${name}</div>`;
+      }).join('');
 
       const ownedCount = requiredRoleNames.filter(name => myRoleNames.has(name)).length;
 
@@ -849,10 +849,13 @@
       }
 
       const isExpanded = expandedRoleReqIds.has(uniqueId);
+      // 🌟🔧 這裡原本同時寫了 display:none 又寫 display:block,CSS衝突時後面那個會贏,導致收合狀態完全沒作用、
+      // 永遠都是展開的——現在改成只在「沒展開」的時候才加 display:none,展開時完全不設定display(用預設值)
+      const detailStyle = isExpanded ? 'margin-top:4px' : 'display:none;margin-top:4px';
       return `<span class="limit-tag ${roleTagClass}" style="margin-bottom:8px; display:inline-block;">
         ${roleIcon} 限定身分組(${roleModeHint}，共${requiredRoleNames.length}個，已持有${ownedCount}個)
         <button onclick="toggleRoleRequirement_('${uniqueId}')" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:inherit;padding:0 0 0 4px">${isExpanded ? '▲ 收合' : '▼ 展開查看'}</button>
-        <span id="role-req-detail-${uniqueId}" style="${isExpanded ? '' : 'display:none'};display:block;margin-top:4px">${nameSpansHtml}</span>
+        <span id="role-req-detail-${uniqueId}" style="${detailStyle}">${nameSpansHtml}</span>
       </span>`;
     }
     function toggleRoleRequirement_(uniqueId) {
