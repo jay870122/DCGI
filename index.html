@@ -274,6 +274,7 @@
       </div>
       <div class="modal-body">
         <div id="backpack-list-container" class="score-box" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="backpack-roles-container" style="margin-top:16px;"></div>
       </div>
     </div>
   </div>
@@ -342,7 +343,6 @@
             <div class="score-item">🔥 幻彩水晶: <span class="score-value" id="score-s2">0</span></div>
             <div class="score-item" id="score-s3-container">💎 點數3: <span class="score-value" id="score-s3">0</span></div>
           </div>
-          <div class="role-box" id="role-box-container"></div>
         </div>
         <div style="display: flex; gap: 10px; flex-direction: column;">
           <button class="btn-action" onclick="showAuctions()" style="background-color: #F0B232;">🔨 拍賣會</button>
@@ -1176,18 +1176,66 @@
 
     // 🌟 背包:顯示完整的自訂變數清單(不管主頁面有沒有顯示,這裡一律列出來)
     let latestCustomVars = [];
+    let latestRoleDetails = []; // 🌟 玩家目前持有的身分組(含分類),給背包彈窗分類顯示用
     function showBackpack() {
-      const container = document.getElementById('backpack-list-container');
-      if (latestCustomVars.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#B9BBBE;">目前沒有任何背包物品</p>';
-      } else {
-        container.innerHTML = latestCustomVars.map(v =>
-          `<div class="score-item">💠 ${v.display}: <span class="score-value">${v.value}</span></div>`
-        ).join('');
-      }
+      renderBackpackItems();
+      renderBackpackRoles();
       document.getElementById('backpack-modal').style.display = 'flex';
     }
     function closeBackpack() { document.getElementById('backpack-modal').style.display = 'none'; }
+
+    // 🌟 共用的分類分組工具:把一個陣列依照item.category分組,沒填分類的歸到defaultGroupName,
+    // defaultGroupName永遠排最前面,其他分類依照第一次出現的順序排列
+    function groupByCategory_(list, defaultGroupName) {
+      const groups = {};
+      const groupOrder = [];
+      list.forEach(item => {
+        const g = item.category && item.category.trim() ? item.category.trim() : defaultGroupName;
+        if (!groups[g]) { groups[g] = []; groupOrder.push(g); }
+        groups[g].push(item);
+      });
+      groupOrder.sort((a, b) => {
+        if (a === defaultGroupName) return -1;
+        if (b === defaultGroupName) return 1;
+        return 0;
+      });
+      return { groups, groupOrder };
+    }
+
+    // 🌟 背包物品(自訂變數)依照試算表「自訂變數」工作表D欄設定的分類分組顯示,留空的歸類到「一般物品」
+    function renderBackpackItems() {
+      const container = document.getElementById('backpack-list-container');
+      if (latestCustomVars.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#B9BBBE;">目前沒有任何背包物品</p>';
+        return;
+      }
+      const { groups, groupOrder } = groupByCategory_(latestCustomVars, '一般物品');
+      container.innerHTML = groupOrder.map(g => `
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;color:#72767D;margin-bottom:4px">${g}</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${groups[g].map(v => `<div class="score-item">💠 ${v.display}: <span class="score-value">${v.value}</span></div>`).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 🌟 身分組分類顯示:分類是在試算表「身分組對照表」工作表C欄設定的(不再自動抓「[標籤]」前綴),
+    // 留空的身分組歸到「一般身分組」;哪些身分組完全不顯示在背包,也是在該表D欄設定,後端已經先過濾好了。
+    function renderBackpackRoles() {
+      const rolesBox = document.getElementById('backpack-roles-container');
+      if (!latestRoleDetails || latestRoleDetails.length === 0) { rolesBox.innerHTML = ''; return; }
+
+      const { groups, groupOrder } = groupByCategory_(latestRoleDetails, '一般身分組');
+
+      rolesBox.innerHTML = `<div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:8px">🏅 我的身分組</div>` +
+        groupOrder.map(g => `
+          <div style="margin-bottom:10px">
+            <div style="font-size:12px;color:#72767D;margin-bottom:4px">${g}</div>
+            <div class="role-box">${groups[g].map(item => `<div class="role-badge">🏅 ${item.name}</div>`).join('')}</div>
+          </div>
+        `).join('');
+    }
 
     // ============================================================
     // 🌟 拍賣會
@@ -1714,14 +1762,8 @@ function fetchScoresAndShop(discordId, callback = null) {
             });
           }
 
-          // 🌟 顯示玩家目前持有的身分組
-          const roleContainer = document.getElementById('role-box-container');
-          roleContainer.innerHTML = '';
-          if (data.roleNames && data.roleNames.length > 0) {
-            data.roleNames.forEach(name => {
-              roleContainer.insertAdjacentHTML('beforeend', `<div class="role-badge">🏅 ${name}</div>`);
-            });
-          }
+          // 🌟 身分組資料存起來給「背包」彈窗用(不再直接顯示在主頁面,避免徽章一多整排擠爆)
+          latestRoleDetails = data.roleDetails || []; // 🌟 每筆是 {name, category},已經在後端過濾掉「不進背包」的身分組
         }
 
         const shopData = result.shop;
