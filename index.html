@@ -343,6 +343,7 @@
             <div class="score-item">🔥 幻彩水晶: <span class="score-value" id="score-s2">0</span></div>
             <div class="score-item" id="score-s3-container">💎 點數3: <span class="score-value" id="score-s3">0</span></div>
           </div>
+          <div class="role-box" id="role-box-container"></div>
         </div>
         <div style="display: flex; gap: 10px; flex-direction: column;">
           <button class="btn-action" onclick="showAuctions()" style="background-color: #F0B232;">🔨 拍賣會</button>
@@ -1762,8 +1763,16 @@ function fetchScoresAndShop(discordId, callback = null) {
             });
           }
 
-          // 🌟 身分組資料存起來給「背包」彈窗用(不再直接顯示在主頁面,避免徽章一多整排擠爆)
-          latestRoleDetails = data.roleDetails || []; // 🌟 每筆是 {name, category},已經在後端過濾掉「不進背包」的身分組
+          // 🌟 顯示玩家目前持有的身分組(後端 roleNames 已經依照模式過濾掉 HIDDEN 的,邏輯跟自訂變數一致)
+          const roleContainer = document.getElementById('role-box-container');
+          roleContainer.innerHTML = '';
+          if (data.roleNames && data.roleNames.length > 0) {
+            data.roleNames.forEach(name => {
+              roleContainer.insertAdjacentHTML('beforeend', `<div class="role-badge">🏅 ${name}</div>`);
+            });
+          }
+          // 🌟 背包彈窗要用完整清單(不受模式過濾,邏輯跟自訂變數的背包顯示一致——背包本來就是要看到全部東西的地方)
+          latestRoleDetails = data.roleDetails || []; // 每筆是 {name, category}
         }
 
         const shopData = result.shop;
