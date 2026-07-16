@@ -822,6 +822,48 @@
     let lastDrawnNumbers = []; // 🌟 這次抽號動作命中的號碼(給棋盤用不同顏色特別標示剛剛才中的格子),換活動/重開/重抽都要清空
     let lineRewardPoolExpanded = false; // 🌟 連線獎池詳細內容是不是展開狀態,記住這個狀態,不然每次重新渲染畫面又會跳回收合
 
+    let expandedRoleReqIds = new Set(); // 🌟 記住哪些「限定身分組」清單目前是展開狀態(用uniqueId當key),重繪畫面不會跳回收合
+
+    // 🌟 共用輔助函式:組出「限定身分組」的顯示HTML——玩家自己已經持有的那幾個用綠色特別標示,
+    // 超過2個的話預設收合(只顯示「共X個,已持有Y個」的摘要+展開按鈕),避免長長一串擠爆版面
+    function buildRoleRequirementHtml_(requiredRoleNames, roleRequirementMode, roleRequirementMinCount, hasRolePermission, uniqueId) {
+      if (!requiredRoleNames || requiredRoleNames.length === 0) return '';
+      const myRoleNames = new Set((latestRoleDetails || []).map(r => r.name));
+      let roleModeHint = '需任一個';
+      if (roleRequirementMode === 'ALL') roleModeHint = '需全部持有';
+      else if (roleRequirementMode === 'COUNT') roleModeHint = `需其中${roleRequirementMinCount}個`;
+      const roleTagClass = hasRolePermission ? 'tag-role-ok' : 'tag-role-locked';
+      const roleIcon = hasRolePermission ? '✅' : '🔒';
+
+      // 🌟 每個身分組名稱各自標色:有的話綠色、沒有的話維持原本的灰白色,一眼就看得出還差哪幾個
+      const nameSpansHtml = requiredRoleNames.map(name => {
+        const has = myRoleNames.has(name);
+        return `<span style="${has ? 'color:#43B581;font-weight:bold' : 'color:#B9BBBE'}">${has ? '✓ ' : ''}${name}</span>`;
+      }).join('、');
+
+      const ownedCount = requiredRoleNames.filter(name => myRoleNames.has(name)).length;
+
+      if (requiredRoleNames.length <= 2) {
+        // 🌟 2個以內直接全部顯示,不用額外收合
+        return `<span class="limit-tag ${roleTagClass}" style="margin-bottom:8px; display:inline-block;">${roleIcon} 限定身分組(${roleModeHint}): ${nameSpansHtml}</span>`;
+      }
+
+      const isExpanded = expandedRoleReqIds.has(uniqueId);
+      return `<span class="limit-tag ${roleTagClass}" style="margin-bottom:8px; display:inline-block;">
+        ${roleIcon} 限定身分組(${roleModeHint}，共${requiredRoleNames.length}個，已持有${ownedCount}個)
+        <button onclick="toggleRoleRequirement_('${uniqueId}')" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:inherit;padding:0 0 0 4px">${isExpanded ? '▲ 收合' : '▼ 展開查看'}</button>
+        <span id="role-req-detail-${uniqueId}" style="${isExpanded ? '' : 'display:none'};display:block;margin-top:4px">${nameSpansHtml}</span>
+      </span>`;
+    }
+    function toggleRoleRequirement_(uniqueId) {
+      if (expandedRoleReqIds.has(uniqueId)) expandedRoleReqIds.delete(uniqueId);
+      else expandedRoleReqIds.add(uniqueId);
+      const detail = document.getElementById('role-req-detail-' + uniqueId);
+      if (detail) detail.style.display = expandedRoleReqIds.has(uniqueId) ? 'block' : 'none';
+      if (event && event.target) event.target.textContent = expandedRoleReqIds.has(uniqueId) ? '▲ 收合' : '▼ 展開查看';
+    }
+
+
     function toggleLineRewardPoolDetail() {
       lineRewardPoolExpanded = !lineRewardPoolExpanded;
       const detail = document.getElementById('bingo-line-pool-detail');
@@ -1479,12 +1521,7 @@
 
         let roleTagHtml = '';
         if (a.requiredRoleNames && a.requiredRoleNames.length > 0) {
-          let roleModeHint = '需任一個';
-          if (a.roleRequirementMode === 'ALL') roleModeHint = '需全部持有';
-          else if (a.roleRequirementMode === 'COUNT') roleModeHint = `需其中${a.roleRequirementMinCount}個`;
-          const roleTagClass = a.hasRolePermission ? 'tag-role-ok' : 'tag-role-locked';
-          const roleIcon = a.hasRolePermission ? '✅' : '🔒';
-          roleTagHtml = `<span class="limit-tag ${roleTagClass}" style="margin-bottom:8px; display:inline-block;">${roleIcon} 限定身分組(${roleModeHint}): ${a.requiredRoleNames.join('、')}</span><br>`;
+          roleTagHtml = buildRoleRequirementHtml_(a.requiredRoleNames, a.roleRequirementMode, a.roleRequirementMinCount, a.hasRolePermission, 'auction-' + a.id) + '<br>';
         }
 
         let countdownHtml;
@@ -1953,12 +1990,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月: ${item.limits.remainPM}</span>`;
         if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 終身限購: ${item.limits.remainPT}</span>`;
         if (item.requiredRoleNames && item.requiredRoleNames.length > 0) {
-          const roleTagClass = item.hasRolePermission ? 'tag-role-ok' : 'tag-role-locked';
-          const roleIcon = item.hasRolePermission ? '✅' : '🔒';
-          let roleModeHint = '需任一個';
-          if (item.roleRequirementMode === 'ALL') roleModeHint = '需全部持有';
-          else if (item.roleRequirementMode === 'COUNT') roleModeHint = `需其中${item.roleRequirementMinCount}個`;
-          limitsHtml += `<span class="limit-tag ${roleTagClass}">${roleIcon} 限定身分組(${roleModeHint}): ${item.requiredRoleNames.join('、')}</span>`;
+          limitsHtml += buildRoleRequirementHtml_(item.requiredRoleNames, item.roleRequirementMode, item.roleRequirementMinCount, item.hasRolePermission, 'item-' + item.id);
         }
         if (item.exclusiveGroup) {
           const groupTagClass = item.groupLocked ? 'tag-role-locked' : 'tag-role-ok';
