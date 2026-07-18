@@ -374,7 +374,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v3.18.0 (商品/分類密碼鎖定支援自動輪替密碼、自訂密碼表、每日/每週/每月限猜次數,商品卡片會先顯示剩餘猜測次數)</div>
+    <div class="version-tag">系統版本：v4.0.0 (新增 BINGO 賓果卡系統(多活動、連線/整卡獎池、重抽重開、替代貨幣);背包改為分類顯示(身分組/自訂變數皆可自訂分類與顯示模式);限定身分組顯示已持有狀態並可展開;商品/拍賣卡片不再變半透明)</div>
   </div>
 
   <script>
@@ -950,7 +950,8 @@
           <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name} ${statusBadge}${a.entryCost > 0 ? ` <span style="font-size:11px;color:#F0B232;font-weight:normal">(開盤 ${a.entryCost} ${a.currencyDisplayName})</span>` : ''}${a.hasAltCurrency ? ` <span style="font-size:11px;color:#7289DA;font-weight:normal">💱可用替代貨幣</span>` : ''}</div>
           ${noteHtml}
           <div style="font-size:12px;color:#B9BBBE">數字範圍 ${a.numberMin}~${a.numberMax}　｜　隨機抽 ${a.randomCost} ${a.currencyDisplayName}${pickLineHtml}</div>
-          ${isUpcoming ? `<div style="font-size:11px;color:#FEE75C;margin-top:4px">⏰ ${new Date(a.startTime).toLocaleString()} 開始</div>` : (a.endTime ? `<div style="font-size:11px;color:#F0B232;margin-top:4px">⏰ 到 ${new Date(a.endTime).toLocaleString()} 結束</div>` : '')}
+          ${a.startTime ? `<div style="font-size:11px;color:${isUpcoming ? '#FEE75C' : '#B9BBBE'};margin-top:4px">⏰ ${new Date(a.startTime).toLocaleString()} 開始</div>` : ''}
+          ${a.endTime ? `<div style="font-size:11px;color:#F0B232;margin-top:2px">⏰ 到 ${new Date(a.endTime).toLocaleString()} 結束</div>` : ''}
           ${poolPreviewHtml}
         </div>`;
     }
