@@ -909,17 +909,70 @@
           document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#B9BBBE;">目前沒有開放中的 BINGO 活動</p>`;
           return;
         }
-        const html = data.activities.map(a => `
-          <div style="background:#2F3136;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="showBingoActivity('${a.id}')">
-            <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name}${a.entryCost > 0 ? ` <span style="font-size:11px;color:#F0B232;font-weight:normal">(開盤 ${a.entryCost} ${a.currencyDisplayName})</span>` : ''}${a.hasAltCurrency ? ` <span style="font-size:11px;color:#7289DA;font-weight:normal">💱可用替代貨幣</span>` : ''}</div>
-            <div style="font-size:12px;color:#B9BBBE">數字範圍 ${a.numberMin}~${a.numberMax}　｜　隨機抽 ${a.randomCost} ${a.currencyDisplayName}${a.pickCost ? `　｜　指定抽 ${a.pickCost} ${a.currencyDisplayName}` : ''}</div>
-            ${a.endTime ? `<div style="font-size:11px;color:#F0B232;margin-top:4px">⏰ 到 ${new Date(a.endTime).toLocaleString()} 結束</div>` : ''}
-          </div>`).join('');
+        const html = data.activities.map(a => renderBingoActivityCard_(a)).join('');
         document.getElementById('bingo-body-container').innerHTML = html;
       })
       .catch(() => {
         document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ 讀取失敗，請稍後再試</p>`;
       });
+    }
+
+    let expandedBingoListPools = new Set(); // 🌟 活動列表卡片上「獎池預覽」的展開狀態,用活動ID當key記住
+
+    // 🌟 組出單一活動的列表卡片:未開始的活動也會列出來(用「⏳尚未開始」標示,點了會提示開始時間、不會真的讓你進去玩),
+    // 有設定備註/圖片的話一併顯示,獎池預覽(連線獎/整卡獎)可以展開先看,不用真的點進去玩才知道有什麼
+    function renderBingoActivityCard_(a) {
+      const isUpcoming = a.activityStatus === 'UPCOMING';
+      const statusBadge = isUpcoming ? `<span style="font-size:11px;color:#FEE75C;font-weight:normal">⏳ 尚未開始</span>` : '';
+      const imageHtml = a.imageUrl ? `<img src="${a.imageUrl}" style="width:100%;border-radius:8px;margin-bottom:8px;display:block" onerror="this.style.display='none'">` : '';
+      const noteHtml = a.note ? `<div style="font-size:12px;color:#B9BBBE;margin-bottom:6px;white-space:pre-wrap">${a.note}</div>` : '';
+      const pickLineHtml = a.pickEnabled ? `　｜　指定抽 ${a.pickCost} ${a.currencyDisplayName}` : '';
+
+      // 🌟 獎池預覽:連線獎+整卡獎各自組一段摘要,點「▼展開查看大獎」才會顯示完整內容
+      const poolLines = [];
+      if (a.lineRewardPool) poolLines.push(formatBingoPoolSummary_('🎁 連線獎', a.lineRewardPool));
+      if (a.fullRewardPool) poolLines.push(formatBingoPoolSummary_('🏆 整卡獎', a.fullRewardPool));
+      const hasPoolPreview = poolLines.some(l => l.hasContent);
+      const isPoolExpanded = expandedBingoListPools.has(a.id);
+      let poolPreviewHtml = '';
+      if (hasPoolPreview) {
+        poolPreviewHtml = `<div style="margin-top:6px">
+          <button onclick="event.stopPropagation(); toggleBingoListPool_('${a.id}')" style="background:none;border:none;color:#7289DA;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">${isPoolExpanded ? '▲ 收合' : '▼ 展開查看大獎/連線獎'}</button>
+          <div id="bingo-list-pool-${a.id}" style="${isPoolExpanded ? '' : 'display:none'};margin-top:4px;font-size:12px;color:#B9BBBE">
+            ${poolLines.map(l => l.html).join('')}
+          </div>
+        </div>`;
+      }
+
+      return `
+        <div style="background:#2F3136;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="showBingoActivity('${a.id}')">
+          ${imageHtml}
+          <div style="font-weight:bold;font-size:15px;margin-bottom:4px">🎰 ${a.name} ${statusBadge}${a.entryCost > 0 ? ` <span style="font-size:11px;color:#F0B232;font-weight:normal">(開盤 ${a.entryCost} ${a.currencyDisplayName})</span>` : ''}${a.hasAltCurrency ? ` <span style="font-size:11px;color:#7289DA;font-weight:normal">💱可用替代貨幣</span>` : ''}</div>
+          ${noteHtml}
+          <div style="font-size:12px;color:#B9BBBE">數字範圍 ${a.numberMin}~${a.numberMax}　｜　隨機抽 ${a.randomCost} ${a.currencyDisplayName}${pickLineHtml}</div>
+          ${isUpcoming ? `<div style="font-size:11px;color:#FEE75C;margin-top:4px">⏰ ${new Date(a.startTime).toLocaleString()} 開始</div>` : (a.endTime ? `<div style="font-size:11px;color:#F0B232;margin-top:4px">⏰ 到 ${new Date(a.endTime).toLocaleString()} 結束</div>` : '')}
+          ${poolPreviewHtml}
+        </div>`;
+    }
+
+    // 🌟 把後端算好的獎池預覽物件({items,guaranteed})轉成一段HTML摘要文字,hasContent標示這個獎池是不是真的有設定內容
+    function formatBingoPoolSummary_(label, pool) {
+      if (pool.guaranteed) {
+        return { hasContent: true, html: `<div>${label}：必定獲得 <b style="color:#F0B232">${pool.guaranteed.dispName}</b></div>` };
+      }
+      if (pool.items && pool.items.length > 0) {
+        const text = pool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、');
+        return { hasContent: true, html: `<div>${label}：可能拿到 ${text}</div>` };
+      }
+      return { hasContent: false, html: '' };
+    }
+
+    function toggleBingoListPool_(activityId) {
+      if (expandedBingoListPools.has(activityId)) expandedBingoListPools.delete(activityId);
+      else expandedBingoListPools.add(activityId);
+      const detail = document.getElementById('bingo-list-pool-' + activityId);
+      if (detail) detail.style.display = expandedBingoListPools.has(activityId) ? '' : 'none';
+      if (event && event.target) event.target.textContent = expandedBingoListPools.has(activityId) ? '▲ 收合' : '▼ 展開查看大獎/連線獎';
     }
 
     // 🌟 第二層畫面:進去看某個特定活動的賓果卡
