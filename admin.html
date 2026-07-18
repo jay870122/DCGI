@@ -1257,6 +1257,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="field"><label>數字範圍 最小值</label><input id="ba-min" type="number" placeholder="1"></div>
         <div class="field"><label>數字範圍 最大值 <span class="hint">最小~最大至少要有25個數字</span></label><input id="ba-max" type="number" placeholder="49"></div>
+        <div class="field full">
+          <label>備註/活動說明 <span class="hint">選填,玩家在活動列表就看得到</span></label>
+          <textarea id="ba-note" rows="2" placeholder="例：夏日限定活動,收集連線獎勵兌換神秘大獎！"></textarea>
+        </div>
+        <div class="field full"><label>圖片網址 <span class="hint">選填,活動列表卡片會顯示這張圖</span></label><input id="ba-imageurl" placeholder="https://..."></div>
 
         <div class="fsep">🎲 抽號設定</div>
         <div class="field full"><label>使用的貨幣</label><input id="ba-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
@@ -3495,6 +3500,8 @@ function openBingoActivityForm(activityId) {
   document.getElementById('ba-isdraft').checked = a ? a.status === 'DRAFT' : false;
   f('ba-min').value = a ? a.numberMin : 1;
   f('ba-max').value = a ? a.numberMax : 49;
+  f('ba-note').value = a ? (a.note || '') : '';
+  f('ba-imageurl').value = a ? (a.imageUrl || '') : '';
   f('ba-currency').value = a ? getDisplayCurrencyNameLocal_(a.currencyName) : '幻彩水晶';
   f('ba-entrycost').value = a ? a.entryCost : 0;
   f('ba-altcurrency').value = a ? getDisplayCurrencyNameLocal_(a.altCurrencyName || '') : '';
@@ -3552,6 +3559,8 @@ async function saveBingoActivity() {
     isDraft: document.getElementById('ba-isdraft').checked,
     numberMin: document.getElementById('ba-min').value,
     numberMax: document.getElementById('ba-max').value,
+    note: document.getElementById('ba-note').value,
+    imageUrl: document.getElementById('ba-imageurl').value,
     currencyName: document.getElementById('ba-currency').value,
     pickEnabled: document.getElementById('ba-pickenabled').checked,
     randomCost: document.getElementById('ba-randomcost').value,
