@@ -294,6 +294,34 @@
     </div>
   </div>
 
+  <!-- 🌟 iOS專用:引導玩家把網站加到主畫面的圖文教學(iOS沒有API能自動跳出加入主畫面的原生提示,只能用這種方式手動教學) -->
+  <div id="ios-addhome-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 420px; text-align:center;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeIosAddHomePrompt()">×</span>
+        <h2 style="margin:0;">📲 iPhone需要先加入主畫面</h2>
+      </div>
+      <div class="modal-body" style="text-align:left">
+        <p style="color:#B9BBBE;line-height:1.6;text-align:center">iPhone/iPad 要先把這個網站加到主畫面,推播通知才能運作(這是蘋果系統的規定,單純用 Safari 開網頁沒辦法收推播)。</p>
+        <div style="background:#2F3136;border-radius:10px;padding:14px;margin-top:12px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="background:#7289DA;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:bold">1</div>
+            <div>點畫面下方(或上方)的 <b>分享</b> 按鈕 <span style="display:inline-block;transform:scale(1.3)">⎋</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="background:#7289DA;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:bold">2</div>
+            <div>往下找,點選 <b>「加入主畫面」</b></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="background:#7289DA;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:bold">3</div>
+            <div>加入之後,改用<b>主畫面上的圖示</b>打開網站,再點一次「🔔 開啟推播通知」就可以了</div>
+          </div>
+        </div>
+        <button class="btn-action" style="background-color:#4F545C;width:100%;margin-top:14px" onclick="closeIosAddHomePrompt()">我知道了</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 🌟 拍賣會彈窗 -->
   <div id="auction-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 800px;">
@@ -2612,6 +2640,10 @@ function fetchScoresAndShop(discordId, callback = null) {
     async function updatePushToggleButton() {
       const btn = document.getElementById('push-toggle-btn');
       if (!btn) return;
+      if (isIOSDevice_() && !isStandaloneMode_()) {
+        btn.textContent = '📲 加入主畫面才能開啟推播';
+        return; // 🌟 按鈕還是可以點,點了會跳出教學(不disable它,不然玩家搞不清楚為什麼按鈕死掉)
+      }
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         btn.textContent = '🔕 此瀏覽器不支援推播';
         btn.disabled = true;
@@ -2627,12 +2659,25 @@ function fetchScoresAndShop(discordId, callback = null) {
       }
     }
 
+    // 🌟 偵測是不是iOS裝置(iPhone/iPad),跟是不是已經用「加入主畫面」的方式打開(standalone模式)。
+    // iOS的Safari普通分頁沒辦法用網頁推播,一定要先加到主畫面、用桌面圖示打開才算數——這是蘋果的系統限制,
+    // 而且沒有API可以讓網頁自動跳出「加入主畫面」的原生提示,只能用圖文教學引導玩家自己手動加。
+    function isIOSDevice_() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    }
+    function isStandaloneMode_() {
+      return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    }
+    function showIosAddHomePrompt() { document.getElementById('ios-addhome-modal').style.display = 'flex'; }
+    function closeIosAddHomePrompt() { document.getElementById('ios-addhome-modal').style.display = 'none'; }
+
     // 🌟 按鈕點擊:目前有訂閱就取消,沒有就訂閱(一鍵切換)
     // 🌟 分享 https://你的網址/?subscribe=1 這種連結給大家,登入後會自動跳出推播引導彈窗,
     // 不用玩家自己去找按鈕在哪裡。已經訂閱過的人不會再跳(不用重複打擾)。
     async function maybeShowPushPrompt() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('subscribe') !== '1') return;
+      if (isIOSDevice_() && !isStandaloneMode_()) { showIosAddHomePrompt(); return; } // 🌟 iOS還沒加主畫面,先教學,不用跳推播引導(反正也訂閱不了)
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       try {
         const reg = await navigator.serviceWorker.ready;
@@ -2649,6 +2694,7 @@ function fetchScoresAndShop(discordId, callback = null) {
 
     async function togglePushSubscription() {
       const btn = document.getElementById('push-toggle-btn');
+      if (isIOSDevice_() && !isStandaloneMode_()) { showIosAddHomePrompt(); return; } // 🌟 iOS還沒加主畫面,推播API根本不存在,直接顯示教學
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         alert('❌ 這個瀏覽器不支援推播通知功能');
         return;
