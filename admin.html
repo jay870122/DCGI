@@ -265,6 +265,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
       <div class="nav-item" onclick="navTo('bingo')">🎰 BINGO 賓果卡</div>
+      <div class="nav-item" onclick="navTo('push')">🔔 推播通知</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
       <div class="nav-item" onclick="navTo('reward-keys')">🎫 序號庫管理</div>
@@ -827,6 +828,39 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
       </div>
 
+      <!-- 推播通知管理 -->
+      <div id="page-push" style="display:none">
+        <div class="page-header"><div class="page-title">🔔 推播通知</div></div>
+
+        <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">📤 立即發送給指定玩家</div>
+          <div class="gacha-guide" style="margin-top:8px">
+            ⚠️ 要先到「💰 玩家貨幣管理」頁面勾選要發送的玩家,回到這裡填寫內容送出。只有點過「開啟推播通知」並授權過的玩家才收得到,沒訂閱的人不會有任何反應。
+          </div>
+          <div class="add-form" style="margin-top:12px">
+            <div class="field full"><label>通知標題</label><input id="push-send-title" placeholder="例：🎉 活動開始囉！"></div>
+            <div class="field full"><label>通知內容</label><textarea id="push-send-body" rows="2" placeholder="例：夏日BINGO活動正式開放,快來抽號碼！"></textarea></div>
+            <div class="field full"><label>點擊通知要開啟的網址 <span class="hint">選填,留空的話點擊會直接開啟網站首頁</span></label><input id="push-send-url" placeholder="https://..."></div>
+            <div class="actions"><button class="btn-save" onclick="sendPushToSelected()">📤 發送給已勾選的玩家</button></div>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
+          <div class="page-title" style="font-size:15px">⏰ 定時提醒 <span class="hint">每天固定時間自動發送,例如每天晚上8點提醒大家簽到</span></div>
+          <div class="gacha-guide" style="margin-top:8px">
+            ⚠️ 這個功能需要在 Apps Script 編輯器裡手動設定一個「時間驅動」的觸發器(執行函式選 <code>checkAndSendScheduledPush</code>,建議每5~10分鐘跑一次),沒設定觸發器的話,下面的排程不會真的被觸發。
+          </div>
+          <div style="margin-top:12px"><button class="fab" style="position:static" onclick="openPushScheduleForm()">➕ 新增定時提醒</button></div>
+        </div>
+
+        <div class="tbl-wrap tbl-wrap-table" style="margin-top:16px">
+          <table>
+            <thead><tr><th>標題</th><th>發送時間</th><th>目標對象</th><th>狀態</th><th>操作</th></tr></thead>
+            <tbody id="push-schedule-tbody"><tr><td colspan="5" class="empty">讀取中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 密碼鎖定管理 -->
       <div id="page-lock-settings" style="display:none">
         <div class="page-header"><div class="page-title">🔒 密碼鎖定管理</div></div>
@@ -1353,6 +1387,49 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   </div>
 </div>
 
+<!-- 定時提醒新增/編輯彈窗 -->
+<div class="overlay" id="push-schedule-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3 id="push-schedule-modal-title">⏰ 新增定時提醒</h3><button class="modal-close" onclick="closeModal('push-schedule-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="field full"><label>標題</label><input id="ps-title" placeholder="例：📢 每日簽到提醒"></div>
+      <div class="field full"><label>內容</label><textarea id="ps-body" rows="2" placeholder="例：別忘了今天簽到領獎勵喔！"></textarea></div>
+      <div class="field full"><label>點擊通知要開啟的網址 <span class="hint">選填</span></label><input id="ps-url" placeholder="https://..."></div>
+      <div class="field full">
+        <label>提醒類型</label>
+        <select id="ps-scheduletype" onchange="togglePushOnceDateField()">
+          <option value="RECURRING">每天重複</option>
+          <option value="ONCE">單次(指定日期)</option>
+        </select>
+      </div>
+      <div class="field" id="ps-oncedate-field" style="display:none">
+        <label>執行日期 <span class="hint">格式YYYY-MM-DD</span></label>
+        <input id="ps-oncedate" type="date">
+      </div>
+      <div class="field"><label>發送時間 <span class="hint">格式HH:mm,例如20:00</span></label><input id="ps-time" placeholder="20:00"></div>
+      <div class="field full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="ps-enabled" style="width:auto">
+          啟用這則定時提醒
+        </label>
+      </div>
+      <div class="field full">
+        <label>目標對象</label>
+        <select id="ps-targetmode" onchange="togglePushTargetListField()">
+          <option value="ALL">全體(所有已訂閱推播的玩家)</option>
+          <option value="ROLE">特定身分組</option>
+          <option value="PLAYERS">特定幾位玩家</option>
+        </select>
+      </div>
+      <div class="field full" id="ps-targetlist-field">
+        <label id="ps-targetlist-label">身分組ID或玩家ID</label>
+        <input id="ps-targetlist" placeholder="身分組填一個ID;玩家填多個ID用逗號分隔">
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('push-schedule-modal')">取消</button><button class="btn-save" onclick="savePushSchedule()">💾 儲存</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1822,7 +1899,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','push','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -1835,6 +1912,7 @@ function navTo(p) {
   if (p==='sort-settings') openSortSettings();
   if (p==='admin-users') loadAdminUsers();
   if (p==='player-currency') loadPlayerCurrency();
+  if (p==='push') loadPushSchedules();
   if (p==='bingo') loadBingoConfig();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
@@ -3643,6 +3721,135 @@ async function resetBingoCardsForSelected() {
   else toast('❌ ' + d.message, false);
 }
 // ── BINGO 賓果卡管理結束 ──
+
+// ── 推播通知管理 ──
+let pushSchedules = [];
+
+async function sendPushToSelected() {
+  if (pcSelectedIds.size === 0) { toast('請先到「玩家貨幣管理」頁面勾選要發送的玩家', false); return; }
+  const title = document.getElementById('push-send-title').value.trim();
+  if (!title) { toast('請輸入通知標題', false); return; }
+  if (!confirm(`確定要發送推播給已勾選的 ${pcSelectedIds.size} 位玩家嗎？(只有訂閱過的人收得到)`)) return;
+  const d = await api({
+    action: 'adminSendPushToPlayers',
+    playerIds: JSON.stringify(Array.from(pcSelectedIds)),
+    title: title,
+    body: document.getElementById('push-send-body').value,
+    url: document.getElementById('push-send-url').value,
+  });
+  if (d.status === 'success') {
+    toast('📤 ' + d.message);
+    document.getElementById('push-send-title').value = '';
+    document.getElementById('push-send-body').value = '';
+    document.getElementById('push-send-url').value = '';
+  } else {
+    toast('❌ ' + d.message, false);
+  }
+}
+
+async function loadPushSchedules() {
+  const d = await api({ action: 'adminGetPushSchedules' });
+  if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
+  pushSchedules = d.schedules;
+  renderPushScheduleTable();
+}
+
+function renderPushScheduleTable() {
+  const tbody = document.getElementById('push-schedule-tbody');
+  if (pushSchedules.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">還沒有任何定時提醒</td></tr>'; return; }
+  const targetModeLabel = { ALL: '全體', ROLE: '特定身分組', PLAYERS: '特定玩家' };
+  tbody.innerHTML = pushSchedules.map(s => {
+    const timeLabel = s.scheduleType === 'ONCE' ? `${s.onceDate} ${s.time}` : `每天 ${s.time}`;
+    const statusLabel = s.enabled
+      ? '<span class="status status-active">🟢 啟用中</span>'
+      : (s.scheduleType === 'ONCE' && s.lastSentDate ? '<span class="status status-ended">✅ 已發送</span>' : '<span class="status status-ended">⏹️ 已停用</span>');
+    return `
+    <tr>
+      <td>${s.title}${s.scheduleType === 'ONCE' ? ' <span class="hint">(單次)</span>' : ''}</td>
+      <td>${timeLabel}</td>
+      <td>${targetModeLabel[s.targetMode] || s.targetMode}</td>
+      <td>${statusLabel}</td>
+      <td class="cell-actions"><div class="btn-row">
+        <button class="btn btn-edit" onclick="openPushScheduleForm('${s.id}')">編輯</button>
+        <button class="btn btn-del" onclick="deletePushSchedule('${s.id}','${s.title.replace(/'/g,"\\'")}')">刪除</button>
+      </div></td>
+    </tr>
+  `;
+  }).join('');
+}
+
+function togglePushTargetListField() {
+  const mode = document.getElementById('ps-targetmode').value;
+  const field = document.getElementById('ps-targetlist-field');
+  const label = document.getElementById('ps-targetlist-label');
+  field.style.display = mode === 'ALL' ? 'none' : '';
+  label.textContent = mode === 'ROLE' ? '身分組ID' : '玩家ID(逗號分隔)';
+}
+
+function togglePushOnceDateField() {
+  const type = document.getElementById('ps-scheduletype').value;
+  document.getElementById('ps-oncedate-field').style.display = type === 'ONCE' ? '' : 'none';
+}
+
+function openPushScheduleForm(scheduleId) {
+  const isEdit = !!scheduleId;
+  document.getElementById('push-schedule-modal-title').textContent = isEdit ? '⏰ 編輯定時提醒' : '⏰ 新增定時提醒';
+  document.getElementById('push-schedule-modal').dataset.scheduleId = scheduleId || '';
+
+  const s = isEdit ? pushSchedules.find(x => x.id === scheduleId) : null;
+  document.getElementById('ps-title').value = s ? s.title : '';
+  document.getElementById('ps-body').value = s ? (s.body || '') : '';
+  document.getElementById('ps-url').value = s ? (s.url || '') : '';
+  document.getElementById('ps-time').value = s ? s.time : '20:00';
+  document.getElementById('ps-enabled').checked = s ? !!s.enabled : true;
+  document.getElementById('ps-targetmode').value = s ? s.targetMode : 'ALL';
+  document.getElementById('ps-targetlist').value = s ? (s.targetList || '') : '';
+  document.getElementById('ps-scheduletype').value = s ? (s.scheduleType || 'RECURRING') : 'RECURRING';
+  document.getElementById('ps-oncedate').value = s ? (s.onceDate || '') : '';
+  togglePushTargetListField();
+  togglePushOnceDateField();
+
+  document.getElementById('push-schedule-modal').classList.add('open');
+}
+
+async function savePushSchedule() {
+  const scheduleId = document.getElementById('push-schedule-modal').dataset.scheduleId;
+  const isEdit = !!scheduleId;
+  const scheduleType = document.getElementById('ps-scheduletype').value;
+  if (scheduleType === 'ONCE' && !document.getElementById('ps-oncedate').value) {
+    toast('請選擇單次提醒的執行日期', false);
+    return;
+  }
+  const params = {
+    action: isEdit ? 'adminUpdatePushSchedule' : 'adminAddPushSchedule',
+    scheduleId: scheduleId,
+    title: document.getElementById('ps-title').value,
+    body: document.getElementById('ps-body').value,
+    url: document.getElementById('ps-url').value,
+    time: document.getElementById('ps-time').value,
+    enabled: document.getElementById('ps-enabled').checked,
+    targetMode: document.getElementById('ps-targetmode').value,
+    targetList: document.getElementById('ps-targetlist').value,
+    scheduleType: scheduleType,
+    onceDate: document.getElementById('ps-oncedate').value,
+  };
+  const d = await api(params);
+  if (d.status === 'success') {
+    toast(isEdit ? '💾 已更新！' : '💾 已新增！');
+    closeModal('push-schedule-modal');
+    loadPushSchedules();
+  } else {
+    toast('❌ ' + d.message, false);
+  }
+}
+
+async function deletePushSchedule(scheduleId, title) {
+  if (!confirm(`確定要刪除「${title}」這則定時提醒嗎？`)) return;
+  const d = await api({ action: 'adminDeletePushSchedule', scheduleId });
+  if (d.status === 'success') { toast('🗑️ 已刪除！'); loadPushSchedules(); }
+  else toast('❌ ' + d.message, false);
+}
+// ── 推播通知管理結束 ──
 
 async function loadAdminUsers() {
   const el = document.getElementById('admin-users-list');
