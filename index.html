@@ -279,6 +279,21 @@
     </div>
   </div>
 
+  <!-- 🌟 推播訂閱引導彈窗:透過網址帶 ?subscribe=1 開啟連結,登入後會自動跳出這個,請玩家點一下開啟 -->
+  <div id="push-prompt-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 420px; text-align:center;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closePushPrompt()">×</span>
+        <h2 style="margin:0;">🔔 開啟推播通知</h2>
+      </div>
+      <div class="modal-body">
+        <p style="color:#B9BBBE;line-height:1.6">開啟之後,就算沒開著網頁,也能直接收到重要通知(活動開始、中獎、拍賣被超越等等)。</p>
+        <button class="btn-action" style="background-color:#7289DA;width:100%;margin-top:12px" onclick="subscribeFromPrompt()">🔔 立即開啟</button>
+        <button class="btn-action" style="background-color:#4F545C;width:100%;margin-top:8px" onclick="closePushPrompt()">先不要</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 🌟 拍賣會彈窗 -->
   <div id="auction-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 800px;">
@@ -458,6 +473,7 @@
           fetchScoresAndShop(user.id);
           checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
+          maybeShowPushPrompt(); // 🌟 網址如果帶 ?subscribe=1(用來分享邀請大家訂閱推播的連結),自動跳出引導視窗
         }).catch(err => {
           localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
           document.getElementById('loading').style.display = 'none'; document.getElementById('login-section').style.display = 'block';
@@ -2612,6 +2628,25 @@ function fetchScoresAndShop(discordId, callback = null) {
     }
 
     // 🌟 按鈕點擊:目前有訂閱就取消,沒有就訂閱(一鍵切換)
+    // 🌟 分享 https://你的網址/?subscribe=1 這種連結給大家,登入後會自動跳出推播引導彈窗,
+    // 不用玩家自己去找按鈕在哪裡。已經訂閱過的人不會再跳(不用重複打擾)。
+    async function maybeShowPushPrompt() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('subscribe') !== '1') return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const existingSub = await reg.pushManager.getSubscription();
+        if (existingSub) return; // 🌟 已經訂閱過了,不用再跳提示
+        document.getElementById('push-prompt-modal').style.display = 'flex';
+      } catch (e) {}
+    }
+    function closePushPrompt() { document.getElementById('push-prompt-modal').style.display = 'none'; }
+    async function subscribeFromPrompt() {
+      await togglePushSubscription(); // 🌟 這裡點擊本身就是玩家的操作動作(user gesture),瀏覽器才會放行通知授權要求
+      closePushPrompt();
+    }
+
     async function togglePushSubscription() {
       const btn = document.getElementById('push-toggle-btn');
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
