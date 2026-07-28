@@ -349,6 +349,7 @@
           <button class="btn-action" onclick="showAuctions()" style="background-color: #F0B232;">🔨 拍賣會</button>
           <button class="btn-action" onclick="showHistory()" style="background-color: #5865F2;">📜 我的紀錄</button>
           <button class="btn-action" onclick="showBackpack()" style="background-color: #43B581;">🎒 背包</button>
+          <button class="btn-action" id="push-toggle-btn" onclick="togglePushSubscription()" style="background-color: #7289DA;">🔔 開啟推播通知</button>
           <button class="btn-action" onclick="logout()" style="background-color: #ED4245;">登出帳號</button>
         </div>
       </div>
@@ -380,6 +381,8 @@
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'; // 🌟 讀取分數+商店目錄改走這個Worker,速度比較快;買東西/查紀錄/登入還是走上面的GAS_API_URL
+    // 🌟 推播通知的VAPID公鑰,要跟 dashboard-worker.js 裡的 VAPID_PUBLIC_KEY 完全一致(這個是公開的,可以放在前端;私鑰絕對不能放這裡)
+    const VAPID_PUBLIC_KEY = 'BEtm2b_TlQ7e8oKiFmAa69I3e01t0zfPNxggs1eBkVZCpZuheOf6o7wjQpgxZdzcMbKikUUCYQ2SkD1T0fkbDRk';
     // 🌟🔒 安全性修正:所有打後端的請求都要帶上這個 accessToken,讓後端自己向 Discord 官方驗證使用者身分,
     // 不能只靠自己在網址上宣稱的 discordId(那樣任何人都能冒充別人)
     function getAccessToken() { return localStorage.getItem('dc_access_token') || ''; }
@@ -454,6 +457,7 @@
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
           checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
+          updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
         }).catch(err => {
           localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
           document.getElementById('loading').style.display = 'none'; document.getElementById('login-section').style.display = 'block';
@@ -2572,6 +2576,92 @@ function fetchScoresAndShop(discordId, callback = null) {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
       });
+    }
+
+    // ============================================================
+    // 🔔 推播通知訂閱管理
+    // ============================================================
+
+    // 🌟 VAPID公鑰格式轉換:瀏覽器的PushManager.subscribe()要吃Uint8Array格式,不是base64url字串
+    function urlBase64ToUint8Array_(base64String) {
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+      return outputArray;
+    }
+
+    // 🌟 檢查瀏覽器支不支援推播(舊版手機瀏覽器、部分App內建瀏覽器不支援),更新按鈕文字反映目前的訂閱狀態
+    async function updatePushToggleButton() {
+      const btn = document.getElementById('push-toggle-btn');
+      if (!btn) return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        btn.textContent = '🔕 此瀏覽器不支援推播';
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        return;
+      }
+      try {
+        const reg = await navigator.serviceWorker.register('sw.js');
+        const existingSub = await reg.pushManager.getSubscription();
+        btn.textContent = existingSub ? '🔕 關閉推播通知' : '🔔 開啟推播通知';
+      } catch (e) {
+        console.error('Service Worker 註冊失敗:', e);
+      }
+    }
+
+    // 🌟 按鈕點擊:目前有訂閱就取消,沒有就訂閱(一鍵切換)
+    async function togglePushSubscription() {
+      const btn = document.getElementById('push-toggle-btn');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('❌ 這個瀏覽器不支援推播通知功能');
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const existingSub = await reg.pushManager.getSubscription();
+
+        if (existingSub) {
+          // 🌟 已經訂閱過了 → 取消訂閱
+          await existingSub.unsubscribe();
+          await fetch(`${GAS_API_URL}?action=removePushSubscription&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`);
+          btn.textContent = '🔔 開啟推播通知';
+          toast_('🔕 已關閉推播通知');
+        } else {
+          // 🌟 還沒訂閱 → 跟瀏覽器要求通知權限,同意的話才能真的訂閱
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            alert('⚠️ 沒有授權通知權限,無法開啟推播。如果不小心拒絕了,需要到瀏覽器的網站設定裡手動允許通知權限。');
+            btn.disabled = false;
+            return;
+          }
+          const newSub = await reg.pushManager.subscribe({
+            userVisibleOnly: true, // 🌟 瀏覽器規定一定要是true(每次推播都要顯示看得到的通知,不能偷偷背景執行)
+            applicationServerKey: urlBase64ToUint8Array_(VAPID_PUBLIC_KEY),
+          });
+          const subJson = JSON.stringify(newSub.toJSON());
+          const res = await fetch(`${GAS_API_URL}?action=savePushSubscription&discordId=${currentUser.id}&subscription=${encodeURIComponent(subJson)}&accessToken=${encodeURIComponent(getAccessToken())}`);
+          const data = await res.json();
+          if (data.status === 'success') {
+            btn.textContent = '🔕 關閉推播通知';
+            toast_('🔔 已開啟推播通知！之後有重要訊息會直接通知你');
+          } else {
+            alert('❌ 訂閱失敗：' + data.message);
+          }
+        }
+      } catch (e) {
+        console.error('推播訂閱切換失敗:', e);
+        alert('❌ 操作失敗，請稍後再試');
+      }
+      btn.disabled = false;
+    }
+
+    // 🌟 簡易提示訊息(如果頁面已經有全域的toast()函式就直接沿用,避免重複定義同名函式互相覆蓋)
+    function toast_(msg) {
+      if (typeof toast === 'function') { toast(msg); return; }
+      alert(msg);
     }
 
     function logout() {
