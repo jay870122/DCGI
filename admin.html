@@ -833,6 +833,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="page-header"><div class="page-title">🔔 推播通知</div></div>
 
         <div class="tbl-wrap" style="padding:24px">
+          <div class="page-title" style="font-size:15px">👥 已訂閱推播的玩家 <span class="hint" id="push-subscriber-count"></span></div>
+          <div class="gacha-guide" style="margin-top:8px">
+            ⚠️ 同一個人可能在電腦、手機各訂閱一次,所以會分開列成「幾台裝置」;只有列在下面的人才收得到推播,發送前可以先來這裡確認。
+          </div>
+          <div class="tbl-wrap tbl-wrap-table" style="margin-top:12px">
+            <table>
+              <thead><tr><th>玩家</th><th>DiscordID</th><th>訂閱裝置數</th><th>最後更新時間</th></tr></thead>
+              <tbody id="push-subscriber-tbody"><tr><td colspan="4" class="empty">讀取中...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
           <div class="page-title" style="font-size:15px">📤 立即發送給指定玩家</div>
           <div class="gacha-guide" style="margin-top:8px">
             ⚠️ 要先到「💰 玩家貨幣管理」頁面勾選要發送的玩家,回到這裡填寫內容送出。只有點過「開啟推播通知」並授權過的玩家才收得到,沒訂閱的人不會有任何反應。
@@ -1912,7 +1925,7 @@ function navTo(p) {
   if (p==='sort-settings') openSortSettings();
   if (p==='admin-users') loadAdminUsers();
   if (p==='player-currency') loadPlayerCurrency();
-  if (p==='push') loadPushSchedules();
+  if (p==='push') { loadPushSchedules(); loadPushSubscribers(); }
   if (p==='bingo') loadBingoConfig();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
@@ -3724,6 +3737,28 @@ async function resetBingoCardsForSelected() {
 
 // ── 推播通知管理 ──
 let pushSchedules = [];
+
+async function loadPushSubscribers() {
+  const d = await api({ action: 'adminGetPushSubscribers' });
+  const tbody = document.getElementById('push-subscriber-tbody');
+  const countEl = document.getElementById('push-subscriber-count');
+  if (d.status !== 'success') { tbody.innerHTML = `<tr><td colspan="4" class="empty">載入失敗: ${d.message}</td></tr>`; return; }
+  if (d.subscribers.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">目前還沒有任何人開啟推播通知</td></tr>';
+    countEl.textContent = '(0 人)';
+    return;
+  }
+  countEl.textContent = `(${d.subscribers.length} 人，共 ${d.totalDevices} 台裝置)`;
+  tbody.innerHTML = d.subscribers.map(s => `
+    <tr>
+      <td>${s.nickname}</td>
+      <td style="font-size:12px;color:#72767D">${s.discordId}</td>
+      <td>${s.deviceCount} 台</td>
+      <td style="font-size:12px">${s.lastUpdated ? new Date(s.lastUpdated).toLocaleString() : ''}</td>
+    </tr>
+  `).join('');
+}
+
 
 async function sendPushToSelected() {
   if (pcSelectedIds.size === 0) { toast('請先到「玩家貨幣管理」頁面勾選要發送的玩家', false); return; }
