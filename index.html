@@ -2624,9 +2624,10 @@ function fetchScoresAndShop(discordId, callback = null) {
         const existingSub = await reg.pushManager.getSubscription();
 
         if (existingSub) {
-          // 🌟 已經訂閱過了 → 取消訂閱
+          // 🌟 已經訂閱過了 → 取消訂閱(先記下endpoint,取消之後才能準確告訴後端只清掉「這一台」裝置的訂閱,不影響玩家其他裝置)
+          const thisEndpoint = existingSub.endpoint;
           await existingSub.unsubscribe();
-          await fetch(`${GAS_API_URL}?action=removePushSubscription&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`);
+          await fetch(`${GAS_API_URL}?action=removePushSubscription&discordId=${currentUser.id}&endpoint=${encodeURIComponent(thisEndpoint)}&accessToken=${encodeURIComponent(getAccessToken())}`);
           btn.textContent = '🔔 開啟推播通知';
           toast_('🔕 已關閉推播通知');
         } else {
