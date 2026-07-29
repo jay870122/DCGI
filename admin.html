@@ -379,8 +379,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="fsep">獎勵設定</div>
             <div class="field"><label>固定獎勵變數名 <span class="hint">盲盒留空</span></label><input id="ns-rvar" placeholder="例：升階2"></div>
             <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="ns-rqty" placeholder="固定獎勵填數量&#10;盲盒依商店格式填入"></textarea></div>
-            <div class="gacha-guide">
-              📖 <b>盲盒規則格式指南</b>（固定獎勵不用看這段,只要在上面填數量就好）<br>
+            <details class="gacha-guide">
+              <summary style="cursor:pointer">📖 <b>盲盒規則格式指南</b>（固定獎勵不用看這段,只要在上面填數量就好,點這裡展開）</summary>
               一行 = 一個獎項,用逗號分隔幾個設定,順序不限,系統會自動辨識：<br>
               　・第一個一定是<code>獎項顯示名稱</code><br>
               　・帶 <code>%</code> 的是<b>中獎機率</b>,例如 <code>30%</code><br>
@@ -388,6 +388,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・純數字是<b>單次獲得數量</b>,例如中獎後給 <code>2</code> 個<br>
               　・其他文字會當作<b>對應的貨幣/道具欄位名稱</b>（跟顯示名稱不同時才需要）<br>
               可以機率制、庫存制混著用；沒填機率的獎項,會用剩餘機率依庫存比例均分。<br>
+              🎲 <b>隨機數量</b>：數量欄位除了填固定數字,也可以填<code>最小~最大</code>的範圍,例如 <code>1~100</code>,中獎當下系統會即時擲骰決定實際拿到多少,每次中獎數量都可能不同,不是固定值。可以用在單一變數,也可以用在下面「一個獎項發多種東西」裡的每個變數各自設定。<br>
               🎁 <b>一個獎項同時發放多種貨幣/道具</b>：把要發放的變數用 <code>+</code> 串起來,每個變數可以用 <code>:數量</code> 指定各自要給多少(不寫預設1個),例如 <code>粽子:1+黃金粽子:1</code> 代表中獎後兩種各發1個。<br>
               🎫 <b>[序號] 中獎發放專屬序號</b>：變數名前面加 <code>[序號]</code>,例如 <code>[序號]傳說道具</code>,中獎後系統不會發貨幣,而是去「序號庫」工作表裡找 A欄等於「傳說道具」(不含中括號)、還沒被領過的一筆,把 B欄的序號值直接發給玩家(這張序號庫工作表要自己額外建立,固定放在第 5 個分頁,格式:A名稱 | B序號 | C使用者DiscordID(系統寫入,留空=可用))。可以跟上面的「一個獎項發多種東西」合併用,例如 <code>幻彩水晶:50+[序號]傳說道具:1</code>,中獎同時發 50 個幻彩水晶跟 1 組傳說道具序號。<br>
               🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
@@ -398,11 +399,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <code>黃金粽子,15%,50份</code><br>
               <code>傳說粽子,5%,5份</code><br>
               <code>幻彩水晶碎片X100, 幻彩水晶碎片, 100</code>　<span class="hint">← 顯示名稱可以跟貨幣欄位名稱不同,中獎會給 100 個「幻彩水晶碎片」</span><br>
+              <code>幻彩水晶碎片X1~100, 幻彩水晶碎片, 1~100, 10%</code>　<span class="hint">← 數量填範圍,中獎當下隨機給 1~100 個之間的其中一個數量</span><br>
               <code>粽子黃金雙拼, 粽子:1+黃金粽子:1, 20%, 30份</code>　<span class="hint">← 一次中獎同時發「粽子」1個+「黃金粽子」1個</span><br>
               <code>傳說寶箱, [序號]傳說道具, 1, 5%, 3份</code>　<span class="hint">← 中獎發一組「傳說道具」序號(去序號庫工作表找),不是發貨幣</span><br>
               <code>超級寶箱, 幻彩水晶:50+[序號]傳說道具:1, 3%, 2份</code>　<span class="hint">← 中獎同時發 50 個幻彩水晶 + 1 組傳說道具序號</span><br>
               <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
-            </div>
+            </details>
             <div class="gacha-preview" id="ns-rqty-preview" style="display:none"></div>
             <div class="fsep">🎰 抽獎模式(選填)</div>
             <div class="field full">
@@ -510,6 +512,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
               <textarea id="ns-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
               <div class="gacha-preview" id="ns-milestone-preview" style="display:none"></div>
+            </div>
+            <div class="field full">
+              <label>里程碑共用目標商品ID <span class="hint">選填,填了的話這個商品的購買量會算進「那個商品ID」的里程碑進度裡,自己上面的里程碑規則就不會生效(規則統一以目標商品為準);留空=用自己的規則、不共用</span></label>
+              <input id="ns-milestone-share" placeholder="例如：目標商品的ID(可以到商品管理列表複製)">
             </div>
             <div class="gacha-guide" style="grid-column:span 2">
               🎁 <b>累積兌換次數里程碑獎勵</b>:玩家買這個商品買到「累積第 N 個」的時候,自動額外贈送一次獎勵(不影響原本的價格/盲盒抽獎,是額外多送的)。<br>
@@ -1014,8 +1020,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="fsep">獎勵</div>
       <div class="field"><label>固定獎勵變數名</label><input id="em-rvar"></div>
       <div class="field"><label>獎勵數量 / 盲盒規則</label><textarea id="em-rqty"></textarea></div>
-      <div class="gacha-guide">
-        📖 <b>盲盒規則格式指南</b>（固定獎勵不用看這段,只要在上面填數量就好）<br>
+      <details class="gacha-guide">
+        <summary style="cursor:pointer">📖 <b>盲盒規則格式指南</b>（固定獎勵不用看這段,只要在上面填數量就好,點這裡展開）</summary>
         一行 = 一個獎項,用逗號分隔幾個設定,順序不限,系統會自動辨識：<br>
         　・第一個一定是<code>獎項顯示名稱</code><br>
         　・帶 <code>%</code> 的是<b>中獎機率</b>,例如 <code>30%</code><br>
@@ -1023,6 +1029,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         　・純數字是<b>單次獲得數量</b>,例如中獎後給 <code>2</code> 個<br>
         　・其他文字會當作<b>對應的貨幣/道具欄位名稱</b>（跟顯示名稱不同時才需要）<br>
         可以機率制、庫存制混著用；沒填機率的獎項,會用剩餘機率依庫存比例均分。<br>
+        🎲 <b>隨機數量</b>：數量欄位除了填固定數字,也可以填<code>最小~最大</code>的範圍,例如 <code>1~100</code>,中獎當下系統會即時擲骰決定實際拿到多少,每次中獎數量都可能不同,不是固定值。可以用在單一變數,也可以用在下面「一個獎項發多種東西」裡的每個變數各自設定。<br>
         🎁 <b>一個獎項同時發放多種貨幣/道具</b>：把要發放的變數用 <code>+</code> 串起來,每個變數可以用 <code>:數量</code> 指定各自要給多少(不寫預設1個),例如 <code>粽子:1+黃金粽子:1</code> 代表中獎後兩種各發1個。<br>
         🎫 <b>[序號] 中獎發放專屬序號</b>：變數名前面加 <code>[序號]</code>,例如 <code>[序號]傳說道具</code>,中獎後系統不會發貨幣,而是去「序號庫」工作表裡找 A欄等於「傳說道具」(不含中括號)、還沒被領過的一筆,把 B欄的序號值直接發給玩家(這張序號庫工作表要自己額外建立,固定放在第 5 個分頁,格式:A名稱 | B序號 | C使用者DiscordID(系統寫入,留空=可用))。可以跟上面的「一個獎項發多種東西」合併用,例如 <code>幻彩水晶:50+[序號]傳說道具:1</code>,中獎同時發 50 個幻彩水晶跟 1 組傳說道具序號。<br>
         🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
@@ -1033,11 +1040,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <code>黃金粽子,15%,50份</code><br>
         <code>傳說粽子,5%,5份</code><br>
         <code>幻彩水晶碎片X100, 幻彩水晶碎片, 100</code>　<span class="hint">← 顯示名稱可以跟貨幣欄位名稱不同,中獎會給 100 個「幻彩水晶碎片」</span><br>
+        <code>幻彩水晶碎片X1~100, 幻彩水晶碎片, 1~100, 10%</code>　<span class="hint">← 數量填範圍,中獎當下隨機給 1~100 個之間的其中一個數量</span><br>
         <code>粽子黃金雙拼, 粽子:1+黃金粽子:1, 20%, 30份</code>　<span class="hint">← 一次中獎同時發「粽子」1個+「黃金粽子」1個</span><br>
         <code>傳說寶箱, [序號]傳說道具, 1, 5%, 3份</code>　<span class="hint">← 中獎發一組「傳說道具」序號(去序號庫工作表找),不是發貨幣</span><br>
         <code>超級寶箱, 幻彩水晶:50+[序號]傳說道具:1, 3%, 2份</code>　<span class="hint">← 中獎同時發 50 個幻彩水晶 + 1 組傳說道具序號</span><br>
         <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
-      </div>
+      </details>
       <div class="gacha-preview" id="em-rqty-preview" style="display:none"></div>
       <div class="fsep">🎰 抽獎模式(選填)</div>
       <div class="field full">
@@ -1134,6 +1142,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
         <textarea id="em-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
         <div class="gacha-preview" id="em-milestone-preview" style="display:none"></div>
+      </div>
+      <div class="full field">
+        <label>里程碑共用目標商品ID <span class="hint">選填,填了的話這個商品的購買量會算進「那個商品ID」的里程碑進度裡,自己上面的里程碑規則就不會生效(規則統一以目標商品為準);留空=用自己的規則、不共用</span></label>
+        <input id="em-milestone-share" placeholder="例如：目標商品的ID(可以到商品管理列表複製)">
       </div>
       <div class="fsep">商品密碼鎖定（選填）</div>
       <div class="field"><label>固定密碼 <span class="hint">留空=不用</span></label><input id="em-lockpw" placeholder="所有人共用同一組密碼"></div>
@@ -2237,6 +2249,7 @@ function openEditShop(itemId) {
   setAltCurrencyRows('em', i.altCurrency||'', i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'');
   setExtraCostRows('em', i.extraCost||'', i.extraCostAmount||'');
   f('em-milestone').value = i.milestoneRules || '';
+  f('em-milestone-share').value = i.milestoneShareWithItemId || '';
   renderMilestonePreview('em-milestone', 'em-milestone-preview');
   f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
   f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
@@ -2287,7 +2300,7 @@ async function saveShopItem() {
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
     remark:f('em-remark'),requiredRole:buildRoleRequirement('em-role'),exclusiveGroup:f('em-excl'),
     altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
-    extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),milestoneRules:f('em-milestone'),
+    extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),milestoneRules:f('em-milestone'),milestoneShareWithItemId:f('em-milestone-share'),
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint'),
     lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod'),
@@ -2314,7 +2327,7 @@ async function publishShopItem(itemId) {
     rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
     remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
-    extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,milestoneRules:i.milestoneRules,
+    extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,milestoneRules:i.milestoneRules,milestoneShareWithItemId:i.milestoneShareWithItemId,
     lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility,lockHintText:i.lockHintText,
     lockPasswordMode:i.lockPasswordMode,lockPasswordSeed:i.lockPasswordSeed,lockPasswordSchedule:i.lockPasswordSchedule,
     lockGuessLimitEnabled:i.lockGuessLimitEnabled,lockGuessLimitCount:i.lockGuessLimitCount,lockGuessLimitPeriod:i.lockGuessLimitPeriod});
@@ -2614,7 +2627,7 @@ async function submitAddShop(forceStatus) {
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
     remark:f('ns-remark'),requiredRole:buildRoleRequirement('ns-role'),exclusiveGroup:f('ns-excl'),
     altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
-    extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),milestoneRules:f('ns-milestone'),
+    extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),milestoneRules:f('ns-milestone'),milestoneShareWithItemId:f('ns-milestone-share'),
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint'),
     lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod'),
