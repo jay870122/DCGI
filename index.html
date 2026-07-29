@@ -2322,7 +2322,7 @@ function fetchScoresAndShop(discordId, callback = null) {
               ` : `📦 庫存：${item.limits.baseStock}`}
               ${limitsHtml}
               ${gachaHtml}
-              ${item.nextMilestone ? `<div style="color:#FEE75C;font-size:12px;margin-top:6px">🏆 ${item.nextMilestone.repeat ? '(重複)' : ''}累積兌換過 ${item.personalTotalPurchased} 次,再兌換 ${item.nextMilestone.count - item.personalTotalPurchased} 次(達第 ${item.nextMilestone.count} 次)可額外獲得：${item.nextMilestone.rewardText}${(item.nextMilestone.stock !== null && item.nextMilestone.stock !== undefined) ? `(僅剩 ${item.nextMilestone.stock} 份)` : ''}</div>` : ''}
+              ${item.nextMilestone ? `<div style="color:#FEE75C;font-size:12px;margin-top:6px">🏆 ${item.nextMilestone.repeat ? '(重複)' : ''}累積兌換過 ${item.personalTotalPurchased} 次,再兌換 ${item.nextMilestone.count - item.personalTotalPurchased} 次(達第 ${item.nextMilestone.count} 次)可額外獲得：${item.nextMilestone.rewardText}${(item.nextMilestone.stock !== null && item.nextMilestone.stock !== undefined) ? `(僅剩 ${item.nextMilestone.stock} 份)` : ''}${item.milestoneSharedFrom ? `<br>💠 這個進度跟「${item.milestoneSharedFrom}」共用,買那個商品也會一起累積喔！` : ''}</div>` : ''}
               ${milestonePoolHtml}
               ${milestoneListHtml}
             </div>
@@ -2728,7 +2728,12 @@ function fetchScoresAndShop(discordId, callback = null) {
           const data = await res.json();
           if (data.status === 'success') {
             btn.textContent = '🔕 關閉推播通知';
-            toast_('🔔 已開啟推播通知！之後有重要訊息會直接通知你');
+            if (data.firstTimeReward && data.firstTimeReward.length > 0) {
+              toast_('🔔 已開啟推播通知！🎁 首次開啟獎勵：' + data.firstTimeReward.join('、'));
+              fetchScoresAndShop(currentUser.id); // 🌟 拿到獎勵了,刷新一下畫面上的分數顯示
+            } else {
+              toast_('🔔 已開啟推播通知！之後有重要訊息會直接通知你');
+            }
           } else {
             alert('❌ 訂閱失敗：' + data.message);
           }
