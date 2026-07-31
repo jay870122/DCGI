@@ -549,7 +549,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・<code>數量 =&gt; 獎勵</code>:一次性,只有累積剛好到那個數字時發一次。例如 <code>10 => 水晶:100</code> 代表累積買滿10個時,額外送100個水晶,之後不會再發。<br>
               　・<code>每數量 =&gt; 獎勵</code>:重複性,累積每滿這個數字的倍數就再發一次,不限次數。例如 <code>每5 => 水晶:20</code> 代表第5、10、15、20...次都會再送一次20個水晶。<br>
               兩種可以同時設定、混著用。「獎勵」的部分只需要 <code>變數:數量</code>,可以用 <code>+</code> 串連同時發多種、支援 <code>[序號]</code> 發放序號庫的序號、支援 <code>[非即時]</code> 標記需要人工發送。例如 <code>20 => 水晶:200+活動幣:5</code> 代表累積買滿20個時,額外送200水晶+5活動幣。<br>
-              💬 <b>想要有一個好看的名稱</b>(而不是直接顯示變數內容給玩家看)?在獎勵前面加「顯示名稱 加一條直線 | 」,例如 <code>10 => 水晶寶箱 | 水晶:100</code>,玩家會看到「獲得：水晶寶箱」,而不是「獲得：水晶:100」。<br>
+              💬 <b>想要有一個好看的名稱</b>(而不是直接顯示變數內容給玩家看)?在獎勵前面加「顯示名稱 加一條直線 | 」,例如 <code>10 => 水晶寶箱 | 水晶:100</code>,玩家會看到「獲得：水晶寶箱」,而不是「獲得:水晶:100」。<br>
               📦 <b>想要限量</b>(跟盲盒一樣,發完就沒有了)?在最後面加「, N份」,例如 <code>每5 => 水晶寶箱 | 水晶:20, 50份</code> 代表這個「每5」的獎勵總共只有50份,發完之後就算玩家累積數量到了,也不會再送(其他還沒限量的里程碑不受影響)。庫存會自動扣減、寫回這個欄位。<br>
               🎰 <b>想要做成抽獎(達成里程碑時不是固定發一種,而是隨機抽一個)</b>?「數量 =&gt;」後面留空、換行,接下來幾行就是這個里程碑的獎池,格式<b>直接照抄上面的「盲盒規則」</b>就可以了(顯示名稱, 變數:數量, 機率%, 庫存),抽獎邏輯完全跟商品本身的盲盒共用。例如:<br>
               <code>10 =></code><br>
@@ -559,6 +559,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               代表累積買滿10個時,從這3個獎項裡抽一個(最後一行沒填機率/庫存,是保底,前面都沒中或庫存發完時一定拿到它)。這種格式跟前面的「固定發放」格式可以在同一個欄位混用,每一條里程碑自己決定要用哪一種寫法。<br>
               「累積」是看這個玩家對這個商品的<b>終身總購買數量</b>(不分每日/每週/每月),一次買很多件一口氣跨過好幾個里程碑(或重複里程碑的好幾個倍數)的話,會一次全部發放。
             </div>
+
+            <div class="fsep">🎛️ 商品選項(選填)</div>
+            <div class="gacha-guide" style="grid-column:span 2">
+              把好幾張內容不同的商品卡片(例如「X1」「X3」「X5」)整合成一張、用下拉選單切換。每個選項有自己<b>獨立</b>的名稱/價格/盲盒內容,彼此互不相關,不是同一個商品的倍數。
+              <b>一旦設定了任何選項,商品本身上面的「價格」跟「獎勵數量/盲盒規則」欄位就會失效</b>,一律以選項裡的設定為準,玩家兌換時必須先選一個選項才能購買。留空(不新增任何選項)的話,商品就照原本的方式運作。
+            </div>
+            <div class="field full" id="ns-options-container"></div>
+            <div class="field full"><button type="button" class="btn btn-edit" onclick="addItemOption('ns')">➕ 新增選項</button></div>
+
             <div class="fsep">商品密碼鎖定（選填）</div>
             <div class="field"><label>固定密碼 <span class="hint">留空=不用固定密碼</span></label><input id="ns-lockpw" placeholder="所有人共用同一組密碼"></div>
             <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用一次性序號</span></label><input id="ns-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
@@ -1186,6 +1195,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>里程碑共用目標商品ID <span class="hint">選填,填了的話這個商品的購買量會算進「那個商品ID」的里程碑進度裡,自己上面的里程碑規則就不會生效(規則統一以目標商品為準);留空=用自己的規則、不共用</span></label>
         <input id="em-milestone-share" placeholder="例如：目標商品的ID(可以到商品管理列表複製)">
       </div>
+
+      <div class="fsep">🎛️ 商品選項(選填)</div>
+      <div class="gacha-guide" style="grid-column:span 2">
+        把好幾張內容不同的商品卡片(例如「X1」「X3」「X5」)整合成一張、用下拉選單切換。每個選項有自己<b>獨立</b>的名稱/價格/盲盒內容,彼此互不相關,不是同一個商品的倍數。
+        <b>一旦設定了任何選項,商品本身上面的「價格」跟「獎勵數量/盲盒規則」欄位就會失效</b>,一律以選項裡的設定為準,玩家兌換時必須先選一個選項才能購買。留空(不新增任何選項)的話,商品就照原本的方式運作。
+      </div>
+      <div class="full field" id="em-options-container"></div>
+      <div class="full field"><button type="button" class="btn btn-edit" onclick="addItemOption('em')">➕ 新增選項</button></div>
+
       <div class="fsep">商品密碼鎖定（選填）</div>
       <div class="field"><label>固定密碼 <span class="hint">留空=不用</span></label><input id="em-lockpw" placeholder="所有人共用同一組密碼"></div>
       <div class="field"><label>一次性序號對應名稱 <span class="hint">留空=不用</span></label><input id="em-lockcode" placeholder="對應「解鎖序號庫」A欄的名稱"></div>
@@ -2379,6 +2397,7 @@ function openEditShop(itemId) {
   setExtraCostRows('em', i.extraCost||'', i.extraCostAmount||'');
   f('em-milestone').value = i.milestoneRules || '';
   f('em-milestone-share').value = i.milestoneShareWithItemId || '';
+  loadItemOptions('em', i.itemOptionsRaw || '');
   renderMilestonePreview('em-milestone', 'em-milestone-preview');
   f('em-lockpw').value=i.lockFixedPassword||''; f('em-lockcode').value=i.lockCodeName||'';
   f('em-lockpersist').value=i.lockPersistent==='SESSION'?'SESSION':'';
@@ -2432,6 +2451,7 @@ async function saveShopItem() {
     remark:f('em-remark'),requiredRole:buildRoleRequirement('em-role'),exclusiveGroup:f('em-excl'),
     altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
     extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),milestoneRules:f('em-milestone'),milestoneShareWithItemId:f('em-milestone-share'),
+    itemOptions:serializeItemOptions('em'),
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint'),
     lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod'),
@@ -2460,6 +2480,7 @@ async function publishShopItem(itemId) {
     remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
     extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,milestoneRules:i.milestoneRules,milestoneShareWithItemId:i.milestoneShareWithItemId,
+    itemOptions:i.itemOptionsRaw,
     lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility,lockHintText:i.lockHintText,
     lockPasswordMode:i.lockPasswordMode,lockPasswordSeed:i.lockPasswordSeed,lockPasswordSchedule:i.lockPasswordSchedule,
     lockGuessLimitEnabled:i.lockGuessLimitEnabled,lockGuessLimitCount:i.lockGuessLimitCount,lockGuessLimitPeriod:i.lockGuessLimitPeriod});
@@ -2697,8 +2718,10 @@ function resetAddShop() {
   ['ns-name','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
-   'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule','ns-raffle-weights',
+   'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-milestone-share','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule','ns-raffle-weights',
    'ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-maxodds'].forEach(id => document.getElementById(id).value='');
+  itemOptionsState.ns = [];
+  renderItemOptions('ns');
   document.getElementById('ns-raffle').checked = false;
   toggleRaffleFields('ns');
   document.getElementById('ns-gambling').checked = false;
@@ -2760,6 +2783,7 @@ async function submitAddShop(forceStatus) {
     remark:f('ns-remark'),requiredRole:buildRoleRequirement('ns-role'),exclusiveGroup:f('ns-excl'),
     altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
     extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),milestoneRules:f('ns-milestone'),milestoneShareWithItemId:f('ns-milestone-share'),
+    itemOptions:serializeItemOptions('ns'),
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint'),
     lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod'),
@@ -2882,7 +2906,12 @@ function renderGachaPreview(textareaId, previewId) {
   const ta = document.getElementById(textareaId);
   const box = document.getElementById(previewId);
   if (!ta || !box) return;
-  const text = ta.value;
+  renderGachaPreviewToBox_(box, ta.value);
+}
+
+// 🌟 共用核心:傳入「預覽容器元素」跟「要解析的文字」,不依賴固定id——這樣動態產生的商品選項textarea
+// 也能呼叫這個函式重用完整的解析+摘要+警示邏輯,不用另外複製一份簡化版邏輯出來維護兩份。
+function renderGachaPreviewToBox_(box, text) {
   if (!text.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
   const pool = parseGachaRulesPreview(text);
   if (pool.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
@@ -3083,6 +3112,68 @@ function setupFieldAutosave(fieldIds, keyFn) {
     if (el) el.addEventListener('input', () => { clearTimeout(el._autosaveTimer); el._autosaveTimer = setTimeout(save, 500); });
   });
   return { checkAndOffer, clear, save };
+}
+
+// ── 商品選項(動態多筆編輯) ──
+// 🌟 用一個JS陣列(依prefix分開存)記住目前編輯中的選項清單,每筆 {name, price, rewardRules}。
+// 每次新增/刪除/修改都重新渲染整個容器,渲染完重新綁定每個textarea的即時預覽事件。
+const itemOptionsState = { ns: [], em: [] };
+
+function addItemOption(prefix) {
+  itemOptionsState[prefix].push({ name: '', price: 0, rewardRules: '' });
+  renderItemOptions(prefix);
+}
+function removeItemOption(prefix, idx) {
+  itemOptionsState[prefix].splice(idx, 1);
+  renderItemOptions(prefix);
+}
+function updateItemOptionField(prefix, idx, field, value) {
+  itemOptionsState[prefix][idx][field] = value;
+}
+
+function renderItemOptions(prefix) {
+  const container = document.getElementById(prefix + '-options-container');
+  const list = itemOptionsState[prefix];
+  if (list.length === 0) {
+    container.innerHTML = '<p class="hint" style="margin:0">目前沒有設定任何選項,商品會照原本的方式運作(用上面的價格/獎勵規則欄位)。</p>';
+    return;
+  }
+  container.innerHTML = list.map((opt, idx) => `
+    <div style="background:#2F3136;border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input placeholder="選項名稱,例如：X3" value="${(opt.name||'').replace(/"/g,'&quot;')}" style="flex:2" oninput="updateItemOptionField('${prefix}',${idx},'name',this.value)">
+        <input type="number" min="0" placeholder="價格" value="${opt.price||0}" style="flex:1" oninput="updateItemOptionField('${prefix}',${idx},'price',this.value)">
+        <button type="button" class="btn btn-del" onclick="removeItemOption('${prefix}',${idx})">✕ 刪除選項</button>
+      </div>
+      <textarea placeholder="這個選項的盲盒規則,格式跟上面的「獎勵數量/盲盒規則」一樣,例如：加布裝扮箱子X3, 幻彩水晶碎片:1, 100%" rows="2"
+        oninput="updateItemOptionField('${prefix}',${idx},'rewardRules',this.value); renderGachaPreviewInline(this, '${prefix}-option-preview-${idx}')">${(opt.rewardRules||'')}</textarea>
+      <div class="gacha-preview" id="${prefix}-option-preview-${idx}" style="display:none"></div>
+    </div>
+  `).join('');
+  // 🌟 渲染完馬上把每個選項現有的內容跑一次預覽,不用等使用者打字才看得到
+  list.forEach((opt, idx) => {
+    const ta = container.querySelectorAll('textarea')[idx];
+    if (ta && opt.rewardRules) renderGachaPreviewInline(ta, `${prefix}-option-preview-${idx}`);
+  });
+}
+
+// 🌟 通用版的即時預覽:直接傳textarea本身的值進去解析(不像renderGachaPreview是用id去抓,因為選項的textarea是動態產生、沒有固定id),重用renderGachaPreviewToBox_同一套完整邏輯
+function renderGachaPreviewInline(textareaEl, previewId) {
+  const previewEl = document.getElementById(previewId);
+  if (!previewEl) return;
+  renderGachaPreviewToBox_(previewEl, textareaEl.value);
+}
+
+// 🌟 把目前的選項陣列序列化成JSON字串,存回商品資料裡(空陣列的話回傳空字串,代表不啟用選項功能)
+function serializeItemOptions(prefix) {
+  const list = itemOptionsState[prefix].filter(o => (o.name||'').trim());
+  return list.length > 0 ? JSON.stringify(list) : '';
+}
+
+// 🌟 把商品資料裡存的選項JSON字串,還原成編輯用的陣列並渲染出來(編輯商品開啟時呼叫)
+function loadItemOptions(prefix, rawJson) {
+  try { itemOptionsState[prefix] = rawJson ? JSON.parse(rawJson) : []; } catch (e) { itemOptionsState[prefix] = []; }
+  renderItemOptions(prefix);
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
