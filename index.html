@@ -1005,6 +1005,40 @@
     }
 
     // 🌟 把後端算好的獎池預覽物件({items,guaranteed})轉成一段HTML摘要文字,hasContent標示這個獎池是不是真的有設定內容
+    // 🌟 「盲盒內容物一覽」框的渲染邏輯:商品本身的內容物、跟商品選項各自的內容物都呼叫這個,
+    // 套用完全一樣的樣式,不用維護兩份重複的渲染邏輯。標題可自訂。
+    function buildGachaContentBoxHtml_(pool, title) {
+        if (!pool || pool.length === 0) return "";
+        let html = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
+            <div style="color: #FEE75C; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed #4F545C; padding-bottom: 4px;">${title}</div>`;
+        pool.forEach(g => {
+            let detail = [];
+            if (g.prob !== null) detail.push(`${g.prob}%`);
+            if (g.stock !== null) {
+                let stockText = g.stock <= 0 ? `<span style="color:#ED4245; font-weight:bold;">(已抽完)</span>` : `${g.stock} 份`;
+                detail.push(stockText);
+            }
+            if (detail.length === 0) detail.push("保底/無限");
+
+            let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
+            let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
+
+            // 🌟 顯示名稱通常已經把內容寫清楚了(例如「高級寶箱(幻彩水晶:3+拍賣幣:300)」),
+            // 不用系統再自動補一次括號說明,不然會變成重複顯示兩次一樣的內容
+            let displayQty = "";
+            if (g.dispName === g.varName && g.qty !== 1) {
+                displayQty = ` x ${g.qty}`;
+            }
+
+            html += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
+                <span>- ${g.dispName}${displayQty}</span>
+                <span style="color: #99AAB5;">${detail.join(" / ")}</span>
+            </div>`;
+        });
+        html += `</div>`;
+        return html;
+    }
+
     function formatBingoPoolSummary_(label, pool) {
       if (pool.guaranteed) {
         return { hasContent: true, html: `<div>${label}：必定獲得 <b style="color:#F0B232">${pool.guaranteed.dispName}</b></div>` };
@@ -2118,35 +2152,11 @@ function fetchScoresAndShop(discordId, callback = null) {
         }
         let remarkHtml = formattedRemark ? `<div class="item-remark">📝 ${formattedRemark}</div>` : '';
 
+        // 🌟 「盲盒內容物一覽」框的渲染邏輯在檔案上方已經定義成全域共用函式(buildGachaContentBoxHtml_),
+        // 這裡直接呼叫就好,商品本身的內容物、跟商品選項各自的內容物都套用同一套樣式。
         let gachaHtml = "";
         if (!(item.itemOptions && item.itemOptions.length > 0) && item.gachaPool && item.gachaPool.length > 0) {
-            gachaHtml = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
-                <div style="color: #FEE75C; font-weight: bold; margin-bottom: 6px; border-bottom: 1px dashed #4F545C; padding-bottom: 4px;">🎁 內容物一覽：</div>`;
-            item.gachaPool.forEach(g => {
-                let detail = [];
-                if (g.prob !== null) detail.push(`${g.prob}%`);
-                if (g.stock !== null) {
-                    let stockText = g.stock <= 0 ? `<span style="color:#ED4245; font-weight:bold;">(已抽完)</span>` : `${g.stock} 份`;
-                    detail.push(stockText);
-                }
-                if (detail.length === 0) detail.push("保底/無限"); 
-                
-                let color = g.stock !== null && g.stock <= 0 ? '#72767D' : '#FFF';
-                let decoration = g.stock !== null && g.stock <= 0 ? 'line-through' : 'none';
-
-                // 🌟 顯示名稱通常已經把內容寫清楚了(例如「高級寶箱(幻彩水晶:3+拍賣幣:300)」),
-                // 不用系統再自動補一次括號說明,不然會變成重複顯示兩次一樣的內容
-                let displayQty = "";
-                if (g.dispName === g.varName && g.qty !== 1) {
-                    displayQty = ` x ${g.qty}`;
-                }
-
-                gachaHtml += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
-                    <span>- ${g.dispName}${displayQty}</span>
-                    <span style="color: #99AAB5;">${detail.join(" / ")}</span>
-                </div>`;
-            });
-            gachaHtml += `</div>`;
+            gachaHtml = buildGachaContentBoxHtml_(item.gachaPool, "🎁 內容物一覽：");
         }
 
         let milestonePoolHtml = "";
@@ -2274,13 +2284,6 @@ function fetchScoresAndShop(discordId, callback = null) {
             ${lockHtml}
             ${altHtml}
             ${gamblingSelectHtml}
-            ${item.itemOptions && item.itemOptions.length > 0 ? `
-              <select id="opt-${safeId}" style="width:100%;margin-bottom:8px" onchange="updateItemOptionPreview('${safeId}', ${JSON.stringify(item.itemOptions).replace(/"/g,'&quot;')})">
-                <option value="">請選擇選項...</option>
-                ${item.itemOptions.map((opt, idx) => `<option value="${idx}">${opt.name} — ${opt.price} ${item.displayCurrency}</option>`).join('')}
-              </select>
-              <div id="optpreview-${safeId}" style="font-size:12px;color:#B9BBBE;margin-bottom:8px;min-height:16px"></div>
-            ` : ''}
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}" style="${item.itemOptions && item.itemOptions.length > 0 ? 'display:none' : ''}" oninput="updateAltPreview('${safeId}'); updateGamblingPreview('${safeId}');">
               <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : (item.isGambling ? '下注' : '兌換')}</button>
@@ -2307,6 +2310,13 @@ function fetchScoresAndShop(discordId, callback = null) {
                 (item.itemOptions && item.itemOptions.length > 0)
                 ? `💰 價格：<span class="item-price" style="color:#B9BBBE">依選項而定,請往下選擇</span><br>`
                 : `💰 ${item.isRaffle ? '投1花費' : item.isGambling ? '每單位下注' : '價格'}：<span class="item-price">${item.price} ${item.displayCurrency}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => `${e.amount} ${e.displayName}`).join(' + ') : ''}</span><br>`}
+              ${item.itemOptions && item.itemOptions.length > 0 ? `
+                <select id="opt-${safeId}" style="width:100%;margin:6px 0" onchange="updateItemOptionPreview('${safeId}', ${JSON.stringify(item.itemOptions).replace(/"/g,'&quot;')})">
+                  <option value="">請選擇選項...</option>
+                  ${item.itemOptions.map((opt, idx) => `<option value="${idx}">${opt.name} — ${opt.price} ${item.displayCurrency}</option>`).join('')}
+                </select>
+                <div id="optpreview-${safeId}"></div>
+              ` : ''}
               ${item.isRaffle ? `
                 🎰 <b>抽獎模式</b>：投1次算 ${item.raffleMultiplier > 1 ? ('x' + item.raffleMultiplier + ' 張(依身分組加權)') : '1 張'}<br>
                 🎫 目前全場總票數(加權後)：${item.raffleTotalWeightedTickets}
@@ -2470,9 +2480,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (!select || !previewEl) return;
       if (select.value === '') { previewEl.innerHTML = ''; return; }
       const opt = itemOptions[parseInt(select.value)];
-      if (!opt || !opt.contentPreview) { previewEl.innerHTML = ''; return; }
-      const summary = formatBingoPoolSummary_('🎁 內容物', opt.contentPreview);
-      previewEl.innerHTML = summary.hasContent ? summary.html : '';
+      previewEl.innerHTML = (opt && opt.pool) ? buildGachaContentBoxHtml_(opt.pool, "🎁 內容物一覽：") : '';
     }
 
     function updateGamblingPreview(safeId) {
