@@ -1512,7 +1512,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 <div class="overlay" id="bingo-cards-modal">
   <div class="modal" style="max-width:720px">
     <div class="modal-header"><h3 id="bingo-cards-modal-title">📋 賓果盤總覽</h3><button class="modal-close" onclick="closeModal('bingo-cards-modal')">×</button></div>
-    <div class="modal-body" style="max-height:65vh;overflow-y:auto">
+    <div class="modal-body" style="max-height:65vh;overflow-y:auto;display:block">
       <div class="gacha-guide" id="bingo-cards-summary" style="margin-bottom:12px"></div>
       <div class="tbl-wrap tbl-wrap-table">
         <table>
@@ -1528,7 +1528,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 <div class="overlay" id="bingo-card-detail-modal">
   <div class="modal" style="max-width:400px">
     <div class="modal-header"><h3 id="bingo-card-detail-title">🎰 賓果盤內容</h3><button class="modal-close" onclick="closeModal('bingo-card-detail-modal')">×</button></div>
-    <div class="modal-body">
+    <div class="modal-body" style="display:block">
       <div id="bingo-card-detail-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px"></div>
     </div>
   </div>
