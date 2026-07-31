@@ -1508,6 +1508,32 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   </div>
 </div>
 
+<!-- BINGO賓果盤檢視彈窗 -->
+<div class="overlay" id="bingo-cards-modal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header"><h3 id="bingo-cards-modal-title">📋 賓果盤總覽</h3><button class="modal-close" onclick="closeModal('bingo-cards-modal')">×</button></div>
+    <div class="modal-body" style="max-height:65vh;overflow-y:auto">
+      <div class="gacha-guide" id="bingo-cards-summary" style="margin-bottom:12px"></div>
+      <div class="tbl-wrap tbl-wrap-table">
+        <table>
+          <thead><tr><th>玩家</th><th>已標記數量</th><th>連線數</th><th>整卡</th><th>重抽/重開次數</th><th>最後更新</th><th>操作</th></tr></thead>
+          <tbody id="bingo-cards-tbody"><tr><td colspan="7" class="empty">讀取中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 單一玩家賓果盤內容彈窗 -->
+<div class="overlay" id="bingo-card-detail-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><h3 id="bingo-card-detail-title">🎰 賓果盤內容</h3><button class="modal-close" onclick="closeModal('bingo-card-detail-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="bingo-card-detail-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 定時提醒新增/編輯彈窗 -->
 <div class="overlay" id="push-schedule-modal">
   <div class="modal" style="max-width:560px">
@@ -3845,6 +3871,52 @@ async function loadBingoConfig() {
   renderBingoActivityTable();
 }
 
+let bingoCardsData = []; // 🌟 記住目前彈窗顯示的賓果盤資料,給單一玩家卡片檢視用
+
+async function openBingoCardsModal(activityId, activityName) {
+  document.getElementById('bingo-cards-modal-title').textContent = `📋 賓果盤總覽：${activityName}`;
+  document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
+  document.getElementById('bingo-cards-summary').textContent = '';
+  document.getElementById('bingo-cards-modal').classList.add('open');
+
+  const d = await api({ action: 'adminGetBingoCardsForActivity', activityId });
+  if (d.status !== 'success') {
+    document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="7" class="empty">載入失敗：${d.message}</td></tr>`;
+    return;
+  }
+  bingoCardsData = d.cards;
+  if (bingoCardsData.length === 0) {
+    document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="7" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
+    return;
+  }
+  const fullCount = bingoCardsData.filter(c => c.full).length;
+  document.getElementById('bingo-cards-summary').textContent = `共 ${bingoCardsData.length} 位玩家已拿到賓果盤，其中 ${fullCount} 位已完成整卡`;
+  document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => `
+    <tr>
+      <td>${c.nickname}</td>
+      <td>${c.marked.length} / 25</td>
+      <td>${c.linesCount}</td>
+      <td>${c.full ? '<span class="status status-ended">🏆 已完成</span>' : '—'}</td>
+      <td style="font-size:12px">重抽${c.rerollCount} / 重開${c.selfResetCount}</td>
+      <td style="font-size:12px">${c.lastUpdated ? new Date(c.lastUpdated).toLocaleString() : ''}</td>
+      <td class="cell-actions"><button class="btn btn-edit" onclick="showBingoCardDetail(${idx})">🎰 查看卡片</button></td>
+    </tr>
+  `).join('');
+}
+
+// 🌟 顯示單一玩家的賓果盤具體內容:5x5格子,已標記的用綠色底標示,方便管理員肉眼核對有沒有異常
+function showBingoCardDetail(idx) {
+  const c = bingoCardsData[idx];
+  if (!c) return;
+  document.getElementById('bingo-card-detail-title').textContent = `🎰 ${c.nickname} 的賓果盤`;
+  document.getElementById('bingo-card-detail-grid').innerHTML = c.card.map(num => {
+    const isMarked = c.marked.includes(num);
+    return `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;font-weight:bold;
+      background:${isMarked ? '#43B581' : '#2F3136'};color:${isMarked ? '#fff' : '#B9BBBE'}">${num}</div>`;
+  }).join('');
+  document.getElementById('bingo-card-detail-modal').classList.add('open');
+}
+
 function renderBingoActivityTable() {
   const tbody = document.getElementById('bingo-activity-tbody');
   if (bingoActivities.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">還沒有任何BINGO活動,點右上角新增一個吧</td></tr>'; return; }
@@ -3864,6 +3936,7 @@ function renderBingoActivityTable() {
         <button class="btn btn-edit" onclick="openBingoActivityForm('${a.id}')">編輯</button>
         <button class="btn btn-edit" onclick="openBingoActionModal('${a.id}','${a.name.replace(/'/g,"\\'")}','give')">🎁 給號碼</button>
         <button class="btn btn-edit" onclick="openBingoActionModal('${a.id}','${a.name.replace(/'/g,"\\'")}','reset')">🔄 重置</button>
+        <button class="btn btn-edit" onclick="openBingoCardsModal('${a.id}','${a.name.replace(/'/g,"\\'")}')">📋 查看賓果盤</button>
         <button class="btn btn-del" onclick="deleteBingoActivity('${a.id}','${a.name.replace(/'/g,"\\'")}')">刪除</button>
       </div></td>
     </tr>`;
