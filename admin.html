@@ -1405,6 +1405,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <textarea id="ba-note" rows="2" placeholder="例：夏日限定活動,收集連線獎勵兌換神秘大獎！"></textarea>
         </div>
         <div class="field full"><label>圖片網址 <span class="hint">選填,活動列表卡片會顯示這張圖</span></label><input id="ba-imageurl" placeholder="https://..."></div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-lineannounce" style="width:auto">
+            連線成功時公告到大獎頻道 <span class="hint">預設關閉,只私訊中獎玩家本人;開啟的話每次有人連線成功,全伺服器都看得到</span>
+          </label>
+        </div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ba-fullannounce" style="width:auto">
+            完成整卡時公告到大獎頻道 <span class="hint">預設關閉,只私訊中獎玩家本人;開啟的話有人BINGO全板完成,全伺服器都看得到</span>
+          </label>
+        </div>
 
         <div class="fsep">🎲 抽號設定</div>
         <div class="field full"><label>使用的貨幣</label><input id="ba-currency" list="dc-list" placeholder="例：幻彩水晶"></div>
@@ -3873,6 +3885,8 @@ function openBingoActivityForm(activityId) {
   f('ba-max').value = a ? a.numberMax : 49;
   f('ba-note').value = a ? (a.note || '') : '';
   f('ba-imageurl').value = a ? (a.imageUrl || '') : '';
+  document.getElementById('ba-lineannounce').checked = a ? !!a.lineAnnounceEnabled : false;
+  document.getElementById('ba-fullannounce').checked = a ? !!a.fullAnnounceEnabled : false;
   f('ba-currency').value = a ? getDisplayCurrencyNameLocal_(a.currencyName) : '幻彩水晶';
   f('ba-entrycost').value = a ? a.entryCost : 0;
   f('ba-altcurrency').value = a ? getDisplayCurrencyNameLocal_(a.altCurrencyName || '') : '';
@@ -3932,6 +3946,8 @@ async function saveBingoActivity() {
     numberMax: document.getElementById('ba-max').value,
     note: document.getElementById('ba-note').value,
     imageUrl: document.getElementById('ba-imageurl').value,
+    lineAnnounceEnabled: document.getElementById('ba-lineannounce').checked,
+    fullAnnounceEnabled: document.getElementById('ba-fullannounce').checked,
     currencyName: document.getElementById('ba-currency').value,
     pickEnabled: document.getElementById('ba-pickenabled').checked,
     randomCost: document.getElementById('ba-randomcost').value,
