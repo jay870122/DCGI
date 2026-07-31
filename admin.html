@@ -293,9 +293,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
           </div>
         </div>
+        <div class="toolbar" id="shop-batch-toolbar" style="display:none;padding:10px 0;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="hint">已勾選 <b id="shop-selected-count">0</b> 項：</span>
+          <button class="btn btn-edit" onclick="batchSetShopStatus('ACTIVE')">📤 上架</button>
+          <button class="btn btn-edit" onclick="batchSetShopStatus('DRAFT')">📥 下架</button>
+          <button class="btn btn-close" onclick="batchDrawShopRaffles()">🎰 開獎(僅限抽獎商品)</button>
+          <button class="btn btn-edit" onclick="batchMoveShopSort('top')">⬆️ 移到最前</button>
+          <button class="btn btn-edit" onclick="batchMoveShopSort('bottom')">⬇️ 移到最後</button>
+          <button class="btn btn-del" onclick="batchDeleteShopItems()">🗑️ 刪除已選</button>
+          <button class="btn btn-edit" onclick="toggleShopSelectAll(false)">✕ 取消全選</button>
+        </div>
         <div class="tbl-wrap tbl-wrap-table">
           <table>
             <thead><tr>
+              <th style="width:36px"><input type="checkbox" id="shop-select-all" onchange="toggleShopSelectAll(this.checked)"></th>
               <th id="shop-th-order" style="display:none;width:70px">順序</th>
               <th class="sortable" onclick="sortShopBy('name')">商品名稱<span class="sort-arrow" id="th-shop-name"></span></th>
               <th class="sortable" onclick="sortShopBy('category')">分類<span class="sort-arrow" id="th-shop-category"></span></th>
@@ -2085,8 +2096,9 @@ function renderShopTable() {
   if (shopReorderMode) {
     document.getElementById('shop-count').textContent = shopReorderList.length + ' 件';
     document.getElementById('shop-tbody').innerHTML = shopReorderList.length === 0
-      ? '<tr><td colspan="8" class="empty">此分類沒有商品</td></tr>'
+      ? '<tr><td colspan="9" class="empty">此分類沒有商品</td></tr>'
       : shopReorderList.map((i, idx) => `<tr class="drag-row" data-idx="${idx}">
+        <td></td>
         <td><div class="btn-row">
           <span class="drag-handle" title="拖曳調整順序">⠿</span>
           <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
@@ -2132,8 +2144,9 @@ function renderShopTable() {
   const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   document.getElementById('shop-tbody').innerHTML = items.length === 0
-    ? '<tr><td colspan="7" class="empty">沒有符合條件的商品</td></tr>'
+    ? '<tr><td colspan="9" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
+      <td><input type="checkbox" class="shop-row-check" data-id="${i.itemId}" ${shopSelectedIds.has(i.itemId)?'checked':''} onchange="toggleShopItemSelect('${i.itemId}', this.checked)"></td>
       <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
@@ -2151,6 +2164,90 @@ function renderShopTable() {
         <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
       </div></td>
     </tr>`).join('');
+  updateShopBatchToolbar();
+}
+
+// ── 商品批次操作 ──
+let shopSelectedIds = new Set();
+
+function toggleShopItemSelect(itemId, checked) {
+  if (checked) shopSelectedIds.add(itemId); else shopSelectedIds.delete(itemId);
+  updateShopBatchToolbar();
+}
+
+function toggleShopSelectAll(checked) {
+  if (checked) {
+    document.querySelectorAll('.shop-row-check').forEach(cb => { shopSelectedIds.add(cb.dataset.id); cb.checked = true; });
+  } else {
+    shopSelectedIds.clear();
+    document.querySelectorAll('.shop-row-check').forEach(cb => { cb.checked = false; });
+  }
+  const selectAllCb = document.getElementById('shop-select-all');
+  if (selectAllCb) selectAllCb.checked = checked;
+  updateShopBatchToolbar();
+}
+
+function updateShopBatchToolbar() {
+  const toolbar = document.getElementById('shop-batch-toolbar');
+  const countEl = document.getElementById('shop-selected-count');
+  if (!toolbar || !countEl) return;
+  countEl.textContent = shopSelectedIds.size;
+  toolbar.style.display = shopSelectedIds.size > 0 ? 'flex' : 'none';
+}
+
+async function batchDeleteShopItems() {
+  if (shopSelectedIds.size === 0) return;
+  if (!confirm(`確定要刪除已勾選的 ${shopSelectedIds.size} 個商品嗎？此操作無法還原。`)) return;
+  const d = await api({ action: 'adminBatchDeleteShopItems', itemIds: JSON.stringify(Array.from(shopSelectedIds)) });
+  if (d.status === 'success') { toast('🗑️ ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
+  else toast('❌ ' + d.message, false);
+}
+
+async function batchSetShopStatus(status) {
+  if (shopSelectedIds.size === 0) return;
+  const label = status === 'DRAFT' ? '下架' : '上架';
+  if (!confirm(`確定要把已勾選的 ${shopSelectedIds.size} 個商品${label}嗎？`)) return;
+  const d = await api({ action: 'adminBatchSetShopItemStatus', itemIds: JSON.stringify(Array.from(shopSelectedIds)), status });
+  if (d.status === 'success') { toast('✅ ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
+  else toast('❌ ' + d.message, false);
+}
+
+async function batchDrawShopRaffles() {
+  if (shopSelectedIds.size === 0) return;
+  if (!confirm(`確定要對已勾選的 ${shopSelectedIds.size} 個商品執行開獎嗎？(不是抽獎模式、或已經開過獎的商品會自動跳過)`)) return;
+  const d = await api({ action: 'adminBatchDrawShopRaffles', itemIds: JSON.stringify(Array.from(shopSelectedIds)) });
+  if (d.status === 'success') { toast('🎰 ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
+  else toast('❌ ' + d.message, false);
+}
+
+// 🌟 批次排序:把已勾選的商品(依目前表格上的顯示順序)整批搬到「所屬分類」的最前面或最後面,
+// 沒被勾選的商品在各自分類裡的相對順序不變。跨分類的商品各自搬到「自己那個分類」的最前/最後,不會混在一起。
+async function batchMoveShopSort(position) {
+  if (shopSelectedIds.size === 0) return;
+  const label = position === 'top' ? '最前面' : '最後面';
+  if (!confirm(`確定要把已勾選的 ${shopSelectedIds.size} 個商品移到各自分類的${label}嗎？`)) return;
+
+  const byCategory = {};
+  shopItems.forEach(i => {
+    const cat = i.category || '未分類';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(i);
+  });
+
+  const allUpdates = [];
+  Object.keys(byCategory).forEach(cat => {
+    const list = byCategory[cat].slice().sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
+    const selected = list.filter(i => shopSelectedIds.has(i.itemId));
+    const unselected = list.filter(i => !shopSelectedIds.has(i.itemId));
+    if (selected.length === 0) return;
+    const reordered = position === 'top' ? [...selected, ...unselected] : [...unselected, ...selected];
+    reordered.forEach((i, idx) => allUpdates.push({ itemId: i.itemId, sortOrder: idx + 1 }));
+  });
+
+  if (allUpdates.length === 0) { toast('沒有可以排序的商品', false); return; }
+  const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(allUpdates) });
+  if (d.status === 'success') { toast('✅ 已調整排序'); shopSelectedIds.clear(); loadShopItems(); }
+  else toast('❌ ' + d.message, false);
 }
 
 // 🌟 抽獎商品:查看目前投票名單(誰投了幾張、機率多少),管理員/玩家前台共用同一支 API
