@@ -417,6 +417,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <label>身分組加權清單 <span class="hint">格式:身分組ID:倍數,用逗號分隔多組;沒列出的身分組一律算1倍;同時符合多組取最高倍率(不疊加);留空=大家都1倍</span></label>
               <input id="ns-raffle-weights" placeholder="例：111111111111111111:3,222222222222222222:2">
             </div>
+            <div class="field full" id="ns-raffle-notify-box" style="display:none">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ns-raffle-notify" checked style="width:auto">
+                開獎時發送通知/公告 <span class="hint">關掉的話,獎勵一樣會正常發放,只是不會私訊中獎者、也不會公告到大獎頻道</span>
+              </label>
+            </div>
+            <div class="field full" id="ns-raffle-repeat-box" style="display:none">
+              <label>重複中獎模式 <span class="hint">同一個人在同一場抽獎裡,中獎後票還算不算數</span></label>
+              <select id="ns-raffle-repeat">
+                <option value="ALLOW">不扣票(可以一直重複中獎)</option>
+                <option value="DEDUCT">中一次扣1張(扣完為止不會再抽到)</option>
+                <option value="REMOVE_ALL">中獎後這個人的票全部移除(整場最多中一次)</option>
+              </select>
+            </div>
             <div class="gacha-guide" id="ns-raffle-guide" style="display:none;grid-column:span 2">
               🎰 <b>抽獎模式怎麼用？</b>勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池(格式跟盲盒完全一樣,可多獎項多得獎人,份數=要抽出幾位得獎者)。玩家兌換這個商品 = 投票,不會立即拿到獎勵;時間到系統每5~10分鐘會自動檢查一次,自動依加權票數抽出得獎者、自動發獎、自動公告。分類/價格/貨幣/限購/身分組限定/替代貨幣折抵/密碼鎖定/圖片/備註等其他設定完全比照一般商品,照樣可以用。
             </div>
@@ -1057,6 +1071,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" id="em-raffle-box" style="display:none">
         <label>身分組加權清單 <span class="hint">格式:身分組ID:倍數,用逗號分隔多組;沒列出的身分組一律算1倍;同時符合多組取最高倍率(不疊加);留空=大家都1倍</span></label>
         <input id="em-raffle-weights" placeholder="例：111111111111111111:3,222222222222222222:2">
+      </div>
+      <div class="field full" id="em-raffle-notify-box" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="em-raffle-notify" checked style="width:auto">
+          開獎時發送通知/公告 <span class="hint">關掉的話,獎勵一樣會正常發放,只是不會私訊中獎者、也不會公告到大獎頻道</span>
+        </label>
+      </div>
+      <div class="field full" id="em-raffle-repeat-box" style="display:none">
+        <label>重複中獎模式 <span class="hint">同一個人在同一場抽獎裡,中獎後票還算不算數</span></label>
+        <select id="em-raffle-repeat">
+          <option value="ALLOW">不扣票(可以一直重複中獎)</option>
+          <option value="DEDUCT">中一次扣1張(扣完為止不會再抽到)</option>
+          <option value="REMOVE_ALL">中獎後這個人的票全部移除(整場最多中一次)</option>
+        </select>
       </div>
       <div class="gacha-guide" id="em-raffle-guide" style="display:none;grid-column:span 2">
         🎰 勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池。玩家兌換 = 投票,時間到系統會自動抽出得獎者、自動發獎、自動公告。
@@ -1837,8 +1865,12 @@ function toggleRaffleFields(prefix) {
   const enabled = !!(cb && cb.checked);
   const box = document.getElementById(prefix + '-raffle-box');
   const guide = document.getElementById(prefix + '-raffle-guide');
+  const notifyBox = document.getElementById(prefix + '-raffle-notify-box');
+  const repeatBox = document.getElementById(prefix + '-raffle-repeat-box');
   if (box) box.style.display = enabled ? '' : 'none';
   if (guide) guide.style.display = enabled ? '' : 'none';
+  if (notifyBox) notifyBox.style.display = enabled ? '' : 'none';
+  if (repeatBox) repeatBox.style.display = enabled ? '' : 'none';
 }
 
 // 🌟 賭博模式:勾選後才顯示賠率模式/下注選項/輸家退還比例等欄位跟說明文字
@@ -2267,6 +2299,8 @@ function openEditShop(itemId) {
   renderGachaPreview('em-rqty', 'em-rqty-preview');
   f('em-raffle').checked = !!i.isRaffle;
   f('em-raffle-weights').value = i.raffleRoleWeights || '';
+  document.getElementById('em-raffle-notify').checked = i.raffleNotifyResult !== false;
+  document.getElementById('em-raffle-repeat').value = i.raffleRepeatWinMode || 'ALLOW';
   document.getElementById('em-raffle-drawn-hint').style.display = (i.isRaffle && i.raffleResult) ? '' : 'none';
   toggleRaffleFields('em');
   f('em-gambling').checked = !!i.isGambling;
@@ -2305,6 +2339,7 @@ async function saveShopItem() {
     lockPasswordMode:f('em-lockpwmode'),lockPasswordSeed:f('em-lockseed'),lockPasswordSchedule:f('em-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod'),
     isRaffle:document.getElementById('em-raffle').checked,raffleRoleWeights:f('em-raffle-weights'),
+    raffleNotifyResult:document.getElementById('em-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('em-raffle-repeat').value,
     isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
     gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
     gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked,
@@ -2632,6 +2667,7 @@ async function submitAddShop(forceStatus) {
     lockPasswordMode:f('ns-lockpwmode'),lockPasswordSeed:f('ns-lockseed'),lockPasswordSchedule:f('ns-lockschedule'),
     lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod'),
     isRaffle:document.getElementById('ns-raffle').checked,raffleRoleWeights:f('ns-raffle-weights'),
+    raffleNotifyResult:document.getElementById('ns-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('ns-raffle-repeat').value,
     isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
     gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked,
