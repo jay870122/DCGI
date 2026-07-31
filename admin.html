@@ -2839,11 +2839,13 @@ async function submitAddAuction(forceStatus) {
 function parseGachaRulesPreview(rawText) {
   const lines = (rawText || '').split('\n');
   const pool = [];
-  // 🌟 解析「數量」字串:支援固定數字(50)或隨機範圍(1~100),回傳 {qty, qtyRange}
+  // 🌟 解析「數量」字串:支援固定數字(50)或隨機範圍(1~100 或 -140~210),回傳 {qty, qtyRange}
   function parseQtyToken(qtyStr) {
-    if (qtyStr.indexOf('~') !== -1) {
-      const rp = qtyStr.split('~');
-      let lo = parseInt(rp[0]) || 1, hi = parseInt(rp[1]) || lo;
+    const tildeIdx = qtyStr.indexOf('~', 1); // 🌟 從索引1開始找,範圍下限本身是負數(例如"-140~210")的話,不會誤判開頭的"-"
+    if (tildeIdx !== -1) {
+      const loStr = qtyStr.substring(0, tildeIdx), hiStr = qtyStr.substring(tildeIdx + 1);
+      let lo = parseInt(loStr), hi = parseInt(hiStr);
+      if (isNaN(lo)) lo = 1; if (isNaN(hi)) hi = lo;
       if (hi < lo) { const t = lo; lo = hi; hi = t; }
       return { qty: null, qtyRange: [lo, hi] };
     }
@@ -2854,6 +2856,20 @@ function parseGachaRulesPreview(rawText) {
     if (!line) continue;
     const parts = line.split(',').map(s => s.trim());
     let dispName = parts[0], varName = dispName, qty = 1, qtyRange = null, prob = null, stock = null, bad = false, extraToken = null, varList = null;
+    // 🌟🔧 如果沒有另外用逗號填一個獨立的顯示名稱,直接把「變數:數量+變數:數量」這種內容當成整行寫,
+    // parts[0](本來預期是顯示名稱)本身就已經是要解析的內容了,不能整串當成顯示名稱、卻沒有真的解析出變數。
+    if (parts.length === 1 && (parts[0].indexOf('+') !== -1 || parts[0].indexOf(':') !== -1)) {
+      varList = parts[0].split('+').map(seg => {
+        seg = seg.trim();
+        const ci0 = seg.indexOf(':');
+        if (ci0 !== -1) {
+          const qr0 = parseQtyToken(seg.substring(ci0 + 1).trim());
+          return { varName: seg.substring(0, ci0).trim(), qty: qr0.qty, qtyRange: qr0.qtyRange };
+        }
+        return { varName: seg, qty: 1, qtyRange: null };
+      });
+      if (varList.some(v => !v.varName)) bad = true;
+    }
     for (let p = 1; p < parts.length; p++) {
       const token = parts[p];
       if (token === '') continue;
