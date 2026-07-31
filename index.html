@@ -2304,6 +2304,12 @@ function fetchScoresAndShop(discordId, callback = null) {
                 ${item.raffleTotalWeightedTickets > 0 ? ` <span class="btn-share" onclick="showRaffleParticipants('${item.id}', '${item.name.replace(/'/g,"\\'")}')" title="查看投票名單">📋 查看名單</span>` : ''}<br>
                 🙋 我已投入：${item.raffleMyRawTickets} 張(加權後 ${item.raffleMyWeightedTickets} 張)<br>
                 📊 我目前中獎機率：<b>${item.raffleOdds}%</b><br>
+                🏆 得獎名額：${item.effectiveStock} 位
+                ${(typeof item.effectiveStock === 'number' && item.effectiveStock > 1) ? `<br><span style="color:#B9BBBE;font-size:12px">ℹ️ ${
+                  item.raffleRepeatWinMode === 'DEDUCT' ? '同一人可能中多次獎,但每中一次自己的票會扣1張(扣完不會再被抽到)'
+                  : item.raffleRepeatWinMode === 'REMOVE_ALL' ? '同一人整場最多只會中獎一次,中過就不會再被抽到'
+                  : '同一人有機會在這場抽獎裡重複中獎(票數不會因為中獎而減少)'
+                }</span>` : ''}<br>
                 ${item.raffleWinners ? `🏆 得獎名單：${item.raffleWinners.map(w => w.prize).join('、')}<br>` : ''}
               ` : item.isGambling ? `
                 🎲 <b>賭博模式</b>：${item.gamblingOddsMode === 'POOL' ? `集資池分配(${item.gamblingPoolLockMode === 'BETTIME' ? '以下注當下賠率為主，下注就鎖定' : '依最終結算總額計算'})` : '固定賠率'}<br>
