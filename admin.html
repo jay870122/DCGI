@@ -1530,6 +1530,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3 id="bingo-card-detail-title">🎰 賓果盤內容</h3><button class="modal-close" onclick="closeModal('bingo-card-detail-modal')">×</button></div>
     <div class="modal-body" style="display:block">
       <div id="bingo-card-detail-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px"></div>
+      <div id="bingo-card-detail-linerewards"></div>
     </div>
   </div>
 </div>
@@ -3914,6 +3915,18 @@ function showBingoCardDetail(idx) {
     return `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;font-weight:bold;
       background:${isMarked ? '#43B581' : '#2F3136'};color:${isMarked ? '#fff' : '#B9BBBE'}">${num}</div>`;
   }).join('');
+  // 🌟 連線獎勵清單:拿到卡片(或重抽)的時候就分配好了,不是連成當下才抽——已連成的用綠色標示,方便一眼看出還缺哪幾條
+  const lrBox = document.getElementById('bingo-card-detail-linerewards');
+  if (lrBox && c.lineRewards) {
+    lrBox.innerHTML = `<div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin:12px 0 6px">🎁 各條線的連線獎勵</div>` +
+      c.lineRewards.map(lr => `
+        <div style="display:flex;justify-content:space-between;padding:4px 8px;border-radius:4px;margin-bottom:2px;
+          background:${lr.completed ? 'rgba(67,181,129,0.15)' : 'transparent'}">
+          <span style="color:${lr.completed ? '#43B581' : '#B9BBBE'}">${lr.completed ? '✅' : '⬜'} ${lr.label}</span>
+          <span style="color:${lr.completed ? '#43B581' : '#FEE75C'}">${lr.rewardName}</span>
+        </div>
+      `).join('');
+  }
   document.getElementById('bingo-card-detail-modal').classList.add('open');
 }
 
