@@ -1434,6 +1434,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="field"><label>隨機抽號費用</label><input id="ba-randomcost" type="number" min="0" placeholder="10"></div>
         <div class="field"><label>指定抽號費用</label><input id="ba-pickcost" type="number" min="0" placeholder="30"></div>
+        <div class="field full">
+          <label>指定抽專屬貨幣 <span class="hint">選填,留空的話跟隨機抽用同一種貨幣;填了的話,指定抽會改扣這個貨幣,隨機抽完全不受影響(例如:隨機抽花水晶、指定抽要花另一種稀有券)</span></label>
+          <input id="ba-pickcurrency" list="dc-list" placeholder="留空=跟隨機抽同一種貨幣">
+        </div>
 
         <div class="fsep">🎁 連線獎勵</div>
         <div class="field full">
@@ -3980,6 +3984,7 @@ function openBingoActivityForm(activityId) {
   document.getElementById('ba-pickenabled').checked = a ? !!a.pickEnabled : true;
   f('ba-randomcost').value = a ? a.randomCost : 10;
   f('ba-pickcost').value = a ? a.pickCost : 30;
+  f('ba-pickcurrency').value = a ? (a.pickCurrencyName || '') : '';
   f('ba-linerewardpool').value = a ? (a.lineRewardPool || '') : '';
   renderGachaPreview('ba-linerewardpool', 'ba-linerewardpool-preview');
   document.getElementById('ba-linerewardpool').removeEventListener('input', bingoPoolPreviewHandler);
@@ -4038,6 +4043,7 @@ async function saveBingoActivity() {
     pickEnabled: document.getElementById('ba-pickenabled').checked,
     randomCost: document.getElementById('ba-randomcost').value,
     pickCost: document.getElementById('ba-pickcost').value,
+    pickCurrencyName: document.getElementById('ba-pickcurrency').value,
     lineRewardPool: document.getElementById('ba-linerewardpool').value,
     freeRerollLimit: document.getElementById('ba-freererolls').value,
     rerollCost: document.getElementById('ba-rerollcost').value,
