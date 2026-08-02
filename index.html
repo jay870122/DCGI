@@ -1272,8 +1272,10 @@
 
       // 🌟 道具背包:只顯示適用這個活動的道具(後端已經先過濾好了),未使用且沒過期的可以點擊使用,
       // 已使用/已過期的用灰色顯示,方便玩家一眼看出手上還有什麼牌可以打。
-      const backpackItems = data.backpackItems || [];
-      const statusLabel = { UNUSED: '<span style="color:#43B581">✅ 可使用</span>', USED: '<span style="color:#72767D">已使用</span>', EXPIRED: '<span style="color:#ED4245">已過期</span>' };
+      // 🌟 已使用的道具直接從清單濾掉,不要只是灰顯——用過的東西留在畫面上沒有意義,只會讓背包看起來越來越亂。
+      // 已過期但還沒用過的維持顯示(灰顯即可),讓玩家知道自己「有一張沒用到就過期了」的道具存在過。
+      const backpackItems = (data.backpackItems || []).filter(it => it.status !== 'USED');
+      const statusLabel = { UNUSED: '<span style="color:#43B581">✅ 可使用</span>', EXPIRED: '<span style="color:#ED4245">已過期</span>' };
       const backpackHtml = backpackItems.length > 0 ? `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px;margin-bottom:10px">
           <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🎒 我的道具</div>
