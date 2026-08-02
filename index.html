@@ -1282,7 +1282,7 @@
               <span>${it.itemName}${(it.effectType === 'PICK_FREE_RANGE' || it.effectType === 'RANDOM_FREE_RANGE') && it.effectParams ? ` <span style="color:#72767D;font-size:11px">(限${it.effectParams.min}~${it.effectParams.max})</span>` : ''}${it.effectType && it.effectType.indexOf('RANDOM') === 0 ? ' <span style="color:#72767D;font-size:11px">🎲隨機</span>' : ''}</span>
               <span style="display:flex;align-items:center;gap:8px">
                 ${statusLabel[it.status] || ''}
-                ${it.status === 'UNUSED' ? `<button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#43B581" onclick="useBingoItemPrompt('${it.instanceId}', ${it.effectParams && it.effectParams.min !== undefined ? it.effectParams.min : data.numberMin}, ${it.effectParams && it.effectParams.max !== undefined ? it.effectParams.max : data.numberMax}, '${it.effectType}')">使用</button>` : ''}
+                ${it.status === 'UNUSED' ? `<button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#43B581" onclick="useBingoItemPrompt(this, '${it.instanceId}', ${it.effectParams && it.effectParams.min !== undefined ? it.effectParams.min : data.numberMin}, ${it.effectParams && it.effectParams.max !== undefined ? it.effectParams.max : data.numberMax}, '${it.effectType}')">使用</button>` : ''}
               </span>
             </div>
           `).join('')}
@@ -1379,7 +1379,7 @@
       });
     }
     // 🌟 使用背包裡的道具(例如指定券):跳出輸入框讓玩家填要指定的數字,範圍限定的道具會先告知能填的範圍
-    function useBingoItemPrompt(instanceId, min, max, effectType) {
+    function useBingoItemPrompt(btnEl, instanceId, min, max, effectType) {
       if (bingoActionInFlight) return;
       const isRandom = effectType && effectType.indexOf('RANDOM') === 0;
       let num = '';
@@ -1392,11 +1392,19 @@
       // 🌟 隨機類型不用輸入框,直接送出請求,實際抽到的數字由後端決定(targetNumber留空就好)
 
       bingoActionInFlight = true;
+      const originalBtnText = btnEl.textContent;
+      btnEl.disabled = true;
+      btnEl.textContent = '⏳ 使用中...';
+
       fetch(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`)
         .then(res => res.json())
         .then(data => {
           bingoActionInFlight = false;
-          if (data.status !== 'success') { alert('❌ ' + data.message); return; }
+          if (data.status !== 'success') {
+            btnEl.disabled = false; btnEl.textContent = originalBtnText; // 🌟 失敗的話按鈕要還原,不然會一直卡在「使用中」
+            alert('❌ ' + data.message); return;
+          }
+          // 🌟 成功的話不用手動還原按鈕文字——loadBingoStatus()等一下會整個重新渲染背包區塊,這顆按鈕本身就會被換掉
           let msg = isRandom ? `🎫 使用道具成功！隨機抽出了數字 ${data.number}\n` : `🎫 使用道具成功！指定了數字 ${data.number}\n`;
           if (data.alreadyMarked) msg += '這個數字之前就已經標記過了。';
           else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
@@ -1410,7 +1418,11 @@
           alert(msg);
           loadBingoStatus();
         })
-        .catch(() => { bingoActionInFlight = false; alert('❌ 連線失敗，請稍後再試'); });
+        .catch(() => {
+          bingoActionInFlight = false;
+          btnEl.disabled = false; btnEl.textContent = originalBtnText;
+          alert('❌ 連線失敗，請稍後再試');
+        });
     }
     // ── BINGO 賓果卡結束 ──
 
