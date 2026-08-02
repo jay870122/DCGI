@@ -585,6 +585,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
                 <select id="ns-bingoitem-effect" onchange="toggleBingoItemEffectRange('ns')">
                   <option value="PICK_FREE">🎯 免費指定抽(不限範圍)</option>
                   <option value="PICK_FREE_RANGE">🎯 免費指定抽(限定範圍)</option>
+                  <option value="RANDOM_FREE">🎲 免費隨機抽(不限範圍)</option>
+                  <option value="RANDOM_FREE_RANGE">🎲 免費隨機抽(限定範圍)</option>
                 </select>
               </div>
               <div class="field" id="ns-bingoitem-range-box" style="display:none">
@@ -1264,6 +1266,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <select id="em-bingoitem-effect" onchange="toggleBingoItemEffectRange('em')">
             <option value="PICK_FREE">🎯 免費指定抽(不限範圍)</option>
             <option value="PICK_FREE_RANGE">🎯 免費指定抽(限定範圍)</option>
+            <option value="RANDOM_FREE">🎲 免費隨機抽(不限範圍)</option>
+            <option value="RANDOM_FREE_RANGE">🎲 免費隨機抽(限定範圍)</option>
           </select>
         </div>
         <div class="field" id="em-bingoitem-range-box" style="display:none">
@@ -1633,9 +1637,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full"><label>道具名稱</label><input id="gbi-name" placeholder="例如：BINGO指定券"></div>
       <div class="field full"><label>道具效果</label>
-        <select id="gbi-effect" onchange="document.getElementById('gbi-range-box').style.display = this.value==='PICK_FREE_RANGE' ? '' : 'none'">
+        <select id="gbi-effect" onchange="document.getElementById('gbi-range-box').style.display = (this.value==='PICK_FREE_RANGE'||this.value==='RANDOM_FREE_RANGE') ? '' : 'none'">
           <option value="PICK_FREE">🎯 免費指定抽(不限範圍)</option>
           <option value="PICK_FREE_RANGE">🎯 免費指定抽(限定範圍)</option>
+          <option value="RANDOM_FREE">🎲 免費隨機抽(不限範圍)</option>
+          <option value="RANDOM_FREE_RANGE">🎲 免費隨機抽(限定範圍)</option>
         </select>
       </div>
       <div class="field full" id="gbi-range-box" style="display:none">
@@ -2059,7 +2065,8 @@ function toggleBingoItemFields(prefix) {
   document.getElementById(prefix + '-bingoitem-box').style.display = enabled ? '' : 'none';
 }
 function toggleBingoItemEffectRange(prefix) {
-  const isRange = document.getElementById(prefix + '-bingoitem-effect').value === 'PICK_FREE_RANGE';
+  const val = document.getElementById(prefix + '-bingoitem-effect').value;
+  const isRange = val === 'PICK_FREE_RANGE' || val === 'RANDOM_FREE_RANGE';
   document.getElementById(prefix + '-bingoitem-range-box').style.display = isRange ? '' : 'none';
 }
 function toggleBingoItemExpiryValue(prefix) {
@@ -2084,7 +2091,7 @@ function collectBingoItemParams(prefix) {
   return {
     isBingoItem: true,
     bingoItemEffectType: effectType,
-    bingoItemRange: effectType === 'PICK_FREE_RANGE' ? document.getElementById(prefix + '-bingoitem-range').value : '',
+    bingoItemRange: (effectType === 'PICK_FREE_RANGE' || effectType === 'RANDOM_FREE_RANGE') ? document.getElementById(prefix + '-bingoitem-range').value : '',
     bingoItemActivities: document.getElementById(prefix + '-bingoitem-activities').value,
     bingoItemExpiry: JSON.stringify({ mode: expiryMode, value: expiryValue }),
   };
