@@ -1270,7 +1270,25 @@
           ${pickHtml}
         </div>`;
 
-      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
+      // 🌟 道具背包:只顯示適用這個活動的道具(後端已經先過濾好了),未使用且沒過期的可以點擊使用,
+      // 已使用/已過期的用灰色顯示,方便玩家一眼看出手上還有什麼牌可以打。
+      const backpackItems = data.backpackItems || [];
+      const statusLabel = { UNUSED: '<span style="color:#43B581">✅ 可使用</span>', USED: '<span style="color:#72767D">已使用</span>', EXPIRED: '<span style="color:#ED4245">已過期</span>' };
+      const backpackHtml = backpackItems.length > 0 ? `
+        <div style="background:#2F3136;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🎒 我的道具</div>
+          ${backpackItems.map(it => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px;${it.status !== 'UNUSED' ? 'opacity:0.5' : ''}">
+              <span>${it.itemName}${it.effectType === 'PICK_FREE_RANGE' && it.effectParams ? ` <span style="color:#72767D;font-size:11px">(限${it.effectParams.min}~${it.effectParams.max})</span>` : ''}</span>
+              <span style="display:flex;align-items:center;gap:8px">
+                ${statusLabel[it.status] || ''}
+                ${it.status === 'UNUSED' ? `<button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#43B581" onclick="useBingoItemPrompt('${it.instanceId}', ${it.effectParams && it.effectParams.min !== undefined ? it.effectParams.min : data.numberMin}, ${it.effectParams && it.effectParams.max !== undefined ? it.effectParams.max : data.numberMax})">使用</button>` : ''}
+              </span>
+            </div>
+          `).join('')}
+        </div>` : '';
+
+      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + backpackHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
     }
 
     // 🌟 讀取目前選的付款方式('PRIMARY'/'ALT'),沒有替代貨幣選擇器的話(活動沒開放)就一律用主要貨幣
@@ -1359,6 +1377,35 @@
         randomBtn.textContent = originalRandomText; if (pickBtn) pickBtn.textContent = originalPickText;
         alert('❌ 連線失敗，請稍後再試');
       });
+    }
+    // 🌟 使用背包裡的道具(例如指定券):跳出輸入框讓玩家填要指定的數字,範圍限定的道具會先告知能填的範圍
+    function useBingoItemPrompt(instanceId, min, max) {
+      if (bingoActionInFlight) return;
+      const numStr = prompt(`請輸入要指定的數字(${min}~${max}之間)：`);
+      if (numStr === null || numStr.trim() === '') return; // 🌟 玩家按取消或沒填,不送出請求
+      const num = parseInt(numStr, 10);
+      if (isNaN(num) || num < min || num > max) { alert(`請輸入 ${min}~${max} 之間的數字！`); return; }
+
+      bingoActionInFlight = true;
+      fetch(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(res => res.json())
+        .then(data => {
+          bingoActionInFlight = false;
+          if (data.status !== 'success') { alert('❌ ' + data.message); return; }
+          let msg = `🎫 使用道具成功！指定了數字 ${data.number}\n`;
+          if (data.alreadyMarked) msg += '這個數字之前就已經標記過了。';
+          else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
+          else {
+            msg += '✅ 命中卡片上的號碼！';
+            if (data.newLines && data.newLines.length > 0) msg += `\n🎉 有新連成的線！`;
+            if (data.fullCompleted) msg += `\n🏆 恭喜完成整張賓果卡！`;
+            if (data.rewardTexts && data.rewardTexts.length > 0) msg += `\n\n${data.rewardTexts.join('\n')}`;
+          }
+          lastDrawnNumbers = (data.hit && !data.alreadyMarked) ? [data.number] : [];
+          alert(msg);
+          loadBingoStatus();
+        })
+        .catch(() => { bingoActionInFlight = false; alert('❌ 連線失敗，請稍後再試'); });
     }
     // ── BINGO 賓果卡結束 ──
 
