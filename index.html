@@ -418,7 +418,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v4.0.0 (新增 BINGO 賓果卡系統(多活動、連線/整卡獎池、重抽重開、替代貨幣);背包改為分類顯示(身分組/自訂變數皆可自訂分類與顯示模式);限定身分組顯示已持有狀態並可展開;商品/拍賣卡片不再變半透明)</div>
+    <div class="version-tag">系統版本：v5.0.0 (新增網頁推播通知系統(訂閱/定時提醒/首次獎勵);抽獎系統全面重構(標準盲盒抽法、庫存與購買數量脫鉤、重複中獎模式、通知開關);新增商品選項功能(單一商品可設多組獨立名稱/價格/內容);里程碑可跨商品共用進度;BINGO新增後台賓果盤總覽、連線/全板全體公告開關、指定抽專屬貨幣;修正多處空格/負數範圍解析導致同步錯位或發獎歸零的問題;核心鎖定機制拆分為多把獨立分類鎖,避免不同功能互相卡住)</div>
   </div>
 
   <script>
@@ -1123,9 +1123,10 @@
         return `<div class="bingo-tt-wrap" style="${style}">${label}<div class="bingo-tt-content">${tooltip}</div></div>`;
       };
 
-      let gridHtml = '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px">';
-      gridHtml += `<div></div>`;
+      let gridHtml = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px">';
+      gridHtml += iconCell('D0'); // 🌟 左上角(原本空白的角落格),放「左上→右下」斜線的獎勵圖示,方向跟視覺上的斜線起點對得起來
       colIds.forEach(cid => { gridHtml += iconCell(cid); });
+      gridHtml += iconCell('D1'); // 🌟 右上角,放「右上→左下」斜線的獎勵圖示,跟直排圖示同一列
       for (let r = 0; r < 5; r++) {
         gridHtml += iconCell(rowIds[r]);
         for (let c = 0; c < 5; c++) {
@@ -1138,15 +1139,9 @@
           gridHtml += `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-weight:bold;font-size:16px;
             background-color:${bg};color:${fg};border:1px solid ${border}${isJustDrawn ? ';box-shadow:0 0 8px #FEE75C' : ''}">${num}</div>`;
         }
+        gridHtml += `<div></div>`; // 🌟 兩個斜線圖示都已經放在表頭列了,下方5列的最右欄留空對齊就好
       }
       gridHtml += '</div>';
-
-      // 🌟 補上兩條斜線的獎勵內容(棋盤圖示只畫得出橫排/直排,斜線用文字列出來,一樣看得到實際獎項)
-      const d0 = info['D0'], d1 = info['D1'];
-      const diagHtml = `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#B9BBBE;margin-bottom:6px;background:#2F3136;border-radius:6px;padding:6px 10px">
-        <span>↘ ${data.lineLabels['D0']}：${d0 ? `<b style="color:#F0B232">${d0.dispName}</b>` : '未設定'}</span>
-        <span>↙ ${data.lineLabels['D1']}：${d1 ? `<b style="color:#F0B232">${d1.dispName}</b>` : '未設定'}</span>
-      </div>`;
 
       const lineNoteHtml = `<div style="text-align:center;font-size:12px;color:#B9BBBE;margin-bottom:6px">周圍色塊 = 連成那排/那列會拿到的獎勵${lastDrawnNumbers.length > 0 ? '　｜　🟡 金色 = 這次剛抽到的號碼' : ''}</div>`;
 
@@ -1229,7 +1224,7 @@
           已標記 ${data.marked.length} / 25　｜　已連線 ${data.linesCount} 條${data.full ? '　｜　🏆 已完成整卡！' : ''}
         </div>`;
 
-      const balanceHtml = `<div style="text-align:center;margin-bottom:8px;color:#FEE75C">💰 我的餘額：${data.myBalance} ${data.currencyDisplayName}${data.hasAltCurrency ? `　｜　${data.altBalance} ${data.altCurrencyDisplayName}` : ''}</div>`;
+      const balanceHtml = `<div style="text-align:center;margin-bottom:8px;color:#FEE75C">💰 我的餘額：${data.myBalance} ${data.currencyDisplayName}${data.pickIsDifferentCurrency ? `　｜　🎯 ${data.pickBalance} ${data.pickCurrencyDisplayName}` : ''}${data.hasAltCurrency ? `　｜　${data.altBalance} ${data.altCurrencyDisplayName}` : ''}</div>`;
 
       // 🌟 替代貨幣選擇器:活動有開放才會顯示,選好之後底下所有付費按鈕(隨機抽/指定抽/重抽/重開)都會用這個貨幣支付
       const payWithHtml = data.hasAltCurrency ? `
@@ -1274,7 +1269,7 @@
           ${pickHtml}
         </div>`;
 
-      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + diagHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
+      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
     }
 
     // 🌟 讀取目前選的付款方式('PRIMARY'/'ALT'),沒有替代貨幣選擇器的話(活動沒開放)就一律用主要貨幣
