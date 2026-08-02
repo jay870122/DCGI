@@ -908,7 +908,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="tbl-wrap tbl-wrap-table">
           <table>
-            <thead><tr><th>活動名稱</th><th>時間</th><th>數字範圍</th><th>狀態</th><th>操作</th></tr></thead>
+            <thead><tr><th>活動名稱</th><th>活動ID</th><th>時間</th><th>數字範圍</th><th>狀態</th><th>操作</th></tr></thead>
             <tbody id="bingo-activity-tbody"><tr><td colspan="5" class="empty">讀取中...</td></tr></tbody>
           </table>
         </div>
@@ -1660,6 +1660,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" id="gbi-expiryvalue-box" style="display:none">
         <label id="gbi-expiryvalue-label">數值</label>
         <input id="gbi-expiryvalue">
+      </div>
+      <div class="field full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="gbi-notify" style="width:auto">
+          發放後私訊通知(用網頁推播,玩家要有訂閱過推播才收得到)
+        </label>
+      </div>
+      <div class="field full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="gbi-broadcast" style="width:auto">
+          同時公開公告到大獎頻道
+        </label>
       </div>
       <div class="actions"><button class="btn-save" onclick="submitGrantBingoItem()">🎒 確認發放</button></div>
     </div>
@@ -4080,6 +4092,8 @@ function openGrantBingoItemModal() {
   document.getElementById('gbi-expirymode').value = 'NEVER';
   document.getElementById('gbi-expiryvalue-box').style.display = 'none';
   document.getElementById('gbi-expiryvalue').value = '';
+  document.getElementById('gbi-notify').checked = false;
+  document.getElementById('gbi-broadcast').checked = false;
   document.getElementById('grant-bingoitem-modal').classList.add('open');
 }
 function toggleGrantBingoItemExpiryValue() {
@@ -4108,6 +4122,8 @@ async function submitGrantBingoItem() {
     rangeMin: document.getElementById('gbi-range-min').value, rangeMax: document.getElementById('gbi-range-max').value,
     applicableActivities: document.getElementById('gbi-activities').value,
     expiry: JSON.stringify({ mode: expiryMode, value: expiryValue }),
+    notify: document.getElementById('gbi-notify').checked,
+    broadcast: document.getElementById('gbi-broadcast').checked,
   });
   if (d.status === 'success') { toast('🎒 ' + d.message); closeModal('grant-bingoitem-modal'); }
   else toast('❌ ' + d.message, false);
@@ -4171,7 +4187,7 @@ function showBingoCardDetail(idx) {
 
 function renderBingoActivityTable() {
   const tbody = document.getElementById('bingo-activity-tbody');
-  if (bingoActivities.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">還沒有任何BINGO活動,點右上角新增一個吧</td></tr>'; return; }
+  if (bingoActivities.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">還沒有任何BINGO活動,點右上角新增一個吧</td></tr>'; return; }
   tbody.innerHTML = bingoActivities.map(a => {
     let statusHtml;
     if (a.status === 'DRAFT') statusHtml = '<span class="status status-draft">📝 草稿</span>';
@@ -4181,6 +4197,7 @@ function renderBingoActivityTable() {
     const timeText = `${a.startTime ? new Date(a.startTime).toLocaleString() : '不限'} ~ ${a.endTime ? new Date(a.endTime).toLocaleString() : '不限'}`;
     return `<tr>
       <td>${a.name}</td>
+      <td class="cell-id">${a.id}</td>
       <td style="font-size:12px">${timeText}</td>
       <td>${a.numberMin} ~ ${a.numberMax}</td>
       <td>${statusHtml}</td>
