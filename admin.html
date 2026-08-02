@@ -405,14 +405,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               🎫 <b>[序號] 中獎發放專屬序號</b>：變數名前面加 <code>[序號]</code>,例如 <code>[序號]傳說道具</code>,中獎後系統不會發貨幣,而是去「序號庫」工作表裡找 A欄等於「傳說道具」(不含中括號)、還沒被領過的一筆,把 B欄的序號值直接發給玩家(這張序號庫工作表要自己額外建立,固定放在第 5 個分頁,格式:A名稱 | B序號 | C使用者DiscordID(系統寫入,留空=可用))。可以跟上面的「一個獎項發多種東西」合併用,例如 <code>幻彩水晶:50+[序號]傳說道具:1</code>,中獎同時發 50 個幻彩水晶跟 1 組傳說道具序號。<br>
               🎒 <b>[背包] 發放 BINGO 一次性道具</b>：變數名前面加 <code>[背包]</code> 或 <code>[背包:參數]</code>,中獎後系統會直接把這個道具發放到玩家的 BINGO 背包裡(玩家需要自己到 BINGO 活動頁面使用)。<br>
               　・基本用法: <code>[背包]指定券</code> — 預設永不過期、所有活動皆可用、免費指定抽不限範圍<br>
-              　・支援參數: <code>[背包:效果|範圍|過期模式|過期值]</code>,用 <code>|</code> 分隔(可選,不填則用預設值)<br>
+              　・支援參數: <code>[背包:效果|範圍|過期模式|過期值|限定活動ID]</code>,用 <code>|</code> 分隔(可選,不填則用預設值,中間要保留就用空白佔位)<br>
               　　- 效果: <code>PICK_FREE</code>(免費指定抽)、<code>PICK_FREE_RANGE</code>(限定範圍指定)、<code>RANDOM_FREE</code>(免費隨機抽)、<code>RANDOM_FREE_RANGE</code>(限定範圍隨機)<br>
               　　- 範圍: <code>最小~最大</code>,例如 <code>1~50</code>(只有效果是 RANGE 時才有效)<br>
               　　- 過期模式: <code>MINUTES</code>(分鐘)、<code>HOURS</code>(小時)、<code>ABSOLUTE</code>(絕對時間)、<code>NEVER</code>(永不過期)<br>
               　　- 過期值: 數字(MINUTES/HOURS用)或時間字串(ABSOLUTE用,格式 YYYY-MM-DDTHH:mm:ssZ)<br>
-              　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24][非即時]指定券</code><br>
+              　　- 限定活動ID: 只有指定的 BINGO 活動能用這個道具,多個活動用 <code>&</code> 分隔(例如 <code>abc123&def456</code>);留空=所有BINGO活動皆可用。活動ID可以到「BINGO活動管理」列表裡複製<br>
+              　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券+[非即時]特殊道具</code>(用 <code>+</code> 分開不同變數各自帶標籤,不要把兩個標籤疊在同一個變數上)<br>
               　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
-              　・例如: <code>指定券(限1~50,24h), [背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券, 30%</code> → 發指定券到背包,限定1~50範圍,24小時後過期<br>
+              　・例如: <code>指定券(限1~50,24h,限定活動), [背包:PICK_FREE_RANGE|1~50|HOURS|24|abc123]指定券, 30%</code> → 發指定券到背包,限定1~50範圍,24小時後過期,只能在活動ID abc123 使用<br>
               🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
               📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
               範例：<br>
@@ -427,7 +428,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <code>超級寶箱, 幻彩水晶:50+[序號]傳說道具:1, 3%, 2份</code>　<span class="hint">← 中獎同時發 50 個幻彩水晶 + 1 組傳說道具序號</span><br>
               <code>指定券×1, [背包]指定券, 40%</code>　<span class="hint">← 中獎直接發一個「指定券」道具到背包(永不過期、不限範圍)</span><br>
               <code>指定券(限1~50), [背包:PICK_FREE_RANGE|1~50]指定券, 30%</code>　<span class="hint">← 中獎發指定券到背包,限定只能指定1~50的數字</span><br>
-              <code>指定券(24h), [背包:PICK_FREE|,|HOURS|24]指定券, 25%</code>　<span class="hint">← 中獎發指定券到背包,24小時後自動過期</span><br>
+              <code>指定券(24h), [背包:PICK_FREE||HOURS|24]指定券, 25%</code>　<span class="hint">← 中獎發指定券到背包,24小時後自動過期(不需要範圍的話,用空白佔位跳過該欄位)</span><br>
+              <code>限定活動指定券, [背包:PICK_FREE_RANGE|1~50|NEVER||abc123]指定券, 20%</code>　<span class="hint">← 中獎發指定券到背包,限定1~50範圍,只能在活動ID為abc123的BINGO活動使用</span><br>
               <code>豪華禮包, 幻彩水晶:100+[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券:1, 15%</code>　<span class="hint">← 中獎同時發 100 個幻彩水晶 + 1 個指定券到背包(限1~50,24h後過期);DC只顯示幻彩水晶:100</span><br>
               <code>隨機券盲盒, [背包:RANDOM_FREE_RANGE|1~100]隨機券, 20%</code>　<span class="hint">← 中獎發隨機券到背包,隨機抽1~100的數字</span><br>
               <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
@@ -1135,7 +1137,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         　　- 範圍: <code>最小~最大</code>,例如 <code>1~50</code>(只有效果是 RANGE 時才有效)<br>
         　　- 過期模式: <code>MINUTES</code>(分鐘)、<code>HOURS</code>(小時)、<code>ABSOLUTE</code>(絕對時間)、<code>NEVER</code>(永不過期)<br>
         　　- 過期值: 數字(MINUTES/HOURS用)或時間字串(ABSOLUTE用,格式 YYYY-MM-DDTHH:mm:ssZ)<br>
-        　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24][非即時]指定券</code><br>
+        　　- 限定活動ID: 只有指定的 BINGO 活動能用這個道具,多個活動用 <code>&</code> 分隔(例如 <code>abc123&def456</code>);留空=所有BINGO活動皆可用。活動ID可以到「BINGO活動管理」列表裡複製<br>
+        　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券+[非即時]特殊道具</code>(用 <code>+</code> 分開不同變數各自帶標籤,不要把兩個標籤疊在同一個變數上)<br>
         　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
         🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
         📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
@@ -1151,7 +1154,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <code>超級寶箱, 幻彩水晶:50+[序號]傳說道具:1, 3%, 2份</code>　<span class="hint">← 中獎同時發 50 個幻彩水晶 + 1 組傳說道具序號</span><br>
         <code>指定券×1, [背包]指定券, 40%</code>　<span class="hint">← 中獎直接發一個「指定券」道具到背包(永不過期、不限範圍)</span><br>
         <code>指定券(限1~50), [背包:PICK_FREE_RANGE|1~50]指定券, 30%</code>　<span class="hint">← 中獎發指定券到背包,限定只能指定1~50的數字</span><br>
-        <code>指定券(24h), [背包:PICK_FREE|,|HOURS|24]指定券, 25%</code>　<span class="hint">← 中獎發指定券到背包,24小時後自動過期</span><br>
+        <code>指定券(24h), [背包:PICK_FREE||HOURS|24]指定券, 25%</code>　<span class="hint">← 中獎發指定券到背包,24小時後自動過期(不需要範圍的話,用空白佔位跳過該欄位)</span><br>
+        <code>限定活動指定券, [背包:PICK_FREE_RANGE|1~50|NEVER||abc123]指定券, 20%</code>　<span class="hint">← 中獎發指定券到背包,限定1~50範圍,只能在活動ID為abc123的BINGO活動使用</span><br>
         <code>豪華禮包, 幻彩水晶:100+[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券:1, 15%</code>　<span class="hint">← 中獎同時發 100 個幻彩水晶 + 1 個指定券到背包(限1~50,24h後過期);DC只顯示幻彩水晶:100</span><br>
         <code>隨機券盲盒, [背包:RANDOM_FREE_RANGE|1~100]隨機券, 20%</code>　<span class="hint">← 中獎發隨機券到背包,隨機抽1~100的數字</span><br>
         <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
