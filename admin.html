@@ -594,8 +594,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
                 <input id="ns-bingoitem-range" placeholder="例如：1~50">
               </div>
               <div class="field full">
-                <label>適用活動 <span class="hint">留空=所有BINGO活動皆可用;要限定的話,填活動ID,多個用逗號分隔(可以到BINGO活動列表複製ID)</span></label>
-                <input id="ns-bingoitem-activities" placeholder="留空=全部活動皆可用">
+                <label>適用活動 <span class="hint">留空(不勾選任何一個)=所有BINGO活動皆可用;勾選特定活動的話,只有那些活動能用這個道具</span></label>
+                <input type="hidden" id="ns-bingoitem-activities">
+                <div id="ns-bingoitem-activities-list" style="display:flex;flex-wrap:wrap;gap:8px;background:#2F3136;border-radius:6px;padding:8px;max-height:150px;overflow-y:auto"></div>
               </div>
               <div class="field"><label>過期設定</label>
                 <select id="ns-bingoitem-expirymode" onchange="toggleBingoItemExpiryValue('ns')">
@@ -1275,8 +1276,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <input id="em-bingoitem-range" placeholder="例如：1~50">
         </div>
         <div class="field full">
-          <label>適用活動 <span class="hint">留空=所有BINGO活動皆可用;要限定的話,填活動ID,多個用逗號分隔</span></label>
-          <input id="em-bingoitem-activities" placeholder="留空=全部活動皆可用">
+          <label>適用活動 <span class="hint">留空(不勾選任何一個)=所有BINGO活動皆可用;勾選特定活動的話,只有那些活動能用這個道具</span></label>
+          <input type="hidden" id="em-bingoitem-activities">
+          <div id="em-bingoitem-activities-list" style="display:flex;flex-wrap:wrap;gap:8px;background:#2F3136;border-radius:6px;padding:8px;max-height:150px;overflow-y:auto"></div>
         </div>
         <div class="field"><label>過期設定</label>
           <select id="em-bingoitem-expirymode" onchange="toggleBingoItemExpiryValue('em')">
@@ -1636,6 +1638,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         會發給「玩家貨幣管理」頁面目前已勾選的玩家(<b id="gbi-selected-count">0</b> 位)。如果還沒勾選,請先切到那個頁面勾選要發放的對象再回來。
       </div>
       <div class="field full"><label>道具名稱</label><input id="gbi-name" placeholder="例如：BINGO指定券"></div>
+      <div class="field full"><label>數量 <span class="hint">每位已勾選的玩家各自會拿到這個數量</span></label><input id="gbi-quantity" type="number" min="1" value="1" placeholder="1"></div>
       <div class="field full"><label>道具效果</label>
         <select id="gbi-effect" onchange="document.getElementById('gbi-range-box').style.display = (this.value==='PICK_FREE_RANGE'||this.value==='RANDOM_FREE_RANGE') ? '' : 'none'">
           <option value="PICK_FREE">🎯 免費指定抽(不限範圍)</option>
@@ -1648,7 +1651,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>範圍限定</label>
         <div style="display:flex;gap:8px"><input id="gbi-range-min" type="number" placeholder="最小值" style="flex:1"><input id="gbi-range-max" type="number" placeholder="最大值" style="flex:1"></div>
       </div>
-      <div class="field full"><label>適用活動 <span class="hint">留空=全部BINGO活動皆可用</span></label><input id="gbi-activities" placeholder="留空=全部活動皆可用"></div>
+      <div class="field full">
+        <label>適用活動 <span class="hint">留空(不勾選任何一個)=全部BINGO活動皆可用</span></label>
+        <input type="hidden" id="gbi-activities">
+        <div id="gbi-activities-list" style="display:flex;flex-wrap:wrap;gap:8px;background:#2F3136;border-radius:6px;padding:8px;max-height:150px;overflow-y:auto"></div>
+      </div>
       <div class="field full"><label>過期設定</label>
         <select id="gbi-expirymode" onchange="toggleGrantBingoItemExpiryValue()">
           <option value="NEVER">♾️ 永不過期</option>
@@ -2075,6 +2082,7 @@ const GUESS_LIMIT_FIELD_MAP = {
 function toggleBingoItemFields(prefix) {
   const enabled = document.getElementById(prefix + '-bingoitem').checked;
   document.getElementById(prefix + '-bingoitem-box').style.display = enabled ? '' : 'none';
+  if (enabled) renderBingoActivityCheckboxes(prefix + '-bingoitem-activities-list', prefix + '-bingoitem-activities', document.getElementById(prefix + '-bingoitem-activities').value);
 }
 function toggleBingoItemEffectRange(prefix) {
   const val = document.getElementById(prefix + '-bingoitem-effect').value;
@@ -2116,7 +2124,7 @@ function loadBingoItemParams(prefix, i) {
     document.getElementById(prefix + '-bingoitem-effect').value = i.bingoItemEffectType || 'PICK_FREE';
     toggleBingoItemEffectRange(prefix);
     document.getElementById(prefix + '-bingoitem-range').value = i.bingoItemRange || '';
-    document.getElementById(prefix + '-bingoitem-activities').value = i.bingoItemActivities || '';
+    renderBingoActivityCheckboxes(prefix + '-bingoitem-activities-list', prefix + '-bingoitem-activities', i.bingoItemActivities || '');
     let expiryObj = { mode: 'NEVER' };
     try { expiryObj = i.bingoItemExpiry ? JSON.parse(i.bingoItemExpiry) : { mode: 'NEVER' }; } catch (e) {}
     document.getElementById(prefix + '-bingoitem-expirymode').value = expiryObj.mode || 'NEVER';
@@ -4079,16 +4087,42 @@ async function loadBingoConfig() {
   renderBingoActivityTable();
 }
 
+// 🌟 渲染BINGO活動勾選清單(給BINGO道具的「適用活動」欄位用):如果還沒載入過活動清單,先自動載入一次。
+// 勾選狀態同步寫進對應的隱藏欄位(逗號分隔的活動ID),既有的儲存/載入邏輯完全不用改,直接讀那個隱藏欄位的值就好。
+async function renderBingoActivityCheckboxes(containerId, hiddenInputId, selectedIdsCsv) {
+  if (bingoActivities.length === 0) await loadBingoConfig();
+  const container = document.getElementById(containerId);
+  const hiddenInput = document.getElementById(hiddenInputId);
+  const selectedIds = (selectedIdsCsv || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (bingoActivities.length === 0) {
+    container.innerHTML = '<span class="hint">目前還沒有建立任何BINGO活動</span>';
+    hiddenInput.value = '';
+    return;
+  }
+  container.innerHTML = bingoActivities.map(a => `
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px">
+      <input type="checkbox" value="${a.id}" ${selectedIds.includes(a.id) ? 'checked' : ''} onchange="updateBingoActivityCheckboxValue('${containerId}','${hiddenInputId}')" style="width:auto">
+      ${a.name}
+    </label>
+  `).join('');
+  hiddenInput.value = selectedIds.join(',');
+}
+function updateBingoActivityCheckboxValue(containerId, hiddenInputId) {
+  const checked = Array.from(document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`)).map(cb => cb.value);
+  document.getElementById(hiddenInputId).value = checked.join(',');
+}
+
 let bingoCardsData = []; // 🌟 記住目前彈窗顯示的賓果盤資料,給單一玩家卡片檢視用
 
 function openGrantBingoItemModal() {
   document.getElementById('gbi-selected-count').textContent = pcSelectedIds.size;
   document.getElementById('gbi-name').value = '';
+  document.getElementById('gbi-quantity').value = '1';
   document.getElementById('gbi-effect').value = 'PICK_FREE';
   document.getElementById('gbi-range-box').style.display = 'none';
   document.getElementById('gbi-range-min').value = '';
   document.getElementById('gbi-range-max').value = '';
-  document.getElementById('gbi-activities').value = '';
+  renderBingoActivityCheckboxes('gbi-activities-list', 'gbi-activities', '');
   document.getElementById('gbi-expirymode').value = 'NEVER';
   document.getElementById('gbi-expiryvalue-box').style.display = 'none';
   document.getElementById('gbi-expiryvalue').value = '';
@@ -4111,14 +4145,15 @@ async function submitGrantBingoItem() {
   if (pcSelectedIds.size === 0) { toast('請先到「玩家貨幣管理」頁面勾選要發放的玩家', false); return; }
   const itemName = document.getElementById('gbi-name').value.trim();
   if (!itemName) { toast('請填寫道具名稱', false); return; }
+  const quantity = parseInt(document.getElementById('gbi-quantity').value, 10) || 1;
   const expiryMode = document.getElementById('gbi-expirymode').value;
   let expiryValue = document.getElementById('gbi-expiryvalue').value;
   if (expiryMode === 'ABSOLUTE' && expiryValue) expiryValue = new Date(expiryValue).toISOString();
-  if (!confirm(`確定要把「${itemName}」發給已勾選的 ${pcSelectedIds.size} 位玩家嗎？`)) return;
+  if (!confirm(`確定要把「${itemName}」各發 ${quantity} 個給已勾選的 ${pcSelectedIds.size} 位玩家嗎？`)) return;
   const d = await api({
     action: 'adminGrantBingoItem',
     playerIds: JSON.stringify(Array.from(pcSelectedIds)),
-    itemName, effectType: document.getElementById('gbi-effect').value,
+    itemName, quantity, effectType: document.getElementById('gbi-effect').value,
     rangeMin: document.getElementById('gbi-range-min').value, rangeMax: document.getElementById('gbi-range-max').value,
     applicableActivities: document.getElementById('gbi-activities').value,
     expiry: JSON.stringify({ mode: expiryMode, value: expiryValue }),
@@ -4687,7 +4722,7 @@ async function loadAuctionBids() {
 // 🌟 點擊彈窗背景關閉(但編輯商品/拍賣這兩個表單欄位很多,很容易滑鼠稍微點歪就整個關掉、資料等於白填,
 // 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉)
 document.querySelectorAll('.overlay').forEach(el => {
-  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal') return;
+  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal') return;
   el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
 });
 
