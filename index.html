@@ -1394,19 +1394,29 @@
       // 🌟 隨機類型不用輸入框,直接送出請求,實際抽到的數字由後端決定(targetNumber留空就好)
 
       bingoActionInFlight = true;
-      const originalBtnText = btnEl.textContent;
-      btnEl.disabled = true;
-      btnEl.textContent = '⏳ 使用中...';
+      
+      // 🌟 禁用所有道具使用按鈕,並顯示使用中狀態
+      const allItemBtns = document.querySelectorAll('button[onclick*="useBingoItemPrompt"]');
+      const btnStates = [];
+      allItemBtns.forEach(btn => {
+        btnStates.push({ btn, originalText: btn.textContent });
+        btn.disabled = true;
+        btn.textContent = '⏳ 使用中...';
+      });
 
       fetch(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`)
         .then(res => res.json())
         .then(data => {
           bingoActionInFlight = false;
           if (data.status !== 'success') {
-            btnEl.disabled = false; btnEl.textContent = originalBtnText; // 🌟 失敗的話按鈕要還原,不然會一直卡在「使用中」
+            // 🌟 失敗的話還原所有按鈕
+            btnStates.forEach(({ btn, originalText }) => {
+              btn.disabled = false;
+              btn.textContent = originalText;
+            });
             alert('❌ ' + data.message); return;
           }
-          // 🌟 成功的話不用手動還原按鈕文字——loadBingoStatus()等一下會整個重新渲染背包區塊,這顆按鈕本身就會被換掉
+          // 🌟 成功的話不用手動還原按鈕文字——loadBingoStatus()等一下會整個重新渲染背包區塊,所有按鈕都會被換掉
           let msg = isRandom ? `🎫 使用道具成功！隨機抽出了數字 ${data.number}\n` : `🎫 使用道具成功！指定了數字 ${data.number}\n`;
           if (data.alreadyMarked) msg += '這個數字之前就已經標記過了。';
           else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
@@ -1422,7 +1432,11 @@
         })
         .catch(() => {
           bingoActionInFlight = false;
-          btnEl.disabled = false; btnEl.textContent = originalBtnText;
+          // 🌟 連線失敗時也還原所有按鈕
+          btnStates.forEach(({ btn, originalText }) => {
+            btn.disabled = false;
+            btn.textContent = originalText;
+          });
           alert('❌ 連線失敗，請稍後再試');
         });
     }
