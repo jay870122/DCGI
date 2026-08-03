@@ -1088,8 +1088,37 @@
       loadBingoActivityList();
     }
 
+    // 🌟 賓果卡狀態讀取:先打Cloudflare Worker(action=bingoStatus,不套用快取,直接讀最新資料,速度比Apps Script快很多)。
+    // 如果Worker回報needsCreate(玩家第一次玩這個活動、還沒有卡),Worker不負責建卡(建卡可能要扣開盤費用,
+    // 需要走Apps Script那邊有鎖定機制的寫入流程),這時才改打Apps Script的getBingoStatus,它會處理建卡+扣費;
+    // 建好之後,下一次(以及重新整理之後)查詢就會走Worker的快速路徑了。
     function loadBingoStatus() {
       document.getElementById('bingo-body-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
+      fetch(`${DASHBOARD_WORKER_URL}?action=bingoStatus&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status !== 'success') {
+          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ ${data.message || '讀取失敗'}</p>`;
+          return;
+        }
+        if (!data.enabled) {
+          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#B9BBBE;">${data.message || '這個BINGO活動目前沒有開放'}</p>`;
+          return;
+        }
+        if (data.needsCreate) {
+          // 🌟 第一次玩這個活動,還沒有卡——改打Apps Script,由它處理建卡(可能會扣開盤費用)
+          loadBingoStatusViaGas_();
+          return;
+        }
+        renderBingoModal(data);
+      })
+      .catch(() => {
+        // 🌟 Worker連線失敗的話,退回原本直接打Apps Script的方式,不要整個沒東西可看
+        loadBingoStatusViaGas_();
+      });
+    }
+
+    function loadBingoStatusViaGas_() {
       fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
