@@ -1493,20 +1493,38 @@
     // 這裡改成讓GAS的請求跟「用Worker主動輪詢歷史紀錄」兩條路線同時進行——Worker讀取速度快、沒有GAS那種
     // 冷啟動/執行佇列開銷,可以每隔一小段時間就快速確認一次「這次操作有沒有成功完成的紀錄出現」,哪一條路線
     // 先給出確定結果就用哪個,不用死等比較慢的那一條。
-    // 🌟🔧 效能微調:第一次查詢的延遲盡量縮短(1.2秒),讓GAS真的變慢的時候能更快被輪詢偵測到;
-    // 之後的查詢間隔也縮短到0.8秒,加快後續偵測頻率。這樣做對「GAS本來就很快回應」的正常情況幾乎沒有壞處
-    // (反正那種情況GAS路線本來就會先贏),但對「GAS真的卡住」的情況,能明顯縮短玩家等待結果的時間。
+    // 🌟🔧 效能微調:根據實測結果,輪詢大部分情況都比GAS本身的回應快,所以把第一次查詢延遲、以及後續查詢間隔
+    // 都進一步縮短到0.6秒,讓輪詢能更積極地在GAS回應之前就查到結果。這裡刻意保留GAS回應這條路線繼續監聽
+    // (不是完全不等GAS),是因為GAS的鎖定是在「驗證檢查之前」就先卡住,如果操作真的失敗(道具已用過/數字超出
+    // 範圍/系統忙碌等),失敗訊息也會被同一個鎖延遲,查歷史紀錄查不到「失敗原因」(失敗的話根本不會寫進歷史紀錄),
+    // 完全不等GAS的話,遇到真正失敗的情況只能死等整個逾時視窗跑完才顯示籠統訊息,會失去明確的失敗原因說明。
     async function pollBingoItemUseResult_(sinceMs) {
-      await sleep_(1200); // 🌟 只留一點點緩衝給GAS的正常回應優先「贏」,不用一開始就狂打Worker,但也不用等到3秒那麼久
-      for (let i = 0; i < 30; i++) { // 🌟 之後每0.8秒查一次,總共約30次,搭配前面1.2秒延遲,輪詢視窗略長於GAS本身的25秒逾時上限
+      await sleep_(600); // 🌟 只留一點點緩衝,不用一開始就狂打Worker,但也不用等太久
+      for (let i = 0; i < 40; i++) { // 🌟 之後每0.6秒查一次,總共約40次,搭配前面0.6秒延遲,輪詢視窗略長於GAS本身的25秒逾時上限
         try {
           const res = await fetch(`${DASHBOARD_WORKER_URL}?action=bingoItemUseCheck&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(getAccessToken())}`);
           const data = await res.json();
           if (data.status === 'success' && data.found) return data;
         } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
-        await sleep_(800);
+        await sleep_(600);
       }
       return null; // 🌟 輪詢視窗內都沒查到,交還給呼叫端判斷(通常代表這次操作真的沒有成功)
+    }
+
+    // 🌟 通用版本的輪詢:給商品購買(BUY)/拍賣出價(BID)等透過 instrumentedAction_ 包裝的動作使用。
+    // 跟上面的 pollBingoItemUseResult_ 不同的地方在於:這裡查的是「兌換紀錄」表M欄存的完整原始回應JSON,
+    // 找到的話直接回傳「解析好的data物件」,呼叫端可以直接當成GAS本身回應的data使用,不用另外處理。
+    async function pollInstrumentedActionResult_(actionType, sinceMs) {
+      await sleep_(600);
+      for (let i = 0; i < 40; i++) {
+        try {
+          const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${currentUser.id}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(getAccessToken())}`);
+          const data = await res.json();
+          if (data.status === 'success' && data.found && data.result) return data.result;
+        } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
+        await sleep_(600);
+      }
+      return null;
     }
 
     // 🌟 使用背包裡的道具(例如指定券):跳出輸入框讓玩家填要指定的數字,範圍限定的道具會先告知能填的範圍
@@ -2259,9 +2277,16 @@
       btn.innerText = '⏳ 出價中請稍後...';
       input.disabled = true;
 
-      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
-      .then(data => {
+      let settled = false;
+      let gasGaveUp = false;
+      const requestStartMs = Date.now();
+
+      function resetBidUI_() {
+        btn.disabled = false;
+        btn.innerText = originalBtnText;
+        input.disabled = false;
+      }
+      function handleBidResult_(data) {
         if (data.status === 'success') {
           alert('✅ 出價成功！');
           // 🌟 先刷新分數(更新餘額顯示),完成後再重新整理拍賣列表,
@@ -2271,14 +2296,39 @@
           alert('❌ 出價失敗：' + data.message);
           loadAuctions();
         }
+      }
+
+      // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,回應最快)
+      fetchWithTimeout_(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      .then(res => res.json())
+      .then(data => {
+        if (settled) return;
+        settled = true;
+        handleBidResult_(data);
       })
       .catch((err) => {
-        console.error('出價錯誤:', err);
-        alert('網路錯誤，請稍後再試！');
-        // 🌟 網路錯誤時列表不會重新整理,要自己手動把按鈕跟輸入框解鎖,不然會卡住
-        btn.disabled = false;
-        btn.innerText = originalBtnText;
-        input.disabled = false;
+        if (err && err.name === 'AbortError') {
+          gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
+        } else if (!settled) {
+          settled = true;
+          console.error('出價錯誤:', err);
+          alert('網路錯誤，請稍後再試！');
+          resetBidUI_(); // 🌟 網路錯誤時列表不會重新整理,要自己手動把按鈕跟輸入框解鎖,不然會卡住
+        }
+      });
+
+      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON)
+      pollInstrumentedActionResult_('BID', requestStartMs).then(polled => {
+        if (settled) return;
+        if (polled) {
+          settled = true;
+          handleBidResult_(polled);
+        } else if (gasGaveUp) {
+          settled = true;
+          alert('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次出價很可能真的沒有成功,可以放心重試。');
+          resetBidUI_();
+          loadAuctions(); // 🌟 保險起見還是刷新一下拍賣列表,避免玩家看到的是舊資料
+        }
       });
     }
 
@@ -2972,10 +3022,16 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "success") {
+
+      let settled = false;
+      let gasGaveUp = false;
+      const requestStartMs = Date.now();
+
+      // 🌟 處理購買結果的邏輯完全不變(跟原本一樣的成功/失敗/needUnlock/oddsChanged判斷),抽成獨立函式,
+      // 讓「GAS本身回應」跟「Worker輪詢查到的結果」都能共用同一套處理邏輯——因為M欄存的是完整原始回應JSON,
+      // 輪詢查到的data物件跟GAS直接回應的data物件形狀完全一樣,不用另外寫一套簡化版的顯示邏輯。
+      function handleBuyResult_(data) {
+        if (data.status === "success") {
           let successMsg = "✅ 兌換處理完成！";
           if (data.cost !== undefined && data.cost > 0) {
             successMsg += `\n💰 花費：${data.cost} ${data.costCurrencyName || currencyName}`;
@@ -3019,7 +3075,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             successMsg += "\n\n⚠️ 部分里程碑獎勵發放異常,請聯絡管理員補發：\n" + data.milestoneErrors.join("\n");
           }
           alert(successMsg);
-          fetchScoresAndShop(currentUser.id); 
+          fetchScoresAndShop(currentUser.id);
         } else if (data.needUnlock) {
           // 🌟 密碼錯誤,或分類密碼解鎖後接著發現商品自己還有另一層鎖:重新提示一次密碼,輸入後自動重試同一筆購買
           document.getElementById('loading').style.display = 'none';
@@ -3044,13 +3100,51 @@ function fetchScoresAndShop(discordId, callback = null) {
             document.getElementById('dashboard').style.display = 'block';
           }
         }
-      })
-      .catch(err => {
-        alert("網路錯誤，請稍後再試！");
+      }
+      function finishFromGas_(data) {
+        if (settled) return;
+        settled = true;
+        handleBuyResult_(data);
+      }
+      function finishFromPoll_(data) {
+        if (settled) return;
+        settled = true;
+        // 🌟 用輪詢查到的結果之前,先提示一下這是「補救查到的結果」,再套用跟GAS直接回應完全一樣的處理邏輯
+        document.getElementById('loading-text').innerText = "✅ 查到了！這次購買其實有成功處理...";
+        handleBuyResult_(data);
+      }
+      function finishTimeoutNoResult_() {
+        if (settled) return;
+        settled = true;
+        alert('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
         document.getElementById('loading').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
+        fetchScoresAndShop(currentUser.id); // 🌟 保險起見還是刷新一下,避免玩家看到的餘額/商品狀態是舊的
+      }
+
+      // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,回應最快)
+      fetchWithTimeout_(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      .then(res => res.json())
+      .then(data => { if (!settled) finishFromGas_(data); })
+      .catch(err => {
+        if (err && err.name === 'AbortError') {
+          gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
+        } else if (!settled) {
+          settled = true;
+          alert("網路錯誤，請稍後再試！");
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+        }
+      });
+
+      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON)
+      pollInstrumentedActionResult_('BUY', requestStartMs).then(polled => {
+        if (settled) return;
+        if (polled) finishFromPoll_(polled);
+        else if (gasGaveUp) finishTimeoutNoResult_();
       });
     }
+
 
     // ============================================================
     // 🔔 推播通知訂閱管理
