@@ -1643,8 +1643,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="gacha-guide" id="bingo-cards-summary" style="margin-bottom:12px"></div>
       <div class="tbl-wrap tbl-wrap-table">
         <table>
-          <thead><tr><th>玩家</th><th>已標記數量</th><th>連線數</th><th>整卡</th><th>重抽/重開次數</th><th>最後更新</th><th>操作</th></tr></thead>
-          <tbody id="bingo-cards-tbody"><tr><td colspan="7" class="empty">讀取中...</td></tr></tbody>
+          <thead><tr><th>玩家</th><th>已標記數量</th><th>連線數</th><th>整卡</th><th>背包道具</th><th>重抽/重開次數</th><th>最後更新</th><th>操作</th></tr></thead>
+          <tbody id="bingo-cards-tbody"><tr><td colspan="8" class="empty">讀取中...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1658,6 +1658,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-body" style="display:block">
       <div id="bingo-card-detail-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px"></div>
       <div id="bingo-card-detail-linerewards"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 單一玩家背包道具彈窗(可移除道具) -->
+<div class="overlay" id="bingo-backpack-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h3 id="bingo-backpack-modal-title">🎒 背包道具</h3><button class="modal-close" onclick="closeModal('bingo-backpack-modal')">×</button></div>
+    <div class="modal-body" style="display:block;max-height:65vh;overflow-y:auto">
+      <div id="bingo-backpack-list"></div>
     </div>
   </div>
 </div>
@@ -4240,33 +4250,46 @@ async function submitGrantBingoItem() {
 
 async function openBingoCardsModal(activityId, activityName) {
   document.getElementById('bingo-cards-modal-title').textContent = `📋 賓果盤總覽：${activityName}`;
-  document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
+  document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">讀取中...</td></tr>';
   document.getElementById('bingo-cards-summary').textContent = '';
   document.getElementById('bingo-cards-modal').classList.add('open');
 
   const d = await api({ action: 'adminGetBingoCardsForActivity', activityId });
   if (d.status !== 'success') {
-    document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="7" class="empty">載入失敗：${d.message}</td></tr>`;
+    document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="8" class="empty">載入失敗：${d.message}</td></tr>`;
     return;
   }
   bingoCardsData = d.cards;
+  renderBingoCardsTable_();
+}
+
+// 🌟 共用核心:純粹用目前記憶體裡的 bingoCardsData 重新畫表格,不重打API。
+// 移除背包道具之後,只要先同步更新本地的 bingoCardsData,再呼叫這個函式,總覽表格的「背包道具」欄位數字就會馬上跟著更新。
+function renderBingoCardsTable_() {
   if (bingoCardsData.length === 0) {
-    document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="7" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
+    document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
+    document.getElementById('bingo-cards-summary').textContent = '';
     return;
   }
   const fullCount = bingoCardsData.filter(c => c.full).length;
   document.getElementById('bingo-cards-summary').textContent = `共 ${bingoCardsData.length} 位玩家已拿到賓果盤，其中 ${fullCount} 位已完成整卡`;
-  document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => `
+  document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => {
+    const items = c.backpackItems || [];
+    const usableCount = items.filter(it => it.status === 'UNUSED').length;
+    const bpText = items.length === 0 ? '—' : `${usableCount}/${items.length} 可用`;
+    return `
     <tr>
       <td>${c.nickname}</td>
       <td>${c.marked.length} / 25</td>
       <td>${c.linesCount}</td>
       <td>${c.full ? '<span class="status status-ended">🏆 已完成</span>' : '—'}</td>
+      <td>${items.length === 0 ? '—' : `<button class="btn btn-edit" onclick="openBingoBackpackModal(${idx})">🎒 ${bpText}</button>`}</td>
       <td style="font-size:12px">重抽${c.rerollCount} / 重開${c.selfResetCount}</td>
       <td style="font-size:12px">${c.lastUpdated ? new Date(c.lastUpdated).toLocaleString() : ''}</td>
       <td class="cell-actions"><button class="btn btn-edit" onclick="showBingoCardDetail(${idx})">🎰 查看卡片</button></td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 // 🌟 顯示單一玩家的賓果盤具體內容:5x5格子,已標記的用綠色底標示,方便管理員肉眼核對有沒有異常
@@ -4293,6 +4316,74 @@ function showBingoCardDetail(idx) {
   }
   document.getElementById('bingo-card-detail-modal').classList.add('open');
 }
+
+// 🌟 效果類型的中文對照,跟玩家端/後端保持一致
+const BINGO_ITEM_EFFECT_LABELS_ = {
+  PICK_FREE: '免費指定抽', PICK_FREE_RANGE: '免費指定抽(限範圍)',
+  RANDOM_FREE: '免費隨機抽', RANDOM_FREE_RANGE: '免費隨機抽(限範圍)',
+};
+
+// 🌟 顯示某位玩家(bingoCardsData[idx])的完整BINGO道具背包清單,每一項都有「移除」按鈕,
+// 移除前會要求輸入原因(可留空)並二次確認,避免手滑誤刪玩家道具。
+function openBingoBackpackModal(idx) {
+  const c = bingoCardsData[idx];
+  if (!c) return;
+  document.getElementById('bingo-backpack-modal-title').textContent = `🎒 ${c.nickname} 的背包道具`;
+  bingoBackpackModalIdx = idx;
+  renderBingoBackpackList_(idx);
+  document.getElementById('bingo-backpack-modal').classList.add('open');
+}
+
+function renderBingoBackpackList_(idx) {
+  const c = bingoCardsData[idx];
+  const box = document.getElementById('bingo-backpack-list');
+  const items = (c && c.backpackItems) || [];
+  if (items.length === 0) {
+    box.innerHTML = '<div class="empty">這位玩家目前背包裡沒有任何BINGO道具</div>';
+    return;
+  }
+  const statusStyle = { UNUSED: { label: '✅ 未使用', color: '#43B581' }, USED: { label: '☑️ 已使用', color: '#B9BBBE' }, EXPIRED: { label: '⌛ 已過期', color: '#ED4245' } };
+  box.innerHTML = items.map(it => {
+    const st = statusStyle[it.status] || { label: it.status, color: '#B9BBBE' };
+    const effectLabel = BINGO_ITEM_EFFECT_LABELS_[it.effectType] || it.effectType;
+    const rangeText = it.effectParams && it.effectParams.min !== undefined ? `(${it.effectParams.min}~${it.effectParams.max})` : '';
+    const activitiesText = it.applicableActivityIds && it.applicableActivityIds.length > 0
+      ? `限定活動:${it.applicableActivityIds.join('、')}` : '所有活動皆可用';
+    const expiresText = it.expiresAt ? `過期:${new Date(it.expiresAt).toLocaleString()}` : '永不過期';
+    return `<div style="background:#2F3136;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <b>${it.itemName}</b>　<span style="color:${st.color};font-size:12px">${st.label}</span>
+        </div>
+        <button class="btn btn-del" onclick="removeBingoBackpackItem('${c.discordId}','${it.instanceId}',${idx})">🗑️ 移除</button>
+      </div>
+      <div style="font-size:12px;color:#B9BBBE;margin-top:4px">
+        ${effectLabel}${rangeText}　${activitiesText}　${expiresText}
+      </div>
+      <div style="font-size:11px;color:#72767D;margin-top:2px">序號:${it.instanceId}　取得:${it.obtainedAt ? new Date(it.obtainedAt).toLocaleString() : ''}${it.usedAt ? `　使用於:${new Date(it.usedAt).toLocaleString()}` : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+async function removeBingoBackpackItem(targetDiscordId, instanceId, idx) {
+  const c = bingoCardsData[idx];
+  const item = c && c.backpackItems ? c.backpackItems.find(it => it.instanceId === instanceId) : null;
+  const itemName = item ? item.itemName : '這個道具';
+  if (!confirm(`確定要移除玩家「${c ? c.nickname : targetDiscordId}」的「${itemName}」嗎？\n此動作無法復原,但會記錄在歷史紀錄裡。`)) return;
+  const reason = prompt('填寫移除原因(可留空,會記錄在歷史紀錄裡):', '') || '';
+  const d = await api({ action: 'adminRemoveBingoBackpackItem', targetDiscordId, instanceId, reason });
+  if (d.status === 'success') {
+    toast('🗑️ ' + d.message);
+    // 🌟 移除成功的話,直接把本地資料裡的這一項拿掉,背包彈窗、總覽表格的「背包道具」計數都用同一份資料重新渲染,
+    // 不用整個重新打API拉一次列表(道具序號在前端就找得到、後端也已經真的刪除了,本地同步拿掉即可)。
+    if (c && c.backpackItems) c.backpackItems = c.backpackItems.filter(it => it.instanceId !== instanceId);
+    renderBingoBackpackList_(idx);
+    renderBingoCardsTable_();
+  } else {
+    toast('❌ ' + d.message, false);
+  }
+}
+let bingoBackpackModalIdx = null;
 
 function renderBingoActivityTable() {
   const tbody = document.getElementById('bingo-activity-tbody');
