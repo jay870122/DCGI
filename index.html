@@ -947,7 +947,11 @@
       currentBingoActivityId = null;
       loadBingoActivityList();
     }
-    function closeBingo() { document.getElementById('bingo-modal').style.display = 'none'; }
+    function closeBingo() {
+      document.getElementById('bingo-modal').style.display = 'none';
+      // 🌟 彈窗關掉了,畫面上的倒數計時元素跟著消失,計時器沒必要繼續在背景空轉浪費資源
+      if (bingoCountdownIntervalId_) { clearInterval(bingoCountdownIntervalId_); bingoCountdownIntervalId_ = null; }
+    }
 
     // 🌟 第一層畫面:列出目前開放中的BINGO活動,玩家自己選要玩哪一個(可以同時玩好幾個,各自獨立的卡片)。
     // 🌟 這個列表改走 Worker(有快取,讀取比較快),個別賓果卡的狀態(點進某個活動之後)還是走 GAS,確保剛抽完號碼馬上看到最新結果。
@@ -1328,11 +1332,14 @@
           ${backpackItems.map(it => {
             const itMin = it.effectParams && it.effectParams.min !== undefined ? it.effectParams.min : data.numberMin;
             const itMax = it.effectParams && it.effectParams.max !== undefined ? it.effectParams.max : data.numberMax;
+            // 🌟 只有「還沒過期、還沒用過」而且真的有設定過期時間的道具才顯示倒數計時,永不過期(expiresAt為null)的不用顯示
+            const countdownHtml = (it.status === 'UNUSED' && it.expiresAt) ? `<span class="bingo-item-countdown" data-expires="${it.expiresAt}" style="color:#F0B232;font-size:11px"></span>` : '';
             return `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px;${it.status !== 'UNUSED' ? 'opacity:0.5' : ''}">
               <span style="display:flex;align-items:center;gap:6px">
                 ${it.status === 'UNUSED' ? `<input type="checkbox" class="bingo-item-checkbox" data-instance="${it.instanceId}" data-effect="${it.effectType}" data-min="${itMin}" data-max="${itMax}" data-name="${it.itemName.replace(/"/g,'&quot;')}" onchange="updateBingoItemSelectedCount()">` : ''}
                 <span>${it.itemName}${(it.effectType === 'PICK_FREE_RANGE' || it.effectType === 'RANDOM_FREE_RANGE') && it.effectParams ? ` <span style="color:#72767D;font-size:11px">(限${it.effectParams.min}~${it.effectParams.max})</span>` : ''}${it.effectType && it.effectType.indexOf('RANDOM') === 0 ? ' <span style="color:#72767D;font-size:11px">🎲隨機</span>' : ''}</span>
+                ${countdownHtml}
               </span>
               <span style="display:flex;align-items:center;gap:8px">
                 ${statusLabel[it.status] || ''}
@@ -1344,6 +1351,46 @@
         </div>` : '';
 
       document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + backpackHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
+      startBingoItemCountdowns_(); // 🌟 畫面重繪完成後才啟動倒數計時,不然這時候DOM裡的.bingo-item-countdown元素還不存在
+    }
+
+    // 🌟 背包道具過期倒數計時:每秒更新一次畫面上所有帶data-expires屬性的道具倒數文字。
+    // 🌟🔧 每次loadBingoStatus()都會整個重繪bingo-body-container、把舊的倒數計時元素整個換掉,
+    // 所以每次重繪後都要先清掉舊的setInterval再重新啟動一個,不然背景會一直疊加越來越多個計時器,
+    // 越開越多次BINGO彈窗就會越跑越卡(而且舊計時器抓到的是已經被換掉、不在畫面上的DOM節點,毫無意義)。
+    let bingoCountdownIntervalId_ = null;
+    function formatBingoCountdown_(ms) {
+      if (ms <= 0) return '已過期';
+      const totalSec = Math.floor(ms / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      if (days > 0) return `⏳ ${days}天${hours}小時後過期`;
+      if (hours > 0) return `⏳ ${hours}小時${mins}分後過期`;
+      if (mins > 0) return `⏳ ${mins}分${secs}秒後過期`;
+      return `⏳ ${secs}秒後過期`;
+    }
+    function updateBingoItemCountdowns_() {
+      const els = document.querySelectorAll('.bingo-item-countdown[data-expires]');
+      if (els.length === 0) { clearInterval(bingoCountdownIntervalId_); bingoCountdownIntervalId_ = null; return; } // 🌟 畫面上已經沒有任何倒數計時元素了(例如切走BINGO分頁),不用再繼續跑計時器浪費資源
+      let anyJustExpired = false;
+      els.forEach(el => {
+        const expiresMs = new Date(el.dataset.expires).getTime();
+        const remainMs = expiresMs - Date.now();
+        el.textContent = formatBingoCountdown_(remainMs);
+        if (remainMs <= 0) { el.style.color = '#ED4245'; anyJustExpired = true; }
+      });
+      // 🌟 有道具倒數歸零了(代表剛好過期),自動重新整理一次背包狀態,讓「可使用」按鈕正確消失、狀態改標成「已過期」,
+      // 不用等玩家自己手動重新整理才會發現這張道具其實已經不能用了
+      if (anyJustExpired && !bingoActionInFlight) loadBingoStatus();
+    }
+    function startBingoItemCountdowns_() {
+      if (bingoCountdownIntervalId_) { clearInterval(bingoCountdownIntervalId_); bingoCountdownIntervalId_ = null; }
+      updateBingoItemCountdowns_(); // 🌟 先立即更新一次,不用等第一個1秒過去才顯示文字(不然畫面剛渲染出來的瞬間會是空白)
+      if (document.querySelectorAll('.bingo-item-countdown[data-expires]').length > 0) {
+        bingoCountdownIntervalId_ = setInterval(updateBingoItemCountdowns_, 1000);
+      }
     }
 
     // 🌟 讀取目前選的付款方式('PRIMARY'/'ALT'),沒有替代貨幣選擇器的話(活動沒開放)就一律用主要貨幣
