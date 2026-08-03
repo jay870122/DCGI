@@ -1352,39 +1352,85 @@
       return sel ? sel.value : 'PRIMARY';
     }
 
+    // 🌟 重抽連線獎勵:跟「使用道具」「買號碼」一樣採用「賽跑」架構——GAS本身的回應 vs Worker主動輪詢歷史紀錄,
+    // 哪條路線先給出確定結果就用哪個,避免GAS逾時、玩家其實已經扣款重抽成功,卻只看到一個模糊的失敗訊息。
     function rerollBingoLineRewardsAction() {
       const btn = document.getElementById('bingo-reroll-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-      fetch(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
-      .then(data => {
+
+      let settled = false, gasGaveUp = false;
+      const requestStartMs = Date.now();
+      function finishError_(msg) { if (settled) return; settled = true; btn.disabled = false; btn.textContent = originalText; alert(msg); }
+      function finishSuccessFromGas_(data) {
+        if (settled) return; settled = true;
         btn.disabled = false; btn.textContent = originalText;
-        if (data.status !== 'success') { alert('❌ ' + data.message); return; }
         alert(data.wasFree ? '🔄 已免費重抽連線獎勵！' : `🔄 已花費 ${data.cost} ${data.currencyDisplayName} 重抽連線獎勵！`);
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id);
+      }
+      function finishSuccessFromPoll_(data) {
+        if (settled) return;
+        finishSuccessFromGas_(data); // 🌟 輪詢查到的完整結構化結果,直接沿用跟GAS直接回應完全一樣的處理邏輯(讓finishSuccessFromGas_自己設settled,這裡不要先設)
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      .then(res => res.json())
+      .then(data => {
+        if (settled) return;
+        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+        finishSuccessFromGas_(data);
       })
-      .catch(() => { btn.disabled = false; btn.textContent = originalText; alert('❌ 連線失敗，請稍後再試'); });
+      .catch(err => {
+        if (err && err.name === 'AbortError') gasGaveUp = true;
+        else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+      });
+
+      pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs).then(polled => {
+        if (settled) return;
+        if (polled) finishSuccessFromPoll_(polled);
+        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      });
     }
 
+    // 🌟 重開新盤:同樣採用賽跑架構,理由跟重抽連線一致
     function resetOwnBingoCardAction() {
       if (!confirm('確定要重開新盤嗎？目前的標記進度、卡片數字、連線獎勵分配都會清空換成全新的一張，此動作無法復原！')) return;
       const btn = document.getElementById('bingo-newboard-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-      fetch(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.status !== 'success') {
-          btn.disabled = false; btn.textContent = originalText;
-          alert('❌ ' + data.message);
-          return;
-        }
+
+      let settled = false, gasGaveUp = false;
+      const requestStartMs = Date.now();
+      function finishError_(msg) { if (settled) return; settled = true; btn.disabled = false; btn.textContent = originalText; alert(msg); }
+      function finishSuccessFromGas_(data) {
+        if (settled) return; settled = true;
+        btn.disabled = false; btn.textContent = originalText;
         alert(data.wasFree ? '🆕 已免費重開新盤！' : `🆕 已花費 ${data.cost} ${data.currencyDisplayName} 重開新盤！`);
         lastDrawnNumbers = []; // 🌟 卡片已經換新的了,舊的金色標示沒有意義,清空
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id);
+      }
+      function finishSuccessFromPoll_(data) {
+        if (settled) return;
+        finishSuccessFromGas_(data); // 🌟 輪詢查到的完整結構化結果,直接沿用跟GAS直接回應完全一樣的處理邏輯(含清空lastDrawnNumbers,讓finishSuccessFromGas_自己設settled)
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      .then(res => res.json())
+      .then(data => {
+        if (settled) return;
+        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+        finishSuccessFromGas_(data);
       })
-      .catch(() => { btn.disabled = false; btn.textContent = originalText; alert('❌ 連線失敗，請稍後再試'); });
+      .catch(err => {
+        if (err && err.name === 'AbortError') gasGaveUp = true;
+        else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+      });
+
+      pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs).then(polled => {
+        if (settled) return;
+        if (polled) finishSuccessFromPoll_(polled);
+        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      });
     }
 
     let bingoActionInFlight = false; // 🌟 避免玩家連續快速點擊抽號按鈕,造成同一次操作被送出好幾次請求
@@ -1440,14 +1486,10 @@
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id); // 🌟 花了錢、可能拿了獎勵,順便刷新一下分數欄
       }
-      function finishSuccessFromPoll_(detail) {
+      function finishSuccessFromPoll_(data) {
         if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        resetButtons_();
-        alert(`✅ 查到了！這次抽號其實有成功執行：\n\n${detail}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
-        loadBingoStatus();
-        fetchScoresAndShop(currentUser.id);
+        // 🌟 用輪詢查到的完整結構化結果,直接沿用跟GAS直接回應完全一樣的處理邏輯(不再只是文字摘要,讓finishSuccessFromGas_自己設settled)
+        finishSuccessFromGas_(data);
       }
 
       // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,有結構化的完整結果)
@@ -1466,11 +1508,11 @@
         }
       });
 
-      // 🌟 路線B:用Worker主動輪詢歷史紀錄
-      pollBingoItemUseResult_(requestStartMs).then(result => {
+      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制
+      pollInstrumentedActionResult_('buyBingoNumber', requestStartMs).then(polled => {
         if (settled) return;
-        if (result) {
-          finishSuccessFromPoll_(result.detail);
+        if (polled) {
+          finishSuccessFromPoll_(polled);
         } else if (gasGaveUp) {
           finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
         }
@@ -1490,30 +1532,20 @@
     // 🌟🔧 核心設計:「使用道具」送出後,不是死等GAS本身的HTTP回應——GAS Web App沒有真正的請求佇列,
     // 同一分類動作要靠應用層輪詢式鎖互相排隊等待,回應可能拖很久甚至逾時,但伺服器端往往還是有把事情做完
     // (道具真的被消耗掉、賓果卡狀態也真的被更新了),只是「回應」沒送達而已。
-    // 這裡改成讓GAS的請求跟「用Worker主動輪詢歷史紀錄」兩條路線同時進行——Worker讀取速度快、沒有GAS那種
+    // 這裡改成讓GAS的請求跟「用Worker主動輪詢兌換紀錄表M欄」兩條路線同時進行——Worker讀取速度快、沒有GAS那種
     // 冷啟動/執行佇列開銷,可以每隔一小段時間就快速確認一次「這次操作有沒有成功完成的紀錄出現」,哪一條路線
     // 先給出確定結果就用哪個,不用死等比較慢的那一條。
-    // 🌟🔧 效能微調:根據實測結果,輪詢大部分情況都比GAS本身的回應快,所以把第一次查詢延遲、以及後續查詢間隔
-    // 都進一步縮短到0.6秒,讓輪詢能更積極地在GAS回應之前就查到結果。這裡刻意保留GAS回應這條路線繼續監聽
-    // (不是完全不等GAS),是因為GAS的鎖定是在「驗證檢查之前」就先卡住,如果操作真的失敗(道具已用過/數字超出
-    // 範圍/系統忙碌等),失敗訊息也會被同一個鎖延遲,查歷史紀錄查不到「失敗原因」(失敗的話根本不會寫進歷史紀錄),
-    // 完全不等GAS的話,遇到真正失敗的情況只能死等整個逾時視窗跑完才顯示籠統訊息,會失去明確的失敗原因說明。
-    async function pollBingoItemUseResult_(sinceMs) {
-      await sleep_(600); // 🌟 只留一點點緩衝,不用一開始就狂打Worker,但也不用等太久
-      for (let i = 0; i < 40; i++) { // 🌟 之後每0.6秒查一次,總共約40次,搭配前面0.6秒延遲,輪詢視窗略長於GAS本身的25秒逾時上限
-        try {
-          const res = await fetch(`${DASHBOARD_WORKER_URL}?action=bingoItemUseCheck&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(getAccessToken())}`);
-          const data = await res.json();
-          if (data.status === 'success' && data.found) return data;
-        } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
-        await sleep_(600);
-      }
-      return null; // 🌟 輪詢視窗內都沒查到,交還給呼叫端判斷(通常代表這次操作真的沒有成功)
-    }
+    // 🌟🔧 這裡刻意保留GAS回應這條路線繼續監聽(不是完全不等GAS),是因為GAS的鎖定是在「驗證檢查之前」就先卡住,
+    // 如果操作真的失敗(道具已用過/數字超出範圍/系統忙碌等),失敗訊息也會被同一個鎖延遲,查歷史紀錄查不到
+    // 「失敗原因」(失敗的話根本不會寫進歷史紀錄),完全不等GAS的話,遇到真正失敗的情況只能死等整個逾時視窗
+    // 跑完才顯示籠統訊息,會失去明確的失敗原因說明。
+    // 🌟🔧 全部BINGO動作(使用道具/批次使用道具/隨機或指定抽號/重抽連線/重開盤)現在統一改用下面的通用版
+    // pollInstrumentedActionResult_,跟商品購買/拍賣出價共用同一套機制(GAS端也統一用instrumentedAction_
+    // 包裝,完整回應JSON存進「兌換紀錄」表M欄),不再各自維護一套專屬的輪詢邏輯。
 
-    // 🌟 通用版本的輪詢:給商品購買(BUY)/拍賣出價(BID)等透過 instrumentedAction_ 包裝的動作使用。
-    // 跟上面的 pollBingoItemUseResult_ 不同的地方在於:這裡查的是「兌換紀錄」表M欄存的完整原始回應JSON,
-    // 找到的話直接回傳「解析好的data物件」,呼叫端可以直接當成GAS本身回應的data使用,不用另外處理。
+    // 🌟 通用版本的輪詢:給商品購買(BUY)/拍賣出價(BID)/BINGO各項操作等透過 instrumentedAction_ 包裝的動作使用。
+    // 查的是「兌換紀錄」表M欄存的完整原始回應JSON,找到的話直接回傳「解析好的data物件」,呼叫端可以直接當成
+    // GAS本身回應的data使用,不用另外處理。
     async function pollInstrumentedActionResult_(actionType, sinceMs) {
       await sleep_(600);
       for (let i = 0; i < 40; i++) {
@@ -1573,23 +1605,27 @@
         alert(msg);
       }
 
+      function buildResultMsg_(data) {
+        let msg = isRandom ? `🎫 使用道具成功！隨機抽出了數字 ${data.number}\n` : `🎫 使用道具成功！指定了數字 ${data.number}\n`;
+        if (data.alreadyMarked) msg += '這個數字之前就已經標記過了。';
+        else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
+        else {
+          msg += '✅ 命中卡片上的號碼！';
+          if (data.newLines && data.newLines.length > 0) msg += `\n🎉 有新連成的線！`;
+          if (data.fullCompleted) msg += `\n🏆 恭喜完成整張賓果卡！`;
+          if (data.rewardTexts && data.rewardTexts.length > 0) msg += `\n\n${data.rewardTexts.join('\n')}`;
+        }
+        return msg;
+      }
+
       // 🌟 路線A:GAS本身的回應(正常情況下,大多數時候會走這條、而且是最準確的,因為有結構化的完整結果)
       fetchWithTimeout_(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
         .then(res => res.json())
         .then(data => {
           if (settled) return; // 🌟 輪詢那邊已經先給出結果了,這裡不用再處理一次
           if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          let msg = isRandom ? `🎫 使用道具成功！隨機抽出了數字 ${data.number}\n` : `🎫 使用道具成功！指定了數字 ${data.number}\n`;
-          if (data.alreadyMarked) msg += '這個數字之前就已經標記過了。';
-          else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
-          else {
-            msg += '✅ 命中卡片上的號碼！';
-            if (data.newLines && data.newLines.length > 0) msg += `\n🎉 有新連成的線！`;
-            if (data.fullCompleted) msg += `\n🏆 恭喜完成整張賓果卡！`;
-            if (data.rewardTexts && data.rewardTexts.length > 0) msg += `\n\n${data.rewardTexts.join('\n')}`;
-          }
           lastDrawnNumbers = (data.hit && !data.alreadyMarked) ? [data.number] : [];
-          finishSuccess_(msg);
+          finishSuccess_(buildResultMsg_(data));
         })
         .catch((err) => {
           if (err && err.name === 'AbortError') {
@@ -1599,11 +1635,13 @@
           }
         });
 
-      // 🌟 路線B:用Worker主動輪詢歷史紀錄——如果GAS那條路線逾時了,這條路線很可能會先查到「其實已經成功了」的結果
-      pollBingoItemUseResult_(requestStartMs).then(result => {
+      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制,
+      // 拿到的是完整結構化結果,可以直接沿用跟GAS直接回應完全一樣的訊息組裝邏輯(不再只是文字摘要)
+      pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs).then(polled => {
         if (settled) return;
-        if (result) {
-          finishSuccess_(`✅ 查到了！這次操作其實有成功執行：\n\n${result.detail}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
+        if (polled) {
+          lastDrawnNumbers = (polled.hit && !polled.alreadyMarked) ? [polled.number] : [];
+          finishSuccess_(`✅ 查到了！這次操作其實有成功執行：\n\n${buildResultMsg_(polled)}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
         } else if (gasGaveUp) {
           // 🌟 GAS已經逾時放棄了,輪詢視窗內也沒查到成功紀錄——這次操作很可能真的沒有成功
           finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
@@ -1718,12 +1756,11 @@
         alert(summary);
         loadBingoStatus(); // 🌟 整個背包區塊會重新渲染,所有勾選框/按鈕狀態自然回歸乾淨
       }
-      function finishSuccessFromPoll_(detail) {
+      function finishSuccessFromPoll_(data) {
         if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        alert(`✅ 查到了！這批道具的使用其實有成功執行：\n\n${detail}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
-        loadBingoStatus();
+        // 🌟 輪詢查到的完整結構化結果(跟GAS直接回應的results陣列格式完全一樣),直接沿用同一套彙總處理邏輯——
+        // 不要在這裡先設settled=true,讓finishSuccessFromGas_自己處理那個判斷,不然它開頭的if(settled)return會直接把這次呼叫擋掉。
+        finishSuccessFromGas_(data);
       }
 
       // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,有結構化的完整結果)
@@ -1742,11 +1779,11 @@
           }
         });
 
-      // 🌟 路線B:用Worker主動輪詢歷史紀錄(批次的歷史紀錄detail裡會列出每張道具各自的號碼)
-      pollBingoItemUseResult_(requestStartMs).then(result => {
+      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制
+      pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs).then(polled => {
         if (settled) return;
-        if (result) {
-          finishSuccessFromPoll_(result.detail);
+        if (polled) {
+          finishSuccessFromPoll_(polled);
         } else if (gasGaveUp) {
           finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
         }
