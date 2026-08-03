@@ -1822,6 +1822,27 @@ async function pollAdminActionResult_(discordId, actionType, sinceMs) {
   return null;
 }
 
+// 🌟 後台純讀取功能的通用Worker呼叫:優先打Worker(繞開GAS Web App平台本身的派送延遲),
+// Worker連線失敗或回應錯誤的話,自動退回原本走GAS的api()呼叫,不會整個讀不到資料。
+// workerAction: Worker端對應的action名稱; extraParams: 額外要帶的查詢參數(例如activityId/auctionId);
+// gasParams: Worker失敗時,退回api()呼叫要用的完整參數物件(GAS端的action名稱通常跟Worker端不同)。
+async function apiWorkerRead(workerAction, extraParams, gasParams) {
+  try {
+    const qs = new URLSearchParams({
+      action: workerAction,
+      discordId: (ME && ME.id) || '',
+      accessToken: localStorage.getItem('admin_dc_access_token') || '',
+      ...(extraParams || {}),
+    });
+    const res = await fetch(`${DASHBOARD_WORKER_URL}?${qs}`);
+    const d = await res.json();
+    if (d.status !== 'success') throw new Error(d.message || 'Worker回應失敗');
+    return d;
+  } catch (e) {
+    return await api(gasParams); // 🌟 Worker那條路線失敗,退回GAS
+  }
+}
+
 // ── Auth ──
 function loginWithDiscord() {
   const st = Math.random().toString(36).slice(2);
@@ -1928,7 +1949,7 @@ async function api(params) {
 
 // ── Meta ──
 async function loadMeta() {
-  const d = await api({action:'adminGetMeta'});
+  const d = await apiWorkerRead('adminMeta', {}, {action:'adminGetMeta'});
   if (d.status !== 'success') return;
   ROLES = {};
   d.roles.forEach(r => { ROLES[r.id] = r.name; });
@@ -2426,7 +2447,16 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // ── Shop ──
 async function loadShopItems() {
   document.getElementById('shop-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
-  const d = await api({action:'adminGetShopItems'});
+  // 🌟 這是純讀取,直接打Worker,不透過GAS(繞開GAS Web App平台本身「執行完成→回應送達」之間已知的額外延遲)。
+  // Worker連線失敗的話(例如剛部署還沒生效、或網路問題),退回原本走GAS的api()呼叫,不會整個空白讀不到。
+  let d;
+  try {
+    const res = await fetch(`${DASHBOARD_WORKER_URL}?action=adminShopItems&discordId=${(ME && ME.id) || ''}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
+    d = await res.json();
+    if (d.status !== 'success') throw new Error(d.message || 'Worker回應失敗');
+  } catch (e) {
+    d = await api({action:'adminGetShopItems'}); // 🌟 Worker那條路線失敗,退回GAS
+  }
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   shopItems = d.items;
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
@@ -2690,7 +2720,7 @@ async function showGamblingBets(itemId, name) {
   document.getElementById('gambling-bets-modal').classList.add('open');
   const box = document.getElementById('gambling-bets-container');
   box.innerHTML = '讀取中...';
-  const d = await api({action:'adminGetGamblingBets', itemId});
+  const d = await apiWorkerRead('adminGamblingBets', { itemId }, {action:'adminGetGamblingBets', itemId});
   if (d.status !== 'success') { box.innerHTML = `<span style="color:var(--red)">讀取失敗:${d.message}</span>`; return; }
   if (!d.list || d.list.length === 0) { box.innerHTML = '目前還沒有人下注'; return; }
 
@@ -2887,7 +2917,7 @@ async function duplicateShopItem(id) {
 // ── Auction ──
 async function loadAuctionItems() {
   document.getElementById('auction-tbody').innerHTML = '<tr><td colspan="9" class="empty">讀取中...</td></tr>';
-  const d = await api({action:'adminGetAuctions'});
+  const d = await apiWorkerRead('adminAuctionsList', {}, {action:'adminGetAuctions'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   auctionItems = d.auctions;
   document.getElementById('auction-count').textContent = auctionItems.length + ' 場';
@@ -3636,7 +3666,7 @@ async function openSortSettings() {
 }
 
 async function loadCategoryOrder() {
-  const d = await api({ action: 'adminGetCategoryOrder' });
+  const d = await apiWorkerRead('adminCategoryOrder', {}, { action: 'adminGetCategoryOrder' });
   if (d.status !== 'success') { toast('載入排序失敗: ' + d.message, false); return; }
   categoryOrderData.shop = (d.shopCategories || []).slice();
   categoryOrderData.auction = (d.auctionCategories || []).slice();
@@ -3790,7 +3820,7 @@ async function saveAuctionOrder() {
 // ── 密碼鎖定管理:分類鎖定 ──
 let categoryLocksList = [];
 async function loadCategoryLocks() {
-  const d = await api({ action: 'adminGetCategoryLocks' });
+  const d = await apiWorkerRead('adminCategoryLocks', {}, { action: 'adminGetCategoryLocks' });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   categoryLocksList = d.locks || [];
   renderCategoryLockList();
@@ -3881,7 +3911,7 @@ async function clearCategoryLock(category) {
 
 // ── 密碼鎖定管理:解鎖序號庫 ──
 async function loadUnlockCodes() {
-  const d = await api({ action: 'adminGetUnlockCodes' });
+  const d = await apiWorkerRead('adminUnlockCodes', {}, { action: 'adminGetUnlockCodes' });
   const tbody = document.getElementById('unlock-codes-tbody');
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   const codes = d.codes || [];
@@ -3912,7 +3942,7 @@ async function loadHistory() {
   const q = document.getElementById('hist-search').value;
   const filterDiscordId = document.getElementById('hist-discordid').value.trim();
   const gachaOnly = document.getElementById('hist-gacha-only').checked;
-  const d = await api({ action: 'adminGetHistory', q, filterDiscordId, gachaOnly });
+  const d = await apiWorkerRead('adminHistorySearch', { q, filterDiscordId, gachaOnly }, { action: 'adminGetHistory', q, filterDiscordId, gachaOnly });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
   const tbody = document.getElementById('hist-tbody');
@@ -3941,7 +3971,7 @@ async function loadHistory() {
 
 // ── 序號庫管理(購買/抽獎發放專屬序號用) ──
 async function loadRewardKeys() {
-  const d = await api({ action: 'adminGetRewardKeys' });
+  const d = await apiWorkerRead('adminRewardKeys', {}, { action: 'adminGetRewardKeys' });
   const tbody = document.getElementById('reward-keys-tbody');
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   const keys = d.keys || [];
@@ -4022,7 +4052,7 @@ let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動�
 
 async function loadPlayerCurrency() {
   document.getElementById('pc-tbody').innerHTML = '<tr><td colspan="10" class="empty">讀取中...</td></tr>';
-  const d = await api({action:'adminGetAllPlayersCurrency'});
+  const d = await apiWorkerRead('adminPlayersCurrency', {}, {action:'adminGetAllPlayersCurrency'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   pcPlayers = d.players;
   pcCurrencyFields = d.currencyFields; // 🌟 給批次調整選單用,含「幻彩水晶(總獲得+可用)」合併選項
@@ -4087,7 +4117,7 @@ async function openAdjustPanel() {
   document.getElementById('adjust-currency-modal').classList.add('open');
 
   // 🌟 抓序號庫摘要(名稱+剩餘可用數),給序號下拉選單用
-  const d = await api({action:'adminGetKeyPoolSummary'});
+  const d = await apiWorkerRead('adminKeyPoolSummary', {}, {action:'adminGetKeyPoolSummary'});
   pcKeyPools = (d.status === 'success') ? d.pools : [];
 }
 
@@ -4248,7 +4278,7 @@ let bingoActivities = [];
 let bingoActionTargetId = null; // 🌟 目前「發放序號/重置」彈窗是針對哪個活動ID
 
 async function loadBingoConfig() {
-  const d = await api({action:'adminGetBingoActivities'});
+  const d = await apiWorkerRead('adminBingoActivities', {}, {action:'adminGetBingoActivities'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   bingoActivities = d.activities;
   renderBingoActivityTable();
@@ -4337,7 +4367,7 @@ async function openBingoCardsModal(activityId, activityName) {
   document.getElementById('bingo-cards-summary').textContent = '';
   document.getElementById('bingo-cards-modal').classList.add('open');
 
-  const d = await api({ action: 'adminGetBingoCardsForActivity', activityId });
+  const d = await apiWorkerRead('adminBingoCards', { activityId }, { action: 'adminGetBingoCardsForActivity', activityId });
   if (d.status !== 'success') {
     document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="8" class="empty">載入失敗：${d.message}</td></tr>`;
     return;
@@ -4680,7 +4710,7 @@ async function savePushFirstReward() {
 let pushSubscriberList = []; // 🌟 記住目前的訂閱名單,全選功能要用
 
 async function loadPushSubscribers() {
-  const d = await api({ action: 'adminGetPushSubscribers' });
+  const d = await apiWorkerRead('adminPushSubscribers', {}, { action: 'adminGetPushSubscribers' });
   const tbody = document.getElementById('push-subscriber-tbody');
   const countEl = document.getElementById('push-subscriber-count');
   if (d.status !== 'success') { tbody.innerHTML = `<tr><td colspan="5" class="empty">載入失敗: ${d.message}</td></tr>`; return; }
@@ -4742,7 +4772,7 @@ async function sendPushToSelected() {
 }
 
 async function loadPushHistory() {
-  const d = await api({ action: 'adminGetPushHistory' });
+  const d = await apiWorkerRead('adminPushHistory', {}, { action: 'adminGetPushHistory' });
   const tbody = document.getElementById('push-history-tbody');
   if (d.status !== 'success') { tbody.innerHTML = `<tr><td colspan="7" class="empty">載入失敗: ${d.message}</td></tr>`; return; }
   if (d.history.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty">還沒有發送過任何推播</td></tr>'; return; }
@@ -4785,7 +4815,7 @@ function reusePushHistoryItem(idx) {
 }
 
 async function loadPushSchedules() {
-  const d = await api({ action: 'adminGetPushSchedules' });
+  const d = await apiWorkerRead('adminPushSchedules', {}, { action: 'adminGetPushSchedules' });
   if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
   pushSchedules = d.schedules;
   renderPushScheduleTable();
@@ -4891,7 +4921,7 @@ async function deletePushSchedule(scheduleId, title) {
 async function loadAdminUsers() {
   const el = document.getElementById('admin-users-list');
   el.innerHTML = '<div class="empty">讀取中...</div>';
-  const d = await api({ action: 'adminGetAdminList' });
+  const d = await apiWorkerRead('adminList', {}, { action: 'adminGetAdminList' });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   adminUsersCanManage = !!d.canManage;
   document.getElementById('admin-users-add-box').style.display = adminUsersCanManage ? '' : 'none';
@@ -4952,7 +4982,7 @@ async function loadAuctionBids() {
   const tbody = document.getElementById('bids-tbody');
   const refreshLabel = document.getElementById('bids-last-refresh');
   if (!auctionId) { tbody.innerHTML = '<tr><td colspan="5" class="empty">請先選擇一場拍賣</td></tr>'; if (refreshLabel) refreshLabel.textContent = ''; return; }
-  const d = await api({ action: 'adminGetAuctionBids', auctionId });
+  const d = await apiWorkerRead('adminAuctionBids', { auctionId }, { action: 'adminGetAuctionBids', auctionId });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
   const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>' };
