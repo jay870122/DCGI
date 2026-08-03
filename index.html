@@ -1312,10 +1312,12 @@
       // 🌟 道具背包:只顯示適用這個活動的道具(後端已經先過濾好了),未使用且沒過期的可以點擊使用,
       // 已使用/已過期的用灰色顯示,方便玩家一眼看出手上還有什麼牌可以打。
       // 🌟 已使用的道具直接從清單濾掉,不要只是灰顯——用過的東西留在畫面上沒有意義,只會讓背包看起來越來越亂。
-      // 已過期但還沒用過的維持顯示(灰顯即可),讓玩家知道自己「有一張沒用到就過期了」的道具存在過。
+      // 已過期但還沒用過的維持顯示(灰顯即可),讓玩家知道自己「有一張沒用到就過期了」的道具存在過,
+      // 同時提供勾選清除的功能,不想留著佔畫面的話可以自己清掉。
       const backpackItems = (data.backpackItems || []).filter(it => it.status !== 'USED');
       const statusLabel = { UNUSED: '<span style="color:#43B581">✅ 可使用</span>', EXPIRED: '<span style="color:#ED4245">已過期</span>' };
       const unusedCount = backpackItems.filter(it => it.status === 'UNUSED').length;
+      const expiredCount = backpackItems.filter(it => it.status === 'EXPIRED').length;
       // 🌟 超過1張可用道具才顯示「勾選批次使用」的控制列,只有1張的話直接用單張的「使用」按鈕就好,不用多此一舉
       const batchControlsHtml = unusedCount > 1 ? `
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
@@ -1325,10 +1327,20 @@
             ✅ 批次使用已勾選(<span id="bingo-item-selected-count">0</span>)
           </button>
         </div>` : '';
+      // 🌟 有過期道具才顯示「清除已過期」的控制列,平常沒有過期道具的話不用多顯示這排佔空間
+      const expiredControlsHtml = expiredCount > 0 ? `
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <input type="checkbox" id="bingo-select-all-expired-checkbox" onchange="toggleAllExpiredBingoItemCheckboxes(this.checked)">
+          <label for="bingo-select-all-expired-checkbox" style="font-size:12px;color:#B9BBBE;cursor:pointer">全選已過期</label>
+          <button class="btn-action" id="bingo-clear-expired-btn" style="padding:3px 10px;font-size:12px;background-color:#ED4245;margin-left:auto" onclick="clearExpiredBingoItems()" disabled>
+            🗑️ 清除已勾選(<span id="bingo-expired-selected-count">0</span>)
+          </button>
+        </div>` : '';
       const backpackHtml = backpackItems.length > 0 ? `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px;margin-bottom:10px">
           <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🎒 我的道具</div>
           ${batchControlsHtml}
+          ${expiredControlsHtml}
           ${backpackItems.map(it => {
             const itMin = it.effectParams && it.effectParams.min !== undefined ? it.effectParams.min : data.numberMin;
             const itMax = it.effectParams && it.effectParams.max !== undefined ? it.effectParams.max : data.numberMax;
@@ -1338,6 +1350,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px;${it.status !== 'UNUSED' ? 'opacity:0.5' : ''}">
               <span style="display:flex;align-items:center;gap:6px">
                 ${it.status === 'UNUSED' ? `<input type="checkbox" class="bingo-item-checkbox" data-instance="${it.instanceId}" data-effect="${it.effectType}" data-min="${itMin}" data-max="${itMax}" data-name="${it.itemName.replace(/"/g,'&quot;')}" onchange="updateBingoItemSelectedCount()">` : ''}
+                ${it.status === 'EXPIRED' ? `<input type="checkbox" class="bingo-expired-item-checkbox" data-instance="${it.instanceId}" onchange="updateExpiredBingoItemSelectedCount()">` : ''}
                 <span>${it.itemName}${(it.effectType === 'PICK_FREE_RANGE' || it.effectType === 'RANDOM_FREE_RANGE') && it.effectParams ? ` <span style="color:#72767D;font-size:11px">(限${it.effectParams.min}~${it.effectParams.max})</span>` : ''}${it.effectType && it.effectType.indexOf('RANDOM') === 0 ? ' <span style="color:#72767D;font-size:11px">🎲隨機</span>' : ''}</span>
                 ${countdownHtml}
               </span>
@@ -1713,6 +1726,85 @@
     function toggleAllBingoItemCheckboxes(checked) {
       document.querySelectorAll('.bingo-item-checkbox').forEach(cb => { cb.checked = checked; });
       updateBingoItemSelectedCount();
+    }
+
+    // 🌟 過期道具的勾選/全選邏輯,跟上面「批次使用」那組是分開獨立的一套(不同的checkbox class、不同的按鈕),
+    // 因為一個道具同一時間只會是UNUSED或EXPIRED其中一種狀態,兩組checkbox不會同時出現在同一張道具上。
+    function updateExpiredBingoItemSelectedCount() {
+      const checked = document.querySelectorAll('.bingo-expired-item-checkbox:checked');
+      const countEl = document.getElementById('bingo-expired-selected-count');
+      if (countEl) countEl.textContent = checked.length;
+      const clearBtn = document.getElementById('bingo-clear-expired-btn');
+      if (clearBtn) clearBtn.disabled = checked.length === 0;
+      const allCbs = document.querySelectorAll('.bingo-expired-item-checkbox');
+      const selectAllCb = document.getElementById('bingo-select-all-expired-checkbox');
+      if (selectAllCb) selectAllCb.checked = allCbs.length > 0 && checked.length === allCbs.length;
+    }
+
+    function toggleAllExpiredBingoItemCheckboxes(checked) {
+      document.querySelectorAll('.bingo-expired-item-checkbox').forEach(cb => { cb.checked = checked; });
+      updateExpiredBingoItemSelectedCount();
+    }
+
+    // 🌟 清除已勾選的過期道具:跟其他BINGO動作一樣套用賽跑架構(GAS回應 vs Worker輪詢兌換紀錄表M欄),
+    // 誰先給出確定結果就用哪個,避免GAS回應慢的時候玩家以為沒清成功又重複點擊。
+    function clearExpiredBingoItems() {
+      if (bingoActionInFlight) return;
+      const checked = Array.from(document.querySelectorAll('.bingo-expired-item-checkbox:checked'));
+      if (checked.length === 0) return;
+      const instanceIds = checked.map(cb => cb.dataset.instance);
+      if (!confirm(`確定要清除這 ${instanceIds.length} 個已過期的道具嗎？此動作無法復原。`)) return;
+
+      bingoActionInFlight = true;
+      const clearBtn = document.getElementById('bingo-clear-expired-btn');
+      const selectAllCb = document.getElementById('bingo-select-all-expired-checkbox');
+      const originalBtnText = clearBtn ? clearBtn.innerHTML : '';
+      if (clearBtn) { clearBtn.disabled = true; clearBtn.textContent = '⏳ 清除中...'; }
+      if (selectAllCb) selectAllCb.disabled = true;
+      document.querySelectorAll('.bingo-expired-item-checkbox').forEach(cb => { cb.disabled = true; });
+
+      let settled = false, gasGaveUp = false;
+      const requestStartMs = Date.now();
+
+      function resetUi_() {
+        bingoActionInFlight = false;
+        if (clearBtn) { clearBtn.disabled = false; clearBtn.innerHTML = originalBtnText; }
+        if (selectAllCb) selectAllCb.disabled = false;
+        document.querySelectorAll('.bingo-expired-item-checkbox').forEach(cb => { cb.disabled = false; });
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        resetUi_();
+        alert(msg);
+      }
+      function finishSuccessFromGas_(data) {
+        if (settled) return; settled = true;
+        bingoActionInFlight = false;
+        alert('🗑️ ' + data.message);
+        loadBingoStatus(); // 🌟 整個背包區塊會重新渲染,清掉的道具自然消失,勾選框狀態自然回歸乾淨
+      }
+      function finishSuccessFromPoll_(data) {
+        if (settled) return;
+        finishSuccessFromGas_(data);
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=clearExpiredBingoBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccessFromGas_(data);
+        })
+        .catch(err => {
+          if (err && err.name === 'AbortError') gasGaveUp = true;
+          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+        });
+
+      pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs).then(polled => {
+        if (settled) return;
+        if (polled) finishSuccessFromPoll_(polled);
+        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      });
     }
 
     // 🌟 批次使用已勾選的道具:隨機類型不用問數字,直接送出;指定類型逐一詢問數字(取消/沒填的話,
