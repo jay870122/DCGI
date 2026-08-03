@@ -1775,11 +1775,52 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
+const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'; // 🌟 要跟 index.html 的 DASHBOARD_WORKER_URL 完全一致
 const CLIENT_ID = '1365601646448607335';
 const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
 const SUPER_ADMIN_ID = '176681551189377024'; // 🌟 跟 Code.gs 的 SUPER_ADMIN_ID 保持一致,只有這個ID可以新增/移除管理員
 let ME = null, ROLES = {}, shopItems = [], auctionItems = [];
 let ALL_ROLES_LIST = []; // 🌟 限定身分組多選元件用:[{id,name}, ...]
+
+// 🌟 這些是「會寫入資料」的後台動作,GAS端已經用 instrumentedAction_ 包裝過(完整回應JSON會寫進「兌換紀錄」表M欄)。
+// 純讀取的動作(adminGetXxx)不在這份清單裡,不需要賽跑保護(讀取變慢頂多是等久一點,不會有「其實已經寫入成功但
+// 前端沒收到回應」的問題),而且套用了只會讓歷史紀錄表白白多寫很多筆用不到的輪詢紀錄。
+// 這份清單要跟 Code_real.gs 裡實際用 instrumentedAction_ 包裝的36個action保持一致。
+const WRITE_ADMIN_ACTIONS_ = new Set([
+  'adminUpdateShopItem', 'adminDeleteShopItem', 'adminBatchDeleteShopItems',
+  'adminBatchSetShopItemStatus', 'adminBatchDrawShopRaffles', 'adminAddShopItem',
+  'adminDuplicateShopItem', 'adminDuplicateAuction', 'adminAddAdminUser',
+  'adminRemoveAdminUser', 'adminUpdateAuction', 'adminCloseAuction',
+  'adminDeleteAuction', 'adminAddAuction', 'adminReorderShopItems',
+  'adminReorderAuctions', 'adminSaveCategoryOrder', 'adminSaveCategoryLock',
+  'adminAddUnlockCodes', 'adminAddRewardKeys', 'adminDeleteRewardKeys',
+  'adminDrawShopRaffleNow', 'adminSettleGambling', 'adminSetPushFirstSubscribeReward',
+  'adminSendPushToPlayers', 'adminAddPushSchedule', 'adminUpdatePushSchedule',
+  'adminDeletePushSchedule', 'adminGrantBingoItem', 'adminRemoveBingoBackpackItem',
+  'adminAddBingoActivity', 'adminUpdateBingoActivity', 'adminDeleteBingoActivity',
+  'adminResetBingoCards', 'adminGiveBingoNumber', 'adminAdjustPlayerCurrency',
+]);
+const ADMIN_ACTION_TIMEOUT_MS = 25000; // 🌟 GAS本身的逾時上限,跟玩家端index.html保持一致的設計
+function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+function fetchWithTimeout_(url, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+// 🌟 用Worker輪詢「兌換紀錄」表M欄(GAS端instrumentedAction_寫入的完整回應JSON)。
+// 跟 index.html 的 pollInstrumentedActionResult_ 是同一套邏輯,這裡需要discordId所以多接一個參數進來。
+async function pollAdminActionResult_(discordId, actionType, sinceMs) {
+  await sleep_(600);
+  for (let i = 0; i < 40; i++) {
+    try {
+      const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${discordId}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.found && data.result) return data.result;
+    } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
+    await sleep_(600);
+  }
+  return null;
+}
 
 // ── Auth ──
 function loginWithDiscord() {
@@ -1833,14 +1874,56 @@ async function init() {
   loadShopItems();
 }
 
+// 🌟 通用API呼叫函式:如果是「會寫入資料」的動作(在WRITE_ADMIN_ACTIONS_清單裡),自動套用賽跑架構——
+// GAS本身的回應 跟 Worker主動輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON) 同時進行,
+// 哪條路線先給出確定結果就用哪個,不用死等GAS Web App平台本身「執行完成→HTTP回應真正送達」之間
+// 已知會有的額外延遲(這是Google Apps Script平台的固有限制,不是程式碼邏輯問題)。
+// 純讀取的動作維持原本單純的fetch,不套用這套機制(讀取沒有「寫入成功但沒收到回應」的問題)。
 async function api(params) {
   const tok = localStorage.getItem('admin_dc_access_token');
-  // 🌟🔧 修正:之前這裡只送 accessToken,沒有一併送 discordId,導致後端 isAdmin_(undefined) 直接爆炸
-  // (undefined.toString() 噴出 TypeError)。ME 是登入時從 Discord /users/@me 拿到的使用者物件,
-  // 一定要把 ME.id 也加進去,後端才知道「這個 accessToken 對應的到底是誰」。
-  const p = new URLSearchParams({...params, discordId: (ME && ME.id) || '', accessToken: tok || ''});
-  const r = await fetch(`${GAS}?${p}`);
-  return r.json();
+  const discordId = (ME && ME.id) || '';
+  const p = new URLSearchParams({...params, discordId, accessToken: tok || ''});
+
+  if (!WRITE_ADMIN_ACTIONS_.has(params.action)) {
+    // 🌟 純讀取動作:維持原本的簡單呼叫方式,不套用賽跑機制
+    const r = await fetch(`${GAS}?${p}`);
+    return r.json();
+  }
+
+  // 🌟 寫入類動作:GAS請求跟Worker輪詢同時進行,賽跑取最快的結果。
+  // 🌟🔧 這裡一定要用 new Promise(resolve => ...) 搭配「誰先resolve就用誰」的模式,不能用 Promise.all——
+  // Promise.all 會等兩條路線都結束才繼續,那樣就算GAS秒回,也會被迫等滿整個輪詢視窗(~25秒)才能拿到結果,
+  // 完全違背賽跑架構要「取最快」的本意。
+  return new Promise((resolve) => {
+    let settled = false;
+    let gasGaveUp = false;
+    const requestStartMs = Date.now();
+
+    fetchWithTimeout_(`${GAS}?${p}`, ADMIN_ACTION_TIMEOUT_MS)
+      .then(r => r.json())
+      .then(data => { if (!settled) { settled = true; resolve(data); } })
+      .catch(err => {
+        if (err && err.name === 'AbortError') {
+          gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
+        } else if (!settled) {
+          settled = true;
+          resolve({ status: 'error', message: '網路連線失敗，請稍後再試' });
+        }
+      });
+
+    pollAdminActionResult_(discordId, params.action, requestStartMs).then(result => {
+      if (settled) return; // 🌟 GAS那條路線已經先給出結果了,這裡不用再處理一次
+      if (result) {
+        settled = true;
+        resolve(result);
+      } else if (gasGaveUp) {
+        // 🌟 GAS已經逾時放棄了,輪詢視窗內也沒查到成功紀錄——這次操作很可能真的沒有成功
+        settled = true;
+        resolve({ status: 'error', message: '⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。' });
+      }
+      // 🌟 如果gasGaveUp還是false,代表GAS那條路線還在跑、還沒逾時也還沒失敗,這裡先不動作,讓它自己決定結果就好
+    });
+  });
 }
 
 // ── Meta ──
