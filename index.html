@@ -3232,6 +3232,10 @@ function fetchScoresAndShop(discordId, callback = null) {
           if (data.extraCostUsed && data.extraCostUsed.length > 0) {
             successMsg += `\n➕ 已收取 ${data.extraCostUsed.map(e => `${e.amount} 個 ${e.displayName || e.name}`).join('、')}`;
           }
+          if (data.revealedItemName) {
+            // 🌟 [隱藏名稱]標籤:購買前商品卡片故意顯示模糊的名稱,現在已經買完/開完了,揭曉真正的名稱
+            successMsg += `\n\n🎊 揭曉！您購買的實際上是：\n【 ${data.revealedItemName} 】`;
+          }
           if (data.displayExt) {
             successMsg += `\n\n🎉 恭喜您開出了：\n【 ${data.displayExt} 】！`;
           } else if (data.rewardVar && data.totalReward > 0) {
