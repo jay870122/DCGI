@@ -5033,7 +5033,7 @@ async function loadAuctionBids() {
 }
 
 // 🌟 點擊彈窗背景關閉(但編輯商品/拍賣這兩個表單欄位很多,很容易滑鼠稍微點歪就整個關掉、資料等於白填,
-// 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉)
+// 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉.)
 document.querySelectorAll('.overlay').forEach(el => {
   if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal') return;
   el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
