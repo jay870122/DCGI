@@ -2527,6 +2527,9 @@ function fetchScoresAndShop(discordId, callback = null) {
 
         const data = result.scores;
         if(data && data.status === "success") {
+          // 🌟 優先顯示系統裡的暱稱(DC暱稱/B欄備援),不是Discord帳號本身的global_name/username——
+          // 伺服器暱稱通常比較能代表玩家在這個社群裡實際使用的稱呼,只有兩者都沒有的情況下才退回帳號名稱。
+          if (data.nickname) document.getElementById('user-name').innerText = data.nickname;
           document.getElementById('score-s1').innerText = data.s1;
           document.getElementById('score-s2').innerText = data.s2;
           document.getElementById('score-s3').innerText = data.s3;
