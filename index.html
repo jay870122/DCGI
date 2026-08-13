@@ -1445,7 +1445,7 @@
         else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
       });
 
-      pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) finishSuccessFromPoll_(polled);
         else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
@@ -1486,7 +1486,7 @@
         else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
       });
 
-      pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) finishSuccessFromPoll_(polled);
         else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
@@ -1569,7 +1569,7 @@
       });
 
       // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制
-      pollInstrumentedActionResult_('buyBingoNumber', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('buyBingoNumber', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) {
           finishSuccessFromPoll_(polled);
@@ -1606,9 +1606,16 @@
     // 🌟 通用版本的輪詢:給商品購買(BUY)/拍賣出價(BID)/BINGO各項操作等透過 instrumentedAction_ 包裝的動作使用。
     // 查的是「兌換紀錄」表M欄存的完整原始回應JSON,找到的話直接回傳「解析好的data物件」,呼叫端可以直接當成
     // GAS本身回應的data使用,不用另外處理。
-    async function pollInstrumentedActionResult_(actionType, sinceMs) {
+    // 🌟🔧 修正嚴重的配額浪費bug:這個迴圈原本不知道「外層GAS那條路線是不是已經先回應了」,即使GAS秒回、
+    // 呼叫端早就已經把settled設成true不再理會輪詢結果,這個迴圈本身還是會傻傻地繼續打滿40次、跨度長達
+    // 約24秒才停止——等於「幾乎每一次購買/BINGO操作」都會在背景多浪費掉一大串完全用不到的Sheets API讀取,
+    // Google的讀取配額是「整個服務帳戶每分鐘60次」共用的(不是每個人各自60次),這樣浪費法很容易就把配額
+    // 打爆到全站都連不上(429錯誤)。現在改成接受一個「shouldStop」檢查函式,每次要打下一次API之前先問一下
+    // 「外層是不是已經有答案了」,有的話直接停止,不再繼續空轉。
+    async function pollInstrumentedActionResult_(actionType, sinceMs, shouldStop) {
       await sleep_(600);
       for (let i = 0; i < 40; i++) {
+        if (shouldStop && shouldStop()) return null; // 🌟 外層已經有答案了(不管是GAS成功回應還是逾時失敗),不用再繼續打API
         try {
           const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${currentUser.id}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(getAccessToken())}`);
           const data = await res.json();
@@ -1697,7 +1704,7 @@
 
       // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制,
       // 拿到的是完整結構化結果,可以直接沿用跟GAS直接回應完全一樣的訊息組裝邏輯(不再只是文字摘要)
-      pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) {
           lastDrawnNumbers = (polled.hit && !polled.alreadyMarked) ? [polled.number] : [];
@@ -1800,7 +1807,7 @@
           else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
         });
 
-      pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) finishSuccessFromPoll_(polled);
         else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
@@ -1919,7 +1926,7 @@
         });
 
       // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制
-      pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) {
           finishSuccessFromPoll_(polled);
@@ -2494,7 +2501,7 @@
       });
 
       // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON)
-      pollInstrumentedActionResult_('BID', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('BID', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) {
           settled = true;
@@ -3321,7 +3328,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       });
 
       // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON)
-      pollInstrumentedActionResult_('BUY', requestStartMs).then(polled => {
+      pollInstrumentedActionResult_('BUY', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) finishFromPoll_(polled);
         else if (gasGaveUp) finishTimeoutNoResult_();
