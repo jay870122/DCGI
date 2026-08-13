@@ -1817,9 +1817,13 @@ function fetchWithTimeout_(url, timeoutMs) {
 }
 // 🌟 用Worker輪詢「兌換紀錄」表M欄(GAS端instrumentedAction_寫入的完整回應JSON)。
 // 跟 index.html 的 pollInstrumentedActionResult_ 是同一套邏輯,這裡需要discordId所以多接一個參數進來。
-async function pollAdminActionResult_(discordId, actionType, sinceMs) {
+// 🌟🔧 修正嚴重的配額浪費bug:理由跟 index.html 的 pollInstrumentedActionResult_ 完全一樣——這個迴圈原本
+// 不知道外層GAS是不是已經先回應了,會傻傻打滿40次、跨度約24秒才停止,等於每一次後台寫入動作都會在背景
+// 多浪費一大串用不到的Sheets API讀取。改成接受shouldStop檢查函式,外層有答案了就提早停止。
+async function pollAdminActionResult_(discordId, actionType, sinceMs, shouldStop) {
   await sleep_(600);
   for (let i = 0; i < 40; i++) {
+    if (shouldStop && shouldStop()) return null;
     try {
       const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${discordId}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
       const data = await res.json();
@@ -1966,7 +1970,7 @@ async function api(params) {
         }
       });
 
-    pollAdminActionResult_(discordId, params.action, requestStartMs).then(result => {
+    pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled).then(result => {
       if (settled) return; // 🌟 GAS那條路線已經先給出結果了,這裡不用再處理一次
       if (result) {
         settled = true;
@@ -5033,7 +5037,7 @@ async function loadAuctionBids() {
 }
 
 // 🌟 點擊彈窗背景關閉(但編輯商品/拍賣這兩個表單欄位很多,很容易滑鼠稍微點歪就整個關掉、資料等於白填,
-// 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉.)
+// 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉)
 document.querySelectorAll('.overlay').forEach(el => {
   if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal') return;
   el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
