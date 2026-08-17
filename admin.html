@@ -364,11 +364,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="tbl-wrap" style="padding:24px">
           <div class="add-form" id="add-shop-form">
             <div class="fsep">基本資訊</div>
-            <div class="field full">
-              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤</span></label>
-              <input id="ns-name" type="text" placeholder="例：7日優越童話通行證" oninput="updateHiddenNamePreview('ns-name', 'ns-name-preview')">
-              <div id="ns-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
-            </div>
+            <div class="field full"><label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][測試]標籤</span></label><input id="ns-name" type="text" placeholder="例：7日優越童話通行證"></div>
             <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
             <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="幻彩水晶" list="dc-list"><datalist id="dc-list"></datalist></div>
             <div class="field full">
@@ -407,17 +403,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               🎲 <b>隨機數量</b>：數量欄位除了填固定數字,也可以填<code>最小~最大</code>的範圍,例如 <code>1~100</code>,中獎當下系統會即時擲骰決定實際拿到多少,每次中獎數量都可能不同,不是固定值。可以用在單一變數,也可以用在下面「一個獎項發多種東西」裡的每個變數各自設定。<br>
               🎁 <b>一個獎項同時發放多種貨幣/道具</b>：把要發放的變數用 <code>+</code> 串起來,每個變數可以用 <code>:數量</code> 指定各自要給多少(不寫預設1個),例如 <code>粽子:1+黃金粽子:1</code> 代表中獎後兩種各發1個。<br>
               🎫 <b>[序號] 中獎發放專屬序號</b>：變數名前面加 <code>[序號]</code>,例如 <code>[序號]傳說道具</code>,中獎後系統不會發貨幣,而是去「序號庫」工作表裡找 A欄等於「傳說道具」(不含中括號)、還沒被領過的一筆,把 B欄的序號值直接發給玩家(這張序號庫工作表要自己額外建立,固定放在第 5 個分頁,格式:A名稱 | B序號 | C使用者DiscordID(系統寫入,留空=可用))。可以跟上面的「一個獎項發多種東西」合併用,例如 <code>幻彩水晶:50+[序號]傳說道具:1</code>,中獎同時發 50 個幻彩水晶跟 1 組傳說道具序號。<br>
-              🎒 <b>[背包] 發放 BINGO 一次性道具</b>：變數名前面加 <code>[背包]</code> 或 <code>[背包:參數]</code>,中獎後系統會直接把這個道具發放到玩家的 BINGO 背包裡(玩家需要自己到 BINGO 活動頁面使用)。<br>
-              　・基本用法: <code>[背包]指定券</code> — 預設永不過期、所有活動皆可用、免費指定抽不限範圍<br>
-              　・支援參數: <code>[背包:效果|範圍|過期模式|過期值|限定活動ID]</code>,用 <code>|</code> 分隔(可選,不填則用預設值,中間要保留就用空白佔位)<br>
-              　　- 效果: <code>PICK_FREE</code>(免費指定抽)、<code>PICK_FREE_RANGE</code>(限定範圍指定)、<code>RANDOM_FREE</code>(免費隨機抽)、<code>RANDOM_FREE_RANGE</code>(限定範圍隨機)<br>
-              　　- 範圍: <code>最小~最大</code>,例如 <code>1~50</code>(只有效果是 RANGE 時才有效)<br>
-              　　- 過期模式: <code>MINUTES</code>(分鐘)、<code>HOURS</code>(小時)、<code>ABSOLUTE</code>(絕對時間)、<code>NEVER</code>(永不過期)<br>
-              　　- 過期值: 數字(MINUTES/HOURS用)或時間字串(ABSOLUTE用,格式 YYYY-MM-DDTHH:mm:ssZ)<br>
-              　　- 限定活動ID: 只有指定的 BINGO 活動能用這個道具,多個活動用 <code>&</code> 分隔(例如 <code>abc123&def456</code>);留空=所有BINGO活動皆可用。活動ID可以到「BINGO活動管理」列表裡複製<br>
-              　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券+[非即時]特殊道具</code>(用 <code>+</code> 分開不同變數各自帶標籤,不要把兩個標籤疊在同一個變數上)<br>
-              　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
-              　・例如: <code>指定券(限1~50,24h,限定活動), [背包:PICK_FREE_RANGE|1~50|HOURS|24|abc123]指定券, 30%</code> → 發指定券到背包,限定1~50範圍,24小時後過期,只能在活動ID abc123 使用<br>
               🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
               📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
               範例：<br>
@@ -430,12 +415,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <code>粽子黃金雙拼, 粽子:1+黃金粽子:1, 20%, 30份</code>　<span class="hint">← 一次中獎同時發「粽子」1個+「黃金粽子」1個</span><br>
               <code>傳說寶箱, [序號]傳說道具, 1, 5%, 3份</code>　<span class="hint">← 中獎發一組「傳說道具」序號(去序號庫工作表找),不是發貨幣</span><br>
               <code>超級寶箱, 幻彩水晶:50+[序號]傳說道具:1, 3%, 2份</code>　<span class="hint">← 中獎同時發 50 個幻彩水晶 + 1 組傳說道具序號</span><br>
-              <code>指定券×1, [背包]指定券, 40%</code>　<span class="hint">← 中獎直接發一個「指定券」道具到背包(永不過期、不限範圍)</span><br>
-              <code>指定券(限1~50), [背包:PICK_FREE_RANGE|1~50]指定券, 30%</code>　<span class="hint">← 中獎發指定券到背包,限定只能指定1~50的數字</span><br>
-              <code>指定券(24h), [背包:PICK_FREE||HOURS|24]指定券, 25%</code>　<span class="hint">← 中獎發指定券到背包,24小時後自動過期(不需要範圍的話,用空白佔位跳過該欄位)</span><br>
-              <code>限定活動指定券, [背包:PICK_FREE_RANGE|1~50|NEVER||abc123]指定券, 20%</code>　<span class="hint">← 中獎發指定券到背包,限定1~50範圍,只能在活動ID為abc123的BINGO活動使用</span><br>
-              <code>豪華禮包, 幻彩水晶:100+[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券:1, 15%</code>　<span class="hint">← 中獎同時發 100 個幻彩水晶 + 1 個指定券到背包(限1~50,24h後過期);DC只顯示幻彩水晶:100</span><br>
-              <code>隨機券盲盒, [背包:RANDOM_FREE_RANGE|1~100]隨機券, 20%</code>　<span class="hint">← 中獎發隨機券到背包,隨機抽1~100的數字</span><br>
               <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
             </details>
             <div class="gacha-preview" id="ns-rqty-preview" style="display:none"></div>
@@ -1095,11 +1074,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal">
     <div class="modal-header"><h3>✏️ 編輯商品</h3><button class="modal-close" onclick="closeModal('shop-modal')">×</button></div>
     <div class="modal-body">
-      <div class="full field">
-        <label>商品名稱 <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤</span></label>
-        <input id="em-name" type="text" oninput="updateHiddenNamePreview('em-name', 'em-name-preview')">
-        <div id="em-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
-      </div>
+      <div class="full field"><label>商品名稱</label><input id="em-name" type="text"></div>
       <div class="field"><label>價格</label><input id="em-price" type="number" min="0"></div>
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
       <div class="full field">
@@ -1138,16 +1113,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         🎲 <b>隨機數量</b>：數量欄位除了填固定數字,也可以填<code>最小~最大</code>的範圍,例如 <code>1~100</code>,中獎當下系統會即時擲骰決定實際拿到多少,每次中獎數量都可能不同,不是固定值。可以用在單一變數,也可以用在下面「一個獎項發多種東西」裡的每個變數各自設定。<br>
         🎁 <b>一個獎項同時發放多種貨幣/道具</b>：把要發放的變數用 <code>+</code> 串起來,每個變數可以用 <code>:數量</code> 指定各自要給多少(不寫預設1個),例如 <code>粽子:1+黃金粽子:1</code> 代表中獎後兩種各發1個。<br>
         🎫 <b>[序號] 中獎發放專屬序號</b>：變數名前面加 <code>[序號]</code>,例如 <code>[序號]傳說道具</code>,中獎後系統不會發貨幣,而是去「序號庫」工作表裡找 A欄等於「傳說道具」(不含中括號)、還沒被領過的一筆,把 B欄的序號值直接發給玩家(這張序號庫工作表要自己額外建立,固定放在第 5 個分頁,格式:A名稱 | B序號 | C使用者DiscordID(系統寫入,留空=可用))。可以跟上面的「一個獎項發多種東西」合併用,例如 <code>幻彩水晶:50+[序號]傳說道具:1</code>,中獎同時發 50 個幻彩水晶跟 1 組傳說道具序號。<br>
-        🎒 <b>[背包] 發放 BINGO 一次性道具</b>：變數名前面加 <code>[背包]</code> 或 <code>[背包:參數]</code>,中獎後系統會直接把這個道具發放到玩家的 BINGO 背包裡(玩家需要自己到 BINGO 活動頁面使用)。<br>
-        　・基本用法: <code>[背包]指定券</code> — 預設永不過期、所有活動皆可用、免費指定抽不限範圍<br>
-        　・支援參數: <code>[背包:效果|範圍|過期模式|過期值]</code>,用 <code>|</code> 分隔(可選,不填則用預設值)<br>
-        　　- 效果: <code>PICK_FREE</code>(免費指定抽)、<code>PICK_FREE_RANGE</code>(限定範圍指定)、<code>RANDOM_FREE</code>(免費隨機抽)、<code>RANDOM_FREE_RANGE</code>(限定範圍隨機)<br>
-        　　- 範圍: <code>最小~最大</code>,例如 <code>1~50</code>(只有效果是 RANGE 時才有效)<br>
-        　　- 過期模式: <code>MINUTES</code>(分鐘)、<code>HOURS</code>(小時)、<code>ABSOLUTE</code>(絕對時間)、<code>NEVER</code>(永不過期)<br>
-        　　- 過期值: 數字(MINUTES/HOURS用)或時間字串(ABSOLUTE用,格式 YYYY-MM-DDTHH:mm:ssZ)<br>
-        　　- 限定活動ID: 只有指定的 BINGO 活動能用這個道具,多個活動用 <code>&</code> 分隔(例如 <code>abc123&def456</code>);留空=所有BINGO活動皆可用。活動ID可以到「BINGO活動管理」列表裡複製<br>
-        　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券+[非即時]特殊道具</code>(用 <code>+</code> 分開不同變數各自帶標籤,不要把兩個標籤疊在同一個變數上)<br>
-        　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
         🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
         📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
         範例：<br>
@@ -1160,12 +1125,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <code>粽子黃金雙拼, 粽子:1+黃金粽子:1, 20%, 30份</code>　<span class="hint">← 一次中獎同時發「粽子」1個+「黃金粽子」1個</span><br>
         <code>傳說寶箱, [序號]傳說道具, 1, 5%, 3份</code>　<span class="hint">← 中獎發一組「傳說道具」序號(去序號庫工作表找),不是發貨幣</span><br>
         <code>超級寶箱, 幻彩水晶:50+[序號]傳說道具:1, 3%, 2份</code>　<span class="hint">← 中獎同時發 50 個幻彩水晶 + 1 組傳說道具序號</span><br>
-        <code>指定券×1, [背包]指定券, 40%</code>　<span class="hint">← 中獎直接發一個「指定券」道具到背包(永不過期、不限範圍)</span><br>
-        <code>指定券(限1~50), [背包:PICK_FREE_RANGE|1~50]指定券, 30%</code>　<span class="hint">← 中獎發指定券到背包,限定只能指定1~50的數字</span><br>
-        <code>指定券(24h), [背包:PICK_FREE||HOURS|24]指定券, 25%</code>　<span class="hint">← 中獎發指定券到背包,24小時後自動過期(不需要範圍的話,用空白佔位跳過該欄位)</span><br>
-        <code>限定活動指定券, [背包:PICK_FREE_RANGE|1~50|NEVER||abc123]指定券, 20%</code>　<span class="hint">← 中獎發指定券到背包,限定1~50範圍,只能在活動ID為abc123的BINGO活動使用</span><br>
-        <code>豪華禮包, 幻彩水晶:100+[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券:1, 15%</code>　<span class="hint">← 中獎同時發 100 個幻彩水晶 + 1 個指定券到背包(限1~50,24h後過期);DC只顯示幻彩水晶:100</span><br>
-        <code>隨機券盲盒, [背包:RANDOM_FREE_RANGE|1~100]隨機券, 20%</code>　<span class="hint">← 中獎發隨機券到背包,隨機抽1~100的數字</span><br>
         <code>腳色加布, [非即時]腳色加布, 1</code>　<span class="hint">← 沒寫機率/份數=保底獎,且貨幣欄位帶 [非即時],中獎後系統會標記成需要人工發送,不會自動入帳</span>
       </details>
       <div class="gacha-preview" id="em-rqty-preview" style="display:none"></div>
@@ -1651,8 +1610,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="gacha-guide" id="bingo-cards-summary" style="margin-bottom:12px"></div>
       <div class="tbl-wrap tbl-wrap-table">
         <table>
-          <thead><tr><th>玩家</th><th>已標記數量</th><th>連線數</th><th>整卡</th><th>背包道具</th><th>重抽/重開次數</th><th>最後更新</th><th>操作</th></tr></thead>
-          <tbody id="bingo-cards-tbody"><tr><td colspan="8" class="empty">讀取中...</td></tr></tbody>
+          <thead><tr><th>玩家</th><th>已標記數量</th><th>連線數</th><th>整卡</th><th>重抽/重開次數</th><th>最後更新</th><th>操作</th></tr></thead>
+          <tbody id="bingo-cards-tbody"><tr><td colspan="7" class="empty">讀取中...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1666,16 +1625,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-body" style="display:block">
       <div id="bingo-card-detail-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px"></div>
       <div id="bingo-card-detail-linerewards"></div>
-    </div>
-  </div>
-</div>
-
-<!-- 單一玩家背包道具彈窗(可移除道具) -->
-<div class="overlay" id="bingo-backpack-modal">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-header"><h3 id="bingo-backpack-modal-title">🎒 背包道具</h3><button class="modal-close" onclick="closeModal('bingo-backpack-modal')">×</button></div>
-    <div class="modal-body" style="display:block;max-height:65vh;overflow-y:auto">
-      <div id="bingo-backpack-list"></div>
     </div>
   </div>
 </div>
@@ -1783,103 +1732,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
-const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'; // 🌟 要跟 index.html 的 DASHBOARD_WORKER_URL 完全一致
 const CLIENT_ID = '1365601646448607335';
 const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
 const SUPER_ADMIN_ID = '176681551189377024'; // 🌟 跟 Code.gs 的 SUPER_ADMIN_ID 保持一致,只有這個ID可以新增/移除管理員
 let ME = null, ROLES = {}, shopItems = [], auctionItems = [];
 let ALL_ROLES_LIST = []; // 🌟 限定身分組多選元件用:[{id,name}, ...]
-
-// 🌟 這些是「會寫入資料」的後台動作,GAS端已經用 instrumentedAction_ 包裝過(完整回應JSON會寫進「兌換紀錄」表M欄)。
-// 純讀取的動作(adminGetXxx)不在這份清單裡,不需要賽跑保護(讀取變慢頂多是等久一點,不會有「其實已經寫入成功但
-// 前端沒收到回應」的問題),而且套用了只會讓歷史紀錄表白白多寫很多筆用不到的輪詢紀錄。
-// 這份清單要跟 Code_real.gs 裡實際用 instrumentedAction_ 包裝的36個action保持一致。
-const WRITE_ADMIN_ACTIONS_ = new Set([
-  'adminUpdateShopItem', 'adminDeleteShopItem', 'adminBatchDeleteShopItems',
-  'adminBatchSetShopItemStatus', 'adminBatchDrawShopRaffles', 'adminAddShopItem',
-  'adminDuplicateShopItem', 'adminDuplicateAuction', 'adminAddAdminUser',
-  'adminRemoveAdminUser', 'adminUpdateAuction', 'adminCloseAuction',
-  'adminDeleteAuction', 'adminAddAuction', 'adminReorderShopItems',
-  'adminReorderAuctions', 'adminSaveCategoryOrder', 'adminSaveCategoryLock',
-  'adminAddUnlockCodes', 'adminAddRewardKeys', 'adminDeleteRewardKeys',
-  'adminDrawShopRaffleNow', 'adminSettleGambling', 'adminSetPushFirstSubscribeReward',
-  'adminSendPushToPlayers', 'adminAddPushSchedule', 'adminUpdatePushSchedule',
-  'adminDeletePushSchedule', 'adminGrantBingoItem', 'adminRemoveBingoBackpackItem',
-  'adminAddBingoActivity', 'adminUpdateBingoActivity', 'adminDeleteBingoActivity',
-  'adminResetBingoCards', 'adminGiveBingoNumber', 'adminAdjustPlayerCurrency',
-]);
-const ADMIN_ACTION_TIMEOUT_MS = 25000; // 🌟 GAS本身的逾時上限,跟玩家端index.html保持一致的設計
-function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-function fetchWithTimeout_(url, timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
-}
-// 🌟 用Worker輪詢「兌換紀錄」表M欄(GAS端instrumentedAction_寫入的完整回應JSON)。
-// 跟 index.html 的 pollInstrumentedActionResult_ 是同一套邏輯,這裡需要discordId所以多接一個參數進來。
-// 🌟🔧 修正嚴重的配額浪費bug:理由跟 index.html 的 pollInstrumentedActionResult_ 完全一樣——這個迴圈原本
-// 不知道外層GAS是不是已經先回應了,會傻傻打滿40次、跨度約24秒才停止,等於每一次後台寫入動作都會在背景
-// 多浪費一大串用不到的Sheets API讀取。改成接受shouldStop檢查函式,外層有答案了就提早停止。
-async function pollAdminActionResult_(discordId, actionType, sinceMs, shouldStop) {
-  await sleep_(600);
-  for (let i = 0; i < 40; i++) {
-    if (shouldStop && shouldStop()) return null;
-    try {
-      const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${discordId}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.found && data.result) return data.result;
-    } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
-    await sleep_(600);
-  }
-  return null;
-}
-
-// 🌟 後台純讀取功能的通用Worker呼叫:優先打Worker(繞開GAS Web App平台本身的派送延遲),
-// Worker連線失敗或回應錯誤的話,自動退回原本走GAS的api()呼叫,不會整個讀不到資料。
-// workerAction: Worker端對應的action名稱; extraParams: 額外要帶的查詢參數(例如activityId/auctionId);
-// gasParams: Worker失敗時,退回api()呼叫要用的完整參數物件(GAS端的action名稱通常跟Worker端不同)。
-// 🌟 [隱藏名稱]標籤即時預覽:管理員在商品名稱欄位打字時,即時解析並顯示「對外顯示」跟「揭曉後」分別會是什麼,
-// 不用真的儲存商品、跑一次完整購買流程才能確認有沒有設定對——等於是一個輕量版的「自動測試」。
-// 格式跟 Code_real.gs 的 parseHiddenNameTag_ / dashboard-worker.js 的 parseHiddenNameTag_ 保持完全一致。
-function parseHiddenNameTagPreview_(rawName) {
-  const s = (rawName || '').toString();
-  const tag = '[隱藏名稱]';
-  const idx = s.indexOf(tag);
-  if (idx === -1) return null;
-  const payload = s.substring(idx + tag.length).trim();
-  const pipeIdx = payload.indexOf('|');
-  if (pipeIdx === -1) return { beforeName: payload, afterName: payload };
-  return { beforeName: payload.substring(0, pipeIdx).trim(), afterName: payload.substring(pipeIdx + 1).trim() };
-}
-function updateHiddenNamePreview(inputId, previewId) {
-  const input = document.getElementById(inputId);
-  const preview = document.getElementById(previewId);
-  if (!input || !preview) return;
-  const tagInfo = parseHiddenNameTagPreview_(input.value);
-  if (!tagInfo) { preview.style.display = 'none'; return; }
-  preview.style.display = 'block';
-  const warnEmpty = (!tagInfo.beforeName || !tagInfo.afterName) ? '<br><span style="color:#ED4245">⚠️ 對外顯示名稱或揭曉後名稱有一邊是空的,請確認格式是「[隱藏名稱]對外顯示名稱|揭曉後名稱」</span>' : '';
-  preview.innerHTML = `🎭 <b>[隱藏名稱]標籤預覽</b><br>` +
-    `👁️ 商品卡片/購買確認視窗會顯示：<b style="color:#F0B232">${tagInfo.beforeName || '(空白)'}</b><br>` +
-    `🎊 購買成功/歷史紀錄會顯示：<b style="color:#43B581">${tagInfo.afterName || '(空白)'}</b>` + warnEmpty;
-}
-
-async function apiWorkerRead(workerAction, extraParams, gasParams) {
-  try {
-    const qs = new URLSearchParams({
-      action: workerAction,
-      discordId: (ME && ME.id) || '',
-      accessToken: localStorage.getItem('admin_dc_access_token') || '',
-      ...(extraParams || {}),
-    });
-    const res = await fetch(`${DASHBOARD_WORKER_URL}?${qs}`);
-    const d = await res.json();
-    if (d.status !== 'success') throw new Error(d.message || 'Worker回應失敗');
-    return d;
-  } catch (e) {
-    return await api(gasParams); // 🌟 Worker那條路線失敗,退回GAS
-  }
-}
 
 // ── Auth ──
 function loginWithDiscord() {
@@ -1933,61 +1790,19 @@ async function init() {
   loadShopItems();
 }
 
-// 🌟 通用API呼叫函式:如果是「會寫入資料」的動作(在WRITE_ADMIN_ACTIONS_清單裡),自動套用賽跑架構——
-// GAS本身的回應 跟 Worker主動輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON) 同時進行,
-// 哪條路線先給出確定結果就用哪個,不用死等GAS Web App平台本身「執行完成→HTTP回應真正送達」之間
-// 已知會有的額外延遲(這是Google Apps Script平台的固有限制,不是程式碼邏輯問題)。
-// 純讀取的動作維持原本單純的fetch,不套用這套機制(讀取沒有「寫入成功但沒收到回應」的問題)。
 async function api(params) {
   const tok = localStorage.getItem('admin_dc_access_token');
-  const discordId = (ME && ME.id) || '';
-  const p = new URLSearchParams({...params, discordId, accessToken: tok || ''});
-
-  if (!WRITE_ADMIN_ACTIONS_.has(params.action)) {
-    // 🌟 純讀取動作:維持原本的簡單呼叫方式,不套用賽跑機制
-    const r = await fetch(`${GAS}?${p}`);
-    return r.json();
-  }
-
-  // 🌟 寫入類動作:GAS請求跟Worker輪詢同時進行,賽跑取最快的結果。
-  // 🌟🔧 這裡一定要用 new Promise(resolve => ...) 搭配「誰先resolve就用誰」的模式,不能用 Promise.all——
-  // Promise.all 會等兩條路線都結束才繼續,那樣就算GAS秒回,也會被迫等滿整個輪詢視窗(~25秒)才能拿到結果,
-  // 完全違背賽跑架構要「取最快」的本意。
-  return new Promise((resolve) => {
-    let settled = false;
-    let gasGaveUp = false;
-    const requestStartMs = Date.now();
-
-    fetchWithTimeout_(`${GAS}?${p}`, ADMIN_ACTION_TIMEOUT_MS)
-      .then(r => r.json())
-      .then(data => { if (!settled) { settled = true; resolve(data); } })
-      .catch(err => {
-        if (err && err.name === 'AbortError') {
-          gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
-        } else if (!settled) {
-          settled = true;
-          resolve({ status: 'error', message: '網路連線失敗，請稍後再試' });
-        }
-      });
-
-    pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled).then(result => {
-      if (settled) return; // 🌟 GAS那條路線已經先給出結果了,這裡不用再處理一次
-      if (result) {
-        settled = true;
-        resolve(result);
-      } else if (gasGaveUp) {
-        // 🌟 GAS已經逾時放棄了,輪詢視窗內也沒查到成功紀錄——這次操作很可能真的沒有成功
-        settled = true;
-        resolve({ status: 'error', message: '⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。' });
-      }
-      // 🌟 如果gasGaveUp還是false,代表GAS那條路線還在跑、還沒逾時也還沒失敗,這裡先不動作,讓它自己決定結果就好
-    });
-  });
+  // 🌟🔧 修正:之前這裡只送 accessToken,沒有一併送 discordId,導致後端 isAdmin_(undefined) 直接爆炸
+  // (undefined.toString() 噴出 TypeError)。ME 是登入時從 Discord /users/@me 拿到的使用者物件,
+  // 一定要把 ME.id 也加進去,後端才知道「這個 accessToken 對應的到底是誰」。
+  const p = new URLSearchParams({...params, discordId: (ME && ME.id) || '', accessToken: tok || ''});
+  const r = await fetch(`${GAS}?${p}`);
+  return r.json();
 }
 
 // ── Meta ──
 async function loadMeta() {
-  const d = await apiWorkerRead('adminMeta', {}, {action:'adminGetMeta'});
+  const d = await api({action:'adminGetMeta'});
   if (d.status !== 'success') return;
   ROLES = {};
   d.roles.forEach(r => { ROLES[r.id] = r.name; });
@@ -2485,16 +2300,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // ── Shop ──
 async function loadShopItems() {
   document.getElementById('shop-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
-  // 🌟 這是純讀取,直接打Worker,不透過GAS(繞開GAS Web App平台本身「執行完成→回應送達」之間已知的額外延遲)。
-  // Worker連線失敗的話(例如剛部署還沒生效、或網路問題),退回原本走GAS的api()呼叫,不會整個空白讀不到。
-  let d;
-  try {
-    const res = await fetch(`${DASHBOARD_WORKER_URL}?action=adminShopItems&discordId=${(ME && ME.id) || ''}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
-    d = await res.json();
-    if (d.status !== 'success') throw new Error(d.message || 'Worker回應失敗');
-  } catch (e) {
-    d = await api({action:'adminGetShopItems'}); // 🌟 Worker那條路線失敗,退回GAS
-  }
+  const d = await api({action:'adminGetShopItems'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   shopItems = d.items;
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
@@ -2758,7 +2564,7 @@ async function showGamblingBets(itemId, name) {
   document.getElementById('gambling-bets-modal').classList.add('open');
   const box = document.getElementById('gambling-bets-container');
   box.innerHTML = '讀取中...';
-  const d = await apiWorkerRead('adminGamblingBets', { itemId }, {action:'adminGetGamblingBets', itemId});
+  const d = await api({action:'adminGetGamblingBets', itemId});
   if (d.status !== 'success') { box.innerHTML = `<span style="color:var(--red)">讀取失敗:${d.message}</span>`; return; }
   if (!d.list || d.list.length === 0) { box.innerHTML = '目前還沒有人下注'; return; }
 
@@ -2826,7 +2632,6 @@ function openEditShop(itemId) {
   if (!i) return;
   const f = id => document.getElementById(id);
   f('em-id').value=i.itemId; f('em-name').value=i.name; f('em-price').value=i.price;
-  updateHiddenNamePreview('em-name', 'em-name-preview'); // 🌟 打開既有商品編輯時就先跑一次,不用等打字才觸發,馬上看得到目前的設定結果
   f('em-currency').value=i.currency||'幻彩水晶'; f('em-category').value=i.category||'';
   f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
   f('em-status').value=i.status==='DRAFT'?'DRAFT':'';
@@ -2956,7 +2761,7 @@ async function duplicateShopItem(id) {
 // ── Auction ──
 async function loadAuctionItems() {
   document.getElementById('auction-tbody').innerHTML = '<tr><td colspan="9" class="empty">讀取中...</td></tr>';
-  const d = await apiWorkerRead('adminAuctionsList', {}, {action:'adminGetAuctions'});
+  const d = await api({action:'adminGetAuctions'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   auctionItems = d.auctions;
   document.getElementById('auction-count').textContent = auctionItems.length + ' 場';
@@ -3285,36 +3090,6 @@ async function submitAddAuction(forceStatus) {
 }
 
 // ── 盲盒設定即時預覽 ──
-// 🌟 找到字串中「不在任何[...]中括號內」的第一個指定字元位置,找不到回傳 -1。
-// 用來安全解析「變數名:數量」這類格式,避免自訂變數名稱本身帶有中括號參數
-// (例如背包道具標籤 "[背包:PICK_FREE_RANGE|1~50]指定券")時,把中括號內部的冒號
-// 誤判成外層真正分隔「變數名」跟「數量」的冒號,導致預覽解析錯亂。
-function indexOfOutsideBracketsJS_(str, ch, fromIndex) {
-  let depth = 0;
-  const start = fromIndex || 0;
-  for (let i = start; i < str.length; i++) {
-    const c = str.charAt(i);
-    if (c === '[') depth++;
-    else if (c === ']') depth = Math.max(0, depth - 1);
-    else if (c === ch && depth === 0) return i;
-  }
-  return -1;
-}
-// 🌟 把背包道具標籤 "[背包:效果|範圍|過期模式|過期值|限定活動ID]道具名稱" 轉成給管理員看的可讀摘要,
-// 跟後端 Code_real.gs 的解析邏輯保持一致(效果/範圍/過期/限定活動的欄位順序、預設值都要對得上)。
-function describeBingoBackpackTag_(varName) {
-  const m = varName.match(/\[背包(?::([^\]]*))?\]/);
-  if (!m) return null;
-  const params = m[1] ? m[1].split('|') : [];
-  const effectType = params[0] ? params[0].trim() : 'PICK_FREE';
-  const effectLabel = { PICK_FREE: '免費指定抽', PICK_FREE_RANGE: '免費指定抽(限範圍)', RANDOM_FREE: '免費隨機抽', RANDOM_FREE_RANGE: '免費隨機抽(限範圍)' }[effectType] || effectType;
-  const cleanToolName = varName.replace(/\[[^\]]*\]/g, '').trim();
-  const bits = [`🎒 背包道具「${cleanToolName}」`, effectLabel];
-  if (params[1]) bits.push(`範圍${params[1]}`);
-  if (params[2] && params[2].trim() && params[2].trim() !== 'NEVER') bits.push(`${params[2].trim()==='HOURS'?params[3]+'小時後過期':params[2].trim()==='MINUTES'?params[3]+'分鐘後過期':'到期:'+params[3]}`);
-  if (params[4]) bits.push(`限定活動:${params[4].split('&').filter(Boolean).join('、')}`);
-  return bits.join(' ');
-}
 function parseGachaRulesPreview(rawText) {
   const lines = (rawText || '').split('\n');
   const pool = [];
@@ -3340,7 +3115,7 @@ function parseGachaRulesPreview(rawText) {
     if (parts.length === 1 && (parts[0].indexOf('+') !== -1 || parts[0].indexOf(':') !== -1)) {
       varList = parts[0].split('+').map(seg => {
         seg = seg.trim();
-        const ci0 = indexOfOutsideBracketsJS_(seg, ':');
+        const ci0 = seg.indexOf(':');
         if (ci0 !== -1) {
           const qr0 = parseQtyToken(seg.substring(ci0 + 1).trim());
           return { varName: seg.substring(0, ci0).trim(), qty: qr0.qty, qtyRange: qr0.qtyRange };
@@ -3370,7 +3145,7 @@ function parseGachaRulesPreview(rawText) {
         // 🌟 多變數格式:name:qty+name:qty,一個獎項同時發放好幾種貨幣/道具,數量部分一樣支援 min~max 範圍
         varList = token.split('+').map(seg => {
           seg = seg.trim();
-          const ci = indexOfOutsideBracketsJS_(seg, ':');
+          const ci = seg.indexOf(':');
           if (ci !== -1) {
             const qr2 = parseQtyToken(seg.substring(ci + 1).trim());
             return { varName: seg.substring(0, ci).trim(), qty: qr2.qty, qtyRange: qr2.qtyRange };
@@ -3380,7 +3155,7 @@ function parseGachaRulesPreview(rawText) {
         if (varList.some(v => !v.varName)) bad = true;
         extraToken = token;
       } else {
-        const ci2 = indexOfOutsideBracketsJS_(token, ':');
+        const ci2 = token.indexOf(':');
         if (ci2 !== -1) {
           varName = token.substring(0, ci2).trim();
           const qr3 = parseQtyToken(token.substring(ci2 + 1).trim());
@@ -3392,8 +3167,7 @@ function parseGachaRulesPreview(rawText) {
     if (varList) { varName = varList[0].varName; qty = varList[0].qty; qtyRange = varList[0].qtyRange; }
     pool.push({ dispName, varName, qty, qtyRange, varList, prob, stock, bad, raw: line,
       isNonInstant: /\[非即時\]/.test(dispName) || /\[非即時\]/.test(varName) || (varList && varList.some(v => /\[非即時\]/.test(v.varName))),
-      isKeyItem: /\[序號\]/.test(varName) || (varList && varList.some(v => /\[序號\]/.test(v.varName))),
-      isBackpackItem: /\[背包(?::[^\]]*)?\]/.test(varName) || (varList && varList.some(v => /\[背包(?::[^\]]*)?\]/.test(v.varName))) });
+      isKeyItem: /\[序號\]/.test(varName) || (varList && varList.some(v => /\[序號\]/.test(v.varName))) });
   }
   return pool;
 }
@@ -3425,21 +3199,11 @@ function renderGachaPreviewToBox_(box, text) {
     const isFallback = !p.bad && p.prob === null && p.stock === null;
     const bits = [];
     if (p.varList && p.varList.length > 1) {
-      bits.push(`發放:${p.varList.map(v => {
-        const bpDesc = describeBingoBackpackTag_(v.varName);
-        if (bpDesc) return bpDesc + (v.qty !== 1 ? ` ×${v.qty}份` : '');
-        return `${v.varName}×${v.qtyRange ? (v.qtyRange[0]+'~'+v.qtyRange[1]) : v.qty}`;
-      }).join('、')}`);
+      bits.push(`發放:${p.varList.map(v => `${v.varName}×${v.qtyRange ? (v.qtyRange[0]+'~'+v.qtyRange[1]) : v.qty}`).join('、')}`);
     } else {
-      const bpDesc = describeBingoBackpackTag_(p.varName);
-      if (bpDesc) {
-        bits.push(bpDesc);
-        if (p.qty !== 1) bits.push(`×${p.qty}份`);
-      } else {
-        if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
-        if (p.qtyRange) bits.push(`數量:${p.qtyRange[0]}~${p.qtyRange[1]}(隨機)`);
-        else if (p.qty !== 1) bits.push(`數量:${p.qty}`);
-      }
+      if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
+      if (p.qtyRange) bits.push(`數量:${p.qtyRange[0]}~${p.qtyRange[1]}(隨機)`);
+      else if (p.qty !== 1) bits.push(`數量:${p.qty}`);
     }
     if (p.prob !== null) bits.push(`機率:${p.prob}%`);
     if (p.stock !== null) bits.push(`庫存:${p.stock}份（依庫存比例抽）`);
@@ -3705,7 +3469,7 @@ async function openSortSettings() {
 }
 
 async function loadCategoryOrder() {
-  const d = await apiWorkerRead('adminCategoryOrder', {}, { action: 'adminGetCategoryOrder' });
+  const d = await api({ action: 'adminGetCategoryOrder' });
   if (d.status !== 'success') { toast('載入排序失敗: ' + d.message, false); return; }
   categoryOrderData.shop = (d.shopCategories || []).slice();
   categoryOrderData.auction = (d.auctionCategories || []).slice();
@@ -3859,7 +3623,7 @@ async function saveAuctionOrder() {
 // ── 密碼鎖定管理:分類鎖定 ──
 let categoryLocksList = [];
 async function loadCategoryLocks() {
-  const d = await apiWorkerRead('adminCategoryLocks', {}, { action: 'adminGetCategoryLocks' });
+  const d = await api({ action: 'adminGetCategoryLocks' });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   categoryLocksList = d.locks || [];
   renderCategoryLockList();
@@ -3950,7 +3714,7 @@ async function clearCategoryLock(category) {
 
 // ── 密碼鎖定管理:解鎖序號庫 ──
 async function loadUnlockCodes() {
-  const d = await apiWorkerRead('adminUnlockCodes', {}, { action: 'adminGetUnlockCodes' });
+  const d = await api({ action: 'adminGetUnlockCodes' });
   const tbody = document.getElementById('unlock-codes-tbody');
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   const codes = d.codes || [];
@@ -3981,7 +3745,7 @@ async function loadHistory() {
   const q = document.getElementById('hist-search').value;
   const filterDiscordId = document.getElementById('hist-discordid').value.trim();
   const gachaOnly = document.getElementById('hist-gacha-only').checked;
-  const d = await apiWorkerRead('adminHistorySearch', { q, filterDiscordId, gachaOnly }, { action: 'adminGetHistory', q, filterDiscordId, gachaOnly });
+  const d = await api({ action: 'adminGetHistory', q, filterDiscordId, gachaOnly });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
   const tbody = document.getElementById('hist-tbody');
@@ -4010,7 +3774,7 @@ async function loadHistory() {
 
 // ── 序號庫管理(購買/抽獎發放專屬序號用) ──
 async function loadRewardKeys() {
-  const d = await apiWorkerRead('adminRewardKeys', {}, { action: 'adminGetRewardKeys' });
+  const d = await api({ action: 'adminGetRewardKeys' });
   const tbody = document.getElementById('reward-keys-tbody');
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   const keys = d.keys || [];
@@ -4091,7 +3855,7 @@ let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動�
 
 async function loadPlayerCurrency() {
   document.getElementById('pc-tbody').innerHTML = '<tr><td colspan="10" class="empty">讀取中...</td></tr>';
-  const d = await apiWorkerRead('adminPlayersCurrency', {}, {action:'adminGetAllPlayersCurrency'});
+  const d = await api({action:'adminGetAllPlayersCurrency'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   pcPlayers = d.players;
   pcCurrencyFields = d.currencyFields; // 🌟 給批次調整選單用,含「幻彩水晶(總獲得+可用)」合併選項
@@ -4156,7 +3920,7 @@ async function openAdjustPanel() {
   document.getElementById('adjust-currency-modal').classList.add('open');
 
   // 🌟 抓序號庫摘要(名稱+剩餘可用數),給序號下拉選單用
-  const d = await apiWorkerRead('adminKeyPoolSummary', {}, {action:'adminGetKeyPoolSummary'});
+  const d = await api({action:'adminGetKeyPoolSummary'});
   pcKeyPools = (d.status === 'success') ? d.pools : [];
 }
 
@@ -4203,12 +3967,15 @@ function addAdjustCurrencyColumn() {
 
   const wrap = document.createElement('div');
   wrap.id = colId;
-  wrap.style.cssText = 'display:flex;gap:6px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px';
+  // 🌟🔧 修正版面bug:原本每個小框只依內容自動縮寬(width:auto),容器又是flex-wrap靠左排列,
+  // 貨幣種類少的時候右邊會留下一大片沒被利用的空白。改成flex:1 1 240px讓每個框自動撐開分攤
+  // 容器的可用寬度,框數少的時候會平均撐滿整行,框數多到放不下時才會自然換行,不會再有大片空白。
+  wrap.style.cssText = 'display:flex;gap:6px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px;flex:1 1 240px';
   wrap.innerHTML = `
-    <select class="adjcol-currency" onchange="updateAdjustColumn('${colId}')" style="width:auto">
+    <select class="adjcol-currency" onchange="updateAdjustColumn('${colId}')" style="flex:1;min-width:0">
       ${pcCurrencyFields.map(f => `<option value="${f.internal}" data-display="${f.display}">${f.display}</option>`).join('')}
     </select>
-    <select class="adjcol-mode" onchange="updateAdjustColumn('${colId}')" style="width:auto">
+    <select class="adjcol-mode" onchange="updateAdjustColumn('${colId}')" style="width:auto;flex-shrink:0">
       <option value="ADD">增加</option>
       <option value="SUBTRACT">減少</option>
       <option value="SET">設定為</option>
@@ -4317,7 +4084,7 @@ let bingoActivities = [];
 let bingoActionTargetId = null; // 🌟 目前「發放序號/重置」彈窗是針對哪個活動ID
 
 async function loadBingoConfig() {
-  const d = await apiWorkerRead('adminBingoActivities', {}, {action:'adminGetBingoActivities'});
+  const d = await api({action:'adminGetBingoActivities'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   bingoActivities = d.activities;
   renderBingoActivityTable();
@@ -4402,46 +4169,33 @@ async function submitGrantBingoItem() {
 
 async function openBingoCardsModal(activityId, activityName) {
   document.getElementById('bingo-cards-modal-title').textContent = `📋 賓果盤總覽：${activityName}`;
-  document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">讀取中...</td></tr>';
+  document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
   document.getElementById('bingo-cards-summary').textContent = '';
   document.getElementById('bingo-cards-modal').classList.add('open');
 
-  const d = await apiWorkerRead('adminBingoCards', { activityId }, { action: 'adminGetBingoCardsForActivity', activityId });
+  const d = await api({ action: 'adminGetBingoCardsForActivity', activityId });
   if (d.status !== 'success') {
-    document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="8" class="empty">載入失敗：${d.message}</td></tr>`;
+    document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="7" class="empty">載入失敗：${d.message}</td></tr>`;
     return;
   }
   bingoCardsData = d.cards;
-  renderBingoCardsTable_();
-}
-
-// 🌟 共用核心:純粹用目前記憶體裡的 bingoCardsData 重新畫表格,不重打API。
-// 移除背包道具之後,只要先同步更新本地的 bingoCardsData,再呼叫這個函式,總覽表格的「背包道具」欄位數字就會馬上跟著更新。
-function renderBingoCardsTable_() {
   if (bingoCardsData.length === 0) {
-    document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
-    document.getElementById('bingo-cards-summary').textContent = '';
+    document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="7" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
     return;
   }
   const fullCount = bingoCardsData.filter(c => c.full).length;
   document.getElementById('bingo-cards-summary').textContent = `共 ${bingoCardsData.length} 位玩家已拿到賓果盤，其中 ${fullCount} 位已完成整卡`;
-  document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => {
-    const items = c.backpackItems || [];
-    const usableCount = items.filter(it => it.status === 'UNUSED').length;
-    const bpText = items.length === 0 ? '—' : `${usableCount}/${items.length} 可用`;
-    return `
+  document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => `
     <tr>
       <td>${c.nickname}</td>
       <td>${c.marked.length} / 25</td>
       <td>${c.linesCount}</td>
       <td>${c.full ? '<span class="status status-ended">🏆 已完成</span>' : '—'}</td>
-      <td>${items.length === 0 ? '—' : `<button class="btn btn-edit" onclick="openBingoBackpackModal(${idx})">🎒 ${bpText}</button>`}</td>
       <td style="font-size:12px">重抽${c.rerollCount} / 重開${c.selfResetCount}</td>
       <td style="font-size:12px">${c.lastUpdated ? new Date(c.lastUpdated).toLocaleString() : ''}</td>
       <td class="cell-actions"><button class="btn btn-edit" onclick="showBingoCardDetail(${idx})">🎰 查看卡片</button></td>
     </tr>
-  `;
-  }).join('');
+  `).join('');
 }
 
 // 🌟 顯示單一玩家的賓果盤具體內容:5x5格子,已標記的用綠色底標示,方便管理員肉眼核對有沒有異常
@@ -4468,74 +4222,6 @@ function showBingoCardDetail(idx) {
   }
   document.getElementById('bingo-card-detail-modal').classList.add('open');
 }
-
-// 🌟 效果類型的中文對照,跟玩家端/後端保持一致
-const BINGO_ITEM_EFFECT_LABELS_ = {
-  PICK_FREE: '免費指定抽', PICK_FREE_RANGE: '免費指定抽(限範圍)',
-  RANDOM_FREE: '免費隨機抽', RANDOM_FREE_RANGE: '免費隨機抽(限範圍)',
-};
-
-// 🌟 顯示某位玩家(bingoCardsData[idx])的完整BINGO道具背包清單,每一項都有「移除」按鈕,
-// 移除前會要求輸入原因(可留空)並二次確認,避免手滑誤刪玩家道具。
-function openBingoBackpackModal(idx) {
-  const c = bingoCardsData[idx];
-  if (!c) return;
-  document.getElementById('bingo-backpack-modal-title').textContent = `🎒 ${c.nickname} 的背包道具`;
-  bingoBackpackModalIdx = idx;
-  renderBingoBackpackList_(idx);
-  document.getElementById('bingo-backpack-modal').classList.add('open');
-}
-
-function renderBingoBackpackList_(idx) {
-  const c = bingoCardsData[idx];
-  const box = document.getElementById('bingo-backpack-list');
-  const items = (c && c.backpackItems) || [];
-  if (items.length === 0) {
-    box.innerHTML = '<div class="empty">這位玩家目前背包裡沒有任何BINGO道具</div>';
-    return;
-  }
-  const statusStyle = { UNUSED: { label: '✅ 未使用', color: '#43B581' }, USED: { label: '☑️ 已使用', color: '#B9BBBE' }, EXPIRED: { label: '⌛ 已過期', color: '#ED4245' } };
-  box.innerHTML = items.map(it => {
-    const st = statusStyle[it.status] || { label: it.status, color: '#B9BBBE' };
-    const effectLabel = BINGO_ITEM_EFFECT_LABELS_[it.effectType] || it.effectType;
-    const rangeText = it.effectParams && it.effectParams.min !== undefined ? `(${it.effectParams.min}~${it.effectParams.max})` : '';
-    const activitiesText = it.applicableActivityIds && it.applicableActivityIds.length > 0
-      ? `限定活動:${it.applicableActivityIds.join('、')}` : '所有活動皆可用';
-    const expiresText = it.expiresAt ? `過期:${new Date(it.expiresAt).toLocaleString()}` : '永不過期';
-    return `<div style="background:#2F3136;border-radius:8px;padding:10px 12px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <b>${it.itemName}</b>　<span style="color:${st.color};font-size:12px">${st.label}</span>
-        </div>
-        <button class="btn btn-del" onclick="removeBingoBackpackItem('${c.discordId}','${it.instanceId}',${idx})">🗑️ 移除</button>
-      </div>
-      <div style="font-size:12px;color:#B9BBBE;margin-top:4px">
-        ${effectLabel}${rangeText}　${activitiesText}　${expiresText}
-      </div>
-      <div style="font-size:11px;color:#72767D;margin-top:2px">序號:${it.instanceId}　取得:${it.obtainedAt ? new Date(it.obtainedAt).toLocaleString() : ''}${it.usedAt ? `　使用於:${new Date(it.usedAt).toLocaleString()}` : ''}</div>
-    </div>`;
-  }).join('');
-}
-
-async function removeBingoBackpackItem(targetDiscordId, instanceId, idx) {
-  const c = bingoCardsData[idx];
-  const item = c && c.backpackItems ? c.backpackItems.find(it => it.instanceId === instanceId) : null;
-  const itemName = item ? item.itemName : '這個道具';
-  if (!confirm(`確定要移除玩家「${c ? c.nickname : targetDiscordId}」的「${itemName}」嗎？\n此動作無法復原,但會記錄在歷史紀錄裡。`)) return;
-  const reason = prompt('填寫移除原因(可留空,會記錄在歷史紀錄裡):', '') || '';
-  const d = await api({ action: 'adminRemoveBingoBackpackItem', targetDiscordId, instanceId, reason });
-  if (d.status === 'success') {
-    toast('🗑️ ' + d.message);
-    // 🌟 移除成功的話,直接把本地資料裡的這一項拿掉,背包彈窗、總覽表格的「背包道具」計數都用同一份資料重新渲染,
-    // 不用整個重新打API拉一次列表(道具序號在前端就找得到、後端也已經真的刪除了,本地同步拿掉即可)。
-    if (c && c.backpackItems) c.backpackItems = c.backpackItems.filter(it => it.instanceId !== instanceId);
-    renderBingoBackpackList_(idx);
-    renderBingoCardsTable_();
-  } else {
-    toast('❌ ' + d.message, false);
-  }
-}
-let bingoBackpackModalIdx = null;
 
 function renderBingoActivityTable() {
   const tbody = document.getElementById('bingo-activity-tbody');
@@ -4749,7 +4435,7 @@ async function savePushFirstReward() {
 let pushSubscriberList = []; // 🌟 記住目前的訂閱名單,全選功能要用
 
 async function loadPushSubscribers() {
-  const d = await apiWorkerRead('adminPushSubscribers', {}, { action: 'adminGetPushSubscribers' });
+  const d = await api({ action: 'adminGetPushSubscribers' });
   const tbody = document.getElementById('push-subscriber-tbody');
   const countEl = document.getElementById('push-subscriber-count');
   if (d.status !== 'success') { tbody.innerHTML = `<tr><td colspan="5" class="empty">載入失敗: ${d.message}</td></tr>`; return; }
@@ -4811,7 +4497,7 @@ async function sendPushToSelected() {
 }
 
 async function loadPushHistory() {
-  const d = await apiWorkerRead('adminPushHistory', {}, { action: 'adminGetPushHistory' });
+  const d = await api({ action: 'adminGetPushHistory' });
   const tbody = document.getElementById('push-history-tbody');
   if (d.status !== 'success') { tbody.innerHTML = `<tr><td colspan="7" class="empty">載入失敗: ${d.message}</td></tr>`; return; }
   if (d.history.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty">還沒有發送過任何推播</td></tr>'; return; }
@@ -4854,7 +4540,7 @@ function reusePushHistoryItem(idx) {
 }
 
 async function loadPushSchedules() {
-  const d = await apiWorkerRead('adminPushSchedules', {}, { action: 'adminGetPushSchedules' });
+  const d = await api({ action: 'adminGetPushSchedules' });
   if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
   pushSchedules = d.schedules;
   renderPushScheduleTable();
@@ -4960,7 +4646,7 @@ async function deletePushSchedule(scheduleId, title) {
 async function loadAdminUsers() {
   const el = document.getElementById('admin-users-list');
   el.innerHTML = '<div class="empty">讀取中...</div>';
-  const d = await apiWorkerRead('adminList', {}, { action: 'adminGetAdminList' });
+  const d = await api({ action: 'adminGetAdminList' });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
   adminUsersCanManage = !!d.canManage;
   document.getElementById('admin-users-add-box').style.display = adminUsersCanManage ? '' : 'none';
@@ -5021,7 +4707,7 @@ async function loadAuctionBids() {
   const tbody = document.getElementById('bids-tbody');
   const refreshLabel = document.getElementById('bids-last-refresh');
   if (!auctionId) { tbody.innerHTML = '<tr><td colspan="5" class="empty">請先選擇一場拍賣</td></tr>'; if (refreshLabel) refreshLabel.textContent = ''; return; }
-  const d = await apiWorkerRead('adminAuctionBids', { auctionId }, { action: 'adminGetAuctionBids', auctionId });
+  const d = await api({ action: 'adminGetAuctionBids', auctionId });
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
 
   const statusLabel = { FROZEN: '<span class="status status-open">🧊 凍結中</span>', REFUNDED: '<span class="status status-closed">↩️ 已退回</span>', WON: '<span class="status status-open" style="background:rgba(240,178,50,0.2);color:var(--gold)">🏆 得標</span>' };
