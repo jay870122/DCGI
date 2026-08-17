@@ -1443,17 +1443,17 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <input id="adjust-reason" placeholder="例：活動獎勵補發、客服補償...">
       </div>
       <div class="fsep">要調整的貨幣 <span class="hint">先加要調整的貨幣種類,底下每個玩家再各自填自己的金額(可以都不一樣)</span></div>
-      <div id="adjust-columns-container" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px"></div>
-      <button class="btn-cancel" onclick="addAdjustCurrencyColumn()">➕ 新增一種貨幣</button>
+      <div id="adjust-columns-container" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;grid-column:span 2"></div>
+      <button class="btn-cancel" onclick="addAdjustCurrencyColumn()" style="grid-column:span 2">➕ 新增一種貨幣</button>
 
       <div class="fsep">每位玩家的調整金額 <span class="hint">留空 = 這位玩家這項不調整</span></div>
-      <div class="tbl-wrap" style="max-height:320px;overflow-y:auto">
+      <div class="tbl-wrap" style="max-height:320px;overflow-y:auto;grid-column:span 2">
         <table id="adjust-player-table"><thead><tr id="adjust-player-thead"><th>玩家</th></tr></thead><tbody id="adjust-player-tbody"></tbody></table>
       </div>
 
       <div class="fsep">同時發放序號(選填) <span class="hint">這次勾選的每位玩家,每種序號都各發一組;不管下面「私訊通知」有沒有勾,序號一定會私訊給玩家</span></div>
-      <div id="adjust-serial-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
-      <button class="btn-cancel" onclick="addAdjustSerialRow()">➕ 新增一種序號</button>
+      <div id="adjust-serial-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;grid-column:span 2"></div>
+      <button class="btn-cancel" onclick="addAdjustSerialRow()" style="grid-column:span 2">➕ 新增一種序號</button>
 
       <div class="field full" style="margin-top:14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
