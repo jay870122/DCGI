@@ -4173,7 +4173,7 @@ async function openBingoCardsModal(activityId, activityName) {
   document.getElementById('bingo-cards-summary').textContent = '';
   document.getElementById('bingo-cards-modal').classList.add('open');
 
-  const d = await api({ action: 'adminGetBingoCardsForActivity', activityId });
+  const d = await apiWorkerRead('adminBingoCards', { activityId }, { action: 'adminGetBingoCardsForActivity', activityId });
   if (d.status !== 'success') {
     document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="7" class="empty">載入失敗：${d.message}</td></tr>`;
     return;
