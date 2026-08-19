@@ -3468,7 +3468,7 @@ function setupFieldAutosave(fieldIds, keyFn) {
 const itemOptionsState = { ns: [], em: [] };
 
 function addItemOption(prefix) {
-  itemOptionsState[prefix].push({ name: '', price: 0, rewardRules: '' });
+  itemOptionsState[prefix].push({ name: '', price: 0, rewardRules: '', stock: '', limitGD: '', limitGM: '', limitGW: '', limitPD: '', limitPM: '', limitPW: '', limitPT: '' });
   renderItemOptions(prefix);
 }
 function removeItemOption(prefix, idx) {
@@ -3486,7 +3486,16 @@ function renderItemOptions(prefix) {
     container.innerHTML = '<p class="hint" style="margin:0">目前沒有設定任何選項,商品會照原本的方式運作(用上面的價格/獎勵規則欄位)。</p>';
     return;
   }
-  container.innerHTML = list.map((opt, idx) => `
+  // 🌟 選項自己的庫存/限購欄位,跟商品本身限購完全「互不相干、各自獨立」——選項有設定的話,除了要通過
+  // 選項自己的限購,如果商品本身「也有」設定限購,兩邊都要通過、都會各自扣除,不是二選一。
+  const limitFieldDefs = [
+    ['stock', '總庫存', '(永久扣減,用完就沒了,留空=無限)'],
+    ['limitGD', '全體/日', ''], ['limitGW', '全體/週', ''], ['limitGM', '全體/月', ''],
+    ['limitPD', '個人/日', ''], ['limitPW', '個人/週', ''], ['limitPM', '個人/月', ''], ['limitPT', '個人/總計', ''],
+  ];
+  container.innerHTML = list.map((opt, idx) => {
+    const hasAnyLimit = limitFieldDefs.some(([f]) => opt[f] !== undefined && opt[f] !== '' && opt[f] !== null);
+    return `
     <div style="background:#2F3136;border-radius:8px;padding:12px;margin-bottom:10px">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <input placeholder="選項名稱,例如：X3" value="${(opt.name||'').replace(/"/g,'&quot;')}" style="flex:2" oninput="updateItemOptionField('${prefix}',${idx},'name',this.value)">
@@ -3496,8 +3505,20 @@ function renderItemOptions(prefix) {
       <textarea placeholder="這個選項的盲盒規則,格式跟上面的「獎勵數量/盲盒規則」一樣,例如：加布裝扮箱子X3, 幻彩水晶碎片:1, 100%" rows="2"
         oninput="updateItemOptionField('${prefix}',${idx},'rewardRules',this.value); renderGachaPreviewInline(this, '${prefix}-option-preview-${idx}')">${(opt.rewardRules||'')}</textarea>
       <div class="gacha-preview" id="${prefix}-option-preview-${idx}" style="display:none"></div>
+      <details style="margin-top:8px" ${hasAnyLimit ? 'open' : ''}>
+        <summary style="cursor:pointer;font-size:12px;color:var(--gold)">🔒 這個選項自己的庫存/限購(選填,跟商品本身的限購互不相干、各自獨立扣除)${hasAnyLimit ? '　<span style="color:#43B581">已設定</span>' : ''}</summary>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+          ${limitFieldDefs.map(([field, label, hint]) => `
+            <div>
+              <label style="font-size:11px;color:#B9BBBE;display:block;margin-bottom:2px">${label}${hint ? ` <span class="hint">${hint}</span>` : ''}</label>
+              <input type="number" min="0" placeholder="不限" value="${opt[field] !== undefined && opt[field] !== null ? opt[field] : ''}" style="width:100%" oninput="updateItemOptionField('${prefix}',${idx},'${field}',this.value)">
+            </div>
+          `).join('')}
+        </div>
+      </details>
     </div>
-  `).join('');
+  `;
+  }).join('');
   // 🌟 渲染完馬上把每個選項現有的內容跑一次預覽,不用等使用者打字才看得到
   list.forEach((opt, idx) => {
     const ta = container.querySelectorAll('textarea')[idx];
