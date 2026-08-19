@@ -433,6 +433,17 @@
   
     let currentUser = null; 
     let currentShopItems = []; 
+    // 🌟 [連結限定]商品機制:預設對所有玩家隱藏,只有(1)管理員 或 (2)透過分享連結直接指名要看這個商品
+    // 才會顯示。isAdminUser在載入商店資料時會被設定;linkOnlyRevealedIds記錄「這次瀏覽期間,透過分享連結
+    // 被揭露、允許顯示」的商品ID清單。
+    let isAdminUser = false;
+    let linkOnlyRevealedIds = new Set();
+    function isLinkOnlyItem(item) { return item.name.includes('[連結限定]'); }
+    function shouldShowLinkOnlyItem(item) {
+      if (!isLinkOnlyItem(item)) return true;
+      return isAdminUser || linkOnlyRevealedIds.has(item.id);
+    }
+
     let itemAltInfo = {}; // 🌟 safeId -> {price, rate, balance, altName, mainCurrency},給替代貨幣折抵預覽用
     let categoryUnlockedThisSession = new Set(); // 🌟 密碼鎖定:這次瀏覽期間(重新整理網頁會重置)已經解鎖過的分類,不用每次切換分類都重問一次
     let currentCategory = null;
@@ -614,7 +625,10 @@
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
     function renderSidebar() {
-      const categories = Array.from(new Set(currentShopItems.map(item => item.category)));
+      // 🌟 [連結限定]商品沒被揭露的話,連分類清單、分類數量都不該算進去,不然側邊欄會透露出「這裡有個
+      // 看不到的東西」,失去隱藏的意義
+      const visibleShopItems = currentShopItems.filter(shouldShowLinkOnlyItem);
+      const categories = Array.from(new Set(visibleShopItems.map(item => item.category)));
       const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const sidebar = document.getElementById('category-sidebar');
 
@@ -628,7 +642,7 @@
       }
 
       function renderCatItemHtml(cat, displayLabel, indent, iconOverride) {
-        const sample = currentShopItems.find(i => i.category === cat);
+        const sample = visibleShopItems.find(i => i.category === cat);
         const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(cat);
 
         // 🌟 「完全隱藏」模式底下,如果還設定了「側邊欄完全不列出」,就直接跳過這個分類,不留任何蹤跡
@@ -636,7 +650,7 @@
         const isHideFromSidebar = locked && (!sample.categoryLockVisibility || sample.categoryLockVisibility === '') && sample.categoryLockShowHint === 'HIDE';
         if (isHideFromSidebar && currentCategory !== cat) return '';
 
-        const count = currentShopItems.filter(i => i.category === cat).length;
+        const count = visibleShopItems.filter(i => i.category === cat).length;
         const icon = iconOverride || (locked ? '🔒' : '🏷️');
         return `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" style="${indent ? 'padding-left:32px' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
                    <span>${icon} ${displayLabel}</span>
@@ -2031,8 +2045,11 @@ function fetchScoresAndShop(discordId, callback = null) {
           // ==========================================
           const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444']; 
           const isAdmin = ADMIN_IDS.includes(discordId);
+          isAdminUser = isAdmin; // 🌟 存成全域變數,shouldShowLinkOnlyItem等其他地方也要用
 
           // 🌟 判斷：如果是管理員就保留，如果不是管理員就過濾掉 [隱藏] 商品
+          // 🌟 [連結限定]商品不在這裡過濾掉——要先保留完整清單,才能在下面用targetItem把「直接分享連結
+          // 進來的那一個」商品標記成已揭露,揭露的判斷結果之後才拿去給renderSidebar/renderShop做真正的顯示過濾。
           currentShopItems = shopData.items.filter(item => {
             if (item.name.includes('[隱藏]')) return isAdmin;
             return true;
@@ -2044,10 +2061,15 @@ function fetchScoresAndShop(discordId, callback = null) {
 
           // 🌟 檢查是否有待跳轉的分享分類 / 分享商品(分享特定商品時要優先切到該商品的分類,
           // 不然如果目前分類跟商品所在分類不同,商品會被篩選濾掉、導致捲動定位永遠找不到卡片)
-          const allCats = Array.from(new Set(currentShopItems.map(item => item.category)));
           const targetCategory = localStorage.getItem('shared_category_target');
           const targetItemId = localStorage.getItem('shared_item_target');
           const targetItem = targetItemId ? currentShopItems.find(item => item.id === targetItemId) : null;
+
+          // 🌟 [連結限定]商品:如果玩家是透過分享連結直接點進來找這個商品(targetItem剛好就是這個商品),
+          // 就算它平常對外隱藏,也要在這次瀏覽期間放行顯示,不然分享連結進來反而看不到要分享的東西。
+          if (targetItem && isLinkOnlyItem(targetItem)) linkOnlyRevealedIds.add(targetItem.id);
+
+          const allCats = Array.from(new Set(currentShopItems.filter(item => shouldShowLinkOnlyItem(item)).map(item => item.category)));
 
           if (targetItem && targetItem.category) {
             currentCategory = targetItem.category;
@@ -2111,7 +2133,7 @@ function fetchScoresAndShop(discordId, callback = null) {
     function renderShop() {
       const container = document.getElementById('shop-list');
       const sortType = document.getElementById('sort-items').value;
-      let displayItems = [...currentShopItems];
+      let displayItems = currentShopItems.filter(shouldShowLinkOnlyItem);
       itemAltInfo = {}; // 🌟 每次重繪商店都重置替代貨幣資訊快取
 
       let isCatBlurLocked = false; // 🌟 這個分類是「模糊顯示」模式且還沒解鎖,渲染完後要整個包一層模糊遮罩
@@ -2213,7 +2235,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
         
         let isHold = item.name.includes('[持有]');
-        let displayName = item.name.replace('[持有]', '').trim();
+        let displayName = item.name.replace('[持有]', '').replace('[連結限定]', '').trim();
         // 🌟 更新圖片 HTML 讓它帶有 onclick 事件以開啟預覽
         let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="openImage('${item.imageUrl}')">` : '';
         
@@ -2358,7 +2380,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             ${gamblingSelectHtml}
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}" oninput="updateAltPreview('${safeId}'); updateGamblingPreview('${safeId}');">
-              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${item.name}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : (item.isGambling ? '下注' : '兌換')}</button>
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${displayName}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : (item.isGambling ? '下注' : '兌換')}</button>
             </div>
           `;
         } else {
@@ -2708,6 +2730,10 @@ function fetchScoresAndShop(discordId, callback = null) {
           }
           if (data.extraCostUsed && data.extraCostUsed.length > 0) {
             successMsg += `\n➕ 已收取 ${data.extraCostUsed.map(e => `${e.amount} 個 ${e.displayName || e.name}`).join('、')}`;
+          }
+          if (data.revealedItemName) {
+            // 🌟 [隱藏名稱]標籤:購買前商品卡片故意顯示模糊的名稱,現在已經買完了,揭曉真正的名稱
+            successMsg += `\n\n🎊 揭曉！您購買的實際上是：\n【 ${data.revealedItemName} 】`;
           }
           if (data.displayExt) {
             successMsg += `\n\n🎉 恭喜您開出了：\n【 ${data.displayExt} 】！`;
