@@ -437,12 +437,6 @@
     let categoryUnlockedThisSession = new Set(); // 🌟 密碼鎖定:這次瀏覽期間(重新整理網頁會重置)已經解鎖過的分類,不用每次切換分類都重問一次
     let currentCategory = null;
     let CATEGORY_ORDER = []; 
-    let isAdminUser = false; // 🌟 這次登入的人是不是管理員,shopData載入時會設定,給[連結限定]/[隱藏]等標籤判斷用
-    // 🌟 [連結限定]商品:平常瀏覽分類清單/側邊欄都看不到,只有透過商品自己的分享連結(?item=xxx)進來才會現形。
-    // 現形之後會記在這個Set裡,同一次瀏覽期間(重新整理網頁會重置)持續顯示,不會因為切換分類又重新消失,體驗才不會忽隱忽現。
-    let linkOnlyRevealedIds = new Set();
-    function isLinkOnlyItem(item) { return !!(item && item.name && item.name.includes('[連結限定]')); }
-    function shouldShowLinkOnlyItem(item) { return !isLinkOnlyItem(item) || isAdminUser || linkOnlyRevealedIds.has(item.id); }
     
     let countdownInterval = null;
 
@@ -620,7 +614,7 @@
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
     function renderSidebar() {
-      const categories = Array.from(new Set(currentShopItems.filter(shouldShowLinkOnlyItem).map(item => item.category)));
+      const categories = Array.from(new Set(currentShopItems.map(item => item.category)));
       const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const sidebar = document.getElementById('category-sidebar');
 
@@ -642,7 +636,7 @@
         const isHideFromSidebar = locked && (!sample.categoryLockVisibility || sample.categoryLockVisibility === '') && sample.categoryLockShowHint === 'HIDE';
         if (isHideFromSidebar && currentCategory !== cat) return '';
 
-        const count = currentShopItems.filter(i => i.category === cat && shouldShowLinkOnlyItem(i)).length;
+        const count = currentShopItems.filter(i => i.category === cat).length;
         const icon = iconOverride || (locked ? '🔒' : '🏷️');
         return `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" style="${indent ? 'padding-left:32px' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
                    <span>${icon} ${displayLabel}</span>
@@ -670,7 +664,7 @@
             // 🌟 父分類本身也是真的分類,可以直接點選查看商品;箭頭另外做成獨立的收合開關,不影響點選本身
             const sample = currentShopItems.find(i => i.category === g.selfCat);
             const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(g.selfCat);
-            const count = currentShopItems.filter(i => i.category === g.selfCat && shouldShowLinkOnlyItem(i)).length;
+            const count = currentShopItems.filter(i => i.category === g.selfCat).length;
             html += `<div class="cat-item cat-parent-item ${currentCategory === g.selfCat ? 'active' : ''}" onclick="selectCategory('${g.selfCat.replace(/'/g,"\\'")}')">
                        <span>${toggleArrow}${locked ? '🔒' : '📂'} ${g.parentName}</span>
                        <div style="display:flex; align-items:center; gap:10px;">
@@ -947,11 +941,7 @@
       currentBingoActivityId = null;
       loadBingoActivityList();
     }
-    function closeBingo() {
-      document.getElementById('bingo-modal').style.display = 'none';
-      // 🌟 彈窗關掉了,畫面上的倒數計時元素跟著消失,計時器沒必要繼續在背景空轉浪費資源
-      if (bingoCountdownIntervalId_) { clearInterval(bingoCountdownIntervalId_); bingoCountdownIntervalId_ = null; }
-    }
+    function closeBingo() { document.getElementById('bingo-modal').style.display = 'none'; }
 
     // 🌟 第一層畫面:列出目前開放中的BINGO活動,玩家自己選要玩哪一個(可以同時玩好幾個,各自獨立的卡片)。
     // 🌟 這個列表改走 Worker(有快取,讀取比較快),個別賓果卡的狀態(點進某個活動之後)還是走 GAS,確保剛抽完號碼馬上看到最新結果。
@@ -1092,37 +1082,8 @@
       loadBingoActivityList();
     }
 
-    // 🌟 賓果卡狀態讀取:先打Cloudflare Worker(action=bingoStatus,不套用快取,直接讀最新資料,速度比Apps Script快很多)。
-    // 如果Worker回報needsCreate(玩家第一次玩這個活動、還沒有卡),Worker不負責建卡(建卡可能要扣開盤費用,
-    // 需要走Apps Script那邊有鎖定機制的寫入流程),這時才改打Apps Script的getBingoStatus,它會處理建卡+扣費;
-    // 建好之後,下一次(以及重新整理之後)查詢就會走Worker的快速路徑了。
     function loadBingoStatus() {
       document.getElementById('bingo-body-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
-      fetch(`${DASHBOARD_WORKER_URL}?action=bingoStatus&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.status !== 'success') {
-          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ ${data.message || '讀取失敗'}</p>`;
-          return;
-        }
-        if (!data.enabled) {
-          document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#B9BBBE;">${data.message || '這個BINGO活動目前沒有開放'}</p>`;
-          return;
-        }
-        if (data.needsCreate) {
-          // 🌟 第一次玩這個活動,還沒有卡——改打Apps Script,由它處理建卡(可能會扣開盤費用)
-          loadBingoStatusViaGas_();
-          return;
-        }
-        renderBingoModal(data);
-      })
-      .catch(() => {
-        // 🌟 Worker連線失敗的話,退回原本直接打Apps Script的方式,不要整個沒東西可看
-        loadBingoStatusViaGas_();
-      });
-    }
-
-    function loadBingoStatusViaGas_() {
       fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
@@ -1312,98 +1273,24 @@
       // 🌟 道具背包:只顯示適用這個活動的道具(後端已經先過濾好了),未使用且沒過期的可以點擊使用,
       // 已使用/已過期的用灰色顯示,方便玩家一眼看出手上還有什麼牌可以打。
       // 🌟 已使用的道具直接從清單濾掉,不要只是灰顯——用過的東西留在畫面上沒有意義,只會讓背包看起來越來越亂。
-      // 已過期但還沒用過的維持顯示(灰顯即可),讓玩家知道自己「有一張沒用到就過期了」的道具存在過,
-      // 同時提供勾選清除的功能,不想留著佔畫面的話可以自己清掉。
+      // 已過期但還沒用過的維持顯示(灰顯即可),讓玩家知道自己「有一張沒用到就過期了」的道具存在過。
       const backpackItems = (data.backpackItems || []).filter(it => it.status !== 'USED');
       const statusLabel = { UNUSED: '<span style="color:#43B581">✅ 可使用</span>', EXPIRED: '<span style="color:#ED4245">已過期</span>' };
-      const unusedCount = backpackItems.filter(it => it.status === 'UNUSED').length;
-      const expiredCount = backpackItems.filter(it => it.status === 'EXPIRED').length;
-      // 🌟 超過1張可用道具才顯示「勾選批次使用」的控制列,只有1張的話直接用單張的「使用」按鈕就好,不用多此一舉
-      const batchControlsHtml = unusedCount > 1 ? `
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <input type="checkbox" id="bingo-select-all-checkbox" onchange="toggleAllBingoItemCheckboxes(this.checked)">
-          <label for="bingo-select-all-checkbox" style="font-size:12px;color:#B9BBBE;cursor:pointer">全選</label>
-          <button class="btn-action" id="bingo-batch-use-btn" style="padding:3px 10px;font-size:12px;background-color:#5865F2;margin-left:auto" onclick="useBingoItemsBatch()" disabled>
-            ✅ 批次使用已勾選(<span id="bingo-item-selected-count">0</span>)
-          </button>
-        </div>` : '';
-      // 🌟 有過期道具才顯示「清除已過期」的控制列,平常沒有過期道具的話不用多顯示這排佔空間
-      const expiredControlsHtml = expiredCount > 0 ? `
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <input type="checkbox" id="bingo-select-all-expired-checkbox" onchange="toggleAllExpiredBingoItemCheckboxes(this.checked)">
-          <label for="bingo-select-all-expired-checkbox" style="font-size:12px;color:#B9BBBE;cursor:pointer">全選已過期</label>
-          <button class="btn-action" id="bingo-clear-expired-btn" style="padding:3px 10px;font-size:12px;background-color:#ED4245;margin-left:auto" onclick="clearExpiredBingoItems()" disabled>
-            🗑️ 清除已勾選(<span id="bingo-expired-selected-count">0</span>)
-          </button>
-        </div>` : '';
       const backpackHtml = backpackItems.length > 0 ? `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px;margin-bottom:10px">
           <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🎒 我的道具</div>
-          ${batchControlsHtml}
-          ${expiredControlsHtml}
-          ${backpackItems.map(it => {
-            const itMin = it.effectParams && it.effectParams.min !== undefined ? it.effectParams.min : data.numberMin;
-            const itMax = it.effectParams && it.effectParams.max !== undefined ? it.effectParams.max : data.numberMax;
-            // 🌟 只有「還沒過期、還沒用過」而且真的有設定過期時間的道具才顯示倒數計時,永不過期(expiresAt為null)的不用顯示
-            const countdownHtml = (it.status === 'UNUSED' && it.expiresAt) ? `<span class="bingo-item-countdown" data-expires="${it.expiresAt}" style="color:#F0B232;font-size:11px"></span>` : '';
-            return `
+          ${backpackItems.map(it => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px;${it.status !== 'UNUSED' ? 'opacity:0.5' : ''}">
-              <span style="display:flex;align-items:center;gap:6px">
-                ${it.status === 'UNUSED' ? `<input type="checkbox" class="bingo-item-checkbox" data-instance="${it.instanceId}" data-effect="${it.effectType}" data-min="${itMin}" data-max="${itMax}" data-name="${it.itemName.replace(/"/g,'&quot;')}" onchange="updateBingoItemSelectedCount()">` : ''}
-                ${it.status === 'EXPIRED' ? `<input type="checkbox" class="bingo-expired-item-checkbox" data-instance="${it.instanceId}" onchange="updateExpiredBingoItemSelectedCount()">` : ''}
-                <span>${it.itemName}${(it.effectType === 'PICK_FREE_RANGE' || it.effectType === 'RANDOM_FREE_RANGE') && it.effectParams ? ` <span style="color:#72767D;font-size:11px">(限${it.effectParams.min}~${it.effectParams.max})</span>` : ''}${it.effectType && it.effectType.indexOf('RANDOM') === 0 ? ' <span style="color:#72767D;font-size:11px">🎲隨機</span>' : ''}</span>
-                ${countdownHtml}
-              </span>
+              <span>${it.itemName}${(it.effectType === 'PICK_FREE_RANGE' || it.effectType === 'RANDOM_FREE_RANGE') && it.effectParams ? ` <span style="color:#72767D;font-size:11px">(限${it.effectParams.min}~${it.effectParams.max})</span>` : ''}${it.effectType && it.effectType.indexOf('RANDOM') === 0 ? ' <span style="color:#72767D;font-size:11px">🎲隨機</span>' : ''}</span>
               <span style="display:flex;align-items:center;gap:8px">
                 ${statusLabel[it.status] || ''}
-                ${it.status === 'UNUSED' ? `<button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#43B581" onclick="useBingoItemPrompt(this, '${it.instanceId}', ${itMin}, ${itMax}, '${it.effectType}')">使用</button>` : ''}
+                ${it.status === 'UNUSED' ? `<button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#43B581" onclick="useBingoItemPrompt(this, '${it.instanceId}', ${it.effectParams && it.effectParams.min !== undefined ? it.effectParams.min : data.numberMin}, ${it.effectParams && it.effectParams.max !== undefined ? it.effectParams.max : data.numberMax}, '${it.effectType}')">使用</button>` : ''}
               </span>
             </div>
-          `;
-          }).join('')}
+          `).join('')}
         </div>` : '';
 
       document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + backpackHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
-      startBingoItemCountdowns_(); // 🌟 畫面重繪完成後才啟動倒數計時,不然這時候DOM裡的.bingo-item-countdown元素還不存在
-    }
-
-    // 🌟 背包道具過期倒數計時:每秒更新一次畫面上所有帶data-expires屬性的道具倒數文字。
-    // 🌟🔧 每次loadBingoStatus()都會整個重繪bingo-body-container、把舊的倒數計時元素整個換掉,
-    // 所以每次重繪後都要先清掉舊的setInterval再重新啟動一個,不然背景會一直疊加越來越多個計時器,
-    // 越開越多次BINGO彈窗就會越跑越卡(而且舊計時器抓到的是已經被換掉、不在畫面上的DOM節點,毫無意義)。
-    let bingoCountdownIntervalId_ = null;
-    function formatBingoCountdown_(ms) {
-      if (ms <= 0) return '已過期';
-      const totalSec = Math.floor(ms / 1000);
-      const days = Math.floor(totalSec / 86400);
-      const hours = Math.floor((totalSec % 86400) / 3600);
-      const mins = Math.floor((totalSec % 3600) / 60);
-      const secs = totalSec % 60;
-      if (days > 0) return `⏳ ${days}天${hours}小時後過期`;
-      if (hours > 0) return `⏳ ${hours}小時${mins}分後過期`;
-      if (mins > 0) return `⏳ ${mins}分${secs}秒後過期`;
-      return `⏳ ${secs}秒後過期`;
-    }
-    function updateBingoItemCountdowns_() {
-      const els = document.querySelectorAll('.bingo-item-countdown[data-expires]');
-      if (els.length === 0) { clearInterval(bingoCountdownIntervalId_); bingoCountdownIntervalId_ = null; return; } // 🌟 畫面上已經沒有任何倒數計時元素了(例如切走BINGO分頁),不用再繼續跑計時器浪費資源
-      let anyJustExpired = false;
-      els.forEach(el => {
-        const expiresMs = new Date(el.dataset.expires).getTime();
-        const remainMs = expiresMs - Date.now();
-        el.textContent = formatBingoCountdown_(remainMs);
-        if (remainMs <= 0) { el.style.color = '#ED4245'; anyJustExpired = true; }
-      });
-      // 🌟 有道具倒數歸零了(代表剛好過期),自動重新整理一次背包狀態,讓「可使用」按鈕正確消失、狀態改標成「已過期」,
-      // 不用等玩家自己手動重新整理才會發現這張道具其實已經不能用了
-      if (anyJustExpired && !bingoActionInFlight) loadBingoStatus();
-    }
-    function startBingoItemCountdowns_() {
-      if (bingoCountdownIntervalId_) { clearInterval(bingoCountdownIntervalId_); bingoCountdownIntervalId_ = null; }
-      updateBingoItemCountdowns_(); // 🌟 先立即更新一次,不用等第一個1秒過去才顯示文字(不然畫面剛渲染出來的瞬間會是空白)
-      if (document.querySelectorAll('.bingo-item-countdown[data-expires]').length > 0) {
-        bingoCountdownIntervalId_ = setInterval(updateBingoItemCountdowns_, 1000);
-      }
     }
 
     // 🌟 讀取目前選的付款方式('PRIMARY'/'ALT'),沒有替代貨幣選擇器的話(活動沒開放)就一律用主要貨幣
@@ -1412,90 +1299,42 @@
       return sel ? sel.value : 'PRIMARY';
     }
 
-    // 🌟 重抽連線獎勵:跟「使用道具」「買號碼」一樣採用「賽跑」架構——GAS本身的回應 vs Worker主動輪詢歷史紀錄,
-    // 哪條路線先給出確定結果就用哪個,避免GAS逾時、玩家其實已經扣款重抽成功,卻只看到一個模糊的失敗訊息。
     function rerollBingoLineRewardsAction() {
       const btn = document.getElementById('bingo-reroll-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-
-      let settled = false, gasGaveUp = false;
-      const requestStartMs = Date.now();
-      function finishError_(msg) { if (settled) return; settled = true; btn.disabled = false; btn.textContent = originalText; alert(msg); }
-      function finishSuccessFromGas_(data) {
-        if (settled) return; settled = true;
+      fetch(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
         btn.disabled = false; btn.textContent = originalText;
+        if (data.status !== 'success') { alert('❌ ' + data.message); return; }
         alert(data.wasFree ? '🔄 已免費重抽連線獎勵！' : `🔄 已花費 ${data.cost} ${data.currencyDisplayName} 重抽連線獎勵！`);
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id);
-      }
-      function finishSuccessFromPoll_(data) {
-        if (settled) return;
-        finishSuccessFromGas_(data); // 🌟 輪詢查到的完整結構化結果,直接沿用跟GAS直接回應完全一樣的處理邏輯(讓finishSuccessFromGas_自己設settled,這裡不要先設)
-      }
-
-      fetchWithTimeout_(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => {
-        if (settled) return;
-        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-        finishSuccessFromGas_(data);
       })
-      .catch(err => {
-        if (err && err.name === 'AbortError') gasGaveUp = true;
-        else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-      });
-
-      pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      });
+      .catch(() => { btn.disabled = false; btn.textContent = originalText; alert('❌ 連線失敗，請稍後再試'); });
     }
 
-    // 🌟 重開新盤:同樣採用賽跑架構,理由跟重抽連線一致
     function resetOwnBingoCardAction() {
       if (!confirm('確定要重開新盤嗎？目前的標記進度、卡片數字、連線獎勵分配都會清空換成全新的一張，此動作無法復原！')) return;
       const btn = document.getElementById('bingo-newboard-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
-
-      let settled = false, gasGaveUp = false;
-      const requestStartMs = Date.now();
-      function finishError_(msg) { if (settled) return; settled = true; btn.disabled = false; btn.textContent = originalText; alert(msg); }
-      function finishSuccessFromGas_(data) {
-        if (settled) return; settled = true;
-        btn.disabled = false; btn.textContent = originalText;
+      fetch(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status !== 'success') {
+          btn.disabled = false; btn.textContent = originalText;
+          alert('❌ ' + data.message);
+          return;
+        }
         alert(data.wasFree ? '🆕 已免費重開新盤！' : `🆕 已花費 ${data.cost} ${data.currencyDisplayName} 重開新盤！`);
         lastDrawnNumbers = []; // 🌟 卡片已經換新的了,舊的金色標示沒有意義,清空
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id);
-      }
-      function finishSuccessFromPoll_(data) {
-        if (settled) return;
-        finishSuccessFromGas_(data); // 🌟 輪詢查到的完整結構化結果,直接沿用跟GAS直接回應完全一樣的處理邏輯(含清空lastDrawnNumbers,讓finishSuccessFromGas_自己設settled)
-      }
-
-      fetchWithTimeout_(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => {
-        if (settled) return;
-        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-        finishSuccessFromGas_(data);
       })
-      .catch(err => {
-        if (err && err.name === 'AbortError') gasGaveUp = true;
-        else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-      });
-
-      pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      });
+      .catch(() => { btn.disabled = false; btn.textContent = originalText; alert('❌ 連線失敗，請稍後再試'); });
     }
 
     let bingoActionInFlight = false; // 🌟 避免玩家連續快速點擊抽號按鈕,造成同一次操作被送出好幾次請求
-    // 🌟 買號碼(隨機抽/指定抽):跟「使用道具」一樣採用「賽跑」架構——GAS本身的回應 vs Worker主動輪詢歷史紀錄,
-    // 哪條路線先給出確定結果就用哪個,避免GAS逾時、玩家其實已經扣款抽到號碼,卻只看到一個模糊的失敗訊息。
     function buyBingoNumberAction(mode) {
       if (bingoActionInFlight) return; // 🌟 上一次的請求還沒回來,直接忽略這次點擊
       let targetNumber = '';
@@ -1512,26 +1351,14 @@
       randomBtn.disabled = true; if (pickBtn) pickBtn.disabled = true;
       randomBtn.textContent = '⏳ 處理中...'; if (pickBtn) pickBtn.textContent = '⏳ 處理中...';
 
-      let settled = false;
-      let gasGaveUp = false;
-      const requestStartMs = Date.now();
-
-      function resetButtons_() {
+      fetch(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        bingoActionInFlight = false;
         randomBtn.disabled = false; if (pickBtn) pickBtn.disabled = false;
         randomBtn.textContent = originalRandomText; if (pickBtn) pickBtn.textContent = originalPickText;
-      }
-      function finishError_(msg) {
-        if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        resetButtons_();
-        alert(msg);
-      }
-      function finishSuccessFromGas_(data) {
-        if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        resetButtons_();
+        if (data.status !== 'success') { alert('❌ ' + data.message); return; }
+
         const hitDraws = data.draws.filter(d => d.hit && !d.alreadyMarked);
         lastDrawnNumbers = hitDraws.map(d => d.number); // 🌟 記下這次命中的號碼,等一下重新畫棋盤時用金色特別標示
         let msg = `🎲 這次共抽了 ${data.draws.length} 次：${data.draws.map(d => d.number).join('、')}\n💰 花費：${data.cost} ${data.currencyDisplayName}\n`;
@@ -1545,87 +1372,14 @@
         alert(msg);
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id); // 🌟 花了錢、可能拿了獎勵,順便刷新一下分數欄
-      }
-      function finishSuccessFromPoll_(data) {
-        if (settled) return;
-        // 🌟 用輪詢查到的完整結構化結果,直接沿用跟GAS直接回應完全一樣的處理邏輯(不再只是文字摘要,讓finishSuccessFromGas_自己設settled)
-        finishSuccessFromGas_(data);
-      }
-
-      // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,有結構化的完整結果)
-      fetchWithTimeout_(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => {
-        if (settled) return; // 🌟 輪詢那邊已經先給出結果了
-        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-        finishSuccessFromGas_(data);
       })
-      .catch(err => {
-        if (err && err.name === 'AbortError') {
-          gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
-        } else if (!settled) {
-          finishError_('❌ 連線失敗，請稍後再試');
-        }
-      });
-
-      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制
-      pollInstrumentedActionResult_('buyBingoNumber', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) {
-          finishSuccessFromPoll_(polled);
-        } else if (gasGaveUp) {
-          finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-        }
+      .catch(() => {
+        bingoActionInFlight = false;
+        randomBtn.disabled = false; if (pickBtn) pickBtn.disabled = false;
+        randomBtn.textContent = originalRandomText; if (pickBtn) pickBtn.textContent = originalPickText;
+        alert('❌ 連線失敗，請稍後再試');
       });
     }
-
-    // 🌟 帶逾時的fetch:GAS Web App沒有真正的請求佇列,同一分類的動作靠應用層輪詢式鎖互相等待(最長20秒左右),
-    // 如果request()一直沒有回應,與其讓玩家永遠盯著「使用中...」不知道發生什麼事,不如設一個上限主動判斷逾時。
-    function fetchWithTimeout_(url, timeoutMs) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
-    }
-    const BINGO_ITEM_USE_TIMEOUT_MS = 25000; // 🌟 GAS本身的逾時上限(比後端鎖的最長等待時間單張15秒/批次20秒再多留一點餘裕)
-    function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
-    // 🌟🔧 核心設計:「使用道具」送出後,不是死等GAS本身的HTTP回應——GAS Web App沒有真正的請求佇列,
-    // 同一分類動作要靠應用層輪詢式鎖互相排隊等待,回應可能拖很久甚至逾時,但伺服器端往往還是有把事情做完
-    // (道具真的被消耗掉、賓果卡狀態也真的被更新了),只是「回應」沒送達而已。
-    // 這裡改成讓GAS的請求跟「用Worker主動輪詢兌換紀錄表M欄」兩條路線同時進行——Worker讀取速度快、沒有GAS那種
-    // 冷啟動/執行佇列開銷,可以每隔一小段時間就快速確認一次「這次操作有沒有成功完成的紀錄出現」,哪一條路線
-    // 先給出確定結果就用哪個,不用死等比較慢的那一條。
-    // 🌟🔧 這裡刻意保留GAS回應這條路線繼續監聽(不是完全不等GAS),是因為GAS的鎖定是在「驗證檢查之前」就先卡住,
-    // 如果操作真的失敗(道具已用過/數字超出範圍/系統忙碌等),失敗訊息也會被同一個鎖延遲,查歷史紀錄查不到
-    // 「失敗原因」(失敗的話根本不會寫進歷史紀錄),完全不等GAS的話,遇到真正失敗的情況只能死等整個逾時視窗
-    // 跑完才顯示籠統訊息,會失去明確的失敗原因說明。
-    // 🌟🔧 全部BINGO動作(使用道具/批次使用道具/隨機或指定抽號/重抽連線/重開盤)現在統一改用下面的通用版
-    // pollInstrumentedActionResult_,跟商品購買/拍賣出價共用同一套機制(GAS端也統一用instrumentedAction_
-    // 包裝,完整回應JSON存進「兌換紀錄」表M欄),不再各自維護一套專屬的輪詢邏輯。
-
-    // 🌟 通用版本的輪詢:給商品購買(BUY)/拍賣出價(BID)/BINGO各項操作等透過 instrumentedAction_ 包裝的動作使用。
-    // 查的是「兌換紀錄」表M欄存的完整原始回應JSON,找到的話直接回傳「解析好的data物件」,呼叫端可以直接當成
-    // GAS本身回應的data使用,不用另外處理。
-    // 🌟🔧 修正嚴重的配額浪費bug:這個迴圈原本不知道「外層GAS那條路線是不是已經先回應了」,即使GAS秒回、
-    // 呼叫端早就已經把settled設成true不再理會輪詢結果,這個迴圈本身還是會傻傻地繼續打滿40次、跨度長達
-    // 約24秒才停止——等於「幾乎每一次購買/BINGO操作」都會在背景多浪費掉一大串完全用不到的Sheets API讀取,
-    // Google的讀取配額是「整個服務帳戶每分鐘60次」共用的(不是每個人各自60次),這樣浪費法很容易就把配額
-    // 打爆到全站都連不上(429錯誤)。現在改成接受一個「shouldStop」檢查函式,每次要打下一次API之前先問一下
-    // 「外層是不是已經有答案了」,有的話直接停止,不再繼續空轉。
-    async function pollInstrumentedActionResult_(actionType, sinceMs, shouldStop) {
-      await sleep_(600);
-      for (let i = 0; i < 40; i++) {
-        if (shouldStop && shouldStop()) return null; // 🌟 外層已經有答案了(不管是GAS成功回應還是逾時失敗),不用再繼續打API
-        try {
-          const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${currentUser.id}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(getAccessToken())}`);
-          const data = await res.json();
-          if (data.status === 'success' && data.found && data.result) return data.result;
-        } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
-        await sleep_(600);
-      }
-      return null;
-    }
-
     // 🌟 使用背包裡的道具(例如指定券):跳出輸入框讓玩家填要指定的數字,範圍限定的道具會先告知能填的範圍
     function useBingoItemPrompt(btnEl, instanceId, min, max, effectType) {
       if (bingoActionInFlight) return;
@@ -1640,300 +1394,37 @@
       // 🌟 隨機類型不用輸入框,直接送出請求,實際抽到的數字由後端決定(targetNumber留空就好)
 
       bingoActionInFlight = true;
-      
-      // 🌟 禁用所有道具使用按鈕,並顯示使用中狀態(順便連勾選框、批次使用按鈕也一起鎖住,避免這時候又跑去勾選道具準備批次使用)
-      const allItemBtns = document.querySelectorAll('button[onclick*="useBingoItemPrompt"]');
-      const btnStates = [];
-      allItemBtns.forEach(btn => {
-        btnStates.push({ btn, originalText: btn.textContent });
-        btn.disabled = true;
-        btn.textContent = '⏳ 使用中...';
-      });
-      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn').forEach(el => { el.disabled = true; });
+      const originalBtnText = btnEl.textContent;
+      btnEl.disabled = true;
+      btnEl.textContent = '⏳ 使用中...';
 
-      let settled = false; // 🌟 GAS的回應、Worker輪詢兩條路線,不管誰先給出結果,都只處理一次(避免兩邊都跳出提示、重複刷新畫面)
-      let gasGaveUp = false; // 🌟 GAS這條路線是不是已經確定逾時/連線失敗了(輪詢那邊要靠這個旗標判斷「輪詢視窗跑完也沒查到」時該不該報告失敗)
-      const requestStartMs = Date.now();
-
-      function finishSuccess_(msg) {
-        if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        alert(msg);
-        loadBingoStatus();
-      }
-      function finishError_(msg) {
-        if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
-        document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = false; });
-        updateBingoItemSelectedCount();
-        alert(msg);
-      }
-
-      function buildResultMsg_(data) {
-        let msg = isRandom ? `🎫 使用道具成功！隨機抽出了數字 ${data.number}\n` : `🎫 使用道具成功！指定了數字 ${data.number}\n`;
-        if (data.alreadyMarked) msg += '這個數字之前就已經標記過了。';
-        else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
-        else {
-          msg += '✅ 命中卡片上的號碼！';
-          if (data.newLines && data.newLines.length > 0) msg += `\n🎉 有新連成的線！`;
-          if (data.fullCompleted) msg += `\n🏆 恭喜完成整張賓果卡！`;
-          if (data.rewardTexts && data.rewardTexts.length > 0) msg += `\n\n${data.rewardTexts.join('\n')}`;
-        }
-        return msg;
-      }
-
-      // 🌟 路線A:GAS本身的回應(正常情況下,大多數時候會走這條、而且是最準確的,因為有結構化的完整結果)
-      fetchWithTimeout_(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      fetch(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`)
         .then(res => res.json())
         .then(data => {
-          if (settled) return; // 🌟 輪詢那邊已經先給出結果了,這裡不用再處理一次
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          bingoActionInFlight = false;
+          if (data.status !== 'success') {
+            btnEl.disabled = false; btnEl.textContent = originalBtnText; // 🌟 失敗的話按鈕要還原,不然會一直卡在「使用中」
+            alert('❌ ' + data.message); return;
+          }
+          // 🌟 成功的話不用手動還原按鈕文字——loadBingoStatus()等一下會整個重新渲染背包區塊,這顆按鈕本身就會被換掉
+          let msg = isRandom ? `🎫 使用道具成功！隨機抽出了數字 ${data.number}\n` : `🎫 使用道具成功！指定了數字 ${data.number}\n`;
+          if (data.alreadyMarked) msg += '這個數字之前就已經標記過了。';
+          else if (!data.hit) msg += '這個數字不在你的卡片上，殘念！';
+          else {
+            msg += '✅ 命中卡片上的號碼！';
+            if (data.newLines && data.newLines.length > 0) msg += `\n🎉 有新連成的線！`;
+            if (data.fullCompleted) msg += `\n🏆 恭喜完成整張賓果卡！`;
+            if (data.rewardTexts && data.rewardTexts.length > 0) msg += `\n\n${data.rewardTexts.join('\n')}`;
+          }
           lastDrawnNumbers = (data.hit && !data.alreadyMarked) ? [data.number] : [];
-          finishSuccess_(buildResultMsg_(data));
+          alert(msg);
+          loadBingoStatus();
         })
-        .catch((err) => {
-          if (err && err.name === 'AbortError') {
-            gasGaveUp = true; // 🌟 GAS逾時了,不在這裡直接顯示錯誤——交給還在跑的Worker輪詢那條路線決定最終結果
-          } else if (!settled) {
-            finishError_('❌ 連線失敗，請稍後再試'); // 🌟 不是逾時、是真的連線不上(例如離線),輪詢大概率也沒意義,直接顯示錯誤
-          }
+        .catch(() => {
+          bingoActionInFlight = false;
+          btnEl.disabled = false; btnEl.textContent = originalBtnText;
+          alert('❌ 連線失敗，請稍後再試');
         });
-
-      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制,
-      // 拿到的是完整結構化結果,可以直接沿用跟GAS直接回應完全一樣的訊息組裝邏輯(不再只是文字摘要)
-      pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) {
-          lastDrawnNumbers = (polled.hit && !polled.alreadyMarked) ? [polled.number] : [];
-          finishSuccess_(`✅ 查到了！這次操作其實有成功執行：\n\n${buildResultMsg_(polled)}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
-        } else if (gasGaveUp) {
-          // 🌟 GAS已經逾時放棄了,輪詢視窗內也沒查到成功紀錄——這次操作很可能真的沒有成功
-          finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-        }
-        // 🌟 如果gasGaveUp還是false,代表GAS那條路線還在跑、還沒逾時也還沒失敗,這裡先不動作,讓它自己決定結果就好
-      });
-    }
-
-    // 🌟 更新「批次使用」按鈕上顯示的已勾選數量,並依有沒有勾任何東西決定按鈕能不能按
-    function updateBingoItemSelectedCount() {
-      const checked = document.querySelectorAll('.bingo-item-checkbox:checked');
-      const countEl = document.getElementById('bingo-item-selected-count');
-      if (countEl) countEl.textContent = checked.length;
-      const batchBtn = document.getElementById('bingo-batch-use-btn');
-      if (batchBtn) batchBtn.disabled = checked.length === 0;
-      // 🌟 全選框的勾選狀態要跟著實際勾選情形同步(不然全選後手動取消單一項目,全選框看起來還是勾著的,會誤導)
-      const allCbs = document.querySelectorAll('.bingo-item-checkbox');
-      const selectAllCb = document.getElementById('bingo-select-all-checkbox');
-      if (selectAllCb) selectAllCb.checked = allCbs.length > 0 && checked.length === allCbs.length;
-    }
-
-    function toggleAllBingoItemCheckboxes(checked) {
-      document.querySelectorAll('.bingo-item-checkbox').forEach(cb => { cb.checked = checked; });
-      updateBingoItemSelectedCount();
-    }
-
-    // 🌟 過期道具的勾選/全選邏輯,跟上面「批次使用」那組是分開獨立的一套(不同的checkbox class、不同的按鈕),
-    // 因為一個道具同一時間只會是UNUSED或EXPIRED其中一種狀態,兩組checkbox不會同時出現在同一張道具上。
-    function updateExpiredBingoItemSelectedCount() {
-      const checked = document.querySelectorAll('.bingo-expired-item-checkbox:checked');
-      const countEl = document.getElementById('bingo-expired-selected-count');
-      if (countEl) countEl.textContent = checked.length;
-      const clearBtn = document.getElementById('bingo-clear-expired-btn');
-      if (clearBtn) clearBtn.disabled = checked.length === 0;
-      const allCbs = document.querySelectorAll('.bingo-expired-item-checkbox');
-      const selectAllCb = document.getElementById('bingo-select-all-expired-checkbox');
-      if (selectAllCb) selectAllCb.checked = allCbs.length > 0 && checked.length === allCbs.length;
-    }
-
-    function toggleAllExpiredBingoItemCheckboxes(checked) {
-      document.querySelectorAll('.bingo-expired-item-checkbox').forEach(cb => { cb.checked = checked; });
-      updateExpiredBingoItemSelectedCount();
-    }
-
-    // 🌟 清除已勾選的過期道具:跟其他BINGO動作一樣套用賽跑架構(GAS回應 vs Worker輪詢兌換紀錄表M欄),
-    // 誰先給出確定結果就用哪個,避免GAS回應慢的時候玩家以為沒清成功又重複點擊。
-    function clearExpiredBingoItems() {
-      if (bingoActionInFlight) return;
-      const checked = Array.from(document.querySelectorAll('.bingo-expired-item-checkbox:checked'));
-      if (checked.length === 0) return;
-      const instanceIds = checked.map(cb => cb.dataset.instance);
-      if (!confirm(`確定要清除這 ${instanceIds.length} 個已過期的道具嗎？此動作無法復原。`)) return;
-
-      bingoActionInFlight = true;
-      const clearBtn = document.getElementById('bingo-clear-expired-btn');
-      const selectAllCb = document.getElementById('bingo-select-all-expired-checkbox');
-      const originalBtnText = clearBtn ? clearBtn.innerHTML : '';
-      if (clearBtn) { clearBtn.disabled = true; clearBtn.textContent = '⏳ 清除中...'; }
-      if (selectAllCb) selectAllCb.disabled = true;
-      document.querySelectorAll('.bingo-expired-item-checkbox').forEach(cb => { cb.disabled = true; });
-
-      let settled = false, gasGaveUp = false;
-      const requestStartMs = Date.now();
-
-      function resetUi_() {
-        bingoActionInFlight = false;
-        if (clearBtn) { clearBtn.disabled = false; clearBtn.innerHTML = originalBtnText; }
-        if (selectAllCb) selectAllCb.disabled = false;
-        document.querySelectorAll('.bingo-expired-item-checkbox').forEach(cb => { cb.disabled = false; });
-      }
-      function finishError_(msg) {
-        if (settled) return; settled = true;
-        resetUi_();
-        alert(msg);
-      }
-      function finishSuccessFromGas_(data) {
-        if (settled) return; settled = true;
-        bingoActionInFlight = false;
-        alert('🗑️ ' + data.message);
-        loadBingoStatus(); // 🌟 整個背包區塊會重新渲染,清掉的道具自然消失,勾選框狀態自然回歸乾淨
-      }
-      function finishSuccessFromPoll_(data) {
-        if (settled) return;
-        finishSuccessFromGas_(data);
-      }
-
-      fetchWithTimeout_(`${GAS_API_URL}?action=clearExpiredBingoBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccessFromGas_(data);
-        })
-        .catch(err => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-        });
-
-      pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      });
-    }
-
-    // 🌟 批次使用已勾選的道具:隨機類型不用問數字,直接送出;指定類型逐一詢問數字(取消/沒填的話,
-    // 只跳過那一張、不影響其他已勾選道具繼續使用)。收集完每一張要用的道具跟(如果需要)指定的數字之後,
-    // 一次打包成一個陣列送給後端(action=useBingoBackpackItemsBatch),後端一次執行完整批、只鎖一次、
-    // 只寫回一次賓果卡狀態,回傳「每一張道具各自抽/指定到什麼數字、有沒有中獎」的完整清單,
-    // 不是像之前那樣依序發送N個獨立請求。
-    // 🌟 跟單張使用一樣採用「賽跑」架構:GAS本身的回應 vs Worker主動輪詢歷史紀錄,哪條路線先給出確定結果就用哪個。
-    function useBingoItemsBatch() {
-      if (bingoActionInFlight) return;
-      const checkboxes = Array.from(document.querySelectorAll('.bingo-item-checkbox:checked'));
-      if (checkboxes.length === 0) return;
-
-      const itemNameByInstance = {}; // 🌟 給結果彙總顯示用,回傳結果裡有itemName所以其實不一定要這份,但保留給錯誤訊息對照用
-      const tasks = [];
-      for (const cb of checkboxes) {
-        const instanceId = cb.dataset.instance;
-        const effectType = cb.dataset.effect;
-        const min = parseInt(cb.dataset.min, 10);
-        const max = parseInt(cb.dataset.max, 10);
-        const itemLabel = cb.dataset.name || '這張道具券';
-        itemNameByInstance[instanceId] = itemLabel;
-        const isRandom = effectType && effectType.indexOf('RANDOM') === 0;
-        let num = '';
-        if (!isRandom) {
-          const numStr = prompt(`「${itemLabel}」請輸入要指定的數字(${min}~${max}之間)：\n(按取消可跳過這一張,不影響其他已勾選的道具)`);
-          if (numStr === null || numStr.trim() === '') continue; // 🌟 這一張跳過,其他勾選的照樣繼續問/繼續用
-          num = parseInt(numStr, 10);
-          if (isNaN(num) || num < min || num > max) { alert(`「${itemLabel}」的數字不在 ${min}~${max} 範圍內,已跳過這一張`); continue; }
-        }
-        tasks.push({ instanceId, targetNumber: num });
-      }
-      if (tasks.length === 0) return; // 🌟 全部都被跳過了(可能是每一張都按了取消),什麼都不用做
-
-      bingoActionInFlight = true;
-      // 🌟 禁用所有道具使用按鈕/勾選框/批次按鈕,並顯示使用中狀態,避免使用中又手滑點到別的東西
-      const allItemBtns = document.querySelectorAll('button[onclick*="useBingoItemPrompt"]');
-      const btnStates = [];
-      allItemBtns.forEach(btn => { btnStates.push({ btn, originalText: btn.textContent }); btn.disabled = true; btn.textContent = '⏳ 使用中...'; });
-      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = true; });
-      const batchBtn = document.getElementById('bingo-batch-use-btn');
-      if (batchBtn) { batchBtn.disabled = true; batchBtn.textContent = `⏳ 使用中...(${tasks.length}張,處理中)`; }
-
-      let settled = false;
-      let gasGaveUp = false;
-      const requestStartMs = Date.now();
-      const batchTimeoutMs = BINGO_ITEM_USE_TIMEOUT_MS + tasks.length * 500; // 🌟 批次要處理的道具數量比單張多,逾時上限也跟著放寬
-
-      function finishError_(msg) {
-        if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
-        document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = false; });
-        updateBingoItemSelectedCount();
-        alert(msg);
-      }
-      function finishSuccessFromGas_(data) {
-        if (settled) return;
-        settled = true;
-        bingoActionInFlight = false;
-        // 🌟 後端回傳的results陣列,每一項都是這一張道具的個別結果(status:'success'或'error'),
-        // 這裡彙總成一則訊息,同時把「所有成功抽出/指定到的號碼」完整列出來,不只是統計數字。
-        const results = data.results || [];
-        const successResults = results.filter(r => r.status === 'success');
-        const failResults = results.filter(r => r.status !== 'success');
-        const hitResults = successResults.filter(r => r.hit && !r.alreadyMarked);
-        let newLinesTotal = 0, fullCompletedAny = false;
-        const allRewardTexts = [];
-        successResults.forEach(r => {
-          if (r.newLines) newLinesTotal += r.newLines.length;
-          if (r.fullCompleted) fullCompletedAny = true;
-          if (r.rewardTexts && r.rewardTexts.length > 0) allRewardTexts.push(...r.rewardTexts);
-        });
-        lastDrawnNumbers = hitResults.map(r => r.number);
-
-        let summary = `🎫 批次使用完成！成功使用 ${successResults.length}/${tasks.length} 張道具${failResults.length > 0 ? `(${failResults.length} 張失敗)` : ''}\n`;
-        if (successResults.length > 0) {
-          summary += '\n📋 抽出號碼明細：\n' + successResults.map(r => `${r.itemName}→${r.number}${r.alreadyMarked ? '(已標記過)' : r.hit ? '✅' : '(未命中)'}`).join('、');
-        }
-        if (failResults.length > 0) {
-          summary += '\n\n⚠️ 失敗的道具：\n' + failResults.map(r => `${r.itemName || itemNameByInstance[r.instanceId] || '道具'}：${r.message}`).join('、');
-        }
-        summary += `\n\n✅ 共命中 ${hitResults.length} 個號碼`;
-        if (newLinesTotal > 0) summary += `\n🎉 共有 ${newLinesTotal} 條新連成的線！`;
-        if (fullCompletedAny) summary += `\n🏆 恭喜完成整張賓果卡！`;
-        if (allRewardTexts.length > 0) summary += `\n\n${allRewardTexts.join('\n')}`;
-        alert(summary);
-        loadBingoStatus(); // 🌟 整個背包區塊會重新渲染,所有勾選框/按鈕狀態自然回歸乾淨
-      }
-      function finishSuccessFromPoll_(data) {
-        if (settled) return;
-        // 🌟 輪詢查到的完整結構化結果(跟GAS直接回應的results陣列格式完全一樣),直接沿用同一套彙總處理邏輯——
-        // 不要在這裡先設settled=true,讓finishSuccessFromGas_自己處理那個判斷,不然它開頭的if(settled)return會直接把這次呼叫擋掉。
-        finishSuccessFromGas_(data);
-      }
-
-      // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,有結構化的完整結果)
-      fetchWithTimeout_(`${GAS_API_URL}?action=useBingoBackpackItemsBatch&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&items=${encodeURIComponent(JSON.stringify(tasks))}&accessToken=${encodeURIComponent(getAccessToken())}`, batchTimeoutMs)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return; // 🌟 輪詢那邊已經先給出結果了
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccessFromGas_(data);
-        })
-        .catch(err => {
-          if (err && err.name === 'AbortError') {
-            gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
-          } else if (!settled) {
-            finishError_('❌ 連線失敗，請稍後再試');
-          }
-        });
-
-      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON),跟買東西/拍賣出價同一套機制
-      pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) {
-          finishSuccessFromPoll_(polled);
-        } else if (gasGaveUp) {
-          finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-        }
-      });
     }
     // ── BINGO 賓果卡結束 ──
 
@@ -2460,16 +1951,9 @@
       btn.innerText = '⏳ 出價中請稍後...';
       input.disabled = true;
 
-      let settled = false;
-      let gasGaveUp = false;
-      const requestStartMs = Date.now();
-
-      function resetBidUI_() {
-        btn.disabled = false;
-        btn.innerText = originalBtnText;
-        input.disabled = false;
-      }
-      function handleBidResult_(data) {
+      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
         if (data.status === 'success') {
           alert('✅ 出價成功！');
           // 🌟 先刷新分數(更新餘額顯示),完成後再重新整理拍賣列表,
@@ -2479,39 +1963,14 @@
           alert('❌ 出價失敗：' + data.message);
           loadAuctions();
         }
-      }
-
-      // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,回應最快)
-      fetchWithTimeout_(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => {
-        if (settled) return;
-        settled = true;
-        handleBidResult_(data);
       })
       .catch((err) => {
-        if (err && err.name === 'AbortError') {
-          gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
-        } else if (!settled) {
-          settled = true;
-          console.error('出價錯誤:', err);
-          alert('網路錯誤，請稍後再試！');
-          resetBidUI_(); // 🌟 網路錯誤時列表不會重新整理,要自己手動把按鈕跟輸入框解鎖,不然會卡住
-        }
-      });
-
-      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON)
-      pollInstrumentedActionResult_('BID', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) {
-          settled = true;
-          handleBidResult_(polled);
-        } else if (gasGaveUp) {
-          settled = true;
-          alert('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次出價很可能真的沒有成功,可以放心重試。');
-          resetBidUI_();
-          loadAuctions(); // 🌟 保險起見還是刷新一下拍賣列表,避免玩家看到的是舊資料
-        }
+        console.error('出價錯誤:', err);
+        alert('網路錯誤，請稍後再試！');
+        // 🌟 網路錯誤時列表不會重新整理,要自己手動把按鈕跟輸入框解鎖,不然會卡住
+        btn.disabled = false;
+        btn.innerText = originalBtnText;
+        input.disabled = false;
       });
     }
 
@@ -2534,9 +1993,6 @@ function fetchScoresAndShop(discordId, callback = null) {
 
         const data = result.scores;
         if(data && data.status === "success") {
-          // 🌟 優先顯示系統裡的暱稱(DC暱稱/B欄備援),不是Discord帳號本身的global_name/username——
-          // 伺服器暱稱通常比較能代表玩家在這個社群裡實際使用的稱呼,只有兩者都沒有的情況下才退回帳號名稱。
-          if (data.nickname) document.getElementById('user-name').innerText = data.nickname;
           document.getElementById('score-s1').innerText = data.s1;
           document.getElementById('score-s2').innerText = data.s2;
           document.getElementById('score-s3').innerText = data.s3;
@@ -2575,7 +2031,6 @@ function fetchScoresAndShop(discordId, callback = null) {
           // ==========================================
           const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444']; 
           const isAdmin = ADMIN_IDS.includes(discordId);
-          isAdminUser = isAdmin; // 🌟 存成全局變數,給renderShop()/renderSidebar()判斷[連結限定]商品要不要顯示用
 
           // 🌟 判斷：如果是管理員就保留，如果不是管理員就過濾掉 [隱藏] 商品
           currentShopItems = shopData.items.filter(item => {
@@ -2589,13 +2044,10 @@ function fetchScoresAndShop(discordId, callback = null) {
 
           // 🌟 檢查是否有待跳轉的分享分類 / 分享商品(分享特定商品時要優先切到該商品的分類,
           // 不然如果目前分類跟商品所在分類不同,商品會被篩選濾掉、導致捲動定位永遠找不到卡片)
+          const allCats = Array.from(new Set(currentShopItems.map(item => item.category)));
           const targetCategory = localStorage.getItem('shared_category_target');
           const targetItemId = localStorage.getItem('shared_item_target');
           const targetItem = targetItemId ? currentShopItems.find(item => item.id === targetItemId) : null;
-          // 🌟 透過商品自己的分享連結進來、而且這個商品剛好是[連結限定]的話,標記成「這次瀏覽期間已現形」,
-          // 這樣底下算allCats、renderShop()畫格子的時候才看得到它,不會出現「連結點進來卻找不到商品」的怪現象
-          if (targetItem && isLinkOnlyItem(targetItem)) linkOnlyRevealedIds.add(targetItem.id);
-          const allCats = Array.from(new Set(currentShopItems.filter(shouldShowLinkOnlyItem).map(item => item.category)));
 
           if (targetItem && targetItem.category) {
             currentCategory = targetItem.category;
@@ -2659,7 +2111,7 @@ function fetchScoresAndShop(discordId, callback = null) {
     function renderShop() {
       const container = document.getElementById('shop-list');
       const sortType = document.getElementById('sort-items').value;
-      let displayItems = [...currentShopItems].filter(shouldShowLinkOnlyItem);
+      let displayItems = [...currentShopItems];
       itemAltInfo = {}; // 🌟 每次重繪商店都重置替代貨幣資訊快取
 
       let isCatBlurLocked = false; // 🌟 這個分類是「模糊顯示」模式且還沒解鎖,渲染完後要整個包一層模糊遮罩
@@ -2761,7 +2213,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
         
         let isHold = item.name.includes('[持有]');
-        let displayName = item.name.replace('[持有]', '').replace('[連結限定]', '').trim();
+        let displayName = item.name.replace('[持有]', '').trim();
         // 🌟 更新圖片 HTML 讓它帶有 onclick 事件以開啟預覽
         let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="openImage('${item.imageUrl}')">` : '';
         
@@ -2933,7 +2385,11 @@ function fetchScoresAndShop(discordId, callback = null) {
               ${item.itemOptions && item.itemOptions.length > 0 ? `
                 <select id="opt-${safeId}" style="width:100%;margin:6px 0" onchange="updateItemOptionPreview('${safeId}', ${JSON.stringify(item.itemOptions).replace(/"/g,'&quot;')})">
                   <option value="">請選擇選項...</option>
-                  ${item.itemOptions.map((opt, idx) => `<option value="${idx}">${opt.name} — ${formatCost_(opt.price, item.displayCurrency)}</option>`).join('')}
+                  ${item.itemOptions.map((opt, idx) => {
+                    const soldOut = opt.stock !== null && opt.stock !== undefined && opt.stock <= 0;
+                    const stockText = opt.stock !== null && opt.stock !== undefined ? (soldOut ? '（已售罄）' : `（剩餘${opt.stock}）`) : '';
+                    return `<option value="${idx}" ${soldOut ? 'disabled' : ''}>${opt.name} — ${formatCost_(opt.price, item.displayCurrency)}${stockText}</option>`;
+                  }).join('')}
                 </select>
                 <div id="optpreview-${safeId}"></div>
               ` : ''}
@@ -3100,7 +2556,16 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (!select || !previewEl) return;
       if (select.value === '') { previewEl.innerHTML = ''; return; }
       const opt = itemOptions[parseInt(select.value)];
-      previewEl.innerHTML = (opt && opt.pool) ? buildGachaContentBoxHtml_(opt.pool, "🎁 內容物一覽：") : '';
+      let html = (opt && opt.pool) ? buildGachaContentBoxHtml_(opt.pool, "🎁 內容物一覽：") : '';
+      // 🌟 這個選項自己有設定庫存/限購的話,額外提示一行——實際還能不能買以送出購買時後端的驗證結果為準,
+      // 這裡只是先讓玩家心裡有個底,不用送出去才知道被卡住。
+      if (opt) {
+        const notes = [];
+        if (opt.stock !== null && opt.stock !== undefined) notes.push(`剩餘庫存：${opt.stock}`);
+        if (opt.hasLimits) notes.push('⚠️ 這個選項有額外的限購設定');
+        if (notes.length > 0) html += `<div style="margin-top:6px;font-size:12px;color:#F0B232">${notes.join('　')}</div>`;
+      }
+      previewEl.innerHTML = html;
     }
 
     function updateGamblingPreview(safeId) {
@@ -3208,16 +2673,10 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-
-      let settled = false;
-      let gasGaveUp = false;
-      const requestStartMs = Date.now();
-
-      // 🌟 處理購買結果的邏輯完全不變(跟原本一樣的成功/失敗/needUnlock/oddsChanged判斷),抽成獨立函式,
-      // 讓「GAS本身回應」跟「Worker輪詢查到的結果」都能共用同一套處理邏輯——因為M欄存的是完整原始回應JSON,
-      // 輪詢查到的data物件跟GAS直接回應的data物件形狀完全一樣,不用另外寫一套簡化版的顯示邏輯。
-      function handleBuyResult_(data) {
-        if (data.status === "success") {
+      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === "success") {
           let successMsg = "✅ 兌換處理完成！";
           if (data.cost !== undefined && data.cost > 0) {
             successMsg += `\n💰 花費：${data.cost} ${data.costCurrencyName || currencyName}`;
@@ -3242,10 +2701,6 @@ function fetchScoresAndShop(discordId, callback = null) {
           if (data.extraCostUsed && data.extraCostUsed.length > 0) {
             successMsg += `\n➕ 已收取 ${data.extraCostUsed.map(e => `${e.amount} 個 ${e.displayName || e.name}`).join('、')}`;
           }
-          if (data.revealedItemName) {
-            // 🌟 [隱藏名稱]標籤:購買前商品卡片故意顯示模糊的名稱,現在已經買完/開完了,揭曉真正的名稱
-            successMsg += `\n\n🎊 揭曉！您購買的實際上是：\n【 ${data.revealedItemName} 】`;
-          }
           if (data.displayExt) {
             successMsg += `\n\n🎉 恭喜您開出了：\n【 ${data.displayExt} 】！`;
           } else if (data.rewardVar && data.totalReward > 0) {
@@ -3265,7 +2720,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             successMsg += "\n\n⚠️ 部分里程碑獎勵發放異常,請聯絡管理員補發：\n" + data.milestoneErrors.join("\n");
           }
           alert(successMsg);
-          fetchScoresAndShop(currentUser.id);
+          fetchScoresAndShop(currentUser.id); 
         } else if (data.needUnlock) {
           // 🌟 密碼錯誤,或分類密碼解鎖後接著發現商品自己還有另一層鎖:重新提示一次密碼,輸入後自動重試同一筆購買
           document.getElementById('loading').style.display = 'none';
@@ -3290,51 +2745,13 @@ function fetchScoresAndShop(discordId, callback = null) {
             document.getElementById('dashboard').style.display = 'block';
           }
         }
-      }
-      function finishFromGas_(data) {
-        if (settled) return;
-        settled = true;
-        handleBuyResult_(data);
-      }
-      function finishFromPoll_(data) {
-        if (settled) return;
-        settled = true;
-        // 🌟 用輪詢查到的結果之前,先提示一下這是「補救查到的結果」,再套用跟GAS直接回應完全一樣的處理邏輯
-        document.getElementById('loading-text').innerText = "✅ 查到了！這次購買其實有成功處理...";
-        handleBuyResult_(data);
-      }
-      function finishTimeoutNoResult_() {
-        if (settled) return;
-        settled = true;
-        alert('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      })
+      .catch(err => {
+        alert("網路錯誤，請稍後再試！");
         document.getElementById('loading').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
-        fetchScoresAndShop(currentUser.id); // 🌟 保險起見還是刷新一下,避免玩家看到的餘額/商品狀態是舊的
-      }
-
-      // 🌟 路線A:GAS本身的回應(正常情況下大多走這條,回應最快)
-      fetchWithTimeout_(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => { if (!settled) finishFromGas_(data); })
-      .catch(err => {
-        if (err && err.name === 'AbortError') {
-          gasGaveUp = true; // 🌟 GAS逾時了,交給還在跑的Worker輪詢那條路線決定最終結果
-        } else if (!settled) {
-          settled = true;
-          alert("網路錯誤，請稍後再試！");
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('dashboard').style.display = 'block';
-        }
-      });
-
-      // 🌟 路線B:用Worker輪詢「兌換紀錄」表M欄(instrumentedAction_寫入的完整回應JSON)
-      pollInstrumentedActionResult_('BUY', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) finishFromPoll_(polled);
-        else if (gasGaveUp) finishTimeoutNoResult_();
       });
     }
-
 
     // ============================================================
     // 🔔 推播通知訂閱管理
