@@ -1822,17 +1822,118 @@ async function init() {
   loadShopItems();
 }
 
+const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/';
+// 🌟 這些action是「寫入類」的後台操作,套用跟前台買東西/BINGO一樣的賽跑架構(GAS本身回應 vs Worker輪詢
+// 兩條路線同時進行,誰先給出確定結果就用哪個)。GAS端這些action都已經用instrumentedAction_包裝,
+// 完整回應JSON會寫進「兌換紀錄」表M欄,Worker可以查到。
+const WRITE_ADMIN_ACTIONS_ = new Set([
+  'adminUpdateShopItem', 'adminDeleteShopItem', 'adminBatchDeleteShopItems',
+  'adminBatchSetShopItemStatus', 'adminBatchDrawShopRaffles', 'adminAddShopItem',
+  'adminDuplicateShopItem', 'adminDuplicateAuction', 'adminAddAdminUser',
+  'adminRemoveAdminUser', 'adminUpdateAuction', 'adminCloseAuction',
+  'adminDeleteAuction', 'adminAddAuction', 'adminReorderShopItems',
+  'adminReorderAuctions', 'adminSaveCategoryOrder', 'adminSaveCategoryLock',
+  'adminAddUnlockCodes', 'adminAddRewardKeys', 'adminDeleteRewardKeys',
+  'adminDrawShopRaffleNow', 'adminSettleGambling', 'adminSetPushFirstSubscribeReward',
+  'adminSendPushToPlayers', 'adminAddPushSchedule', 'adminUpdatePushSchedule',
+  'adminDeletePushSchedule', 'adminGrantBingoItem', 'adminRemoveBingoBackpackItem',
+  'adminAddBingoActivity', 'adminUpdateBingoActivity', 'adminDeleteBingoActivity',
+  'adminResetBingoCards', 'adminGiveBingoNumber', 'adminAdjustPlayerCurrency',
+]);
+const ADMIN_ACTION_TIMEOUT_MS = 25000;
+function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+function fetchWithTimeout_(url, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+// 🌟 理由跟 index.html 的 pollInstrumentedActionResult_ 完全一樣:GAS本身回應可能拖很久,但伺服器端往往
+// 早就做完了,只是回應沒送達——改用Worker主動輪詢「兌換紀錄」表M欄補救查詢。接受shouldStop檢查函式,
+// 外層已經有答案了就提早停止,避免浪費Sheets API配額(整個服務帳戶共用,不是每個人各自有額度)。
+async function pollAdminActionResult_(discordId, actionType, sinceMs, shouldStop) {
+  await sleep_(600);
+  for (let i = 0; i < 40; i++) {
+    if (shouldStop && shouldStop()) return null;
+    try {
+      const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${discordId}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.found && data.result) return data.result;
+    } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
+    await sleep_(600);
+  }
+  return null;
+}
+
 async function api(params) {
   const tok = localStorage.getItem('admin_dc_access_token');
+  const discordId = (ME && ME.id) || '';
   // 🌟🔧 修正:之前這裡只送 accessToken,沒有一併送 discordId,導致後端 isAdmin_(undefined) 直接爆炸
   // (undefined.toString() 噴出 TypeError)。ME 是登入時從 Discord /users/@me 拿到的使用者物件,
   // 一定要把 ME.id 也加進去,後端才知道「這個 accessToken 對應的到底是誰」。
-  const p = new URLSearchParams({...params, discordId: (ME && ME.id) || '', accessToken: tok || ''});
-  const r = await fetch(`${GAS}?${p}`);
-  return r.json();
+  const p = new URLSearchParams({...params, discordId, accessToken: tok || ''});
+  const url = `${GAS}?${p}`;
+
+  if (!WRITE_ADMIN_ACTIONS_.has(params.action)) {
+    // 🌟 純讀取的action,簡單fetch就好,不用套賽跑架構
+    const r = await fetch(url);
+    return r.json();
+  }
+
+  // 🌟 寫入類action:套用賽跑架構
+  return new Promise((resolve) => {
+    let settled = false, gasGaveUp = false;
+    const requestStartMs = Date.now();
+
+    function finishFromGas_(data) {
+      if (settled) return; settled = true;
+      resolve(data);
+    }
+    function finishFromPoll_(data) {
+      if (settled) return; settled = true;
+      resolve(data);
+    }
+    function finishTimeoutNoResult_() {
+      if (settled) return; settled = true;
+      resolve({ status: 'error', message: '⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。' });
+    }
+
+    fetchWithTimeout_(url, ADMIN_ACTION_TIMEOUT_MS)
+      .then(res => res.json())
+      .then(data => { if (!settled) finishFromGas_(data); })
+      .catch(err => {
+        if (err && err.name === 'AbortError') gasGaveUp = true;
+        else if (!settled) { settled = true; resolve({ status: 'error', message: '❌ 連線失敗，請稍後再試' }); }
+      });
+
+    pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled).then(result => {
+      if (settled) return;
+      if (result) finishFromPoll_(result);
+      else if (gasGaveUp) finishTimeoutNoResult_();
+    });
+  });
 }
 
-// ── Meta ──
+// 🌟 後台讀取加速:優先打Cloudflare Worker(比GAS快很多,沒有冷啟動開銷),失敗的話自動退回原本的GAS api()。
+// workerAction: Worker端的action名稱; extraParams: 要加在Worker查詢字串的參數; gasParams: Worker失敗時,
+// 拿來呼叫原本api()的參數(GAS action名稱通常跟Worker不同,所以要分開傳)。
+async function apiWorkerRead(workerAction, extraParams, gasParams) {
+  try {
+    const qs = new URLSearchParams({
+      action: workerAction,
+      discordId: (ME && ME.id) || '',
+      accessToken: localStorage.getItem('admin_dc_access_token') || '',
+      ...(extraParams || {}),
+    });
+    const res = await fetch(`${DASHBOARD_WORKER_URL}?${qs}`);
+    const data = await res.json();
+    if (data.status === 'success') return data;
+    throw new Error(data.message || 'Worker回應失敗');
+  } catch (e) {
+    return api(gasParams);
+  }
+}
+
+
 async function loadMeta() {
   const d = await api({action:'adminGetMeta'});
   if (d.status !== 'success') return;
