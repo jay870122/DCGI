@@ -2557,12 +2557,20 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (select.value === '') { previewEl.innerHTML = ''; return; }
       const opt = itemOptions[parseInt(select.value)];
       let html = (opt && opt.pool) ? buildGachaContentBoxHtml_(opt.pool, "🎁 內容物一覽：") : '';
-      // 🌟 這個選項自己有設定庫存/限購的話,額外提示一行——實際還能不能買以送出購買時後端的驗證結果為準,
-      // 這裡只是先讓玩家心裡有個底,不用送出去才知道被卡住。
+      // 🌟 這個選項自己有設定庫存/限購的話,列出實際數值——這些是設定值,不是即時剩餘量(不用查歷史紀錄,
+      // 讀取成本很低,可以直接顯示);真正還剩幾次可買,以送出購買時後端的驗證結果為準。
       if (opt) {
         const notes = [];
-        if (opt.stock !== null && opt.stock !== undefined) notes.push(`剩餘庫存：${opt.stock}`);
-        if (opt.hasLimits) notes.push('⚠️ 這個選項有額外的限購設定');
+        if (opt.stock !== null && opt.stock !== undefined) notes.push(`📦 總庫存：${opt.stock}`);
+        const limitParts = [];
+        if (opt.limitGD !== null && opt.limitGD !== undefined) limitParts.push(`全體/日 ${opt.limitGD}`);
+        if (opt.limitGW !== null && opt.limitGW !== undefined) limitParts.push(`全體/週 ${opt.limitGW}`);
+        if (opt.limitGM !== null && opt.limitGM !== undefined) limitParts.push(`全體/月 ${opt.limitGM}`);
+        if (opt.limitPD !== null && opt.limitPD !== undefined) limitParts.push(`個人/日 ${opt.limitPD}`);
+        if (opt.limitPW !== null && opt.limitPW !== undefined) limitParts.push(`個人/週 ${opt.limitPW}`);
+        if (opt.limitPM !== null && opt.limitPM !== undefined) limitParts.push(`個人/月 ${opt.limitPM}`);
+        if (opt.limitPT !== null && opt.limitPT !== undefined) limitParts.push(`個人/總計 ${opt.limitPT}`);
+        if (limitParts.length > 0) notes.push(`🔒 限購：${limitParts.join('、')}`);
         if (notes.length > 0) html += `<div style="margin-top:6px;font-size:12px;color:#F0B232">${notes.join('　')}</div>`;
       }
       previewEl.innerHTML = html;
