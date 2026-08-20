@@ -364,7 +364,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="tbl-wrap" style="padding:24px">
           <div class="add-form" id="add-shop-form">
             <div class="fsep">基本資訊</div>
-            <div class="field full"><label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][測試]標籤</span></label><input id="ns-name" type="text" placeholder="例：7日優越童話通行證"></div>
+            <div class="field full">
+              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤</span></label>
+              <input id="ns-name" type="text" placeholder="例：7日優越童話通行證" oninput="updateHiddenNamePreview('ns-name', 'ns-name-preview')">
+              <div id="ns-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
+            </div>
             <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
             <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="幻彩水晶" list="dc-list"><datalist id="dc-list"></datalist></div>
             <div class="field full">
@@ -1090,7 +1094,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal">
     <div class="modal-header"><h3>✏️ 編輯商品</h3><button class="modal-close" onclick="closeModal('shop-modal')">×</button></div>
     <div class="modal-body">
-      <div class="full field"><label>商品名稱</label><input id="em-name" type="text"></div>
+      <div class="full field">
+        <label>商品名稱 <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤</span></label>
+        <input id="em-name" type="text" oninput="updateHiddenNamePreview('em-name', 'em-name-preview')">
+        <div id="em-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
+      </div>
       <div class="field"><label>價格</label><input id="em-price" type="number" min="0"></div>
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
       <div class="full field">
@@ -1916,6 +1924,32 @@ async function api(params) {
 // 🌟 後台讀取加速:優先打Cloudflare Worker(比GAS快很多,沒有冷啟動開銷),失敗的話自動退回原本的GAS api()。
 // workerAction: Worker端的action名稱; extraParams: 要加在Worker查詢字串的參數; gasParams: Worker失敗時,
 // 拿來呼叫原本api()的參數(GAS action名稱通常跟Worker不同,所以要分開傳)。
+// 🌟 [隱藏名稱]標籤即時預覽:管理員在商品名稱欄位打字時,即時解析並顯示「對外顯示」跟「揭曉後」分別會是什麼,
+// 不用真的儲存商品、跑一次完整購買流程才能確認有沒有設定對——等於是一個輕量版的「自動測試」。
+// 格式跟 Code_real.gs 的 parseHiddenNameTag_ / dashboard-worker.js 的 parseHiddenNameTag_ 保持完全一致。
+function parseHiddenNameTagPreview_(rawName) {
+  const s = (rawName || '').toString();
+  const tag = '[隱藏名稱]';
+  const idx = s.indexOf(tag);
+  if (idx === -1) return null;
+  const payload = s.substring(idx + tag.length).trim();
+  const pipeIdx = payload.indexOf('|');
+  if (pipeIdx === -1) return { beforeName: payload, afterName: payload };
+  return { beforeName: payload.substring(0, pipeIdx).trim(), afterName: payload.substring(pipeIdx + 1).trim() };
+}
+function updateHiddenNamePreview(inputId, previewId) {
+  const input = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  if (!input || !preview) return;
+  const tagInfo = parseHiddenNameTagPreview_(input.value);
+  if (!tagInfo) { preview.style.display = 'none'; return; }
+  preview.style.display = 'block';
+  const warnEmpty = (!tagInfo.beforeName || !tagInfo.afterName) ? '<br><span style="color:#ED4245">⚠️ 對外顯示名稱或揭曉後名稱有一邊是空的,請確認格式是「[隱藏名稱]對外顯示名稱|揭曉後名稱」</span>' : '';
+  preview.innerHTML = `🎭 <b>[隱藏名稱]標籤預覽</b><br>` +
+    `👁️ 商品卡片/購買確認視窗會顯示：<b style="color:#F0B232">${tagInfo.beforeName || '(空白)'}</b><br>` +
+    `🎊 購買成功/歷史紀錄會顯示：<b style="color:#43B581">${tagInfo.afterName || '(空白)'}</b>` + warnEmpty;
+}
+
 async function apiWorkerRead(workerAction, extraParams, gasParams) {
   try {
     const qs = new URLSearchParams({
@@ -2765,6 +2799,7 @@ function openEditShop(itemId) {
   if (!i) return;
   const f = id => document.getElementById(id);
   f('em-id').value=i.itemId; f('em-name').value=i.name; f('em-price').value=i.price;
+  updateHiddenNamePreview('em-name', 'em-name-preview'); // 🌟 打開既有商品編輯時就先跑一次,不用等打字才觸發
   f('em-currency').value=i.currency||'幻彩水晶'; f('em-category').value=i.category||'';
   f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
   f('em-status').value=i.status==='DRAFT'?'DRAFT':'';
