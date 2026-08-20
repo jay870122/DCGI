@@ -1547,6 +1547,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field" style="display:flex;align-items:center;gap:8px;padding-top:24px">
         <input type="checkbox" id="ggi-notify" style="width:auto"><label for="ggi-notify" style="margin:0">私訊通知玩家</label>
       </div>
+      <div class="field" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="ggi-broadcast" style="width:auto"><label for="ggi-broadcast" style="margin:0">公開公告到大獎頻道</label>
+      </div>
       <div class="field full" style="text-align:right">
         <button class="btn btn-cancel" onclick="closeModal('grant-general-item-modal')">取消</button>
         <button class="btn btn-edit" onclick="submitGrantGeneralItem()">🎁 發放</button>
@@ -4452,7 +4455,9 @@ function renderItemTemplates() {
     if (t.expiryMode === 'NEVER' || !t.expiryMode) return '永不過期';
     if (t.expiryMode === 'MINUTES') return `取得後${t.expiryValue}分鐘過期`;
     if (t.expiryMode === 'HOURS') return `取得後${t.expiryValue}小時過期`;
-    if (t.expiryMode === 'ABSOLUTE') return `${t.expiryValue}過期`;
+    // 🌟 t.expiryValue是「yyyy-MM-ddTHH:mm」格式(給編輯表單的datetime-local欄位直接使用),
+    // 這裡單獨轉成瀏覽器在地化的可讀格式來顯示,不影響原始值本身(編輯的時候還是用原始格式帶回表單)
+    if (t.expiryMode === 'ABSOLUTE') return `${t.expiryValue ? new Date(t.expiryValue).toLocaleString() : '(未設定)'}過期`;
     return t.expiryMode;
   };
   // 🌟🔧 修正版面bug:內容獎池常常是多行文字(一個獎項一行),原本用white-space:pre-wrap整段攤開顯示,
@@ -4474,7 +4479,7 @@ function renderItemTemplates() {
         ` : ''}
       </td>
       <td>${t.maxUses}次</td>
-      <td>${expiryLabel(t)}${t.usableFrom ? `<br><span class="hint">${t.usableFrom}後才能用</span>` : ''}</td>
+      <td>${expiryLabel(t)}${t.usableFrom ? `<br><span class="hint">${new Date(t.usableFrom).toLocaleString()}後才能用</span>` : ''}</td>
       <td>
         <button class="btn btn-edit" onclick="editItemTemplate('${t.name.replace(/'/g,"\\'")}')">✏️ 編輯</button>
         <button class="btn btn-del" onclick="deleteItemTemplate('${t.name.replace(/'/g,"\\'")}')">🗑️ 刪除</button>
@@ -4574,6 +4579,7 @@ function openGrantGeneralItemModal() {
   document.getElementById('ggi-displayname').value = '';
   document.getElementById('ggi-quantity').value = '1';
   document.getElementById('ggi-notify').checked = false;
+  document.getElementById('ggi-broadcast').checked = false;
   document.getElementById('grant-general-item-modal').classList.add('open');
 }
 
@@ -4583,10 +4589,11 @@ async function submitGrantGeneralItem() {
   const displayName = document.getElementById('ggi-displayname').value.trim();
   const quantity = parseInt(document.getElementById('ggi-quantity').value, 10) || 1;
   const notify = document.getElementById('ggi-notify').checked;
+  const broadcast = document.getElementById('ggi-broadcast').checked;
   const d = await api({
     action: 'adminGrantGeneralItem',
     playerIds: JSON.stringify(Array.from(pcSelectedIds)),
-    templateName, displayName, quantity, notify,
+    templateName, displayName, quantity, notify, broadcast,
   });
   if (d.status !== 'success') { toast('發放失敗: ' + d.message, false); return; }
   toast(d.message);
