@@ -1702,6 +1702,14 @@
         tasks.push({ instanceId, targetNumber: num });
       }
       if (tasks.length === 0) return;
+      // 🌟🔧 修正bug:一次勾選太多張道具(例如全選470張)送出時,instanceId清單會被塞進URL查詢字串裡,
+      // 張數一多網址長度會超過瀏覽器/伺服器的上限,導致連請求都送不出去(只會看到籠統的「連線失敗」,
+      // 完全看不出真正原因)。後端本來就有限制一次最多50張,這裡在送出前先做同樣的檢查,提早給出
+      // 清楚的錯誤訊息,不要讓玩家誤以為是網路或系統壞掉。
+      if (tasks.length > 50) {
+        alert(`⚠️ 一次最多只能批次使用50張道具,你這次勾選了${tasks.length}張。\n請先取消勾選一部分,分成幾批依序使用。`);
+        return;
+      }
 
       bingoActionInFlight = true;
       const allItemBtns = document.querySelectorAll('button[onclick*="useBingoItemPrompt"]');
@@ -1789,7 +1797,14 @@
       if (selectAllCb) selectAllCb.checked = allCbs.length > 0 && checked.length === allCbs.length;
     }
     function toggleAllBingoItemCheckboxes(checked) {
-      document.querySelectorAll('.bingo-item-checkbox').forEach(cb => { cb.checked = checked; });
+      const allCbs = Array.from(document.querySelectorAll('.bingo-item-checkbox'));
+      if (checked && allCbs.length > 50) {
+        // 🌟 一次最多只能批次使用50張(URL長度限制),全選的話直接幫玩家自動勾前50張,不用讓他自己手動一張一張取消勾選
+        allCbs.forEach((cb, idx) => { cb.checked = idx < 50; });
+        alert(`⚠️ 你目前有 ${allCbs.length} 張可使用的道具,一次最多只能批次使用50張,已經自動幫你勾選前50張。\n剩下的請等這批用完後再繼續勾選使用。`);
+      } else {
+        allCbs.forEach(cb => { cb.checked = checked; });
+      }
       updateBingoItemSelectedCount();
     }
 
