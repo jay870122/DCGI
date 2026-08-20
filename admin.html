@@ -266,6 +266,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
       <div class="nav-item" onclick="navTo('bingo')">🎰 BINGO 賓果卡</div>
+      <div class="nav-item" onclick="navTo('item-templates')">🎁 道具模板管理</div>
       <div class="nav-item" onclick="navTo('push')">🔔 推播通知</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
@@ -407,6 +408,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               🎲 <b>隨機數量</b>：數量欄位除了填固定數字,也可以填<code>最小~最大</code>的範圍,例如 <code>1~100</code>,中獎當下系統會即時擲骰決定實際拿到多少,每次中獎數量都可能不同,不是固定值。可以用在單一變數,也可以用在下面「一個獎項發多種東西」裡的每個變數各自設定。<br>
               🎁 <b>一個獎項同時發放多種貨幣/道具</b>：把要發放的變數用 <code>+</code> 串起來,每個變數可以用 <code>:數量</code> 指定各自要給多少(不寫預設1個),例如 <code>粽子:1+黃金粽子:1</code> 代表中獎後兩種各發1個。<br>
               🎫 <b>[序號] 中獎發放專屬序號</b>：變數名前面加 <code>[序號]</code>,例如 <code>[序號]傳說道具</code>,中獎後系統不會發貨幣,而是去「序號庫」工作表裡找 A欄等於「傳說道具」(不含中括號)、還沒被領過的一筆,把 B欄的序號值直接發給玩家(這張序號庫工作表要自己額外建立,固定放在第 5 個分頁,格式:A名稱 | B序號 | C使用者DiscordID(系統寫入,留空=可用))。可以跟上面的「一個獎項發多種東西」合併用,例如 <code>幻彩水晶:50+[序號]傳說道具:1</code>,中獎同時發 50 個幻彩水晶跟 1 組傳說道具序號。<br>
+              🎁 <b>[道具:模板名稱] 發放通用道具</b>：變數名寫 <code>[道具:模板名稱]顯示名稱</code>,中獎後系統會依照「道具模板管理」頁面設定的模板,發一個道具實例到玩家的「我的道具」背包裡。跟下面的 [背包] 不一樣的地方是:通用道具「內容比照盲盒」,玩家取得的當下不知道裡面是什麼,要自己選擇打開才會像開盲盒一樣重新抽一次內容,而且可以設定使用次數上限(每次使用都重新抽);[背包] 則是玩家自己到 BINGO 活動頁面標記賓果卡數字用的專用道具,拿到手就知道能做什麼、內容不需要另外開獎。<br>
               🎒 <b>[背包] 發放 BINGO 一次性道具</b>：變數名前面加 <code>[背包]</code> 或 <code>[背包:參數]</code>,中獎後系統會直接把這個道具發放到玩家的 BINGO 背包裡(玩家需要自己到 BINGO 活動頁面使用)。<br>
               　・基本用法: <code>[背包]指定券</code> — 預設永不過期、所有活動皆可用、免費指定抽不限範圍<br>
               　・支援參數: <code>[背包:效果|範圍|過期模式|過期值|限定活動ID]</code>,用 <code>|</code> 分隔(可選,不填則用預設值,中間要保留就用空白佔位)<br>
@@ -935,6 +937,27 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
       </div>
 
+      <!-- 通用道具模板管理:「內容比照盲盒」的萬用道具,跟BINGO自己的道具背包([背包]標籤)是完全獨立的兩套系統 -->
+      <div id="page-item-templates" style="display:none">
+        <div class="page-header">
+          <div class="page-title">🎁 道具模板管理</div>
+          <div class="toolbar">
+            <button class="btn btn-edit" onclick="openGrantGeneralItemModal()">🎁 手動發放道具</button>
+            <button class="fab" onclick="openItemTemplateForm()">➕ 新增道具模板</button>
+          </div>
+        </div>
+        <p class="hint" style="margin-bottom:12px">
+          道具模板是「內容比照盲盒」的萬用道具:玩家取得的當下不知道裡面是什麼,要自己選擇打開才會像開盲盒一樣重新抽一次內容。
+          可以在商品/里程碑/抽獎/拍賣安慰獎/BINGO連線與整卡獎勵的盲盒規則裡,用 <code>[道具:模板名稱]顯示名稱</code> 這個標籤來發放這個模板做出來的道具。
+        </p>
+        <div class="tbl-wrap tbl-wrap-table">
+          <table>
+            <thead><tr><th>模板名稱</th><th>內容獎池</th><th>使用次數上限</th><th>過期規則</th><th>操作</th></tr></thead>
+            <tbody id="item-template-tbody"><tr><td colspan="5" class="empty">讀取中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 推播通知管理 -->
       <div id="page-push" style="display:none">
         <div class="page-header"><div class="page-title">🔔 推播通知</div></div>
@@ -1137,6 +1160,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         🎲 <b>隨機數量</b>：數量欄位除了填固定數字,也可以填<code>最小~最大</code>的範圍,例如 <code>1~100</code>,中獎當下系統會即時擲骰決定實際拿到多少,每次中獎數量都可能不同,不是固定值。可以用在單一變數,也可以用在下面「一個獎項發多種東西」裡的每個變數各自設定。<br>
         🎁 <b>一個獎項同時發放多種貨幣/道具</b>：把要發放的變數用 <code>+</code> 串起來,每個變數可以用 <code>:數量</code> 指定各自要給多少(不寫預設1個),例如 <code>粽子:1+黃金粽子:1</code> 代表中獎後兩種各發1個。<br>
         🎫 <b>[序號] 中獎發放專屬序號</b>：變數名前面加 <code>[序號]</code>,例如 <code>[序號]傳說道具</code>,中獎後系統不會發貨幣,而是去「序號庫」工作表裡找 A欄等於「傳說道具」(不含中括號)、還沒被領過的一筆,把 B欄的序號值直接發給玩家(這張序號庫工作表要自己額外建立,固定放在第 5 個分頁,格式:A名稱 | B序號 | C使用者DiscordID(系統寫入,留空=可用))。可以跟上面的「一個獎項發多種東西」合併用,例如 <code>幻彩水晶:50+[序號]傳說道具:1</code>,中獎同時發 50 個幻彩水晶跟 1 組傳說道具序號。<br>
+        🎁 <b>[道具:模板名稱] 發放通用道具</b>：變數名寫 <code>[道具:模板名稱]顯示名稱</code>,中獎後系統會依照「道具模板管理」頁面設定的模板,發一個道具實例到玩家的「我的道具」背包裡。跟下面的 [背包] 不一樣的地方是:通用道具「內容比照盲盒」,玩家取得的當下不知道裡面是什麼,要自己選擇打開才會像開盲盒一樣重新抽一次內容,而且可以設定使用次數上限(每次使用都重新抽);[背包] 則是玩家自己到 BINGO 活動頁面標記賓果卡數字用的專用道具,拿到手就知道能做什麼、內容不需要另外開獎。<br>
         🎒 <b>[背包] 發放 BINGO 一次性道具</b>：變數名前面加 <code>[背包]</code> 或 <code>[背包:參數]</code>,中獎後系統會直接把這個道具發放到玩家的 BINGO 背包裡(玩家需要自己到 BINGO 活動頁面使用)。<br>
         　・基本用法: <code>[背包]指定券</code> — 預設永不過期、所有活動皆可用、免費指定抽不限範圍<br>
         　・支援參數: <code>[背包:效果|範圍|過期模式|過期值|限定活動ID]</code>,用 <code>|</code> 分隔(可選,不填則用預設值,中間要保留就用空白佔位)<br>
@@ -1454,6 +1478,79 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3 id="gambling-bets-title">🎲 下注明細</h3><button class="modal-close" onclick="closeModal('gambling-bets-modal')">×</button></div>
     <div class="modal-body">
       <div id="gambling-bets-container">讀取中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 道具模板新增/編輯彈窗 -->
+<div class="overlay" id="item-template-modal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><h3 id="item-template-title">🎁 新增道具模板</h3><button class="modal-close" onclick="closeModal('item-template-modal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="it-original-name">
+      <div class="field full">
+        <label>模板名稱<span style="color:var(--red)">*</span> <span class="hint">在盲盒規則裡用 [道具:這個名稱] 引用;修改名稱等於是新建一個模板(不會影響玩家已持有的舊道具)</span></label>
+        <input id="it-name" type="text" placeholder="例：每日簽到寶箱">
+      </div>
+      <div class="field full">
+        <label>內容獎池<span style="color:var(--red)">*</span> <span class="hint">格式跟商品的「獎勵數量/盲盒規則」完全一樣,玩家每次打開這個道具都會照這份規則重新抽一次</span></label>
+        <textarea id="it-pool" rows="4" placeholder="幻彩水晶:50, 30%&#10;幻彩水晶碎片:10, 50%&#10;稀有道具:1, 20%, 10份" oninput="updateItemTemplatePreview()"></textarea>
+        <div class="gacha-preview" id="it-pool-preview" style="display:none"></div>
+      </div>
+      <div class="field">
+        <label>使用次數上限<span style="color:var(--red)">*</span> <span class="hint">每次使用都重新抽一次內容</span></label>
+        <input id="it-maxuses" type="number" min="1" value="1">
+      </div>
+      <div class="field">
+        <label>過期模式</label>
+        <select id="it-expirymode" onchange="toggleItemTemplateExpiryValue()">
+          <option value="NEVER">永不過期</option>
+          <option value="MINUTES">取得後幾分鐘過期</option>
+          <option value="HOURS">取得後幾小時過期</option>
+          <option value="ABSOLUTE">指定絕對過期時間</option>
+        </select>
+      </div>
+      <div class="field" id="it-expiryvalue-box" style="display:none">
+        <label id="it-expiryvalue-label">數值</label>
+        <input id="it-expiryvalue" type="number">
+      </div>
+      <div class="field">
+        <label>可使用起始時間 <span class="hint">選填,留空=取得後就能馬上打開</span></label>
+        <input id="it-usablefrom" type="datetime-local">
+      </div>
+      <div class="field full" style="text-align:right">
+        <button class="btn btn-cancel" onclick="closeModal('item-template-modal')">取消</button>
+        <button class="btn btn-edit" onclick="submitItemTemplate()">💾 儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 手動發放通用道具彈窗:發放對象沿用「玩家貨幣管理」頁面裡勾選的玩家清單 -->
+<div class="overlay" id="grant-general-item-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h3>🎁 手動發放道具</h3><button class="modal-close" onclick="closeModal('grant-general-item-modal')">×</button></div>
+    <div class="modal-body">
+      <p class="hint">發放對象：目前在「玩家貨幣管理」頁面勾選的 <b id="ggi-selected-count">0</b> 位玩家(去那個頁面勾選後再回來這裡發放)</p>
+      <div class="field full">
+        <label>道具模板<span style="color:var(--red)">*</span></label>
+        <select id="ggi-template"></select>
+      </div>
+      <div class="field full">
+        <label>顯示名稱 <span class="hint">選填,留空的話直接用模板名稱當作玩家看到的道具名稱</span></label>
+        <input id="ggi-displayname" type="text" placeholder="留空=用模板名稱">
+      </div>
+      <div class="field">
+        <label>數量</label>
+        <input id="ggi-quantity" type="number" min="1" value="1">
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:8px;padding-top:24px">
+        <input type="checkbox" id="ggi-notify" style="width:auto"><label for="ggi-notify" style="margin:0">私訊通知玩家</label>
+      </div>
+      <div class="field full" style="text-align:right">
+        <button class="btn btn-cancel" onclick="closeModal('grant-general-item-modal')">取消</button>
+        <button class="btn btn-edit" onclick="submitGrantGeneralItem()">🎁 發放</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2430,7 +2527,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','push','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','item-templates','push','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -2445,6 +2542,7 @@ function navTo(p) {
   if (p==='player-currency') loadPlayerCurrency();
   if (p==='push') { loadPushSchedules(); loadPushSubscribers(); loadPushHistory(); loadPushFirstReward(); }
   if (p==='bingo') loadBingoConfig();
+  if (p==='item-templates') loadItemTemplates();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
   if (p==='auction-bids') {
@@ -4334,6 +4432,145 @@ async function confirmAdjustCurrency() {
 }
 
 // ── 玩家貨幣管理結束 ──
+
+// ── 通用道具模板管理 ──
+// 跟BINGO自己的道具背包([背包]標籤)是完全獨立的兩套系統,這套道具「內容比照盲盒」,
+// 玩家取得的當下不知道裡面是什麼,要自己選擇打開才會像開盲盒一樣重新抽一次內容。
+let itemTemplates = [];
+
+async function loadItemTemplates() {
+  const d = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' });
+  if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
+  itemTemplates = d.templates || [];
+  renderItemTemplates();
+}
+
+function renderItemTemplates() {
+  const tbody = document.getElementById('item-template-tbody');
+  if (itemTemplates.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">目前沒有任何道具模板</td></tr>'; return; }
+  const expiryLabel = (t) => {
+    if (t.expiryMode === 'NEVER' || !t.expiryMode) return '永不過期';
+    if (t.expiryMode === 'MINUTES') return `取得後${t.expiryValue}分鐘過期`;
+    if (t.expiryMode === 'HOURS') return `取得後${t.expiryValue}小時過期`;
+    if (t.expiryMode === 'ABSOLUTE') return `${t.expiryValue}過期`;
+    return t.expiryMode;
+  };
+  tbody.innerHTML = itemTemplates.map(t => `
+    <tr>
+      <td><b>${t.name}</b></td>
+      <td style="max-width:280px;white-space:pre-wrap;font-size:12px;color:var(--muted)">${(t.poolRaw||'').substring(0,120)}${(t.poolRaw||'').length>120?'...':''}</td>
+      <td>${t.maxUses}次</td>
+      <td>${expiryLabel(t)}${t.usableFrom ? `<br><span class="hint">${t.usableFrom}後才能用</span>` : ''}</td>
+      <td>
+        <button class="btn btn-edit" onclick="editItemTemplate('${t.name.replace(/'/g,"\\'")}')">✏️ 編輯</button>
+        <button class="btn btn-del" onclick="deleteItemTemplate('${t.name.replace(/'/g,"\\'")}')">🗑️ 刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openItemTemplateForm() {
+  document.getElementById('item-template-title').textContent = '🎁 新增道具模板';
+  document.getElementById('it-original-name').value = '';
+  document.getElementById('it-name').value = '';
+  document.getElementById('it-pool').value = '';
+  document.getElementById('it-pool-preview').style.display = 'none';
+  document.getElementById('it-maxuses').value = '1';
+  document.getElementById('it-expirymode').value = 'NEVER';
+  document.getElementById('it-expiryvalue-box').style.display = 'none';
+  document.getElementById('it-expiryvalue').value = '';
+  document.getElementById('it-usablefrom').value = '';
+  document.getElementById('item-template-modal').classList.add('open');
+}
+
+function editItemTemplate(name) {
+  const t = itemTemplates.find(x => x.name === name);
+  if (!t) return;
+  document.getElementById('item-template-title').textContent = '✏️ 編輯道具模板';
+  document.getElementById('it-original-name').value = t.name;
+  document.getElementById('it-name').value = t.name;
+  document.getElementById('it-pool').value = t.poolRaw || '';
+  document.getElementById('it-maxuses').value = t.maxUses || 1;
+  document.getElementById('it-expirymode').value = t.expiryMode || 'NEVER';
+  document.getElementById('it-expiryvalue').value = t.expiryValue || '';
+  document.getElementById('it-usablefrom').value = t.usableFrom || '';
+  toggleItemTemplateExpiryValue();
+  updateItemTemplatePreview();
+  document.getElementById('item-template-modal').classList.add('open');
+}
+
+function toggleItemTemplateExpiryValue() {
+  const mode = document.getElementById('it-expirymode').value;
+  const box = document.getElementById('it-expiryvalue-box');
+  const label = document.getElementById('it-expiryvalue-label');
+  const input = document.getElementById('it-expiryvalue');
+  if (mode === 'NEVER') { box.style.display = 'none'; return; }
+  box.style.display = '';
+  if (mode === 'MINUTES') { label.textContent = '幾分鐘後過期'; input.type = 'number'; input.placeholder = '例如：30'; }
+  else if (mode === 'HOURS') { label.textContent = '幾小時後過期'; input.type = 'number'; input.placeholder = '例如：24'; }
+  else { label.textContent = '到期時間'; input.type = 'datetime-local'; input.placeholder = ''; }
+}
+
+function updateItemTemplatePreview() {
+  renderGachaPreviewInline(document.getElementById('it-pool'), 'it-pool-preview');
+}
+
+async function submitItemTemplate() {
+  const name = document.getElementById('it-name').value.trim();
+  if (!name) { toast('請填寫模板名稱', false); return; }
+  const poolRaw = document.getElementById('it-pool').value.trim();
+  if (!poolRaw) { toast('請填寫內容獎池', false); return; }
+  const maxUses = parseInt(document.getElementById('it-maxuses').value, 10) || 1;
+  const expiryMode = document.getElementById('it-expirymode').value;
+  const expiryValue = document.getElementById('it-expiryvalue').value.trim();
+  const usableFrom = document.getElementById('it-usablefrom').value;
+  const originalName = document.getElementById('it-original-name').value;
+
+  // 🌟 修改名稱等於新建一個模板,舊名稱那筆要先刪掉,避免留下一筆孤兒資料
+  if (originalName && originalName !== name) {
+    await api({ action: 'adminDeleteItemTemplate', name: originalName });
+  }
+  const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom });
+  if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
+  toast(d.message);
+  closeModal('item-template-modal');
+  loadItemTemplates();
+}
+
+async function deleteItemTemplate(name) {
+  if (!confirm(`確定要刪除道具模板「${name}」嗎？\n\n(玩家已經持有的道具實例不會被刪除、還是能正常使用,只是這個模板名稱之後不能再被盲盒抽到、也不能再新增了)`)) return;
+  const d = await api({ action: 'adminDeleteItemTemplate', name });
+  if (d.status !== 'success') { toast('刪除失敗: ' + d.message, false); return; }
+  toast(d.message);
+  loadItemTemplates();
+}
+
+function openGrantGeneralItemModal() {
+  if (itemTemplates.length === 0) { toast('請先新增至少一個道具模板', false); return; }
+  document.getElementById('ggi-selected-count').textContent = pcSelectedIds.size;
+  document.getElementById('ggi-template').innerHTML = itemTemplates.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+  document.getElementById('ggi-displayname').value = '';
+  document.getElementById('ggi-quantity').value = '1';
+  document.getElementById('ggi-notify').checked = false;
+  document.getElementById('grant-general-item-modal').classList.add('open');
+}
+
+async function submitGrantGeneralItem() {
+  if (pcSelectedIds.size === 0) { toast('請先到「玩家貨幣管理」頁面勾選要發放的玩家', false); return; }
+  const templateName = document.getElementById('ggi-template').value;
+  const displayName = document.getElementById('ggi-displayname').value.trim();
+  const quantity = parseInt(document.getElementById('ggi-quantity').value, 10) || 1;
+  const notify = document.getElementById('ggi-notify').checked;
+  const d = await api({
+    action: 'adminGrantGeneralItem',
+    playerIds: JSON.stringify(Array.from(pcSelectedIds)),
+    templateName, displayName, quantity, notify,
+  });
+  if (d.status !== 'success') { toast('發放失敗: ' + d.message, false); return; }
+  toast(d.message);
+  closeModal('grant-general-item-modal');
+}
+// ── 通用道具模板管理結束 ──
 
 // ── BINGO 賓果卡管理 ──
 let bingoActivities = [];
