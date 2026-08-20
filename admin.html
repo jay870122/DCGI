@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台</div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.1.0</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -551,7 +551,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             </div>
             <div class="fsep">累積兌換次數里程碑獎勵（選填）</div>
             <div class="field full">
-              <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
+              <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」;範圍限定重複用「每數量(起點~終點) =&gt; 獎勵」(例如「每2(50~100)」代表第50~100次之間每2次觸發一次);獎勵後面可加「, 個人X次數」限制每人最多領幾次(份數本身是全體共用的庫存,個人限量是額外疊加的限制)</span></label>
               <textarea id="ns-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
               <div class="gacha-preview" id="ns-milestone-preview" style="display:none"></div>
             </div>
@@ -1266,7 +1266,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <input type="hidden" id="em-altrate">
       <div class="fsep">累積兌換次數里程碑獎勵（選填）</div>
       <div class="full field">
-        <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」</span></label>
+        <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」;範圍限定重複用「每數量(起點~終點) =&gt; 獎勵」(例如「每2(50~100)」代表第50~100次之間每2次觸發一次);獎勵後面可加「, 個人X次數」限制每人最多領幾次(份數本身是全體共用的庫存,個人限量是額外疊加的限制)</span></label>
         <textarea id="em-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
         <div class="gacha-preview" id="em-milestone-preview" style="display:none"></div>
       </div>
@@ -3417,7 +3417,7 @@ function renderGachaPreviewToBox_(box, text) {
 function parseMilestoneRulesPreview(rawText) {
   const lines = (rawText || '').split('\n');
   const milestones = [];
-  const headerPattern = /^(每)?\d+\s*=>/;
+  const headerPattern = /^(每)?\d+(\(\d+~\d+\))?\s*=>/;
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
@@ -3429,8 +3429,21 @@ function parseMilestoneRulesPreview(rawText) {
     let rewardPart = line.substring(arrowIdx + 2).trim();
     let repeat = false;
     if (countPart.charAt(0) === '每') { repeat = true; countPart = countPart.substring(1).trim(); }
+
+    // 🌟 範圍限定重複規則:「每N(起點~終點)」,要跟Code_real.gs保持一致的解析邏輯
+    let rangeStart = null, rangeEnd = null;
+    const rangeMatch = countPart.match(/^(\d+)\((\d+)~(\d+)\)$/);
+    if (rangeMatch) {
+      countPart = rangeMatch[1];
+      rangeStart = parseInt(rangeMatch[2], 10);
+      rangeEnd = parseInt(rangeMatch[3], 10);
+    }
     const count = parseInt(countPart, 10);
     if (!count || count <= 0) { milestones.push({ bad: true, raw: line, reason: '累積數量必須是大於0的整數' }); continue; }
+    if (rangeStart !== null) {
+      if (!repeat) { milestones.push({ bad: true, raw: line, reason: '「每N(起點~終點)」範圍限定寫法只能用在「每N」重複規則,固定規則不支援' }); continue; }
+      if (rangeEnd < rangeStart) { milestones.push({ bad: true, raw: line, reason: '範圍寫反了,起點不能大於終點' }); continue; }
+    }
 
     if (rewardPart === '') {
       // 🌟 盲盒式里程碑:收集接下來的行當作獎池,直到下一個里程碑標頭行為止
@@ -3442,13 +3455,20 @@ function parseMilestoneRulesPreview(rawText) {
         i++;
       }
       const pool = parseGachaRulesPreview(poolLines.join('\n'));
-      milestones.push({ count, repeat, isGacha: true, gachaPool: pool, bad: pool.length === 0, reason: pool.length === 0 ? '「=>」後面留空,但後面沒有接任何獎池內容' : null });
+      milestones.push({ count, repeat, isGacha: true, gachaPool: pool, rangeStart, rangeEnd, bad: pool.length === 0, reason: pool.length === 0 ? '「=>」後面留空,但後面沒有接任何獎池內容' : null });
       continue;
     }
 
-    let stock = null;
-    const stockMatch = rewardPart.match(/,\s*(\d+)\s*[份個]\s*$/);
-    if (stockMatch) { stock = parseInt(stockMatch[1], 10); rewardPart = rewardPart.substring(0, stockMatch.index).trim(); }
+    // 🌟 從尾端依序抓「, 50份」跟「, 個人X3」,順序不拘,要跟Code_real.gs保持一致
+    let stock = null, personalLimit = null;
+    let keepTrimming = true;
+    while (keepTrimming) {
+      keepTrimming = false;
+      const stockMatch = rewardPart.match(/,\s*(\d+)\s*[份個]\s*$/);
+      if (stockMatch && stock === null) { stock = parseInt(stockMatch[1], 10); rewardPart = rewardPart.substring(0, stockMatch.index).trim(); keepTrimming = true; continue; }
+      const personalMatch = rewardPart.match(/,\s*個人[xX](\d+)\s*$/);
+      if (personalMatch && personalLimit === null) { personalLimit = parseInt(personalMatch[1], 10); rewardPart = rewardPart.substring(0, personalMatch.index).trim(); keepTrimming = true; }
+    }
     let displayName = null, actualRewardPart = rewardPart;
     const pipeIdx = indexOfOutsideBracketsJS_(rewardPart, '|');
     if (pipeIdx !== -1) { displayName = rewardPart.substring(0, pipeIdx).trim(); actualRewardPart = rewardPart.substring(pipeIdx + 1).trim(); }
@@ -3458,7 +3478,7 @@ function parseMilestoneRulesPreview(rawText) {
       if (ci !== -1) return { varName: seg.substring(0, ci).trim(), qty: parseInt(seg.substring(ci + 1)) || 1 };
       return { varName: seg, qty: 1 };
     }).filter(v => v.varName);
-    milestones.push({ count, repeat, isGacha: false, varList, displayName, rewardText: displayName || actualRewardPart, stock, bad: varList.length === 0, reason: varList.length === 0 ? '看不懂的獎勵內容,請確認有寫「變數:數量」' : null });
+    milestones.push({ count, repeat, isGacha: false, varList, displayName, rewardText: displayName || actualRewardPart, stock, personalLimit, rangeStart, rangeEnd, bad: varList.length === 0, reason: varList.length === 0 ? '看不懂的獎勵內容,請確認有寫「變數:數量」' : null });
   }
   return milestones;
 }
@@ -3477,8 +3497,8 @@ function renderMilestonePreview(textareaId, previewId) {
   const countSeen = {};
   const lineHtml = milestones.map(m => {
     if (m.bad) { hasBad = true; return `<div class="gp-line bad">❌ <code>${m.raw || ''}</code>　${m.reason || '格式錯誤,請對照範例檢查'}</div>`; }
-    const label = (m.repeat ? '每' : '第') + m.count + '次';
-    const dupKey = (m.repeat ? 'R' : 'O') + m.count;
+    const label = (m.repeat ? '每' : '第') + m.count + '次' + (m.rangeStart !== null && m.rangeStart !== undefined ? `(限第${m.rangeStart}~${m.rangeEnd}次)` : '');
+    const dupKey = (m.repeat ? 'R' : 'O') + m.count + (m.rangeStart !== null && m.rangeStart !== undefined ? `(${m.rangeStart}~${m.rangeEnd})` : '');
     const dup = countSeen[dupKey]; countSeen[dupKey] = true;
     if (dup) hasBad = true;
 
@@ -3508,7 +3528,7 @@ function renderMilestonePreview(textareaId, previewId) {
       else if (totalProb > 100) { poolSummary = `⚠️ 機率加總 ${totalProb}% 超過100%`; hasBad = true; }
       else if (fallbackCount === 0) poolSummary = `⚠️ 共 ${pool.length} 個獎項,沒有保底獎`;
       else poolSummary = `✅ 共 ${pool.length} 個獎項,合計機率 ${totalProb}%`;
-      return `<div class="gp-line ${dup?'bad':''}">${dup?'❌':'🎰'} <b>${label}</b>${dup?'　⚠️ 這個累積數量已經設定過一次了':''}　抽獎式：${poolSummary}${poolLines}</div>`;
+      return `<div class="gp-line ${dup?'bad':''}">${dup?'❌':'🎰'} <b>${label}</b>${dup?'　⚠️ 這個累積數量(+範圍)已經設定過一次了':''}　抽獎式：${poolSummary}${poolLines}</div>`;
     }
 
     const bits = [];
@@ -3517,8 +3537,9 @@ function renderMilestonePreview(textareaId, previewId) {
       const bpDesc = describeBingoBackpackTag_(v.varName);
       return bpDesc ? bpDesc + (v.qty !== 1 ? ` ×${v.qty}份` : '') : `${v.varName}×${v.qty}`;
     }).join('、')}`);
-    if (m.stock !== null && m.stock !== undefined) bits.push(`限量:${m.stock}份`);
-    return `<div class="gp-line ${dup?'bad':''}">${dup?'❌':'✅'} <b>${label}</b>${dup?'　⚠️ 這個累積數量已經設定過一次了':''}　${bits.join('　')}</div>`;
+    if (m.stock !== null && m.stock !== undefined) bits.push(`全體限量:${m.stock}份`);
+    if (m.personalLimit !== null && m.personalLimit !== undefined) bits.push(`個人限量:${m.personalLimit}次`);
+    return `<div class="gp-line ${dup?'bad':''}">${dup?'❌':'✅'} <b>${label}</b>${dup?'　⚠️ 這個累積數量(+範圍)已經設定過一次了':''}　${bits.join('　')}</div>`;
   }).join('');
 
   const summaryHtml = hasBad
