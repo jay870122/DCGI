@@ -275,6 +275,12 @@
       </div>
       <div class="modal-body">
         <div id="backpack-list-container" class="score-box" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <!-- 🌟 通用道具:內容比照盲盒,取得的當下不知道裡面是什麼,要玩家自己點開才會像開盲盒一樣抽一次內容。
+        跟上面的自訂變數清單、BINGO自己的道具背包是三套完全不同的東西,併在同一個背包彈窗裡方便玩家一次看完。 -->
+        <div id="general-items-section" style="margin-top:16px;">
+          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🎁 我的道具</div>
+          <div id="general-items-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
         <div id="backpack-roles-container" style="margin-top:16px;"></div>
       </div>
     </div>
@@ -1885,15 +1891,135 @@
     }
     // ── BINGO 賓果卡結束 ──
 
+    // 🌟🌟🌟 ===== 通用道具系統 ===== 🌟🌟🌟
+    // 跟BINGO自己的道具背包([背包]標籤)是完全獨立的兩套系統:這套道具「內容比照盲盒」,取得的當下
+    // 不知道裡面是什麼,要玩家自己點「開啟」才會像開盲盒一樣重新抽一次內容。併在「背包」彈窗裡一起顯示,
+    // 不再是獨立的彈窗/按鈕。
+
+    let generalItemActionInFlight = false;
+
+    function loadGeneralItems() {
+      const container = document.getElementById('general-items-container');
+      container.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">讀取中...</p>';
+      fetch(`${GAS_API_URL}?action=getMyGeneralBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status !== 'success') { container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ ${data.message || '讀取失敗'}</p>`; return; }
+          renderGeneralItems(data.items || []);
+        })
+        .catch(() => { container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ 連線失敗，請稍後再試</p>`; });
+    }
+
+    function renderGeneralItems(items) {
+      const container = document.getElementById('general-items-container');
+      if (items.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">目前沒有任何道具,快去商店看看有沒有能開的盲盒吧！</p>';
+        return;
+      }
+      container.innerHTML = items.map(it => {
+        const usesText = it.remainUses > 1 ? `（剩餘 ${it.remainUses} 次）` : '';
+        const countdownHtml = (it.usable && it.expiresAt) ? `<span class="general-item-countdown" data-expires="${it.expiresAt}" style="color:#F0B232;font-size:11px;display:block"></span>` : '';
+        const waitHtml = (!it.usable && it.usableFrom && new Date(it.usableFrom) > new Date()) ? `<span style="color:#72767D;font-size:11px;display:block">🔒 ${new Date(it.usableFrom).toLocaleString()} 後才能打開</span>` : '';
+        // 🌟 內容物一覽:跟商品盲盒用同一套渲染函式,讓玩家開之前就能看到裡面可能開出什麼(機率/庫存/保底標記都會一併顯示)
+        const contentBoxHtml = (it.pool && it.pool.length > 0) ? buildGachaContentBoxHtml_(it.pool, "🎁 內容物一覽：") : '';
+        return `
+        <div style="background:#2F3136;border-radius:8px;padding:10px 12px;${it.usable ? '' : 'opacity:0.5'}">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>
+              <b>${it.itemName}</b>${usesText}
+              ${countdownHtml}
+              ${waitHtml}
+              ${!it.usable && it.unusableReason && !waitHtml ? `<span style="color:#ED4245;font-size:11px;display:block">${it.unusableReason}</span>` : ''}
+            </span>
+            ${it.usable ? `<button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="useGeneralItem(this, '${it.instanceId}', '${it.itemName.replace(/'/g,"\\'")}')">🎁 開啟</button>` : `<span style="color:#72767D;font-size:12px;flex-shrink:0">${it.status === 'DEPLETED' ? '已用完' : '無法使用'}</span>`}
+          </div>
+          ${contentBoxHtml}
+        </div>`;
+      }).join('');
+      startGeneralItemCountdowns_();
+    }
+
+    // 🌟 過期倒數計時,邏輯跟BINGO背包道具那套完全一樣
+    let generalItemCountdownIntervalId_ = null;
+    function updateGeneralItemCountdowns_() {
+      const els = document.querySelectorAll('.general-item-countdown[data-expires]');
+      if (els.length === 0) { clearInterval(generalItemCountdownIntervalId_); generalItemCountdownIntervalId_ = null; return; }
+      let anyJustExpired = false;
+      els.forEach(el => {
+        const remainMs = new Date(el.dataset.expires).getTime() - Date.now();
+        el.textContent = formatBingoCountdown_(remainMs); // 🌟 沿用BINGO那邊已經寫好的倒數文字格式化函式,不用重複寫一份
+        if (remainMs <= 0) { el.style.color = '#ED4245'; anyJustExpired = true; }
+      });
+      if (anyJustExpired && !generalItemActionInFlight) loadGeneralItems();
+    }
+    function startGeneralItemCountdowns_() {
+      if (generalItemCountdownIntervalId_) { clearInterval(generalItemCountdownIntervalId_); generalItemCountdownIntervalId_ = null; }
+      updateGeneralItemCountdowns_();
+      if (document.querySelectorAll('.general-item-countdown[data-expires]').length > 0) {
+        generalItemCountdownIntervalId_ = setInterval(updateGeneralItemCountdowns_, 1000);
+      }
+    }
+
+    // 🌟 開啟(使用)一個通用道具:套用跟BINGO道具一樣的賽跑架構(GAS回應 vs Worker輪詢兩條路線同時進行)
+    function useGeneralItem(btnEl, instanceId, itemName) {
+      if (generalItemActionInFlight) return;
+      if (!confirm(`確定要打開「${itemName}」嗎？打開後會立刻隨機抽取內容,無法反悔。`)) return;
+
+      generalItemActionInFlight = true;
+      const allBtns = document.querySelectorAll('#general-items-container button');
+      const btnStates = [];
+      allBtns.forEach(btn => { btnStates.push({ btn, originalText: btn.textContent }); btn.disabled = true; });
+      btnEl.textContent = '⏳ 開啟中...';
+
+      let settled = false, gasGaveUp = false;
+      const requestStartMs = Date.now();
+
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        generalItemActionInFlight = false;
+        btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
+        alert(msg);
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        generalItemActionInFlight = false;
+        alert(`🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
+        loadGeneralItems();
+        fetchScoresAndShop(currentUser.id);
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=useGeneralBackpackItem&discordId=${currentUser.id}&instanceId=${encodeURIComponent(instanceId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
+        })
+        .catch(err => {
+          if (err && err.name === 'AbortError') gasGaveUp = true;
+          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+        });
+
+      pollInstrumentedActionResult_('useGeneralBackpackItem', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) finishSuccess_(polled);
+        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      });
+    }
+
     // 🌟 背包:顯示完整的自訂變數清單(不管主頁面有沒有顯示,這裡一律列出來)
     let latestCustomVars = [];
     let latestRoleDetails = []; // 🌟 玩家目前持有的身分組(含分類),給背包彈窗分類顯示用
     function showBackpack() {
       renderBackpackItems();
       renderBackpackRoles();
+      loadGeneralItems();
       document.getElementById('backpack-modal').style.display = 'flex';
     }
-    function closeBackpack() { document.getElementById('backpack-modal').style.display = 'none'; }
+    function closeBackpack() {
+      document.getElementById('backpack-modal').style.display = 'none';
+      if (generalItemCountdownIntervalId_) { clearInterval(generalItemCountdownIntervalId_); generalItemCountdownIntervalId_ = null; }
+    }
 
     // 🌟 共用的分類分組工具:把一個陣列依照item.category分組,沒填分類的歸到defaultGroupName,
     // defaultGroupName永遠排最前面,其他分類依照第一次出現的順序排列
