@@ -1905,7 +1905,7 @@
         .then(res => res.json())
         .then(data => {
           if (data.status !== 'success') { loadGeneralItemsViaGas_(); return; }
-          renderGeneralItems(data.items || []);
+          renderGeneralItems(data);
         })
         .catch(() => { loadGeneralItemsViaGas_(); });
     }
@@ -1916,32 +1916,26 @@
         .then(res => res.json())
         .then(data => {
           if (data.status !== 'success') { container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ ${data.message || '讀取失敗'}</p>`; return; }
-          renderGeneralItems(data.items || []);
+          renderGeneralItems(data);
         })
         .catch(() => { container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ 連線失敗，請稍後再試</p>`; });
     }
 
-    function renderGeneralItems(items) {
+    function renderGeneralItems(data) {
       const container = document.getElementById('general-items-container');
-      if (items.length === 0) {
+      const groups = data.groups || [];
+      const unusableItems = data.unusableItems || [];
+      if (groups.length === 0 && unusableItems.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">目前沒有任何道具,快去商店看看有沒有能開的盲盒吧！</p>';
         return;
       }
-      const usableCount = items.filter(it => it.usable).length;
-      // 🌟 「可清除」只算「已用完(DEPLETED)」或「真的已經過期」這兩種,還沒到可使用時間的道具是暫時性不可用,不能清除
-      const deletableItems = items.filter(it => {
-        if (it.usable) return false;
+
+      // 🌟 「可清除」只算「已用完(DEPLETED)」或「真的已經過期」這兩種,還沒到可使用時間的道具是暫時性
+      // 不可用,不能清除(之後還是能用)。
+      const deletableItems = unusableItems.filter(it => {
         const isWaiting = it.usableFrom && new Date(it.usableFrom) > new Date();
         return !isWaiting;
       });
-      const batchControlsHtml = usableCount > 1 ? `
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <input type="checkbox" id="gi-select-all-checkbox" onchange="toggleAllGeneralItemCheckboxes(this.checked)">
-          <label for="gi-select-all-checkbox" style="font-size:12px;color:#B9BBBE;cursor:pointer">全選</label>
-          <button class="btn-action" id="gi-batch-use-btn" style="padding:3px 10px;font-size:12px;background-color:#5865F2;margin-left:auto" onclick="useGeneralItemsBatch()" disabled>
-            🎁 批次開啟已勾選(<span id="gi-selected-count">0</span>)
-          </button>
-        </div>` : '';
       const deleteControlsHtml = deletableItems.length > 0 ? `
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
           <input type="checkbox" id="gi-select-all-deletable-checkbox" onchange="toggleAllDeletableGeneralItemCheckboxes(this.checked)">
@@ -1951,46 +1945,66 @@
           </button>
         </div>` : '';
 
-      container.innerHTML = batchControlsHtml + deleteControlsHtml + items.map((it, idx) => {
-        const usesText = it.remainUses > 1 ? `（剩餘 ${it.remainUses} 次）` : '';
-        const countdownHtml = (it.usable && it.expiresAt) ? `<span class="general-item-countdown" data-expires="${it.expiresAt}" style="color:#F0B232;font-size:11px;display:block"></span>` : '';
-        const isWaiting = !it.usable && it.usableFrom && new Date(it.usableFrom) > new Date();
-        const waitHtml = isWaiting ? `<span style="color:#72767D;font-size:11px;display:block">🔒 ${new Date(it.usableFrom).toLocaleString()} 後才能打開</span>` : '';
-        const isDeletable = !it.usable && !isWaiting;
-
-        // 🌟 內容物一覽:跟商品盲盒用同一套渲染函式,讓玩家開之前就能看到裡面可能開出什麼。
-        // 🌟🔧 超過3個獎項的話預設收合,只顯示「展開查看」按鈕,避免獎項一多整張卡片被拉得很長。
+      // 🌟 疊加卡片:同一個道具名稱的多個「還能用」實例合併成一張,顯示總數量,玩家自己填要開幾個。
+      // 如果組內有不同過期時間的實例(expiryBreakdown有值),額外列出明細,不要讓玩家誤以為都是同一個時間過期。
+      const groupsHtml = groups.map((g, idx) => {
+        const boxId = `gi-pool-${idx}`;
         let contentBoxHtml = '';
-        if (it.pool && it.pool.length > 0) {
-          if (it.pool.length <= 3) {
-            contentBoxHtml = buildGachaContentBoxHtml_(it.pool, "🎁 內容物一覽：");
+        if (g.pool && g.pool.length > 0) {
+          if (g.pool.length <= 3) {
+            contentBoxHtml = buildGachaContentBoxHtml_(g.pool, "🎁 內容物一覽：");
           } else {
-            const boxId = `gi-pool-${idx}`;
             contentBoxHtml = `
-              <button onclick="toggleGeneralItemPoolBox_('${boxId}')" id="${boxId}-toggle" data-count="${it.pool.length}" style="background:none;border:none;color:#7289DA;font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline">▼ 展開查看內容物一覽(共${it.pool.length}項)</button>
-              <div id="${boxId}" style="display:none">${buildGachaContentBoxHtml_(it.pool, "🎁 內容物一覽：")}</div>
+              <button onclick="toggleGeneralItemPoolBox_('${boxId}')" id="${boxId}-toggle" data-count="${g.pool.length}" style="background:none;border:none;color:#7289DA;font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline">▼ 展開查看內容物一覽(共${g.pool.length}項)</button>
+              <div id="${boxId}" style="display:none">${buildGachaContentBoxHtml_(g.pool, "🎁 內容物一覽：")}</div>
             `;
           }
         }
-
+        const countdownHtml = g.nearestExpiresAt ? `<span class="general-item-countdown" data-expires="${g.nearestExpiresAt}" style="color:#F0B232;font-size:11px;display:block"></span>` : '';
+        // 🌟 疊加後如果混了不同過期時間,額外列出每個時間點各自有幾個——開啟時系統會自動優先用最快過期的那批,
+        // 這裡只是讓玩家清楚知道「裡面混了不同時間的」,不用自己選要用哪一批
+        const breakdownHtml = g.expiryBreakdown ? `
+          <div style="font-size:11px;color:#B9BBBE;margin-top:4px">
+            ⚠️ 這批裡面混了不同過期時間(開啟時會自動優先使用最快過期的)：<br>
+            ${g.expiryBreakdown.map(b => `・${b.count}個${b.expiresAt ? new Date(b.expiresAt).toLocaleString() + '過期' : '永不過期'}`).join('<br>')}
+          </div>` : '';
         return `
-        <div style="background:#2F3136;border-radius:8px;padding:10px 12px;${it.usable ? '' : 'opacity:0.5'}">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="display:flex;align-items:center;gap:6px">
-              ${it.usable ? `<input type="checkbox" class="general-item-checkbox" data-instance="${it.instanceId}" data-name="${it.itemName.replace(/"/g,'&quot;')}" onchange="updateGeneralItemSelectedCount()">` : ''}
-              ${isDeletable ? `<input type="checkbox" class="general-item-delete-checkbox" data-instance="${it.instanceId}" onchange="updateDeletableGeneralItemSelectedCount()">` : ''}
-              <span>
-                <b>${it.itemName}</b>${usesText}
-                ${countdownHtml}
-                ${waitHtml}
-                ${!it.usable && it.unusableReason && !waitHtml ? `<span style="color:#ED4245;font-size:11px;display:block">${it.unusableReason}</span>` : ''}
-              </span>
+        <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <span>
+              <b>${g.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（共 ${g.totalCount} 個）</span>
+              ${countdownHtml}
             </span>
-            ${it.usable ? `<button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="useGeneralItem(this, '${it.instanceId}', '${it.itemName.replace(/'/g,"\\'")}')">🎁 開啟</button>` : `<span style="color:#72767D;font-size:12px;flex-shrink:0">${it.status === 'DEPLETED' ? '已用完' : '無法使用'}</span>`}
+            <span style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="gi-qty-${idx}" min="1" max="${g.totalCount}" value="1" style="width:60px;padding:4px;text-align:center">
+              <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="openGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx})">🎁 開啟</button>
+            </span>
           </div>
+          ${breakdownHtml}
           ${contentBoxHtml}
         </div>`;
       }).join('');
+
+      // 🌟 已用完/過期的道具(不能疊加、不能開,只能查看/清除)
+      const unusableHtml = unusableItems.map(it => {
+        const isWaiting = it.usableFrom && new Date(it.usableFrom) > new Date();
+        const waitHtml = isWaiting ? `<span style="color:#72767D;font-size:11px;display:block">🔒 ${new Date(it.usableFrom).toLocaleString()} 後才能打開</span>` : '';
+        const isDeletable = !isWaiting;
+        return `
+        <div style="background:#2F3136;border-radius:8px;padding:10px 12px;opacity:0.5;display:flex;justify-content:space-between;align-items:center">
+          <span style="display:flex;align-items:center;gap:6px">
+            ${isDeletable ? `<input type="checkbox" class="general-item-delete-checkbox" data-instance="${it.instanceId}" onchange="updateDeletableGeneralItemSelectedCount()">` : ''}
+            <span>
+              <b>${it.itemName}</b>
+              ${waitHtml}
+              ${it.unusableReason && !waitHtml ? `<span style="color:#ED4245;font-size:11px;display:block">${it.unusableReason}</span>` : ''}
+            </span>
+          </span>
+          <span style="color:#72767D;font-size:12px">${it.status === 'DEPLETED' ? '已用完' : '無法使用'}</span>
+        </div>`;
+      }).join('');
+
+      container.innerHTML = groupsHtml + deleteControlsHtml + unusableHtml;
       startGeneralItemCountdowns_();
     }
 
@@ -2003,41 +2017,18 @@
       toggleBtn.textContent = isOpen ? `▼ 展開查看內容物一覽${countSuffix}` : '▲ 收合';
     }
 
-    // 🌟 批次開啟已勾選的道具:跟BINGO批次使用道具同一套模式,勾選多個usable的道具、一次送出、
-    // 後端各自抽一次獎池內容並彙總回報。
-    function updateGeneralItemSelectedCount() {
-      const checked = document.querySelectorAll('.general-item-checkbox:checked');
-      const countEl = document.getElementById('gi-selected-count');
-      if (countEl) countEl.textContent = checked.length;
-      const batchBtn = document.getElementById('gi-batch-use-btn');
-      if (batchBtn) batchBtn.disabled = checked.length === 0;
-      const allCbs = document.querySelectorAll('.general-item-checkbox');
-      const selectAllCb = document.getElementById('gi-select-all-checkbox');
-      if (selectAllCb) selectAllCb.checked = allCbs.length > 0 && checked.length === allCbs.length;
-    }
-    function toggleAllGeneralItemCheckboxes(checked) {
-      const allCbs = Array.from(document.querySelectorAll('.general-item-checkbox'));
-      if (checked && allCbs.length > 50) {
-        allCbs.forEach((cb, idx) => { cb.checked = idx < 50; });
-        alert(`⚠️ 一次最多只能批次開啟50個道具,已經自動幫你勾選前50個。\n剩下的請等這批用完後再繼續勾選。`);
-      } else {
-        allCbs.forEach(cb => { cb.checked = checked; });
-      }
-      updateGeneralItemSelectedCount();
-    }
-
-    function useGeneralItemsBatch() {
+    // 🌟 開啟這個疊加卡片裡的N個:數量從輸入框讀取,系統會自動優先消耗最快過期的實例(不用玩家自己選)
+    function openGeneralItemStack(btnEl, itemName, idx) {
       if (generalItemActionInFlight) return;
-      const checkboxes = Array.from(document.querySelectorAll('.general-item-checkbox:checked'));
-      if (checkboxes.length === 0) return;
-      if (checkboxes.length > 50) { alert(`⚠️ 一次最多只能批次開啟50個道具,你這次勾選了${checkboxes.length}個。\n請先取消勾選一部分,分成幾批依序開啟。`); return; }
-      if (!confirm(`確定要一次打開這 ${checkboxes.length} 個道具嗎？打開後會立刻隨機抽取內容,無法反悔。`)) return;
-      const instanceIds = checkboxes.map(cb => cb.dataset.instance);
+      const qtyInput = document.getElementById(`gi-qty-${idx}`);
+      const quantity = parseInt(qtyInput.value, 10) || 1;
+      if (quantity < 1) { alert('請輸入至少1個'); return; }
+      if (!confirm(`確定要打開「${itemName}」x${quantity} 嗎？打開後會立刻隨機抽取內容,無法反悔。`)) return;
 
       generalItemActionInFlight = true;
-      document.querySelectorAll('#general-items-container button, .general-item-checkbox, #gi-select-all-checkbox').forEach(el => { el.disabled = true; });
-      const batchBtn = document.getElementById('gi-batch-use-btn');
-      if (batchBtn) batchBtn.textContent = `⏳ 開啟中...(${instanceIds.length}個,處理中)`;
+      document.querySelectorAll('#general-items-container button, #general-items-container input').forEach(el => { el.disabled = true; });
+      const originalText = btnEl.textContent;
+      btnEl.textContent = '⏳ 開啟中...';
 
       let settled = false, gasGaveUp = false;
       const requestStartMs = Date.now();
@@ -2051,18 +2042,12 @@
       function finishSuccess_(data) {
         if (settled) return; settled = true;
         generalItemActionInFlight = false;
-        const results = data.results || [];
-        const successResults = results.filter(r => r.status === 'success');
-        const failResults = results.filter(r => r.status !== 'success');
-        let summary = `🎁 批次開啟完成！成功開啟 ${successResults.length}/${instanceIds.length} 個道具${failResults.length > 0 ? `(${failResults.length} 個失敗)` : ''}\n`;
-        if (successResults.length > 0) summary += '\n📋 開出內容：\n' + successResults.map(r => `${r.itemName}：${(r.resultStrs || []).join('、')}`).join('\n');
-        if (failResults.length > 0) summary += '\n\n⚠️ 失敗的道具：\n' + failResults.map(r => `${r.itemName || '道具'}：${r.message}`).join('、');
-        alert(summary);
+        alert(data.message || `🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
         loadGeneralItems();
         fetchScoresAndShop(currentUser.id);
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=useGeneralBackpackItemsBatch&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + instanceIds.length * 500)
+      fetchWithTimeout_(`${GAS_API_URL}?action=useGeneralBackpackItemsByName&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + quantity * 300)
         .then(res => res.json())
         .then(data => {
           if (settled) return;
@@ -2074,7 +2059,7 @@
           else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
         });
 
-      pollInstrumentedActionResult_('useGeneralBackpackItemsBatch', requestStartMs, () => settled).then(polled => {
+      pollInstrumentedActionResult_('useGeneralBackpackItemsByName', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) finishSuccess_(polled);
         else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
@@ -2166,52 +2151,6 @@
     }
 
     // 🌟 開啟(使用)一個通用道具:套用跟BINGO道具一樣的賽跑架構(GAS回應 vs Worker輪詢兩條路線同時進行)
-    function useGeneralItem(btnEl, instanceId, itemName) {
-      if (generalItemActionInFlight) return;
-      if (!confirm(`確定要打開「${itemName}」嗎？打開後會立刻隨機抽取內容,無法反悔。`)) return;
-
-      generalItemActionInFlight = true;
-      const allBtns = document.querySelectorAll('#general-items-container button');
-      const btnStates = [];
-      allBtns.forEach(btn => { btnStates.push({ btn, originalText: btn.textContent }); btn.disabled = true; });
-      btnEl.textContent = '⏳ 開啟中...';
-
-      let settled = false, gasGaveUp = false;
-      const requestStartMs = Date.now();
-
-      function finishError_(msg) {
-        if (settled) return; settled = true;
-        generalItemActionInFlight = false;
-        btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
-        alert(msg);
-      }
-      function finishSuccess_(data) {
-        if (settled) return; settled = true;
-        generalItemActionInFlight = false;
-        alert(`🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
-        loadGeneralItems();
-        fetchScoresAndShop(currentUser.id);
-      }
-
-      fetchWithTimeout_(`${GAS_API_URL}?action=useGeneralBackpackItem&discordId=${currentUser.id}&instanceId=${encodeURIComponent(instanceId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(err => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-        });
-
-      pollInstrumentedActionResult_('useGeneralBackpackItem', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) finishSuccess_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      });
-    }
-
     // 🌟 背包:顯示完整的自訂變數清單(不管主頁面有沒有顯示,這裡一律列出來)
     let latestCustomVars = [];
     let latestRoleDetails = []; // 🌟 玩家目前持有的身分組(含分類),給背包彈窗分類顯示用
