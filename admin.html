@@ -4455,10 +4455,24 @@ function renderItemTemplates() {
     if (t.expiryMode === 'ABSOLUTE') return `${t.expiryValue}過期`;
     return t.expiryMode;
   };
-  tbody.innerHTML = itemTemplates.map(t => `
+  // 🌟🔧 修正版面bug:內容獎池常常是多行文字(一個獎項一行),原本用white-space:pre-wrap整段攤開顯示,
+  // 獎項一多整列就會被拉得很高、很難閱讀。改成預設只顯示第一行摘要+總共幾個獎項,超過1行的話
+  // 額外給一個「展開查看全部」的按鈕,平常表格保持精簡,需要細看才展開。
+  tbody.innerHTML = itemTemplates.map((t, idx) => {
+    const poolLines = (t.poolRaw || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const firstLine = poolLines[0] || '';
+    const firstLineShort = firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine;
+    const moreCount = poolLines.length - 1;
+    return `
     <tr>
       <td><b>${t.name}</b></td>
-      <td style="max-width:280px;white-space:pre-wrap;font-size:12px;color:var(--muted)">${(t.poolRaw||'').substring(0,120)}${(t.poolRaw||'').length>120?'...':''}</td>
+      <td style="max-width:280px;font-size:12px;color:var(--muted)">
+        <div>${firstLineShort}${moreCount > 0 ? `<span class="hint">　(共${poolLines.length}個獎項)</span>` : ''}</div>
+        ${moreCount > 0 ? `
+          <button onclick="toggleItemTemplatePoolDetail(${idx})" id="itpool-toggle-${idx}" style="background:none;border:none;color:#7289DA;font-size:11px;cursor:pointer;padding:0;text-decoration:underline">▼ 展開查看全部</button>
+          <div id="itpool-detail-${idx}" style="display:none;white-space:pre-wrap;margin-top:4px;padding:6px;background:var(--s2);border-radius:4px">${t.poolRaw}</div>
+        ` : ''}
+      </td>
       <td>${t.maxUses}次</td>
       <td>${expiryLabel(t)}${t.usableFrom ? `<br><span class="hint">${t.usableFrom}後才能用</span>` : ''}</td>
       <td>
@@ -4466,7 +4480,15 @@ function renderItemTemplates() {
         <button class="btn btn-del" onclick="deleteItemTemplate('${t.name.replace(/'/g,"\\'")}')">🗑️ 刪除</button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
+}
+function toggleItemTemplatePoolDetail(idx) {
+  const detail = document.getElementById(`itpool-detail-${idx}`);
+  const toggleBtn = document.getElementById(`itpool-toggle-${idx}`);
+  const isOpen = detail.style.display !== 'none';
+  detail.style.display = isOpen ? 'none' : 'block';
+  toggleBtn.textContent = isOpen ? '▼ 展開查看全部' : '▲ 收合';
 }
 
 function openItemTemplateForm() {
