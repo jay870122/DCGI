@@ -1901,6 +1901,17 @@
     function loadGeneralItems() {
       const container = document.getElementById('general-items-container');
       container.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">讀取中...</p>';
+      fetch(`${DASHBOARD_WORKER_URL}?action=generalBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status !== 'success') { loadGeneralItemsViaGas_(); return; }
+          renderGeneralItems(data.items || []);
+        })
+        .catch(() => { loadGeneralItemsViaGas_(); });
+    }
+
+    function loadGeneralItemsViaGas_() {
+      const container = document.getElementById('general-items-container');
       fetch(`${GAS_API_URL}?action=getMyGeneralBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
         .then(res => res.json())
         .then(data => {
