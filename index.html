@@ -286,6 +286,22 @@
     </div>
   </div>
 
+  <!-- 🌟 序號兌換:輸入管理員發布的兌換碼領取獎勵,跟「序號庫」(每組序號只能被一個人領走)不同,
+  這裡一組兌換碼可以讓多位玩家各自兌換一次(限量/限時)。 -->
+  <div id="redeem-code-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeRedeemCode()">×</span>
+        <h2 style="margin:0;">🎫 序號兌換</h2>
+      </div>
+      <div class="modal-body">
+        <p style="color:#B9BBBE;font-size:13px;margin-top:0">輸入活動或管理員發布的兌換碼,即可領取對應的獎勵。每組兌換碼每人限兌一次。</p>
+        <input id="redeem-code-input" type="text" placeholder="請輸入兌換碼" style="width:100%;padding:10px;font-size:15px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')submitRedeemCode()">
+        <button class="btn-action" style="width:100%;margin-top:12px;background-color:#43B581" onclick="submitRedeemCode()" id="redeem-code-submit-btn">🎁 兌換</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 🌟 推播訂閱引導彈窗:透過網址帶 ?subscribe=1 開啟連結,登入後會自動跳出這個,請玩家點一下開啟 -->
   <div id="push-prompt-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 420px; text-align:center;">
@@ -399,7 +415,7 @@
           <button class="btn-action" onclick="showAuctions()" style="background-color: #F0B232;">🔨 拍賣會</button>
           <button class="btn-action" onclick="showHistory()" style="background-color: #5865F2;">📜 我的紀錄</button>
           <button class="btn-action" onclick="showBackpack()" style="background-color: #43B581;">🎒 背包</button>
-          <button class="btn-action" id="push-toggle-btn" onclick="togglePushSubscription()" style="background-color: #7289DA;">🔔 開啟推播通知</button>
+          <button class="btn-action" onclick="showRedeemCode()" style="background-color: #7289DA;">🎫 序號兌換</button>
           <button class="btn-action" onclick="logout()" style="background-color: #ED4245;">登出帳號</button>
         </div>
       </div>
@@ -425,7 +441,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.1.0 (里程碑規則新增「範圍限定重複」語法,可設定只在特定累積次數區間內生效的每N規則,例如「每2(50~100)」代表第50~100次之間每2次觸發一次;里程碑新增「個人限量」欄位,可在原本全體共用的份數限制之外,額外設定每人最多能領幾次;修正BINGO活動狀態誤判為未開放的問題;修正批次使用道具張數過多時網址過長導致連線失敗的問題,全選會自動限制在可送出的張數以內)</div>
+    <div class="version-tag">系統版本：v5.2.0 (新增通用道具系統:內容比照盲盒的萬用道具,取得後可自行選擇何時打開、支援多次使用、過期規則彈性設定,同名道具會自動疊加並優先消耗最快過期的;新增序號兌換碼系統:一組兌換碼可讓多位玩家各自兌換一次,可限制人數與開放時間;背包畫面整合「我的道具」;修正[背包]標籤實際上沒有正確發放BINGO道具的問題;修正管理後台道具模板過期時間顯示為原始數字的問題)</div>
   </div>
 
   <script>
@@ -2154,6 +2170,66 @@
     // 🌟 背包:顯示完整的自訂變數清單(不管主頁面有沒有顯示,這裡一律列出來)
     let latestCustomVars = [];
     let latestRoleDetails = []; // 🌟 玩家目前持有的身分組(含分類),給背包彈窗分類顯示用
+    // 🌟 序號兌換:輸入兌換碼領取獎勵,跟BINGO/通用道具用同一套賽跑架構
+    let redeemCodeActionInFlight = false;
+    function showRedeemCode() {
+      document.getElementById('redeem-code-input').value = '';
+      document.getElementById('redeem-code-modal').style.display = 'flex';
+      setTimeout(() => document.getElementById('redeem-code-input').focus(), 100); // 🌟 彈窗一打開就自動聚焦輸入框,不用玩家自己點一下才能打字
+    }
+    function closeRedeemCode() { document.getElementById('redeem-code-modal').style.display = 'none'; }
+
+    function submitRedeemCode() {
+      if (redeemCodeActionInFlight) return;
+      const code = document.getElementById('redeem-code-input').value.trim();
+      if (!code) { alert('請輸入兌換碼'); return; }
+
+      redeemCodeActionInFlight = true;
+      const input = document.getElementById('redeem-code-input');
+      const btn = document.getElementById('redeem-code-submit-btn');
+      input.disabled = true; btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ 兌換中...';
+
+      let settled = false, gasGaveUp = false;
+      const requestStartMs = Date.now();
+
+      function resetUi_() {
+        redeemCodeActionInFlight = false;
+        input.disabled = false; btn.disabled = false; btn.textContent = originalText;
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        resetUi_();
+        alert('❌ ' + msg);
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        redeemCodeActionInFlight = false;
+        alert(data.message || '🎉 兌換成功！');
+        closeRedeemCode();
+        fetchScoresAndShop(currentUser.id);
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=redeemCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_(data.message); return; }
+          finishSuccess_(data);
+        })
+        .catch(err => {
+          if (err && err.name === 'AbortError') gasGaveUp = true;
+          else if (!settled) finishError_('連線失敗，請稍後再試');
+        });
+
+      pollInstrumentedActionResult_('redeemCode', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) finishSuccess_(polled);
+        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      });
+    }
+
     function showBackpack() {
       renderBackpackItems();
       renderBackpackRoles();
