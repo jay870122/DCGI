@@ -1587,6 +1587,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   </div>
 </div>
 
+<!-- 兌換名單彈窗 -->
+<div class="overlay" id="redeem-code-redeemers-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><h3 id="redeem-code-redeemers-title">🎫 兌換名單</h3><button class="modal-close" onclick="closeModal('redeem-code-redeemers-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="redeem-code-redeemers-container">讀取中...</div>
+    </div>
+  </div>
+</div>
+
 <!-- 手動發放通用道具彈窗:發放對象沿用「玩家貨幣管理」頁面裡勾選的玩家清單 -->
 <div class="overlay" id="grant-general-item-modal">
   <div class="modal" style="max-width:480px">
@@ -2050,8 +2060,15 @@ async function api(params) {
 
   // 🌟 寫入類action:套用賽跑架構
   return new Promise((resolve) => {
-    let settled = false, gasGaveUp = false;
+    let settled = false, gasDone = false, pollDone = false;
     const requestStartMs = Date.now();
+    // 🌟🔧 修正bug:輪詢逾時跟GAS中斷逾時時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,兩條路線都不會
+    // resolve,呼叫端會永遠卡在pending狀態不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,誰最後跑完
+    // 就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+    function checkBothGaveUp_() {
+      if (settled) return;
+      if (gasDone && pollDone) finishTimeoutNoResult_();
+    }
 
     function finishFromGas_(data) {
       if (settled) return; settled = true;
@@ -2070,14 +2087,16 @@ async function api(params) {
       .then(res => res.json())
       .then(data => { if (!settled) finishFromGas_(data); })
       .catch(err => {
-        if (err && err.name === 'AbortError') gasGaveUp = true;
-        else if (!settled) { settled = true; resolve({ status: 'error', message: '❌ 連線失敗，請稍後再試' }); }
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else { settled = true; resolve({ status: 'error', message: '❌ 連線失敗，請稍後再試' }); }
       });
 
     pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled).then(result => {
       if (settled) return;
-      if (result) finishFromPoll_(result);
-      else if (gasGaveUp) finishTimeoutNoResult_();
+      if (result) { finishFromPoll_(result); return; }
+      pollDone = true;
+      checkBothGaveUp_();
     });
   });
 }
@@ -4696,7 +4715,7 @@ function renderRedeemCodes() {
           <div id="rcpool-detail-${idx}" style="display:none;white-space:pre-wrap;margin-top:4px;padding:6px;background:var(--s2);border-radius:4px">${c.poolRaw}</div>
         ` : ''}
       </td>
-      <td>${c.redeemedCount}${c.maxRedeemers !== null && c.maxRedeemers !== '' ? ' / ' + c.maxRedeemers : ''}${c.maxRedeemers !== null && c.maxRedeemers !== '' && c.redeemedCount >= c.maxRedeemers ? '<br><span style="color:#ED4245;font-size:11px">名額已滿</span>' : ''}</td>
+      <td>${c.redeemedCount > 0 ? `<a href="javascript:void(0)" onclick="openRedeemCodeRedeemers('${c.code.replace(/'/g,"\\'")}')" style="color:#7289DA;text-decoration:underline">${c.redeemedCount}${c.maxRedeemers !== null && c.maxRedeemers !== '' ? ' / ' + c.maxRedeemers : ''}人</a>` : `${c.redeemedCount}${c.maxRedeemers !== null && c.maxRedeemers !== '' ? ' / ' + c.maxRedeemers : ''}`}${c.maxRedeemers !== null && c.maxRedeemers !== '' && c.redeemedCount >= c.maxRedeemers ? '<br><span style="color:#ED4245;font-size:11px">名額已滿</span>' : ''}</td>
       <td style="font-size:12px">${timeRange.length > 0 ? timeRange.join('<br>') : '不限時間'}</td>
       <td>
         <button class="btn btn-edit" onclick="editRedeemCode('${c.code.replace(/'/g,"\\'")}')">✏️ 編輯</button>
@@ -4774,6 +4793,24 @@ async function deleteRedeemCode(code) {
   if (d.status !== 'success') { toast('刪除失敗: ' + d.message, false); return; }
   toast(d.message);
   loadRedeemCodes();
+}
+async function openRedeemCodeRedeemers(code) {
+  document.getElementById('redeem-code-redeemers-title').textContent = `🎫 「${code}」兌換名單`;
+  document.getElementById('redeem-code-redeemers-container').innerHTML = '讀取中...';
+  document.getElementById('redeem-code-redeemers-modal').classList.add('open');
+  const d = await apiWorkerRead('adminRedeemCodeRedeemers', { code }, { action: 'adminGetRedeemCodeRedeemers', code });
+  const container = document.getElementById('redeem-code-redeemers-container');
+  if (d.status !== 'success') { container.innerHTML = `<p style="color:var(--red)">載入失敗: ${d.message}</p>`; return; }
+  const redeemers = d.redeemers || [];
+  if (redeemers.length === 0) { container.innerHTML = '<p class="hint">目前還沒有人兌換過</p>'; return; }
+  container.innerHTML = `
+    <table>
+      <thead><tr><th>玩家</th><th>DiscordID</th></tr></thead>
+      <tbody>
+        ${redeemers.map(r => `<tr><td>${r.nickname}</td><td class="hint">${r.discordId}</td></tr>`).join('')}
+      </tbody>
+    </table>
+  `;
 }
 // ── 兌換碼管理結束 ──
 
