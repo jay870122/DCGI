@@ -1438,8 +1438,15 @@
       const btn = document.getElementById('bingo-reroll-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function finishError_(msg) {
         if (settled) return; settled = true;
@@ -1467,14 +1474,16 @@
         finishSuccessFromGas_(data);
       })
       .catch(err => {
-        if (err && err.name === 'AbortError') gasGaveUp = true;
-        else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else finishError_('❌ 連線失敗，請稍後再試');
       });
 
       pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccessFromPoll_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
@@ -1485,8 +1494,15 @@
       const btn = document.getElementById('bingo-newboard-btn');
       btn.disabled = true; const originalText = btn.textContent; btn.textContent = '⏳ 處理中...';
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function finishError_(msg) {
         if (settled) return; settled = true;
@@ -1515,14 +1531,16 @@
         finishSuccessFromGas_(data);
       })
       .catch(err => {
-        if (err && err.name === 'AbortError') gasGaveUp = true;
-        else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else finishError_('❌ 連線失敗，請稍後再試');
       });
 
       pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccessFromPoll_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
@@ -1572,8 +1590,15 @@
       randomBtn.disabled = true; if (pickBtn) pickBtn.disabled = true;
       randomBtn.textContent = '⏳ 處理中...'; if (pickBtn) pickBtn.textContent = '⏳ 處理中...';
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function resetButtons_() {
         randomBtn.disabled = false; if (pickBtn) pickBtn.disabled = false;
@@ -1614,14 +1639,16 @@
         finishSuccessFromGas_(data);
       })
       .catch(err => {
-        if (err && err.name === 'AbortError') gasGaveUp = true;
-        else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else finishError_('❌ 連線失敗，請稍後再試');
       });
 
       pollInstrumentedActionResult_('buyBingoNumber', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccessFromPoll_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
@@ -1643,8 +1670,15 @@
       allItemBtns.forEach(btn => { btnStates.push({ btn, originalText: btn.textContent }); btn.disabled = true; btn.textContent = '⏳ 使用中...'; });
       document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn').forEach(el => { el.disabled = true; });
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function finishSuccess_(msg) {
         if (settled) return; settled = true;
@@ -1682,8 +1716,9 @@
           finishSuccess_(buildResultMsg_(data));
         })
         .catch((err) => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
+          if (settled) return;
+          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+          else finishError_('❌ 連線失敗，請稍後再試');
         });
 
       pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs, () => settled).then(polled => {
@@ -1691,9 +1726,10 @@
         if (polled) {
           lastDrawnNumbers = (polled.hit && !polled.alreadyMarked) ? [polled.number] : [];
           finishSuccess_(`✅ 查到了！這次操作其實有成功執行：\n\n${buildResultMsg_(polled)}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
-        } else if (gasGaveUp) {
-          finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+          return;
         }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
@@ -1741,8 +1777,15 @@
       const batchBtn = document.getElementById('bingo-batch-use-btn');
       if (batchBtn) { batchBtn.disabled = true; batchBtn.textContent = `⏳ 使用中...(${tasks.length}張,處理中)`; }
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
       const batchTimeoutMs = BINGO_ITEM_USE_TIMEOUT_MS + tasks.length * 500;
 
       function finishError_(msg) {
@@ -1796,14 +1839,16 @@
           finishSuccessFromGas_(data);
         })
         .catch(err => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-        });
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else finishError_('❌ 連線失敗，請稍後再試');
+      });
 
       pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccessFromPoll_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
@@ -1862,8 +1907,15 @@
       if (selectAllCb) selectAllCb.disabled = true;
       document.querySelectorAll('.bingo-expired-item-checkbox').forEach(cb => { cb.disabled = true; });
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function resetUi_() {
         bingoActionInFlight = false;
@@ -1895,14 +1947,16 @@
           finishSuccessFromGas_(data);
         })
         .catch(err => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-        });
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else finishError_('❌ 連線失敗，請稍後再試');
+      });
 
       pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccessFromPoll_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccessFromPoll_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
     // ── BINGO 賓果卡結束 ──
@@ -2046,8 +2100,15 @@
       const originalText = btnEl.textContent;
       btnEl.textContent = '⏳ 開啟中...';
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function finishError_(msg) {
         if (settled) return; settled = true;
@@ -2071,14 +2132,16 @@
           finishSuccess_(data);
         })
         .catch(err => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-        });
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else finishError_('❌ 連線失敗，請稍後再試');
+      });
 
       pollInstrumentedActionResult_('useGeneralBackpackItemsByName', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccess_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
@@ -2110,8 +2173,15 @@
       const clearBtn = document.getElementById('gi-clear-btn');
       if (clearBtn) clearBtn.textContent = '⏳ 清除中...';
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function finishError_(msg) {
         if (settled) return; settled = true;
@@ -2134,14 +2204,16 @@
           finishSuccess_(data);
         })
         .catch(err => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('❌ 連線失敗，請稍後再試');
-        });
+        if (settled) return;
+        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+        else finishError_('❌ 連線失敗，請稍後再試');
+      });
 
       pollInstrumentedActionResult_('clearUnusableGeneralBackpackItems', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccess_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
@@ -2191,8 +2263,15 @@
       const originalText = btn.textContent;
       btn.textContent = '⏳ 兌換中...';
 
-      let settled = false, gasGaveUp = false;
+      let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
+      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
+      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
+      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
 
       function resetUi_() {
         redeemCodeActionInFlight = false;
@@ -2219,14 +2298,16 @@
           finishSuccess_(data);
         })
         .catch(err => {
-          if (err && err.name === 'AbortError') gasGaveUp = true;
-          else if (!settled) finishError_('連線失敗，請稍後再試');
+          if (settled) return;
+          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+          else finishError_('連線失敗，請稍後再試');
         });
 
       pollInstrumentedActionResult_('redeemCode', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) finishSuccess_(polled);
-        else if (gasGaveUp) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
       });
     }
 
