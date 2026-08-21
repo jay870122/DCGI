@@ -4707,7 +4707,7 @@ function renderRedeemCodes() {
     if (c.endTime) timeRange.push(`${new Date(c.endTime).toLocaleString()} 止`);
     return `
     <tr>
-      <td><b>${c.code}</b></td>
+      <td><b>${c.code}</b> <button onclick="copyRedeemCode('${c.code.replace(/'/g,"\\'")}')" title="複製兌換碼" style="background:none;border:none;color:#7289DA;cursor:pointer;font-size:13px;padding:2px 4px">📋</button></td>
       <td style="max-width:280px;font-size:12px;color:var(--muted)">
         <div>${firstLineShort}${moreCount > 0 ? `<span class="hint">　(共${poolLines.length}個獎項)</span>` : ''}</div>
         ${moreCount > 0 ? `
@@ -4798,19 +4798,50 @@ async function openRedeemCodeRedeemers(code) {
   document.getElementById('redeem-code-redeemers-title').textContent = `🎫 「${code}」兌換名單`;
   document.getElementById('redeem-code-redeemers-container').innerHTML = '讀取中...';
   document.getElementById('redeem-code-redeemers-modal').classList.add('open');
+  await loadRedeemCodeRedeemers(code);
+}
+
+async function loadRedeemCodeRedeemers(code) {
   const d = await apiWorkerRead('adminRedeemCodeRedeemers', { code }, { action: 'adminGetRedeemCodeRedeemers', code });
   const container = document.getElementById('redeem-code-redeemers-container');
   if (d.status !== 'success') { container.innerHTML = `<p style="color:var(--red)">載入失敗: ${d.message}</p>`; return; }
   const redeemers = d.redeemers || [];
   if (redeemers.length === 0) { container.innerHTML = '<p class="hint">目前還沒有人兌換過</p>'; return; }
   container.innerHTML = `
+    <p class="hint" style="margin-top:0">點「重置」可以讓該玩家重新兌換這組碼一次(只解除已兌換的限制,不會收回對方已經拿到的獎勵)</p>
     <table>
-      <thead><tr><th>玩家</th><th>DiscordID</th></tr></thead>
+      <thead><tr><th>玩家</th><th>DiscordID</th><th>操作</th></tr></thead>
       <tbody>
-        ${redeemers.map(r => `<tr><td>${r.nickname}</td><td class="hint">${r.discordId}</td></tr>`).join('')}
+        ${redeemers.map(r => `<tr><td>${r.nickname}</td><td class="hint">${r.discordId}</td><td><button class="btn btn-del" onclick="resetPlayerRedemption('${code.replace(/'/g,"\\'")}', '${r.discordId}', '${r.nickname.replace(/'/g,"\\'")}')">🔄 重置</button></td></tr>`).join('')}
       </tbody>
     </table>
   `;
+}
+
+async function resetPlayerRedemption(code, targetDiscordId, nickname) {
+  if (!confirm(`確定要重置「${nickname}」對兌換碼「${code}」的兌換紀錄嗎？\n\n重置後對方可以重新兌換這組碼一次(不會收回對方已經拿到的獎勵)。`)) return;
+  const d = await api({ action: 'adminResetPlayerRedemption', code, targetDiscordId });
+  if (d.status !== 'success') { toast('重置失敗: ' + d.message, false); return; }
+  toast(d.message);
+  await loadRedeemCodeRedeemers(code); // 🌟 重新整理名單(那個人應該從清單裡消失了),同時也要刷新一次外層列表的已兌換人數
+  loadRedeemCodes();
+}
+
+function copyRedeemCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    toast(`已複製兌換碼「${code}」`);
+  }).catch(() => {
+    // 🌟 部分瀏覽器/非HTTPS環境clipboard API可能不可用,退回用傳統的textarea選取複製法
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast(`已複製兌換碼「${code}」`); }
+    catch (e) { toast('複製失敗,請手動選取複製', false); }
+    document.body.removeChild(ta);
+  });
 }
 // ── 兌換碼管理結束 ──
 
