@@ -4669,7 +4669,7 @@ async function submitGrantGeneralItem() {
 let redeemCodes = [];
 
 async function loadRedeemCodes() {
-  const d = await api({ action: 'adminGetRedeemCodes' });
+  const d = await apiWorkerRead('adminRedeemCodes', {}, { action: 'adminGetRedeemCodes' });
   if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
   redeemCodes = d.codes || [];
   renderRedeemCodes();
