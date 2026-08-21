@@ -2244,17 +2244,34 @@
     let latestRoleDetails = []; // 🌟 玩家目前持有的身分組(含分類),給背包彈窗分類顯示用
     // 🌟 序號兌換:輸入兌換碼領取獎勵,跟BINGO/通用道具用同一套賽跑架構
     let redeemCodeActionInFlight = false;
+    // 🌟 世代編號:每次打開/關閉彈窗都會遞增。如果玩家在請求還沒跑完時就把彈窗關掉、重新打開、
+    // 甚至再送出下一次請求,「舊的那次請求」在背景裡還是會繼續跑(沒辦法真的取消fetch/輪詢),
+    // 之後跑完時如果直接更新UI,可能會跟「新的這次請求」的UI狀態互相打架,導致畫面卡在奇怪的狀態、
+    // 或彈出讓玩家一頭霧水的提示。用世代編號讓過期的請求完成時,只更新分數(獎勵確實已經到帳),
+    // 不再去動UI/彈alert,避免互相干擾。
+    let redeemCodeGeneration = 0;
     function showRedeemCode() {
-      document.getElementById('redeem-code-input').value = '';
+      redeemCodeGeneration++;
+      const input = document.getElementById('redeem-code-input');
+      const btn = document.getElementById('redeem-code-submit-btn');
+      input.value = ''; input.disabled = false;
+      btn.disabled = false; btn.textContent = '🎁 兌換';
+      redeemCodeActionInFlight = false;
       document.getElementById('redeem-code-modal').style.display = 'flex';
-      setTimeout(() => document.getElementById('redeem-code-input').focus(), 100); // 🌟 彈窗一打開就自動聚焦輸入框,不用玩家自己點一下才能打字
+      setTimeout(() => input.focus(), 100); // 🌟 彈窗一打開就自動聚焦輸入框,不用玩家自己點一下才能打字
     }
-    function closeRedeemCode() { document.getElementById('redeem-code-modal').style.display = 'none'; }
+    function closeRedeemCode() {
+      redeemCodeGeneration++;
+      document.getElementById('redeem-code-modal').style.display = 'none';
+    }
 
     function submitRedeemCode() {
       if (redeemCodeActionInFlight) return;
       const code = document.getElementById('redeem-code-input').value.trim();
       if (!code) { alert('請輸入兌換碼'); return; }
+
+      const myGeneration = redeemCodeGeneration; // 🌟 記住這次提交屬於哪一代
+      function isStale_() { return myGeneration !== redeemCodeGeneration; }
 
       redeemCodeActionInFlight = true;
       const input = document.getElementById('redeem-code-input');
@@ -2275,19 +2292,19 @@
 
       function resetUi_() {
         redeemCodeActionInFlight = false;
+        if (isStale_()) return; // 🌟 彈窗已經被關閉/重開過了,不要再動UI,避免干擾到新一輪的操作
         input.disabled = false; btn.disabled = false; btn.textContent = originalText;
       }
       function finishError_(msg) {
         if (settled) return; settled = true;
         resetUi_();
-        alert('❌ ' + msg);
+        if (!isStale_()) alert('❌ ' + msg); // 🌟 過期的請求結果不跳alert打擾玩家,他可能已經在做別的事了
       }
       function finishSuccess_(data) {
         if (settled) return; settled = true;
-        redeemCodeActionInFlight = false;
-        alert(data.message || '🎉 兌換成功！');
-        closeRedeemCode();
-        fetchScoresAndShop(currentUser.id);
+        resetUi_();
+        if (!isStale_()) { alert(data.message || '🎉 兌換成功！'); closeRedeemCode(); }
+        fetchScoresAndShop(currentUser.id); // 🌟 不管是不是過期的請求,分數都要刷新(獎勵確實已經到帳了)
       }
 
       fetchWithTimeout_(`${GAS_API_URL}?action=redeemCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
