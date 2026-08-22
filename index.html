@@ -480,6 +480,7 @@
       const shareCategory = urlParams.get('category'); 
       const shareAuctionId = urlParams.get('auction');
       const shareAuctionCategoryParam = urlParams.get('auctionCategory');
+      const shareRedeemCode = urlParams.get('redeem'); // 🌟 分享兌換碼連結:網址帶著?redeem=碼,登入完成後自動打開兌換彈窗、把碼預先填好(但不自動送出,讓玩家自己確認後按兌換)
 
       let shouldCleanUrl = false;
       
@@ -500,6 +501,11 @@
 
       if (shareAuctionCategoryParam) {
         localStorage.setItem('shared_auction_category_target', shareAuctionCategoryParam);
+        shouldCleanUrl = true;
+      }
+
+      if (shareRedeemCode) {
+        localStorage.setItem('shared_redeem_code_target', shareRedeemCode);
         shouldCleanUrl = true;
       }
 
@@ -536,6 +542,7 @@
           checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
           maybeShowPushPrompt(); // 🌟 網址如果帶 ?subscribe=1(用來分享邀請大家訂閱推播的連結),自動跳出引導視窗
+          maybeShowSharedRedeemCode(); // 🌟 網址如果帶 ?redeem=兌換碼(分享兌換碼連結用),自動打開兌換彈窗、把碼預先填好
         }).catch(err => {
           localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
           document.getElementById('loading').style.display = 'none'; document.getElementById('login-section').style.display = 'block';
@@ -2250,15 +2257,22 @@
     // 或彈出讓玩家一頭霧水的提示。用世代編號讓過期的請求完成時,只更新分數(獎勵確實已經到帳),
     // 不再去動UI/彈alert,避免互相干擾。
     let redeemCodeGeneration = 0;
-    function showRedeemCode() {
+    function showRedeemCode(prefillCode) {
       redeemCodeGeneration++;
       const input = document.getElementById('redeem-code-input');
       const btn = document.getElementById('redeem-code-submit-btn');
-      input.value = ''; input.disabled = false;
+      input.value = prefillCode || ''; input.disabled = false; // 🌟 如果是從分享連結進來的,預先把碼填好,但不自動送出,讓玩家自己確認後按兌換
       btn.disabled = false; btn.textContent = '🎁 兌換';
       redeemCodeActionInFlight = false;
       document.getElementById('redeem-code-modal').style.display = 'flex';
       setTimeout(() => input.focus(), 100); // 🌟 彈窗一打開就自動聚焦輸入框,不用玩家自己點一下才能打字
+    }
+    // 🌟 網址帶 ?redeem=兌換碼 進來的話(分享兌換碼連結用),登入完成後自動打開兌換彈窗、把碼預先填好
+    function maybeShowSharedRedeemCode() {
+      const code = localStorage.getItem('shared_redeem_code_target');
+      if (!code) return;
+      localStorage.removeItem('shared_redeem_code_target'); // 🌟 用過就清掉,避免下次登入又被觸發
+      showRedeemCode(code);
     }
     function closeRedeemCode() {
       redeemCodeGeneration++;
