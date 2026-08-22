@@ -3563,6 +3563,16 @@ function describeBingoBackpackTag_(varName) {
   return bits.join(' ');
 }
 
+// 🌟 [道具:模板名稱] 標籤的友善顯示,理由跟describeBingoBackpackTag_一致——後台預覽不該直接顯示原始標籤文字,
+// 要清楚標出「這是要發放通用道具、模板是哪一個」,不然管理員光看原始文字很難一眼看懂設定對不對。
+function describeGeneralItemTag_(varName) {
+  const m = varName.match(/\[道具:([^\]]+)\]/);
+  if (!m) return null;
+  const templateName = m[1].trim();
+  const cleanToolName = varName.replace(/\[[^\]]*\]/g, '').trim();
+  return `🎁 通用道具「${cleanToolName}」(模板:${templateName})`;
+}
+
 function renderGachaPreviewToBox_(box, text) {
   if (!text.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
   const pool = parseGachaRulesPreview(text);
@@ -3584,12 +3594,18 @@ function renderGachaPreviewToBox_(box, text) {
       bits.push(`發放:${p.varList.map(v => {
         const bpDesc = describeBingoBackpackTag_(v.varName);
         if (bpDesc) return bpDesc + (v.qty !== 1 ? ` ×${v.qty}份` : '');
+        const giDesc = describeGeneralItemTag_(v.varName);
+        if (giDesc) return giDesc + (v.qty !== 1 ? ` ×${v.qty}份` : '');
         return `${v.varName}×${v.qtyRange ? (v.qtyRange[0]+'~'+v.qtyRange[1]) : v.qty}`;
       }).join('、')}`);
     } else {
       const bpDesc = describeBingoBackpackTag_(p.varName);
+      const giDesc = describeGeneralItemTag_(p.varName);
       if (bpDesc) {
         bits.push(bpDesc);
+        if (p.qty !== 1) bits.push(`×${p.qty}份`);
+      } else if (giDesc) {
+        bits.push(giDesc);
         if (p.qty !== 1) bits.push(`×${p.qty}份`);
       } else {
         if (p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
@@ -3738,7 +3754,8 @@ function renderMilestonePreview(textareaId, previewId) {
         if (isFallback) bits.push('🛡️保底');
         if (bad) bits.push('⚠️格式有問題或名稱重複');
         const bpDesc = describeBingoBackpackTag_(p.varName);
-        const nameDisplay = bpDesc || p.dispName;
+        const giDesc = describeGeneralItemTag_(p.varName);
+        const nameDisplay = bpDesc || giDesc || p.dispName;
         return `<div style="padding-left:18px;color:${bad?'#ED4245':'#B9BBBE'}">- ${nameDisplay}　${bits.join('　')}</div>`;
       }).join('');
       let poolSummary;
@@ -3753,7 +3770,10 @@ function renderMilestonePreview(textareaId, previewId) {
     if (m.displayName) bits.push(`顯示名稱:${m.displayName}`);
     bits.push(`發放:${m.varList.map(v => {
       const bpDesc = describeBingoBackpackTag_(v.varName);
-      return bpDesc ? bpDesc + (v.qty !== 1 ? ` ×${v.qty}份` : '') : `${v.varName}×${v.qty}`;
+      if (bpDesc) return bpDesc + (v.qty !== 1 ? ` ×${v.qty}份` : '');
+      const giDesc = describeGeneralItemTag_(v.varName);
+      if (giDesc) return giDesc + (v.qty !== 1 ? ` ×${v.qty}份` : '');
+      return `${v.varName}×${v.qty}`;
     }).join('、')}`);
     if (m.stock !== null && m.stock !== undefined) bits.push(`全體限量:${m.stock}份`);
     if (m.personalLimit !== null && m.personalLimit !== undefined) bits.push(`個人限量:${m.personalLimit}次`);
@@ -4564,6 +4584,7 @@ function renderItemTemplates() {
       <td>${expiryLabel(t)}${t.usableFrom ? `<br><span class="hint">${new Date(t.usableFrom).toLocaleString()}後才能用</span>` : ''}</td>
       <td>
         <button class="btn btn-edit" onclick="editItemTemplate('${t.name.replace(/'/g,"\\'")}')">✏️ 編輯</button>
+        <button class="btn btn-edit" onclick="duplicateItemTemplate('${t.name.replace(/'/g,"\\'")}')">📋 複製</button>
         <button class="btn btn-del" onclick="deleteItemTemplate('${t.name.replace(/'/g,"\\'")}')">🗑️ 刪除</button>
       </td>
     </tr>
@@ -4652,6 +4673,16 @@ async function deleteItemTemplate(name) {
   if (d.status !== 'success') { toast('刪除失敗: ' + d.message, false); return; }
   toast(d.message);
   loadItemTemplates();
+}
+
+async function duplicateItemTemplate(name) {
+  if (!confirm(`確定要複製道具模板「${name}」嗎？會建立一個全新的模板,帶著同樣的內容獎池/使用次數上限/過期規則。`)) return;
+  const d = await api({ action: 'adminDuplicateItemTemplate', name });
+  if (d.status !== 'success') { toast('複製失敗: ' + d.message, false); return; }
+  toast(d.message);
+  await loadItemTemplates();
+  // 🌟 複製完直接打開編輯視窗,方便管理員立刻改成想要的模板名稱,不用自己再去列表裡找
+  if (d.newName) editItemTemplate(d.newName);
 }
 
 function openGrantGeneralItemModal() {
