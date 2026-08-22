@@ -1943,6 +1943,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
+const FRONTEND_URL = 'https://jay870122.github.io/DCGI/'; // 🌟 給「分享兌換碼連結」按鈕組網址用
 const CLIENT_ID = '1365601646448607335';
 const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
 const SUPER_ADMIN_ID = '176681551189377024'; // 🌟 跟 Code.gs 的 SUPER_ADMIN_ID 保持一致,只有這個ID可以新增/移除管理員
@@ -4720,6 +4721,7 @@ function renderRedeemCodes() {
       <td>
         <button class="btn btn-edit" onclick="editRedeemCode('${c.code.replace(/'/g,"\\'")}')">✏️ 編輯</button>
         <button class="btn btn-edit" onclick="duplicateRedeemCode('${c.code.replace(/'/g,"\\'")}')">📋 複製</button>
+        <button class="btn btn-edit" onclick="shareRedeemCodeLink('${c.code.replace(/'/g,"\\'")}')">🔗 分享連結</button>
         <button class="btn btn-del" onclick="deleteRedeemCode('${c.code.replace(/'/g,"\\'")}')">🗑️ 刪除</button>
       </td>
     </tr>
@@ -4836,6 +4838,26 @@ async function duplicateRedeemCode(code) {
   await loadRedeemCodes();
   // 🌟 複製完直接打開編輯視窗,方便管理員立刻改成想要的碼名稱,不用自己再去列表裡找
   if (d.newCode) editRedeemCode(d.newCode);
+}
+
+// 🌟 分享兌換碼連結:組出「前台網址?redeem=碼」,玩家點連結進來、登入完成後會自動打開兌換彈窗、
+// 把碼預先填好(但不自動送出,玩家還是要自己按一次「兌換」確認)。
+function shareRedeemCodeLink(code) {
+  const shareUrl = `${FRONTEND_URL}?redeem=${encodeURIComponent(code)}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    toast(`已複製兌換碼「${code}」的分享連結`);
+  }).catch(() => {
+    // 🌟 部分瀏覽器/非HTTPS環境clipboard API可能不可用,退回用傳統的textarea選取複製法
+    const ta = document.createElement('textarea');
+    ta.value = shareUrl;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast(`已複製兌換碼「${code}」的分享連結`); }
+    catch (e) { prompt('請手動複製這個連結：', shareUrl); }
+    document.body.removeChild(ta);
+  });
 }
 // ── 兌換碼管理結束 ──
 
