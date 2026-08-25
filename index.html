@@ -447,6 +447,9 @@
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzBie8G4KRouJ3nQMsGccDxI0pPlm-kh3Sg8GsURORsRHFCyJgtKV5mJ4A7wKWEo8W1wQ/exec';
     const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'; // 🌟 讀取分數+商店目錄改走這個Worker,速度比較快;買東西/查紀錄/登入還是走上面的GAS_API_URL
+    // 🌟 序號兌換、通用道具開啟/清除這幾個「即時操作」已經遷移到自己架的Python常駐服務(第一階段遷移),
+    // 不用再靠賽跑架構猜測結果——Python是直接同步回應,做完就真的回應完成了,不會像GAS那樣有回應延遲問題。
+    const PY_BACKEND_URL = 'https://mui-leonine-overbrightly.ngrok-free.dev';
     // 🌟 推播通知的VAPID公鑰,要跟 dashboard-worker.js 裡的 VAPID_PUBLIC_KEY 完全一致(這個是公開的,可以放在前端;私鑰絕對不能放這裡)
     const VAPID_PUBLIC_KEY = 'BEtm2b_TlQ7e8oKiFmAa69I3e01t0zfPNxggs1eBkVZCpZuheOf6o7wjQpgxZdzcMbKikUUCYQ2SkD1T0fkbDRk';
     // 🌟🔒 安全性修正:所有打後端的請求都要帶上這個 accessToken,讓後端自己向 Discord 官方驗證使用者身分,
@@ -2111,49 +2114,22 @@
       const originalText = btnEl.textContent;
       btnEl.textContent = '⏳ 開啟中...';
 
-      let settled = false, gasDone = false, pollDone = false;
-      const requestStartMs = Date.now();
-      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
-      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
-      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
-      function checkBothGaveUp_() {
-        if (settled) return;
-        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      }
-
-      function finishError_(msg) {
-        if (settled) return; settled = true;
-        generalItemActionInFlight = false;
-        loadGeneralItems();
-        alert(msg);
-      }
-      function finishSuccess_(data) {
-        if (settled) return; settled = true;
-        generalItemActionInFlight = false;
-        alert(data.message || `🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
-        loadGeneralItems();
-        fetchScoresAndShop(currentUser.id);
-      }
-
-      fetchWithTimeout_(`${GAS_API_URL}?action=useGeneralBackpackItemsByName&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + quantity * 300)
+      // 🌟🔧 已遷移到Python常駐後端(第一階段遷移):不再需要賽跑架構,直接打Python服務、等它回應就好。
+      fetchWithTimeout_(`${PY_BACKEND_URL}/action?action=useGeneralBackpackItemsByName&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000 + quantity * 100)
         .then(res => res.json())
         .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
+          generalItemActionInFlight = false;
+          if (data.status !== 'success') { loadGeneralItems(); alert('❌ ' + data.message); return; }
+          alert(data.message || `🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
+          loadGeneralItems();
+          fetchScoresAndShop(currentUser.id);
         })
         .catch(err => {
-        if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else finishError_('❌ 連線失敗，請稍後再試');
-      });
-
-      pollInstrumentedActionResult_('useGeneralBackpackItemsByName', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+          generalItemActionInFlight = false;
+          loadGeneralItems();
+          if (err && err.name === 'AbortError') alert('⚠️ 請求逾時,請稍後再試(如果背包內容有變化,代表其實有成功)');
+          else alert('❌ 連線失敗，請稍後再試');
+        });
     }
 
     // 🌟 清除已用完/過期的道具,跟BINGO清除過期道具同一套模式
@@ -2184,48 +2160,21 @@
       const clearBtn = document.getElementById('gi-clear-btn');
       if (clearBtn) clearBtn.textContent = '⏳ 清除中...';
 
-      let settled = false, gasDone = false, pollDone = false;
-      const requestStartMs = Date.now();
-      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
-      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
-      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
-      function checkBothGaveUp_() {
-        if (settled) return;
-        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      }
-
-      function finishError_(msg) {
-        if (settled) return; settled = true;
-        generalItemActionInFlight = false;
-        loadGeneralItems();
-        alert(msg);
-      }
-      function finishSuccess_(data) {
-        if (settled) return; settled = true;
-        generalItemActionInFlight = false;
-        alert('🗑️ ' + data.message);
-        loadGeneralItems();
-      }
-
-      fetchWithTimeout_(`${GAS_API_URL}?action=clearUnusableGeneralBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      // 🌟🔧 已遷移到Python常駐後端(第一階段遷移):不再需要賽跑架構,直接打Python服務、等它回應就好。
+      fetchWithTimeout_(`${PY_BACKEND_URL}/action?action=clearUnusableGeneralBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
+          generalItemActionInFlight = false;
+          if (data.status !== 'success') { loadGeneralItems(); alert('❌ ' + data.message); return; }
+          alert('🗑️ ' + data.message);
+          loadGeneralItems();
         })
         .catch(err => {
-        if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else finishError_('❌ 連線失敗，請稍後再試');
-      });
-
-      pollInstrumentedActionResult_('clearUnusableGeneralBackpackItems', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+          generalItemActionInFlight = false;
+          loadGeneralItems();
+          if (err && err.name === 'AbortError') alert('⚠️ 請求逾時,請稍後再試(如果背包內容有變化,代表其實有成功)');
+          else alert('❌ 連線失敗，請稍後再試');
+        });
     }
 
     // 🌟 過期倒數計時,邏輯跟BINGO背包道具那套完全一樣
@@ -2298,52 +2247,30 @@
       const originalText = btn.textContent;
       btn.textContent = '⏳ 兌換中...';
 
-      let settled = false, gasDone = false, pollDone = false;
-      const requestStartMs = Date.now();
-      // 🌟🔧 修正bug:輪詢逾時(約24秒)跟GAS中斷逾時(25秒)時間點太接近,如果輪詢先跑完但GAS中斷還沒觸發,
-      // 兩條路線都不會呼叫錯誤處理,畫面永遠卡住不會恢復。改成兩條路線各自追蹤「自己有沒有跑完」,
-      // 誰最後跑完就由誰負責做最終判斷,不再依賴誰先誰後的時間順序。
-      function checkBothGaveUp_() {
-        if (settled) return;
-        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      }
-
       function resetUi_() {
         redeemCodeActionInFlight = false;
         if (isStale_()) return; // 🌟 彈窗已經被關閉/重開過了,不要再動UI,避免干擾到新一輪的操作
         input.disabled = false; btn.disabled = false; btn.textContent = originalText;
       }
-      function finishError_(msg) {
-        if (settled) return; settled = true;
-        resetUi_();
-        if (!isStale_()) alert('❌ ' + msg); // 🌟 過期的請求結果不跳alert打擾玩家,他可能已經在做別的事了
-      }
-      function finishSuccess_(data) {
-        if (settled) return; settled = true;
-        resetUi_();
-        if (!isStale_()) { alert(data.message || '🎉 兌換成功！'); closeRedeemCode(); }
-        fetchScoresAndShop(currentUser.id); // 🌟 不管是不是過期的請求,分數都要刷新(獎勵確實已經到帳了)
-      }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=redeemCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      // 🌟🔧 已遷移到Python常駐後端(第一階段遷移):Python是直接同步回應,做完就是真的做完了,
+      // 不會像GAS那樣有回應延遲問題,不需要再套用賽跑架構(GAS回應+Worker輪詢兩條路線同時進行)去猜測結果——
+      // 直接打Python服務、等它回應就好,邏輯簡單很多。
+      fetchWithTimeout_(`${PY_BACKEND_URL}/action?action=redeemCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_(data.message); return; }
-          finishSuccess_(data);
+          resetUi_();
+          if (data.status !== 'success') { if (!isStale_()) alert('❌ ' + data.message); return; }
+          if (!isStale_()) { alert(data.message || '🎉 兌換成功！'); closeRedeemCode(); }
+          fetchScoresAndShop(currentUser.id); // 🌟 不管是不是過期的請求,分數都要刷新(獎勵確實已經到帳了)
         })
         .catch(err => {
-          if (settled) return;
-          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else finishError_('連線失敗，請稍後再試');
+          resetUi_();
+          if (!isStale_()) {
+            if (err && err.name === 'AbortError') alert('⚠️ 請求逾時,請稍後再試(如果畫面顯示已經兌換過,代表其實有成功)');
+            else alert('❌ 連線失敗，請稍後再試');
+          }
         });
-
-      pollInstrumentedActionResult_('redeemCode', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
     }
 
     function showBackpack() {
