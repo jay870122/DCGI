@@ -1568,15 +1568,19 @@
     // 接受一個shouldStop檢查函式,外層已經有答案了就提早停止,避免GAS已經回應之後這個迴圈還傻傻繼續打
     // API浪費Sheets API配額(配額是整個服務帳戶共用的,不是每個人各自有額度)。
     async function pollInstrumentedActionResult_(actionType, sinceMs, shouldStop) {
-      await sleep_(600);
-      for (let i = 0; i < 40; i++) {
+      // 🌟🔧 效能優化:Worker端的checkRecentActionResult現在改成只讀「兌換紀錄」表最後一小段範圍
+      // (不再整張表讀取),單次查詢成本大幅降低,可以查得更頻繁一點來縮短「操作明明已經成功了、
+      // 卻要多等一段時間才被偵測到」的空窗期。間隔從600ms縮短到350ms,總共查詢次數同步拉高,
+      // 讓整體逾時預算(約24秒)維持差不多,不會因為查更頻繁就提早放棄。
+      await sleep_(350);
+      for (let i = 0; i < 68; i++) {
         if (shouldStop && shouldStop()) return null;
         try {
           const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${currentUser.id}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(getAccessToken())}`);
           const data = await res.json();
           if (data.status === 'success' && data.found && data.result) return data.result;
         } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
-        await sleep_(600);
+        await sleep_(350);
       }
       return null;
     }
