@@ -4996,12 +4996,15 @@ async function openBingoCardsModal(activityId, activityName) {
     document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
     return;
   }
-  const fullCount = bingoCardsData.filter(c => c.full).length;
-  document.getElementById('bingo-cards-summary').textContent = `共 ${bingoCardsData.length} 位玩家已拿到賓果盤，其中 ${fullCount} 位已完成整卡`;
+  // 🌟🔧 修正bug:原本摘要統計用「目前這張卡是不是完成中(full)」,玩家完成後選擇重開新盤,
+  // full會被重置成false,摘要的「已完成整卡」人數就會跟著少1,看起來像是「重開後完成紀錄被扣掉」,
+  // 其實是統計的東西跟玩家想看的(有沒有完成過)對不上。改成跟下面「完成次數」欄位用同一套算法:
+  // 「完成整卡重開已使用次數 + 目前是不是也完成中」,只要曾經完成過1次以上就算數,不會因為重開新盤而消失。
+  const completedCounts = bingoCardsData.map(c => (c.completeResetUsedCount || 0) + (c.full ? 1 : 0));
+  const everCompletedCount = completedCounts.filter(n => n > 0).length;
+  const totalCompletions = completedCounts.reduce((a, b) => a + b, 0);
+  document.getElementById('bingo-cards-summary').textContent = `共 ${bingoCardsData.length} 位玩家已拿到賓果盤，其中 ${everCompletedCount} 位曾經完成過整卡(累計完成 ${totalCompletions} 次)`;
   document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => {
-    // 🌟 「總共完成過幾次」= 完成整卡重開已使用次數 + (目前這張卡是不是也完成中、但還沒重開,還沒被計進上面那個數字)。
-    // 如果這個BINGO活動根本沒開放「完成整卡重開」功能,completeResetUsedCount會一直是0,這個算法一樣正確
-    // (完成0或1次,取決於目前這張卡有沒有完成)。
     const totalCompletedCount = (c.completeResetUsedCount || 0) + (c.full ? 1 : 0);
     return `
     <tr>
