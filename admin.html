@@ -1821,7 +1821,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="gacha-guide" id="bingo-cards-summary" style="margin-bottom:12px"></div>
       <div class="tbl-wrap tbl-wrap-table">
         <table>
-          <thead><tr><th>玩家</th><th>已標記數量</th><th>連線數</th><th>整卡</th><th>重抽/重開次數</th><th>最後更新</th><th>操作</th></tr></thead>
+          <thead><tr><th>玩家</th><th>已標記數量</th><th>連線數</th><th>整卡</th><th>完成次數</th><th>重抽/重開次數</th><th>最後更新</th><th>操作</th></tr></thead>
           <tbody id="bingo-cards-tbody"><tr><td colspan="7" class="empty">讀取中...</td></tr></tbody>
         </table>
       </div>
@@ -4993,22 +4993,29 @@ async function openBingoCardsModal(activityId, activityName) {
   }
   bingoCardsData = d.cards;
   if (bingoCardsData.length === 0) {
-    document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="7" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
+    document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
     return;
   }
   const fullCount = bingoCardsData.filter(c => c.full).length;
   document.getElementById('bingo-cards-summary').textContent = `共 ${bingoCardsData.length} 位玩家已拿到賓果盤，其中 ${fullCount} 位已完成整卡`;
-  document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => `
+  document.getElementById('bingo-cards-tbody').innerHTML = bingoCardsData.map((c, idx) => {
+    // 🌟 「總共完成過幾次」= 完成整卡重開已使用次數 + (目前這張卡是不是也完成中、但還沒重開,還沒被計進上面那個數字)。
+    // 如果這個BINGO活動根本沒開放「完成整卡重開」功能,completeResetUsedCount會一直是0,這個算法一樣正確
+    // (完成0或1次,取決於目前這張卡有沒有完成)。
+    const totalCompletedCount = (c.completeResetUsedCount || 0) + (c.full ? 1 : 0);
+    return `
     <tr>
       <td>${c.nickname}</td>
       <td>${c.marked.length} / 25</td>
       <td>${c.linesCount}</td>
       <td>${c.full ? '<span class="status status-ended">🏆 已完成</span>' : '—'}</td>
+      <td style="text-align:center">${totalCompletedCount > 0 ? totalCompletedCount : '—'}</td>
       <td style="font-size:12px">重抽${c.rerollCount} / 重開${c.selfResetCount}</td>
       <td style="font-size:12px">${c.lastUpdated ? new Date(c.lastUpdated).toLocaleString() : ''}</td>
       <td class="cell-actions"><button class="btn btn-edit" onclick="showBingoCardDetail(${idx})">🎰 查看卡片</button></td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 // 🌟 顯示單一玩家的賓果盤具體內容:5x5格子,已標記的用綠色底標示,方便管理員肉眼核對有沒有異常
