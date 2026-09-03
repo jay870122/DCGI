@@ -160,7 +160,7 @@
         </div>
 
         <div class="form-group">
-            <label for="farmLevel">目前農場等級 (過濾無法購買的種子，並決定可同時種植欄位數)</label>
+            <label for="farmLevel">目前(起始)農場等級 (過濾無法購買的種子，並決定可同時種植欄位數；計算過程中若跨過升級門檻會自動更新)</label>
             <select id="farmLevel" onchange="updateSlotInfo()"></select>
             <div id="slotInfo"></div>
         </div>
@@ -211,10 +211,12 @@
             <li>農場總 SP 值不足 100,000 的玩家將<strong>不獲獎勵資格</strong>。</li>
             <li style="margin-top: 8px;"><span class="warning">注意：現時超級 TR 日活動內獲得的 25 TR 日箱子具有 SP 2025 UP 道具，請小心使用以免打亂計算數值！</span></li>
             <li style="margin-top: 8px;">系統已改為<strong>優先選擇「SP/時間效率」最高的作物組合</strong>湊出目標差額，而非單純種植次數最少的組合——例如同樣的 SP，時間短的作物（如檸檬）會比時間長 40 倍的作物（如芒果）優先被選用，藉此縮短總花費時間。</li>
+            <li style="margin-top: 8px;">計算結果已考慮您所選等級<strong>可同時種植的欄位數量</strong>，會安排多種作物並行種植以縮短總花費時間，並提供分批種植步驟。</li>
+            <li style="margin-top: 8px;">計算過程會<strong>模擬農場等級隨 SP 累積而升級</strong>：如果種植過程中途會跨過升級門檻，系統會自動切成好幾個階段，每個階段結束後更新可用的作物種類與同時種植欄位數，不會再繼續用已經過時的低等級作物。</li>
         </ul>
     </div>
 
-    <div class="version-footer">版本 v2.3（修正：同一時間點種植數量會依欄位數上限自動拆批）</div>
+    <div class="version-footer">版本 v3.1（修正：取消批次自動合併，每批時間點不同即為獨立操作，避免誤解為可同時種植）</div>
 
     <script>
         // 農作物資料庫 (包含對應解鎖等級與時間分鐘數轉換)
@@ -401,7 +403,7 @@
                 for (let i = 0; i < 500000; i++) {
                     if (checkCombo(testSP, comboType)) {
                         let diffTest = testSP - current;
-                        if (diffTest === 0 || (diffTest > 0 && canFormDiff(diffTest, userLevel))) {
+                        if (diffTest === 0 || (diffTest > 0 && isDiffReachable(current, diffTest, userLevel))) {
                             target = testSP;
                             found = true;
                             break;
@@ -421,9 +423,45 @@
             }, 50);
         }
 
-        // 測試特定差額是否能被湊出來
-        function canFormDiff(diff, userLevel) {
-            const availableCrops = crops.filter(crop => crop.lv <= userLevel);
+        // 依「目前 SP → 目標 SP」之間，找出中途會跨過的等級門檻，切成好幾個「階段」，
+        // 每個階段內玩家的農場等級（與可解鎖的作物、可用欄位數）是固定不變的。
+        // 一旦跨過門檻進入下一階段，就會改用新等級解鎖的作物，不再需要用舊等級的低效作物。
+        function buildLevelSegments(current, target, userLevel) {
+            const thresholds = farmLevels
+                .filter(l => l.sp > current && l.sp < target)
+                .sort((a, b) => a.sp - b.sp);
+
+            const boundaries = [current, ...thresholds.map(l => l.sp), target];
+            const segments = [];
+            for (let i = 0; i < boundaries.length - 1; i++) {
+                const segStart = boundaries[i];
+                const segEnd = boundaries[i + 1];
+                if (segEnd <= segStart) continue; // 跳過長度為 0 的區段
+
+                let level;
+                if (i === 0) {
+                    level = userLevel; // 第一階段沿用使用者選擇（或自動偵測）的目前等級
+                } else {
+                    const matched = farmLevels.find(l => l.sp === segStart);
+                    level = matched ? matched.lv : userLevel;
+                }
+
+                segments.push({
+                    start: segStart,
+                    end: segEnd,
+                    level: level,
+                    availableCrops: crops.filter(c => c.lv <= level),
+                    slots: getSlotsForLevel(level)
+                });
+            }
+            return segments;
+        }
+
+        // 在給定的可用作物清單中，找出「總種植時間最短」且 SP 剛好等於 diff 的組合
+        function solveDiffWithCrops(diff, availableCrops) {
+            if (diff === 0) return { feasible: true, cropCounts: {}, bestCropForSP: {} };
+            if (availableCrops.length === 0) return { feasible: false };
+
             const bestCropForSP = {};
             availableCrops.forEach(crop => {
                 if (!bestCropForSP[crop.sp] || crop.minutes < bestCropForSP[crop.sp].minutes) {
@@ -431,20 +469,45 @@
                 }
             });
             const availableSPs = Object.keys(bestCropForSP).map(Number);
-            
+
             const dp = new Array(diff + 1).fill(Infinity);
+            const choice = new Array(diff + 1).fill(-1);
             dp[0] = 0;
             for (let i = 0; i <= diff; i++) {
                 if (dp[i] === Infinity) continue;
                 for (let sp of availableSPs) {
                     if (i + sp <= diff) {
-                        if (dp[i] + 1 < dp[i + sp]) {
-                            dp[i + sp] = dp[i] + 1;
+                        const candidateTime = dp[i] + bestCropForSP[sp].minutes;
+                        if (candidateTime < dp[i + sp]) {
+                            dp[i + sp] = candidateTime;
+                            choice[i + sp] = sp;
                         }
                     }
                 }
             }
-            return dp[diff] !== Infinity;
+
+            if (dp[diff] === Infinity) return { feasible: false };
+
+            const cropCounts = {};
+            let currDiff = diff;
+            while (currDiff > 0) {
+                const spUsed = choice[currDiff];
+                cropCounts[spUsed] = (cropCounts[spUsed] || 0) + 1;
+                currDiff -= spUsed;
+            }
+
+            return { feasible: true, cropCounts, bestCropForSP };
+        }
+
+        // 判斷「目前 SP → 目前SP+diff」這段路程，考慮中途升級解鎖新作物後，是否能剛好湊出來
+        function isDiffReachable(current, diff, userLevel) {
+            if (diff === 0) return true;
+            const segments = buildLevelSegments(current, current + diff, userLevel);
+            for (const seg of segments) {
+                const result = solveDiffWithCrops(seg.end - seg.start, seg.availableCrops);
+                if (!result.feasible) return false;
+            }
+            return true;
         }
 
         // 格式化分鐘數為「幾天 幾小時 幾分鐘」
@@ -481,9 +544,8 @@
             return { events, makespan };
         }
 
-        // 把排程事件依「開始時間」分組，變成一批一批的種植步驟
-        function buildBatches(events, slots) {
-            // 先依「開始時間」把事件分組
+        // 把排程事件依「開始時間」分組，並依照各事件所屬階段的欄位數上限(slotsCap)自動拆批
+        function buildBatches(events) {
             const groups = new Map();
             for (const e of events) {
                 if (!groups.has(e.start)) groups.set(e.start, []);
@@ -494,33 +556,26 @@
             const batches = [];
             for (const s of starts) {
                 const evList = groups.get(s);
-                // 同一個時間點最多只能用 slots 個欄位，超過的部分要拆成下一批（即使時間點相同）
-                for (let i = 0; i < evList.length; i += slots) {
-                    const chunk = evList.slice(i, i + slots);
+                const cap = evList[0].slotsCap || evList.length;
+                for (let i = 0; i < evList.length; i += cap) {
+                    const chunk = evList.slice(i, i + cap);
                     const itemMap = new Map();
                     for (const e of chunk) {
                         const key = e.name + "__" + e.fertUsed;
                         if (!itemMap.has(key)) itemMap.set(key, { name: e.name, fertUsed: e.fertUsed, count: 0 });
                         itemMap.get(key).count++;
                     }
-                    batches.push({ time: s, items: Array.from(itemMap.values()) });
+                    batches.push({ time: s, items: Array.from(itemMap.values()), segmentIndex: chunk[0].segmentIndex });
                 }
             }
             return batches;
         }
 
-        function renderBatchesHTML(batches, slots, makespan) {
-            let html = `<h4 style="margin-bottom:6px;">🪴 種植步驟（同時可用 ${slots} 個欄位，🧪N 代表該項要使用 N 袋魔法肥料）</h4>`;
-            const MAX_SHOW = 20;
-            let shown = batches;
-            let omittedCount = 0;
-            if (batches.length > MAX_SHOW) {
-                const head = batches.slice(0, 15);
-                const tail = batches.slice(-3);
-                omittedCount = batches.length - head.length - tail.length;
-                shown = { head, tail };
-            }
+        
+        function renderBatchesHTML(rawEvents, segmentsInfo, makespan) {
+            const rawBatches = buildBatches(rawEvents);
 
+            let html = `<h4 style="margin-bottom:6px;">🪴 種植步驟（欄位數會依當時所在等級動態調整，🧪N 代表該項要使用 N 袋魔法肥料）</h4>`;
             html += `<table class="schedule-table"><thead><tr><th>步驟</th><th>距開始時間</th><th>本次種植內容</th></tr></thead><tbody>`;
 
             function itemsToStr(items) {
@@ -537,17 +592,39 @@
                 return `<tr><td>第 ${idx} 批</td><td>${timeLabel}</td><td>${itemsStr}</td></tr>`;
             }
 
-            if (Array.isArray(shown)) {
-                shown.forEach((batch, i) => { html += rowHTML(batch, i + 1); });
-            } else {
-                shown.head.forEach((batch, i) => { html += rowHTML(batch, i + 1); });
-                html += `<tr><td colspan="3" style="text-align:center; color:#999;">...（中間省略 ${omittedCount} 批，規律相同，持續補種即可）...</td></tr>`;
-                const tailStartIdx = batches.length - shown.tail.length + 1;
-                shown.tail.forEach((batch, i) => { html += rowHTML(batch, tailStartIdx + i); });
-            }
+            let totalStepCount = 0;
+
+            segmentsInfo.forEach((seg, segIdx) => {
+                const segBatches = rawBatches.filter(b => b.segmentIndex === segIdx);
+                if (segBatches.length === 0) return;
+
+                if (segmentsInfo.length > 1) {
+                    html += `<tr><td colspan="3" style="background:#eaf2f8; font-weight:bold; color:#2c3e50;">── 階段 ${segIdx + 1}：Lv.${seg.level}（可同時種植 ${seg.slots} 個欄位，此階段需湊 ${seg.end - seg.start} SP）──</td></tr>`;
+                }
+
+                const MAX_SHOW = 20;
+                let shown = segBatches;
+                let omittedCount = 0;
+                if (segBatches.length > MAX_SHOW) {
+                    const head = segBatches.slice(0, 15);
+                    const tail = segBatches.slice(-3);
+                    omittedCount = segBatches.length - head.length - tail.length;
+                    shown = { head, tail };
+                }
+
+                if (Array.isArray(shown)) {
+                    shown.forEach((batch, i) => { html += rowHTML(batch, i + 1); });
+                } else {
+                    shown.head.forEach((batch, i) => { html += rowHTML(batch, i + 1); });
+                    html += `<tr><td colspan="3" style="text-align:center; color:#999;">...（中間省略 ${omittedCount} 批，規律相同，持續補種即可）...</td></tr>`;
+                    const tailStartIdx = segBatches.length - shown.tail.length + 1;
+                    shown.tail.forEach((batch, i) => { html += rowHTML(batch, tailStartIdx + i); });
+                }
+                totalStepCount += segBatches.length;
+            });
 
             html += `</tbody></table>`;
-            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:8px;">*每批最多只能種下 ${slots} 株（等於可用欄位數），若同一時間點需要種植的數量超過 ${slots}，會自動拆成下一批依序操作，即使兩批時間標示相同。每批欄位空出後請立即補種下一批，才能達到最短總時間。標示 🧪N 的作物請在種下該批次時使用 N 袋魔法肥料（同一株可疊加多袋）。總步驟數：${batches.length} 批。</p>`;
+            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:8px;">*每批最多只能種下當時等級的可用欄位數，超過會自動拆成下一批依序操作。每一批都是「先前批次的某個欄位空出後」才會發生的獨立動作，時間點不同即代表不是同時進行，請依標示的時間點依序操作。標示 🧪N 的作物請在種下該批次時使用 N 袋魔法肥料（同一株可疊加多袋）。跨過等級門檻後會自動切換到新等級解鎖的作物。總步驟數：${totalStepCount} 批。</p>`;
             return html;
         }
 
@@ -563,116 +640,114 @@
                 return;
             }
 
-            const availableCrops = crops.filter(crop => crop.lv <= userLevel);
-            
-            if (availableCrops.length === 0) {
+            // 依照中途會跨過的等級門檻，把整段差額切成好幾個階段。
+            // 每個階段結束（即跨過門檻、升級）後，會自動改用新等級解鎖的作物，不再使用舊等級的作物。
+            const segments = buildLevelSegments(current, target, userLevel);
+
+            if (segments.length === 0 || segments[0].availableCrops.length === 0) {
                 showResult("目前的等級無法種植任何作物！", false);
                 return;
             }
 
-            // 同 SP 時，優先挑選生長時間最短的作物
-            const bestCropForSP = {};
-            availableCrops.forEach(crop => {
-                if (!bestCropForSP[crop.sp] || crop.minutes < bestCropForSP[crop.sp].minutes) {
-                    bestCropForSP[crop.sp] = crop;
+            // 對每個階段分別求解（SP/時間效率優先），並蒐集每個階段各自需要的種植工作
+            let allJobs = [];
+            let segmentSolves = [];
+            for (let s = 0; s < segments.length; s++) {
+                const seg = segments[s];
+                const segDiff = seg.end - seg.start;
+                const result = solveDiffWithCrops(segDiff, seg.availableCrops);
+                if (!result.feasible) {
+                    showResult(`階段 ${s + 1}（Lv.${seg.level}，需湊 <strong>${segDiff}</strong> SP）以該等級解鎖的作物無法剛好湊出來。<br>請嘗試微調目標 SP。`, false, true);
+                    return;
                 }
-            });
-            const availableSPs = Object.keys(bestCropForSP).map(Number).sort((a, b) => a - b);
+                segmentSolves.push({ seg, cropCounts: result.cropCounts, bestCropForSP: result.bestCropForSP });
 
-            // dp[i] 記錄湊到 SP = i 時，所需要的「最少總種植時間(分鐘)」，而不是最少種植次數。
-            // 這樣系統會優先選擇「SP 效率」最高(單位時間可獲得的 SP 最多)的作物組合，
-            // 而不是單純種植次數最少的組合，實際總花費時間會更短。
-            const dp = new Array(diff + 1).fill(Infinity);
-            const choice = new Array(diff + 1).fill(-1);
-            dp[0] = 0;
-
-            for (let i = 0; i <= diff; i++) {
-                if (dp[i] === Infinity) continue;
-                for (let sp of availableSPs) {
-                    if (i + sp <= diff) {
-                        const candidateTime = dp[i] + bestCropForSP[sp].minutes;
-                        if (candidateTime < dp[i + sp]) {
-                            dp[i + sp] = candidateTime;
-                            choice[i + sp] = sp;
-                        }
+                for (let sp of Object.keys(result.cropCounts).map(Number)) {
+                    const crop = result.bestCropForSP[sp];
+                    const count = result.cropCounts[sp];
+                    for (let c = 0; c < count; c++) {
+                        allJobs.push({ name: crop.name, sp: sp, minutes: crop.minutes, fertUsed: 0, segmentIndex: s });
                     }
                 }
             }
 
-            if (dp[diff] === Infinity) {
-                showResult(`以您目前的等級解鎖的作物，無法剛好湊出差額 <strong>${diff}</strong> SP。<br>請嘗試微調目標，或是提升農場等級解鎖更多種子。`, false, true);
-                return;
-            }
-
-            const cropCounts = {};
-            let currDiff = diff;
-            while (currDiff > 0) {
-                const spUsed = choice[currDiff];
-                if (cropCounts[spUsed]) {
-                    cropCounts[spUsed]++;
-                } else {
-                    cropCounts[spUsed] = 1;
-                }
-                currDiff -= spUsed;
-            }
-
-            // 建立個別種植工作清單 (jobsList)，先不套用肥料
-            let jobsList = [];
-            for (let sp of Object.keys(cropCounts).map(Number).sort((a, b) => b - a)) {
-                let crop = bestCropForSP[sp];
-                let count = cropCounts[sp];
-                for (let c = 0; c < count; c++) {
-                    jobsList.push({ name: crop.name, sp: sp, minutes: crop.minutes, fertUsed: 0 });
-                }
-            }
-
-            // 貪心分配魔法肥料：每袋固定減少 60 分鐘，同一株作物可以多次使用（疊加），
+            // 貪心分配魔法肥料（全部階段共用同一包肥料池）：
+            // 每袋固定減少 60 分鐘，同一株作物可以多次疊加使用，
             // 每次都優先套用在「目前剩餘種植時間最長」的作物上，直到肥料用完或所有作物時間都已降到 0
             let remainingFertilizer = parseInt(document.getElementById('fertilizerCount').value) || 0;
             while (remainingFertilizer > 0) {
                 let maxIdx = -1, maxVal = 0;
-                for (let i = 0; i < jobsList.length; i++) {
-                    if (jobsList[i].minutes > maxVal) {
-                        maxVal = jobsList[i].minutes;
+                for (let i = 0; i < allJobs.length; i++) {
+                    if (allJobs[i].minutes > maxVal) {
+                        maxVal = allJobs[i].minutes;
                         maxIdx = i;
                     }
                 }
                 if (maxIdx === -1) break; // 所有作物時間都已經是 0，多的肥料用不到了
-                jobsList[maxIdx].minutes = Math.max(0, jobsList[maxIdx].minutes - 60);
-                jobsList[maxIdx].fertUsed++;
+                allJobs[maxIdx].minutes = Math.max(0, allJobs[maxIdx].minutes - 60);
+                allJobs[maxIdx].fertUsed++;
                 remainingFertilizer--;
             }
 
-            // 依 SP 分組彙總，做成上方的作物總表
+            // 依階段分組彙總，做成上方的作物總表
             let cropDetails = [];
-            for (let sp of Object.keys(cropCounts).map(Number).sort((a, b) => b - a)) {
-                let crop = bestCropForSP[sp];
-                let count = cropCounts[sp];
-                let groupJobs = jobsList.filter(j => j.sp === sp);
-                let totalFinalMinutes = groupJobs.reduce((sum, j) => sum + j.minutes, 0);
-                let totalFertBags = groupJobs.reduce((sum, j) => sum + j.fertUsed, 0);
+            for (let s = 0; s < segments.length; s++) {
+                const seg = segments[s];
+                const solve = segmentSolves[s];
+                for (let sp of Object.keys(solve.cropCounts).map(Number).sort((a, b) => b - a)) {
+                    const crop = solve.bestCropForSP[sp];
+                    const count = solve.cropCounts[sp];
+                    const groupJobs = allJobs.filter(j => j.segmentIndex === s && j.sp === sp);
+                    const totalFinalMinutes = groupJobs.reduce((sum, j) => sum + j.minutes, 0);
+                    const totalFertBags = groupJobs.reduce((sum, j) => sum + j.fertUsed, 0);
 
-                cropDetails.push({
-                    name: crop.name,
-                    sp: sp,
-                    count: count,
-                    originalTimeStr: crop.timeStr,
-                    finalMinutes: totalFinalMinutes,
-                    totalFertBags: totalFertBags
-                });
+                    cropDetails.push({
+                        segmentIndex: s,
+                        level: seg.level,
+                        name: crop.name,
+                        sp: sp,
+                        count: count,
+                        originalTimeStr: crop.timeStr,
+                        finalMinutes: totalFinalMinutes,
+                        totalFertBags: totalFertBags
+                    });
+                }
             }
 
-            // 依農場等級的可同時種植欄位數進行排程，算出最短總完成時間與分批步驟
-            const slots = getSlotsForLevel(userLevel);
-            const scheduleResult = scheduleFarm(jobsList, slots);
-            const batches = buildBatches(scheduleResult.events, slots);
+            // 依序排程每個階段（階段之間視為前後接續，因為要先湊到門檻 SP 才會升級解鎖下一階段的作物），
+            // 同一階段內則依當時等級可同時種植的欄位數平行排程
+            let allEvents = [];
+            let cumulativeOffset = 0;
+            for (let s = 0; s < segments.length; s++) {
+                const seg = segments[s];
+                const segJobs = allJobs.filter(j => j.segmentIndex === s);
+                const segResult = scheduleFarm(segJobs, seg.slots);
+                for (const e of segResult.events) {
+                    allEvents.push({
+                        name: e.name,
+                        start: e.start + cumulativeOffset,
+                        end: e.end + cumulativeOffset,
+                        fertUsed: e.fertUsed,
+                        segmentIndex: s,
+                        slotsCap: seg.slots
+                    });
+                }
+                cumulativeOffset += segResult.makespan;
+            }
+            const totalMakespan = cumulativeOffset;
 
             let html = `<h3 style="margin-top:0; color:#16a085;">✅ 成功！目標 SP 為 <span class="highlight">${target}</span></h3>`;
             html += `<p style="font-size: 0.95em;">(目標判定數字為: <strong>${String(target).slice(-6)}</strong>)</p>`;
-            html += `<p>距離目前還差 <strong>${diff}</strong> SP，需要種植的作物種類與數量如下：</p>`;
+            html += `<p>距離目前還差 <strong>${diff}</strong> SP`;
+            if (segments.length > 1) {
+                html += `，過程中會跨過 <strong>${segments.length - 1}</strong> 次升級門檻，共分為 <strong>${segments.length}</strong> 個階段，各階段會自動改用新等級解鎖的作物`;
+            }
+            html += `，需種植的作物種類與數量如下：</p>`;
+
             html += `<table>
                         <thead>
                             <tr>
+                                <th>階段</th>
                                 <th>作物名稱</th>
                                 <th>單項 SP</th>
                                 <th>需種植數量</th>
@@ -685,6 +760,7 @@
             
             for (let item of cropDetails) {
                 html += `<tr>
+                            <td>第${item.segmentIndex + 1}階段<br><span style="font-size:0.8em; color:#7f8c8d;">Lv.${item.level}</span></td>
                             <td><strong>${item.name}</strong></td>
                             <td>${item.sp}</td>
                             <td style="color:#2980b9; font-size:1.1em;"><strong>${item.count} 個</strong></td>
@@ -695,14 +771,14 @@
             }
             
             html += `</tbody></table>`;
-            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:10px;">*註：若有 SP 相同的作物，系統已自動為您優先選擇生長時間最短的項目。</p>`;
+            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:10px;">*註：若有 SP 相同的作物，系統已自動為您優先選擇生長時間最短的項目；跨過等級門檻後的階段會自動改用新等級解鎖的作物，不再使用舊等級的作物。</p>`;
 
             html += `<div style="margin-top:18px; padding:12px; background:#eafaf1; border-radius:6px;">
-                        <p style="margin:0; font-size:1.05em;">⏱️ 若同時利用您目前等級的 <strong>${slots}</strong> 個種植欄位並行種植、收成後立刻補種，
-                        <strong>最短總花費時間約為 ${formatDuration(scheduleResult.makespan)}</strong>。</p>
+                        <p style="margin:0; font-size:1.05em;">⏱️ 依各階段等級並行種植、收成後立刻補種、並在升級後自動切換作物，
+                        <strong>最短總花費時間約為 ${formatDuration(totalMakespan)}</strong>。</p>
                       </div>`;
 
-            html += renderBatchesHTML(batches, slots, scheduleResult.makespan);
+            html += renderBatchesHTML(allEvents, segments, totalMakespan);
             
             showResult(html, true, true, 'success');
         }
