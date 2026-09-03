@@ -242,7 +242,7 @@
         </ul>
     </div>
 
-    <div class="version-footer">版本 v3.2（新增：自動記住輸入資料、種植步驟可打勾記錄完成進度）</div>
+    <div class="version-footer">版本 v3.4（取消步驟過多時的省略顯示，改為完整列出所有批次）</div>
 
     <script>
         // 農作物資料庫 (包含對應解鎖等級與時間分鐘數轉換)
@@ -671,16 +671,19 @@
 
         // 把排程事件依「開始時間」分組，並依照各事件所屬階段的欄位數上限(slotsCap)自動拆批
         function buildBatches(events) {
+            // 用「開始時間 + 所屬階段」一起當作分組鍵，避免不同階段（即使剛好時間點重疊，
+            // 例如好幾個階段都被肥料歸零、耗時都是 0）被誤混在一起，套用到錯誤的欄位數上限
             const groups = new Map();
             for (const e of events) {
-                if (!groups.has(e.start)) groups.set(e.start, []);
-                groups.get(e.start).push(e);
+                const key = e.start + "|" + e.segmentIndex;
+                if (!groups.has(key)) groups.set(key, { start: e.start, segmentIndex: e.segmentIndex, list: [] });
+                groups.get(key).list.push(e);
             }
-            const starts = Array.from(groups.keys()).sort((a, b) => a - b);
+            const groupList = Array.from(groups.values()).sort((a, b) => a.start - b.start || a.segmentIndex - b.segmentIndex);
 
             const batches = [];
-            for (const s of starts) {
-                const evList = groups.get(s);
+            for (const g of groupList) {
+                const evList = g.list;
                 const cap = evList[0].slotsCap || evList.length;
                 for (let i = 0; i < evList.length; i += cap) {
                     const chunk = evList.slice(i, i + cap);
@@ -690,7 +693,7 @@
                         if (!itemMap.has(key)) itemMap.set(key, { name: e.name, fertUsed: e.fertUsed, count: 0 });
                         itemMap.get(key).count++;
                     }
-                    batches.push({ time: s, items: Array.from(itemMap.values()), segmentIndex: chunk[0].segmentIndex });
+                    batches.push({ time: g.start, items: Array.from(itemMap.values()), segmentIndex: g.segmentIndex });
                 }
             }
             return batches;
@@ -735,17 +738,7 @@
                     html += `<tr><td colspan="4" style="background:#eaf2f8; font-weight:bold; color:#2c3e50;">── 階段 ${segIdx + 1}：Lv.${seg.level}（可同時種植 ${seg.slots} 個欄位，此階段需湊 ${seg.end - seg.start} SP）──</td></tr>`;
                 }
 
-                const MAX_SHOW = 20;
-                if (segBatches.length <= MAX_SHOW) {
-                    segBatches.forEach(b => { html += rowHTML(b, b._origIdx + 1, segIdx + '_' + b._origIdx); });
-                } else {
-                    const head = segBatches.slice(0, 15);
-                    const tail = segBatches.slice(-3);
-                    const omittedCount = segBatches.length - head.length - tail.length;
-                    head.forEach(b => { html += rowHTML(b, b._origIdx + 1, segIdx + '_' + b._origIdx); });
-                    html += `<tr><td colspan="4" style="text-align:center; color:#999;">...（中間省略 ${omittedCount} 批，規律相同，持續補種即可）...</td></tr>`;
-                    tail.forEach(b => { html += rowHTML(b, b._origIdx + 1, segIdx + '_' + b._origIdx); });
-                }
+                segBatches.forEach(b => { html += rowHTML(b, b._origIdx + 1, segIdx + '_' + b._origIdx); });
                 totalStepCount += segBatches.length;
             });
 
