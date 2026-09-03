@@ -243,7 +243,7 @@
         </ul>
     </div>
 
-    <div class="version-footer">版本 v3.6（新增作物：紅棗 100SP/30分鐘，等級1可用）</div>
+    <div class="version-footer">版本 v3.7（新增：若某階段確定整批都會分到肥料，選作物時改以「套肥料後的實際效益」為準，同樣能被1袋肥料歸零時優先選SP較高的作物，如蘋果優先於紅棗）</div>
 
     <div style="text-align:center; font-size:0.8em; color:#aaa; margin-top:4px;">
         <div id="history-count">載入中...</div>
@@ -602,7 +602,14 @@
         }
 
         // 在給定的可用作物清單中，找出「總種植時間最短」且 SP 剛好等於 diff 的組合
-        function solveDiffWithCrops(diff, availableCrops) {
+        // MAX_CROP_SP、TIME_WEIGHT 用來把「有效種植時間」跟「SP 大小」合併成單一分數比較：
+        // 時間差距永遠優先，只有在有效時間打平時，才會偏好 SP 較高（較划算）的作物，藉此在
+        // 「假設會用肥料」的情況下，優先選擇像蘋果這種套 1 袋肥料就能完全歸零、且 SP 更高的作物，
+        // 而不是紅棗這種雖然也能被歸零、但 SP 較低的作物。
+        const MAX_CROP_SP = 1500;
+        const TIME_WEIGHT = 10000;
+
+        function solveDiffWithCrops(diff, availableCrops, assumeFertilizer) {
             if (diff === 0) return { feasible: true, cropCounts: {}, bestCropForSP: {} };
             if (availableCrops.length === 0) return { feasible: false };
 
@@ -614,6 +621,12 @@
             });
             const availableSPs = Object.keys(bestCropForSP).map(Number);
 
+            function costForSP(sp) {
+                const rawMinutes = bestCropForSP[sp].minutes;
+                const effectiveMinutes = assumeFertilizer ? Math.max(0, rawMinutes - 60) : rawMinutes;
+                return effectiveMinutes * TIME_WEIGHT + (MAX_CROP_SP - sp);
+            }
+
             const dp = new Array(diff + 1).fill(Infinity);
             const choice = new Array(diff + 1).fill(-1);
             dp[0] = 0;
@@ -621,9 +634,9 @@
                 if (dp[i] === Infinity) continue;
                 for (let sp of availableSPs) {
                     if (i + sp <= diff) {
-                        const candidateTime = dp[i] + bestCropForSP[sp].minutes;
-                        if (candidateTime < dp[i + sp]) {
-                            dp[i + sp] = candidateTime;
+                        const candidateScore = dp[i] + costForSP(sp);
+                        if (candidateScore < dp[i + sp]) {
+                            dp[i + sp] = candidateScore;
                             choice[i + sp] = sp;
                         }
                     }
@@ -649,8 +662,8 @@
         // 全部同時完成的時間就會比原本少數幾株慢作物的方案更快，藉此加速跨過等級門檻。
         const PARALLEL_OPT_MAX_DIFF = 8000; // 避免差額太大時運算量爆炸，超過就直接沿用基本解
 
-        function solveDiffWithCropsParallel(diff, availableCrops, maxSlots) {
-            const base = solveDiffWithCrops(diff, availableCrops);
+        function solveDiffWithCropsParallel(diff, availableCrops, maxSlots, assumeFertilizer) {
+            const base = solveDiffWithCrops(diff, availableCrops, assumeFertilizer);
             if (!base.feasible || diff === 0) return base;
 
             const baseItemCount = Object.values(base.cropCounts).reduce((a, b) => a + b, 0);
@@ -659,7 +672,11 @@
 
             const bestCropForSP = base.bestCropForSP;
             const availableSPs = Object.keys(bestCropForSP).map(Number);
-            const baseMaxDuration = Math.max(...Object.keys(base.cropCounts).map(sp => bestCropForSP[sp].minutes));
+            function effMinutes(sp) {
+                const rawMinutes = bestCropForSP[sp].minutes;
+                return assumeFertilizer ? Math.max(0, rawMinutes - 60) : rawMinutes;
+            }
+            const baseMaxDuration = Math.max(...Object.keys(base.cropCounts).map(sp => effMinutes(sp)));
 
             const K = maxSlots;
             const INF = Infinity;
@@ -675,7 +692,7 @@
                 for (let i = 0; i <= diff; i++) {
                     for (let sp of availableSPs) {
                         if (sp <= i && prev[i - sp] !== INF) {
-                            const cand = Math.max(prev[i - sp], bestCropForSP[sp].minutes);
+                            const cand = Math.max(prev[i - sp], effMinutes(sp));
                             if (cand < cur[i]) {
                                 cur[i] = cand;
                                 curChoice[i] = sp;
@@ -712,7 +729,7 @@
             if (diff === 0) return true;
             const segments = buildLevelSegments(current, current + diff, userLevel);
             for (const seg of segments) {
-                const result = solveDiffWithCrops(seg.end - seg.start, seg.availableCrops);
+                const result = solveDiffWithCrops(seg.end - seg.start, seg.availableCrops, false);
                 if (!result.feasible) return false;
             }
             return true;
@@ -831,6 +848,27 @@
             return html;
         }
 
+        // 貪心分配魔法肥料：每袋固定減少 60 分鐘，同一株作物可以多次疊加使用，
+        // 每次都優先套用在「目前剩餘種植時間最長」的作物上，直到肥料用完或所有作物時間都已降到 0。
+        // 會直接重置並修改傳入的 jobs 陣列的 fertUsed / minutes。
+        function allocateFertilizer(jobs, totalBags) {
+            jobs.forEach(j => { j.fertUsed = 0; });
+            let remaining = totalBags;
+            while (remaining > 0) {
+                let maxIdx = -1, maxVal = 0;
+                for (let i = 0; i < jobs.length; i++) {
+                    if (jobs[i].minutes > maxVal) {
+                        maxVal = jobs[i].minutes;
+                        maxIdx = i;
+                    }
+                }
+                if (maxIdx === -1) break; // 所有作物時間都已經是 0，多的肥料用不到了
+                jobs[maxIdx].minutes = Math.max(0, jobs[maxIdx].minutes - 60);
+                jobs[maxIdx].fertUsed++;
+                remaining--;
+            }
+        }
+
         function calculateSP(current, target, userLevel) {
             const diff = target - current;
             const fertInputVal = parseInt(document.getElementById('fertilizerCount').value) || 0;
@@ -854,44 +892,62 @@
                 return;
             }
 
-            // 對每個階段分別求解（SP/時間效率優先），並蒐集每個階段各自需要的種植工作
-            let allJobs = [];
-            let segmentSolves = [];
-            for (let s = 0; s < segments.length; s++) {
-                const seg = segments[s];
-                const segDiff = seg.end - seg.start;
-                const result = solveDiffWithCropsParallel(segDiff, seg.availableCrops, seg.slots);
-                if (!result.feasible) {
-                    showResult(`階段 ${s + 1}（Lv.${seg.level}，需湊 <strong>${segDiff}</strong> SP）以該等級解鎖的作物無法剛好湊出來。<br>請嘗試微調目標 SP。`, false, true);
-                    return;
-                }
-                segmentSolves.push({ seg, cropCounts: result.cropCounts, bestCropForSP: result.bestCropForSP });
-
-                for (let sp of Object.keys(result.cropCounts).map(Number)) {
-                    const crop = result.bestCropForSP[sp];
-                    const count = result.cropCounts[sp];
-                    for (let c = 0; c < count; c++) {
-                        allJobs.push({ name: crop.name, sp: sp, minutes: crop.minutes, fertUsed: 0, segmentIndex: s });
+            // === 第一輪：不假設肥料，先用純粹的 SP/時間效率求解每個階段 ===
+            function solveAllSegments(assumeFertMap) {
+                let jobs = [];
+                let solves = [];
+                for (let s = 0; s < segments.length; s++) {
+                    const seg = segments[s];
+                    const segDiff = seg.end - seg.start;
+                    const assumeFert = assumeFertMap ? !!assumeFertMap[s] : false;
+                    const result = solveDiffWithCropsParallel(segDiff, seg.availableCrops, seg.slots, assumeFert);
+                    if (!result.feasible) return { feasible: false, segIdx: s, segDiff, seg };
+                    solves.push({ seg, cropCounts: result.cropCounts, bestCropForSP: result.bestCropForSP });
+                    for (let sp of Object.keys(result.cropCounts).map(Number)) {
+                        const crop = result.bestCropForSP[sp];
+                        const count = result.cropCounts[sp];
+                        for (let c = 0; c < count; c++) {
+                            jobs.push({ name: crop.name, sp: sp, minutes: crop.minutes, fertUsed: 0, segmentIndex: s });
+                        }
                     }
+                }
+                return { feasible: true, jobs, solves };
+            }
+
+            const fertInputTotal = parseInt(document.getElementById('fertilizerCount').value) || 0;
+
+            let pass1 = solveAllSegments(null);
+            if (!pass1.feasible) {
+                showResult(`階段 ${pass1.segIdx + 1}（Lv.${pass1.seg.level}，需湊 <strong>${pass1.segDiff}</strong> SP）以該等級解鎖的作物無法剛好湊出來。<br>請嘗試微調目標 SP。`, false, true);
+                return;
+            }
+            allocateFertilizer(pass1.jobs, fertInputTotal);
+
+            // === 判斷哪些階段「整段的作物都確定會分到至少 1 袋肥料」===
+            // 只有在這種情況下，才確定套用肥料後「哪個作物換到最多 SP」才是該優先選的，
+            // 否則肥料可能根本輪不到這個階段，貿然假設肥料充足反而可能選到較差的組合。
+            let assumeFertMap = {};
+            let needsRefine = false;
+            for (let s = 0; s < segments.length; s++) {
+                const segJobs = pass1.jobs.filter(j => j.segmentIndex === s);
+                if (segJobs.length > 0 && segJobs.every(j => j.fertUsed >= 1)) {
+                    assumeFertMap[s] = true;
+                    needsRefine = true;
                 }
             }
 
-            // 貪心分配魔法肥料（全部階段共用同一包肥料池）：
-            // 每袋固定減少 60 分鐘，同一株作物可以多次疊加使用，
-            // 每次都優先套用在「目前剩餘種植時間最長」的作物上，直到肥料用完或所有作物時間都已降到 0
-            let remainingFertilizer = parseInt(document.getElementById('fertilizerCount').value) || 0;
-            while (remainingFertilizer > 0) {
-                let maxIdx = -1, maxVal = 0;
-                for (let i = 0; i < allJobs.length; i++) {
-                    if (allJobs[i].minutes > maxVal) {
-                        maxVal = allJobs[i].minutes;
-                        maxIdx = i;
-                    }
+            let allJobs = pass1.jobs;
+            let segmentSolves = pass1.solves;
+
+            // === 第二輪（只在需要時才跑）：針對確定會分到肥料的階段，改用「假設肥料充足」重新求解 ===
+            if (needsRefine) {
+                const pass2 = solveAllSegments(assumeFertMap);
+                if (pass2.feasible) {
+                    allocateFertilizer(pass2.jobs, fertInputTotal);
+                    allJobs = pass2.jobs;
+                    segmentSolves = pass2.solves;
                 }
-                if (maxIdx === -1) break; // 所有作物時間都已經是 0，多的肥料用不到了
-                allJobs[maxIdx].minutes = Math.max(0, allJobs[maxIdx].minutes - 60);
-                allJobs[maxIdx].fertUsed++;
-                remainingFertilizer--;
+                // 如果第二輪反而不可行（理論上不會發生，因為只是換組合、SP需求不變），就沿用第一輪的結果
             }
 
             // 依階段分組彙總，做成上方的作物總表
