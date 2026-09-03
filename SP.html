@@ -141,7 +141,7 @@
     <div class="container">
         <div class="form-group">
             <label for="currentSP">目前總 SP 值</label>
-            <input type="number" id="currentSP" placeholder="例如: 44266700 (輸入後會自動判定等級)" min="0">
+            <input type="number" id="currentSP" placeholder="例如: 10888887 (輸入後會自動判定等級)" min="0">
         </div>
 
         <div class="form-group">
@@ -149,6 +149,11 @@
             <select id="farmLevel"></select>
         </div>
         
+        <div class="form-group">
+            <label for="fertilizerCount">可用魔法肥料數量 (每個減少 1 小時種植時間)</label>
+            <input type="number" id="fertilizerCount" value="0" min="0" placeholder="例如: 5">
+        </div>
+
         <div class="form-group">
             <label>選擇計算模式：</label>
             <select id="calcMode" onchange="toggleMode()">
@@ -160,7 +165,7 @@
         <!-- 自訂目標區塊 -->
         <div class="form-group" id="customGroup" style="display: none;">
             <label for="targetSP">目標總 SP 值</label>
-            <input type="number" id="targetSP" placeholder="例如: 44266724" min="0">
+            <input type="number" id="targetSP" placeholder="例如: 10888911" min="0">
         </div>
 
         <!-- 自動尋找區塊 -->
@@ -193,28 +198,48 @@
     </div>
 
     <script>
-        // 農作物資料庫 (包含對應解鎖等級)
+        // 農作物資料庫 (包含對應解鎖等級與時間分鐘數轉換)
         const crops = [
-            { name: "豌豆", sp: 3, time: "5分鐘", lv: 1 }, { name: "茄子", sp: 5, time: "10分鐘", lv: 3 },
-            { name: "玉米", sp: 10, time: "30分鐘", lv: 2 }, { name: "紅蘿蔔", sp: 10, time: "15分鐘", lv: 8 },
-            { name: "蔥", sp: 14, time: "20分鐘", lv: 14 }, { name: "米", sp: 15, time: "1小時", lv: 4 },
-            { name: "草莓", sp: 30, time: "30分鐘", lv: 5 }, { name: "馬鈴薯", sp: 30, time: "2小時", lv: 7 },
-            { name: "小麥", sp: 40, time: "5小時", lv: 10 }, { name: "白菜", sp: 50, time: "1小時 30分鐘", lv: 17 },
-            { name: "小黃瓜", sp: 60, time: "12小時", lv: 11 }, { name: "梨", sp: 60, time: "30分鐘", lv: 22 },
-            { name: "地瓜", sp: 72, time: "1小時 40分鐘", lv: 30 }, { name: "水蜜桃", sp: 80, time: "1小時", lv: 13 },
-            { name: "蘿蔔", sp: 80, time: "4小時", lv: 16 }, { name: "番茄", sp: 80, time: "1日", lv: 20 },
-            { name: "辣椒", sp: 94, time: "2小時", lv: 36 }, { name: "橘子", sp: 100, time: "40分鐘", lv: 35 },
-            { name: "南瓜", sp: 110, time: "4小時", lv: 32 }, { name: "香蕉", sp: 120, time: "1小時", lv: 59 },
-            { name: "蜜瓜", sp: 130, time: "1小時 30分鐘", lv: 54 }, { name: "椰菜花", sp: 138, time: "6小時", lv: 27 },
-            { name: "人蔘", sp: 154, time: "2日", lv: 25 }, { name: "大蒜", sp: 156, time: "2小時 30分鐘", lv: 46 },
-            { name: "香瓜", sp: 163, time: "3小時", lv: 45 }, { name: "蘋果", sp: 190, time: "1小時", lv: 43 },
-            { name: "香菇", sp: 195, time: "2小時 30分鐘", lv: 55 }, { name: "西瓜", sp: 198, time: "7小時", lv: 41 },
-            { name: "蘆薈", sp: 220, time: "10小時", lv: 39 }, { name: "鳳梨", sp: 242, time: "15小時", lv: 37 },
-            { name: "高麗菜", sp: 260, time: "8小時", lv: 48 }, { name: "百年草", sp: 273, time: "6小時", lv: 52 },
-            { name: "木瓜", sp: 280, time: "3小時", lv: 60 }, { name: "櫻桃", sp: 330, time: "1小時 30分鐘", lv: 49 },
-            { name: "紅椒", sp: 390, time: "20小時", lv: 47 }, { name: "棉花", sp: 520, time: "15小時", lv: 50 },
-            { name: "檸檬", sp: 600, time: "30分鐘", lv: 56 }, { name: "可可", sp: 600, time: "8小時 20分鐘", lv: 58 },
-            { name: "芒果", sp: 900, time: "1日 6小時", lv: 57 }, { name: "猴麵包樹", sp: 1500, time: "1小時", lv: 61 }
+            { name: "豌豆", sp: 3, timeStr: "5分鐘", minutes: 5, lv: 1 }, 
+            { name: "茄子", sp: 5, timeStr: "10分鐘", minutes: 10, lv: 3 },
+            { name: "玉米", sp: 10, timeStr: "30分鐘", minutes: 30, lv: 2 }, 
+            { name: "紅蘿蔔", sp: 10, timeStr: "15分鐘", minutes: 15, lv: 8 },
+            { name: "蔥", sp: 14, timeStr: "20分鐘", minutes: 20, lv: 14 }, 
+            { name: "米", sp: 15, timeStr: "1小時", minutes: 60, lv: 4 },
+            { name: "草莓", sp: 30, timeStr: "30分鐘", minutes: 30, lv: 5 }, 
+            { name: "馬鈴薯", sp: 30, timeStr: "2小時", minutes: 120, lv: 7 },
+            { name: "小麥", sp: 40, timeStr: "5小時", minutes: 300, lv: 10 }, 
+            { name: "白菜", sp: 50, timeStr: "1小時 30分鐘", minutes: 90, lv: 17 },
+            { name: "小黃瓜", sp: 60, timeStr: "12小時", minutes: 720, lv: 11 }, 
+            { name: "梨", sp: 60, timeStr: "30分鐘", minutes: 30, lv: 22 },
+            { name: "地瓜", sp: 72, timeStr: "1小時 40分鐘", minutes: 100, lv: 30 }, 
+            { name: "水蜜桃", sp: 80, timeStr: "1小時", minutes: 60, lv: 13 },
+            { name: "蘿蔔", sp: 80, timeStr: "4小時", minutes: 240, lv: 16 }, 
+            { name: "番茄", sp: 80, timeStr: "1日", minutes: 1440, lv: 20 },
+            { name: "辣椒", sp: 94, timeStr: "2小時", minutes: 120, lv: 36 }, 
+            { name: "橘子", sp: 100, timeStr: "40分鐘", minutes: 40, lv: 35 },
+            { name: "南瓜", sp: 110, timeStr: "4小時", minutes: 240, lv: 32 }, 
+            { name: "香蕉", sp: 120, timeStr: "1小時", minutes: 60, lv: 59 },
+            { name: "蜜瓜", sp: 130, timeStr: "1小時 30分鐘", minutes: 90, lv: 54 }, 
+            { name: "椰菜花", sp: 138, timeStr: "6小時", minutes: 360, lv: 27 },
+            { name: "人蔘", sp: 154, timeStr: "2日", minutes: 2880, lv: 25 }, 
+            { name: "大蒜", sp: 156, timeStr: "2小時 30分鐘", minutes: 150, lv: 46 },
+            { name: "香瓜", sp: 163, timeStr: "3小時", minutes: 180, lv: 45 }, 
+            { name: "蘋果", sp: 190, timeStr: "1小時", minutes: 60, lv: 43 },
+            { name: "香菇", sp: 195, timeStr: "2小時 30分鐘", minutes: 150, lv: 55 }, 
+            { name: "西瓜", sp: 198, timeStr: "7小時", minutes: 420, lv: 41 },
+            { name: "蘆薈", sp: 220, timeStr: "10小時", minutes: 600, lv: 39 }, 
+            { name: "鳳梨", sp: 242, timeStr: "15小時", minutes: 900, lv: 37 },
+            { name: "高麗菜", sp: 260, timeStr: "8小時", minutes: 480, lv: 48 }, 
+            { name: "百年草", sp: 273, timeStr: "6小時", minutes: 360, lv: 52 },
+            { name: "木瓜", sp: 280, timeStr: "3小時", minutes: 180, lv: 60 }, 
+            { name: "櫻桃", sp: 330, timeStr: "1小時 30分鐘", minutes: 90, lv: 49 },
+            { name: "紅椒", sp: 390, timeStr: "20小時", minutes: 1200, lv: 47 }, 
+            { name: "棉花", sp: 520, timeStr: "15小時", minutes: 900, lv: 50 },
+            { name: "檸檬", sp: 600, timeStr: "30分鐘", minutes: 30, lv: 56 }, 
+            { name: "可可", sp: 600, timeStr: "8小時 20分鐘", minutes: 500, lv: 58 },
+            { name: "芒果", sp: 900, timeStr: "1日 6小時", minutes: 1800, lv: 57 }, 
+            { name: "猴麵包樹", sp: 1500, timeStr: "1小時", minutes: 60, lv: 61 }
         ];
 
         // 農場等級與經驗值對應表 (Lv 1 ~ Lv 63)
@@ -243,7 +268,6 @@
         ];
 
         window.onload = function() {
-            // 初始化農場等級選單
             const levelSelect = document.getElementById('farmLevel');
             farmLevels.forEach(level => {
                 const option = document.createElement('option');
@@ -251,14 +275,12 @@
                 option.textContent = `Lv.${level.lv} - ${level.name} (需要 ${level.sp.toLocaleString()} SP)`;
                 levelSelect.appendChild(option);
             });
-            levelSelect.value = 63; // 預設滿級
+            levelSelect.value = 63;
 
-            // 監聽 SP 輸入，自動切換相對應的農場等級
             document.getElementById('currentSP').addEventListener('input', function() {
                 const sp = parseInt(this.value);
                 if (!isNaN(sp)) {
                     let matchedLevel = 1;
-                    // 從最高級往低級找，找到第一個 SP 達標的即為目前等級
                     for (let i = farmLevels.length - 1; i >= 0; i--) {
                         if (sp >= farmLevels[i].sp) {
                             matchedLevel = farmLevels[i].lv;
@@ -284,35 +306,27 @@
         // 判斷是否符合牌型 (只看最後6位)
         function checkCombo(sp, type) {
             let s = String(sp).padStart(6, '0');
-            let last6 = s.slice(-6); // 嚴格取最後6位
+            let last6 = s.slice(-6);
 
             switch(type) {
                 case 'six':
-                    // 111111
                     return /(\d)\1{5}/.test(last6);
                 case 'five':
-                    // 11111X 或 X11111
                     return /(\d)\1{4}/.test(last6);
                 case 'four':
-                    // 1111XX 等等
                     return /(\d)\1{3}/.test(last6);
                 case 'three':
-                    // 111XXX 等等
                     return /(\d)\1{2}/.test(last6);
                 case 'pair':
-                    // 11XXXX 等等
                     return /(\d)\1/.test(last6);
                 case 'twopair':
-                    // 1122XX, 11X22X (兩對且數字不同)
                     let tpMatch = last6.match(/(\d)\1.*?(\d)\2/);
                     return tpMatch && tpMatch[1] !== tpMatch[2];
                 case 'fullhouse':
-                    // 包含一組三條跟一組一對 (數字需不同)
                     let fh1 = last6.match(/(\d)\1{2}.*?(\d)\2/);
                     let fh2 = last6.match(/(\d)\1.*?(\d)\2{2}/);
                     return (fh1 && fh1[1] !== fh1[2]) || (fh2 && fh2[1] !== fh2[2]);
                 case 'straight':
-                    // 順子: 全連續順序
                     const straights = ["123456","234567","345678","456789","012345","987654","876543","765432","654321","543210"];
                     return straights.includes(last6);
                 default:
@@ -343,36 +357,63 @@
                     return;
                 }
             } else {
-                // 自動尋找模式
                 const comboType = document.getElementById('targetCombo').value;
-                const comboName = document.getElementById('targetCombo').options[document.getElementById('targetCombo').selectedIndex].text;
+                const comboName = document.getElementById('targetCombo').options[document.getElementById('targetComboselectedIndex'] || document.getElementById('targetCombo').selectedIndex].text;
                 
                 showResult("🔍 正在尋找最近的組合，請稍候...", true, false, 'info');
                 
-                // 從目前 SP 往上找，官方規定最少要有 10 萬才有獎勵資格
                 let testSP = Math.max(100000, current);
                 let found = false;
                 
-                // 為了防止無窮迴圈，設定一個搜尋上限 (例如往上找最多加 30 萬 SP)
-                for (let i = 0; i < 300000; i++) {
+                // 往上搜尋符合牌型的 SP (容許擴大搜尋範圍以找到可以湊出的數值)
+                for (let i = 0; i < 500000; i++) {
                     if (checkCombo(testSP, comboType)) {
-                        target = testSP;
-                        found = true;
-                        break;
+                        // 驗證當前等級是否能湊出這個差額
+                        let diffTest = testSP - current;
+                        if (diffTest === 0 || (diffTest > 0 && canFormDiff(diffTest, userLevel))) {
+                            target = testSP;
+                            found = true;
+                            break;
+                        }
                     }
                     testSP++;
                 }
 
                 if (!found) {
-                    showResult(`在合理範圍內找不到符合「${comboName}」的 SP，請嘗試手動輸入。`, false);
+                    showResult(`在合理範圍內找不到符合「${comboName}」且能以現有等級種子湊出的 SP，請嘗試手動輸入或提高等級。`, false);
                     return;
                 }
             }
 
-            // 給予一點延遲，讓 UI 有時間顯示 "尋找中"
             setTimeout(() => {
                 calculateSP(current, target, userLevel);
             }, 50);
+        }
+
+        // 測試特定差額是否能被湊出來
+        function canFormDiff(diff, userLevel) {
+            const availableCrops = crops.filter(crop => crop.lv <= userLevel);
+            const bestCropForSP = {};
+            availableCrops.forEach(crop => {
+                if (!bestCropForSP[crop.sp] || crop.minutes < bestCropForSP[crop.sp].minutes) {
+                    bestCropForSP[crop.sp] = crop;
+                }
+            });
+            const availableSPs = Object.keys(bestCropForSP).map(Number);
+            
+            const dp = new Array(diff + 1).fill(Infinity);
+            dp[0] = 0;
+            for (let i = 0; i <= diff; i++) {
+                if (dp[i] === Infinity) continue;
+                for (let sp of availableSPs) {
+                    if (i + sp <= diff) {
+                        if (dp[i] + 1 < dp[i + sp]) {
+                            dp[i + sp] = dp[i] + 1;
+                        }
+                    }
+                }
+            }
+            return dp[diff] !== Infinity;
         }
 
         function calculateSP(current, target, userLevel) {
@@ -382,13 +423,11 @@
                 showResult(`🎉 恭喜！您目前的 SP [<span class="highlight">${current}</span>] 已經符合條件，不需要種植任何作物！`, true, true, 'success');
                 return;
             }
-            // 防呆機制：差太多會卡頓
-            if (diff > 150000) {
-                showResult(`需要補充的 SP 差距 (${diff}) 過大，計算可能會卡頓。<br>建議先隨意種植高 SP 作物，等差距小於 150,000 時再來計算。`, false, true);
+            if (diff > 200000) {
+                showResult(`需要補充的 SP 差距 (${diff}) 過大，計算可能會卡頓。<br>建議先隨意種植高 SP 作物，等差距縮小後再來計算。`, false, true);
                 return;
             }
 
-            // 根據選擇的農場等級，過濾出「當下可以購買」的作物
             const availableCrops = crops.filter(crop => crop.lv <= userLevel);
             
             if (availableCrops.length === 0) {
@@ -396,16 +435,15 @@
                 return;
             }
 
-            // 整理過濾後，唯一 SP 的最佳作物清單
+            // 同 SP 時，優先挑選生長時間最短的作物
             const bestCropForSP = {};
             availableCrops.forEach(crop => {
-                if (!bestCropForSP[crop.sp]) {
+                if (!bestCropForSP[crop.sp] || crop.minutes < bestCropForSP[crop.sp].minutes) {
                     bestCropForSP[crop.sp] = crop;
                 }
             });
             const availableSPs = Object.keys(bestCropForSP).map(Number).sort((a, b) => a - b);
 
-            // 動態規劃 (Dynamic Programming) 計算最少種植次數
             const dp = new Array(diff + 1).fill(Infinity);
             const choice = new Array(diff + 1).fill(-1);
             dp[0] = 0;
@@ -427,7 +465,6 @@
                 return;
             }
 
-            // 回溯找出所需種植的組合
             const cropCounts = {};
             let currDiff = diff;
             while (currDiff > 0) {
@@ -440,38 +477,69 @@
                 currDiff -= spUsed;
             }
 
+            // 處理魔法肥料扣除時間 (每個肥料減 1 小時 = 60 分鐘)
+            let availableFertilizer = parseInt(document.getElementById('fertilizerCount').value) || 0;
+            
+            // 整理作物列表並套用肥料
+            let cropDetails = [];
+            for (let sp of Object.keys(cropCounts).map(Number).sort((a, b) => b - a)) {
+                let crop = bestCropForSP[sp];
+                let count = cropCounts[sp];
+                let originalMinutes = crop.minutes;
+                
+                // 逐個作物消耗肥料來減少時間 (每個作物每個花費 1 個肥料減 60 分鐘，最多減到 0)
+                let reducedMinutesPerItem = originalMinutes;
+                for (let c = 0; c < count; c++) {
+                    if (availableFertilizer > 0) {
+                        reducedMinutesPerItem = Math.max(0, originalMinutes - 60);
+                        availableFertilizer--;
+                    }
+                }
+                
+                cropDetails.push({
+                    name: crop.name,
+                    sp: sp,
+                    count: count,
+                    originalTimeStr: crop.timeStr,
+                    finalMinutes: reducedMinutesPerItem * count // 總共耗時
+                });
+            }
+
             let modeText = document.getElementById('calcMode').value === 'auto' ? 
                 document.getElementById('targetCombo').options[document.getElementById('targetCombo').selectedIndex].text : '自訂數值';
             
-            // 產生結果 HTML
             let html = `<h3 style="margin-top:0; color:#16a085;">✅ 成功！目標 SP 為 <span class="highlight">${target}</span></h3>`;
-            html += `<p style="font-size: 0.95em;">(達成 <strong>${modeText.split(' ')[0]}</strong> 條件，判定數字為: <strong>${String(target).slice(-6)}</strong>)</p>`;
-            html += `<p>距離目前還差 <strong>${diff}</strong> SP，建議種植以下作物：</p>`;
+            html += `<p style="font-size: 0.95em;">(目標判定數字為: <strong>${String(target).slice(-6)}</strong>)</p>`;
+            html += `<p>距離目前還差 <strong>${diff}</strong> SP，建議種植以下作物（已自動套用最短時間與可用魔法肥料）：</p>`;
             html += `<table>
                         <thead>
                             <tr>
                                 <th>作物名稱</th>
                                 <th>單項 SP</th>
                                 <th>需種植數量</th>
-                                <th>生長時間</th>
+                                <th>原始時間</th>
+                                <th>套用肥料後預估時間</th>
                             </tr>
                         </thead>
                         <tbody>`;
             
-            // 讓高 SP 的作物排在上面
-            const sortedSpUsed = Object.keys(cropCounts).map(Number).sort((a, b) => b - a);
-            for (let sp of sortedSpUsed) {
-                const crop = bestCropForSP[sp];
+            for (let item of cropDetails) {
+                let hours = Math.floor(item.finalMinutes / 60);
+                let mins = item.finalMinutes % 60;
+                let timeFormatted = hours > 0 ? `${hours}小時 ${mins > 0 ? mins + '分鐘' : ''}` : `${mins}分鐘`;
+                if (item.finalMinutes === 0) timeFormatted = "即時收成 (0分鐘)";
+
                 html += `<tr>
-                            <td><strong>${crop.name}</strong></td>
-                            <td>${sp}</td>
-                            <td style="color:#2980b9; font-size:1.1em;"><strong>${cropCounts[sp]} 個</strong></td>
-                            <td>${crop.time}</td>
+                            <td><strong>${item.name}</strong></td>
+                            <td>${item.sp}</td>
+                            <td style="color:#2980b9; font-size:1.1em;"><strong>${item.count} 個</strong></td>
+                            <td>${item.originalTimeStr}</td>
+                            <td style="color: #e67e22; font-weight: bold;">${timeFormatted}</td>
                          </tr>`;
             }
             
             html += `</tbody></table>`;
-            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:10px;">*註：若有 SP 相同的作物（如玉米/紅蘿蔔皆為10SP），您可根據擁有的種子自行替換。</p>`;
+            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:10px;">*註：若有 SP 相同的作物，系統已自動為您優先選擇生長時間最短的項目。</p>`;
             
             showResult(html, true, true, 'success');
         }
@@ -479,8 +547,6 @@
         function showResult(message, isSuccess, isHTML = false, typeClass = null) {
             const resultDiv = document.getElementById('result');
             resultDiv.style.display = 'block';
-            
-            // 清除之前的狀態 class
             resultDiv.classList.remove('success', 'error', 'info');
             
             if (typeClass) {
