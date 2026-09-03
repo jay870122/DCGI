@@ -243,50 +243,30 @@
         </ul>
     </div>
 
-    <div class="version-footer">版本 v3.5（新增：階段內若有多餘欄位，會自動改用更多株較快的作物填滿欄位以加速跨階段）</div>
+    <div class="version-footer">版本 v3.6（新增作物：紅棗 100SP/30分鐘，等級1可用）</div>
 
     <div style="text-align:center; font-size:0.8em; color:#aaa; margin-top:4px;">
-        <div id="online-count"></div>
-        <div id="history-count"></div>
+        <div id="history-count">載入中...</div>
     </div>
+    <!-- 以下用的是 GoatCounter 免費訪客統計服務，記得把「你的代碼」換成你自己申請到的 GoatCounter 網站代碼 -->
+    <script data-goatcounter="https://你的代碼.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
     <script>
-        const token = '2de8a5bf9a61065a';
-
-        //即時在線人數
-        function updateOnlineUser() {
-            fetch('https://statistics.wrlcc.synology.me/update.php?token=' + token, {
-                credentials: 'include'
-            })
+        fetch('https://你的代碼.goatcounter.com/counter//.json')
             .then(res => res.json())
             .then(data => {
-                console.log(data);
-                document.getElementById('online-count').textContent = `目前在線：${data.online_users} 人`;
+                document.getElementById('history-count').textContent = `歷史瀏覽次數：${data.count} 次`;
             })
-            .catch(e => console.error(e));
-        }
-
-        setInterval(updateOnlineUser, 10000);
-        updateOnlineUser();
-
-        //歷史瀏覽次數
-        function updatehistory() {
-            fetch('https://statistics.wrlcc.synology.me/history.php?token=' + token, {
-                credentials: 'include'
-            })
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('history-count').textContent = `歷史瀏覽次數：${data.history_users} 次`;
+            .catch(e => {
+                console.error(e);
+                document.getElementById('history-count').textContent = '';
             });
-        }
-
-        setInterval(updatehistory, 10000);
-        updatehistory();
     </script>
 
     <script>
         // 農作物資料庫 (包含對應解鎖等級與時間分鐘數轉換)
         const crops = [
             { name: "豌豆", sp: 3, timeStr: "5分鐘", minutes: 5, lv: 1 }, 
+            { name: "紅棗", sp: 100, timeStr: "30分鐘", minutes: 30, lv: 1 },
             { name: "茄子", sp: 5, timeStr: "10分鐘", minutes: 10, lv: 3 },
             { name: "玉米", sp: 10, timeStr: "30分鐘", minutes: 30, lv: 2 }, 
             { name: "紅蘿蔔", sp: 10, timeStr: "15分鐘", minutes: 15, lv: 8 },
