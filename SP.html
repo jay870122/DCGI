@@ -141,6 +141,28 @@
         .schedule-table td, .schedule-table th {
             font-size: 0.92em;
         }
+        tr.batch-done td {
+            text-decoration: line-through;
+            color: #aaa;
+            background-color: #f7f7f7 !important;
+        }
+        .small-link-btn {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 0.8em;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 0;
+            width: auto;
+        }
+        .mini-btn {
+            width: auto;
+            display: inline-block;
+            padding: 8px 14px;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
         .version-footer {
             text-align: center;
             font-size: 0.8em;
@@ -161,7 +183,7 @@
 
         <div class="form-group">
             <label for="farmLevel">目前(起始)農場等級 (過濾無法購買的種子，並決定可同時種植欄位數；計算過程中若跨過升級門檻會自動更新)</label>
-            <select id="farmLevel" onchange="updateSlotInfo()"></select>
+            <select id="farmLevel" onchange="updateSlotInfo(); saveInputs();"></select>
             <div id="slotInfo"></div>
         </div>
         
@@ -172,7 +194,7 @@
 
         <div class="form-group">
             <label>選擇計算模式：</label>
-            <select id="calcMode" onchange="toggleMode()">
+            <select id="calcMode" onchange="toggleMode(); saveInputs();">
                 <option value="auto">🎰 自動尋找最近的牌型組合</option>
                 <option value="custom">🎯 手動輸入目標 SP</option>
             </select>
@@ -200,6 +222,9 @@
         </div>
 
         <button onclick="processCalculation()">開始計算</button>
+        <div style="text-align:right; margin-top:6px;">
+            <button type="button" class="small-link-btn" onclick="clearSavedInputs()">清除已記住的輸入資料</button>
+        </div>
 
         <div id="result"></div>
     </div>
@@ -213,10 +238,11 @@
             <li style="margin-top: 8px;">系統已改為<strong>優先選擇「SP/時間效率」最高的作物組合</strong>湊出目標差額，而非單純種植次數最少的組合——例如同樣的 SP，時間短的作物（如檸檬）會比時間長 40 倍的作物（如芒果）優先被選用，藉此縮短總花費時間。</li>
             <li style="margin-top: 8px;">計算結果已考慮您所選等級<strong>可同時種植的欄位數量</strong>，會安排多種作物並行種植以縮短總花費時間，並提供分批種植步驟。</li>
             <li style="margin-top: 8px;">計算過程會<strong>模擬農場等級隨 SP 累積而升級</strong>：如果種植過程中途會跨過升級門檻，系統會自動切成好幾個階段，每個階段結束後更新可用的作物種類與同時種植欄位數，不會再繼續用已經過時的低等級作物。</li>
+            <li style="margin-top: 8px;">工具會把你輸入的目前 SP、肥料數量等資料<strong>自動保存在這個瀏覽器裡</strong>（不會上傳到任何伺服器），重新整理頁面會自動帶回上次的輸入；種植步驟也可以<strong>打勾記錄進度</strong>，方便中途離開後回來接著做，打勾狀態同樣保存在本機瀏覽器中。</li>
         </ul>
     </div>
 
-    <div class="version-footer">版本 v3.1（修正：取消批次自動合併，每批時間點不同即為獨立操作，避免誤解為可同時種植）</div>
+    <div class="version-footer">版本 v3.2（新增：自動記住輸入資料、種植步驟可打勾記錄完成進度）</div>
 
     <script>
         // 農作物資料庫 (包含對應解鎖等級與時間分鐘數轉換)
@@ -288,6 +314,102 @@
             { lv: 61, name: "藍色樹木", sp: 23841020, slots: 27 }, { lv: 62, name: "深藍色樹木", sp: 29541020, slots: 27 }, { lv: 63, name: "紫色樹木", sp: 36741020, slots: 27 }
         ];
 
+        // ===== 記憶功能：把使用者輸入的資料存在瀏覽器本機 (localStorage)，重新整理頁面也不會遺失 =====
+        const STORAGE_KEY_INPUTS = 'magicFarmSpCalc_inputs_v1';
+        const STORAGE_KEY_PROGRESS = 'magicFarmSpCalc_progress_v1';
+
+        function saveInputs() {
+            try {
+                const data = {
+                    currentSP: document.getElementById('currentSP').value,
+                    farmLevel: document.getElementById('farmLevel').value,
+                    fertilizerCount: document.getElementById('fertilizerCount').value,
+                    calcMode: document.getElementById('calcMode').value,
+                    targetSP: document.getElementById('targetSP').value,
+                    targetCombo: document.getElementById('targetCombo').value
+                };
+                localStorage.setItem(STORAGE_KEY_INPUTS, JSON.stringify(data));
+            } catch (e) { /* 瀏覽器不支援或封鎖 localStorage 時，忽略即可 */ }
+        }
+
+        function loadInputs() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY_INPUTS);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                if (data.currentSP) document.getElementById('currentSP').value = data.currentSP;
+                if (data.fertilizerCount) document.getElementById('fertilizerCount').value = data.fertilizerCount;
+                if (data.calcMode) { document.getElementById('calcMode').value = data.calcMode; toggleMode(); }
+                if (data.targetSP) document.getElementById('targetSP').value = data.targetSP;
+                if (data.targetCombo) document.getElementById('targetCombo').value = data.targetCombo;
+
+                if (data.currentSP) {
+                    syncLevelFromSP();
+                } else if (data.farmLevel) {
+                    document.getElementById('farmLevel').value = data.farmLevel;
+                    updateSlotInfo();
+                }
+            } catch (e) { /* 讀取失敗就當作沒有存過資料 */ }
+        }
+
+        function clearSavedInputs() {
+            try { localStorage.removeItem(STORAGE_KEY_INPUTS); } catch (e) { /* 忽略 */ }
+            location.reload();
+        }
+
+        function syncLevelFromSP() {
+            const sp = parseInt(document.getElementById('currentSP').value);
+            if (!isNaN(sp)) {
+                let matchedLevel = 1;
+                for (let i = farmLevels.length - 1; i >= 0; i--) {
+                    if (sp >= farmLevels[i].sp) { matchedLevel = farmLevels[i].lv; break; }
+                }
+                document.getElementById('farmLevel').value = matchedLevel;
+            }
+            updateSlotInfo();
+        }
+
+        // ===== 種植步驟打勾進度：同樣存在 localStorage，用「這次計算的輸入組合」當作 key =====
+        function getProgressStore() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY_PROGRESS);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) { return {}; }
+        }
+
+        function setProgressStore(store) {
+            try { localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(store)); } catch (e) { /* 忽略 */ }
+        }
+
+        function toggleBatchProgress(checkboxEl) {
+            const calcId = checkboxEl.getAttribute('data-calc-id');
+            const batchKey = checkboxEl.getAttribute('data-batch-key');
+            const store = getProgressStore();
+            if (!store[calcId]) store[calcId] = {};
+            if (checkboxEl.checked) {
+                store[calcId][batchKey] = true;
+            } else {
+                delete store[calcId][batchKey];
+            }
+            setProgressStore(store);
+
+            const row = checkboxEl.closest('tr');
+            if (row) row.classList.toggle('batch-done', checkboxEl.checked);
+        }
+
+        function clearProgressForCalc(calcId) {
+            const store = getProgressStore();
+            delete store[calcId];
+            setProgressStore(store);
+            document.querySelectorAll('.batch-check').forEach(cb => {
+                if (cb.getAttribute('data-calc-id') === calcId) {
+                    cb.checked = false;
+                    const row = cb.closest('tr');
+                    if (row) row.classList.remove('batch-done');
+                }
+            });
+        }
+
         window.onload = function() {
             const levelSelect = document.getElementById('farmLevel');
             farmLevels.forEach(level => {
@@ -300,17 +422,20 @@
             updateSlotInfo();
 
             document.getElementById('currentSP').addEventListener('input', function() {
-                const sp = parseInt(this.value);
-                if (!isNaN(sp)) {
-                    let matchedLevel = 1;
-                    for (let i = farmLevels.length - 1; i >= 0; i--) {
-                        if (sp >= farmLevels[i].sp) {
-                            matchedLevel = farmLevels[i].lv;
-                            break;
-                        }
-                    }
-                    document.getElementById('farmLevel').value = matchedLevel;
-                    updateSlotInfo();
+                syncLevelFromSP();
+                saveInputs();
+            });
+            document.getElementById('fertilizerCount').addEventListener('input', saveInputs);
+            document.getElementById('targetSP').addEventListener('input', saveInputs);
+            document.getElementById('targetCombo').addEventListener('change', saveInputs);
+
+            // 還原先前記住的輸入資料
+            loadInputs();
+
+            // 用事件代理監聽種植步驟的打勾框：即使表格內容之後被重新產生，也能持續生效
+            document.getElementById('result').addEventListener('change', function(e) {
+                if (e.target && e.target.classList.contains('batch-check')) {
+                    toggleBatchProgress(e.target);
                 }
             });
         };
@@ -572,11 +697,13 @@
         }
 
         
-        function renderBatchesHTML(rawEvents, segmentsInfo, makespan) {
+        function renderBatchesHTML(rawEvents, segmentsInfo, makespan, calcId) {
             const rawBatches = buildBatches(rawEvents);
+            const progressStore = getProgressStore();
+            const calcProgress = progressStore[calcId] || {};
 
-            let html = `<h4 style="margin-bottom:6px;">🪴 種植步驟（欄位數會依當時所在等級動態調整，🧪N 代表該項要使用 N 袋魔法肥料）</h4>`;
-            html += `<table class="schedule-table"><thead><tr><th>步驟</th><th>距開始時間</th><th>本次種植內容</th></tr></thead><tbody>`;
+            let html = `<h4 style="margin-bottom:6px;">🪴 種植步驟（欄位數會依當時所在等級動態調整，🧪N 代表該項要使用 N 袋魔法肥料，可勾選已完成的批次）</h4>`;
+            html += `<table class="schedule-table"><thead><tr><th>✓</th><th>步驟</th><th>距開始時間</th><th>本次種植內容</th></tr></thead><tbody>`;
 
             function itemsToStr(items) {
                 return items.map(it => {
@@ -586,50 +713,52 @@
                 }).join("、");
             }
 
-            function rowHTML(batch, idx) {
+            function rowHTML(batch, idx, batchKey) {
                 const itemsStr = itemsToStr(batch.items);
                 const timeLabel = batch.time === 0 ? "現在" : `+${formatDuration(batch.time)}`;
-                return `<tr><td>第 ${idx} 批</td><td>${timeLabel}</td><td>${itemsStr}</td></tr>`;
+                const checked = calcProgress[batchKey] ? 'checked' : '';
+                const doneClass = calcProgress[batchKey] ? 'batch-done' : '';
+                return `<tr class="${doneClass}">
+                            <td style="text-align:center;"><input type="checkbox" class="batch-check" data-calc-id="${calcId}" data-batch-key="${batchKey}" ${checked}></td>
+                            <td>第 ${idx} 批</td><td>${timeLabel}</td><td>${itemsStr}</td>
+                        </tr>`;
             }
 
             let totalStepCount = 0;
 
             segmentsInfo.forEach((seg, segIdx) => {
-                const segBatches = rawBatches.filter(b => b.segmentIndex === segIdx);
-                if (segBatches.length === 0) return;
+                const segBatchesRaw = rawBatches.filter(b => b.segmentIndex === segIdx);
+                if (segBatchesRaw.length === 0) return;
+                const segBatches = segBatchesRaw.map((b, idx) => Object.assign({}, b, { _origIdx: idx }));
 
                 if (segmentsInfo.length > 1) {
-                    html += `<tr><td colspan="3" style="background:#eaf2f8; font-weight:bold; color:#2c3e50;">── 階段 ${segIdx + 1}：Lv.${seg.level}（可同時種植 ${seg.slots} 個欄位，此階段需湊 ${seg.end - seg.start} SP）──</td></tr>`;
+                    html += `<tr><td colspan="4" style="background:#eaf2f8; font-weight:bold; color:#2c3e50;">── 階段 ${segIdx + 1}：Lv.${seg.level}（可同時種植 ${seg.slots} 個欄位，此階段需湊 ${seg.end - seg.start} SP）──</td></tr>`;
                 }
 
                 const MAX_SHOW = 20;
-                let shown = segBatches;
-                let omittedCount = 0;
-                if (segBatches.length > MAX_SHOW) {
+                if (segBatches.length <= MAX_SHOW) {
+                    segBatches.forEach(b => { html += rowHTML(b, b._origIdx + 1, segIdx + '_' + b._origIdx); });
+                } else {
                     const head = segBatches.slice(0, 15);
                     const tail = segBatches.slice(-3);
-                    omittedCount = segBatches.length - head.length - tail.length;
-                    shown = { head, tail };
-                }
-
-                if (Array.isArray(shown)) {
-                    shown.forEach((batch, i) => { html += rowHTML(batch, i + 1); });
-                } else {
-                    shown.head.forEach((batch, i) => { html += rowHTML(batch, i + 1); });
-                    html += `<tr><td colspan="3" style="text-align:center; color:#999;">...（中間省略 ${omittedCount} 批，規律相同，持續補種即可）...</td></tr>`;
-                    const tailStartIdx = segBatches.length - shown.tail.length + 1;
-                    shown.tail.forEach((batch, i) => { html += rowHTML(batch, tailStartIdx + i); });
+                    const omittedCount = segBatches.length - head.length - tail.length;
+                    head.forEach(b => { html += rowHTML(b, b._origIdx + 1, segIdx + '_' + b._origIdx); });
+                    html += `<tr><td colspan="4" style="text-align:center; color:#999;">...（中間省略 ${omittedCount} 批，規律相同，持續補種即可）...</td></tr>`;
+                    tail.forEach(b => { html += rowHTML(b, b._origIdx + 1, segIdx + '_' + b._origIdx); });
                 }
                 totalStepCount += segBatches.length;
             });
 
             html += `</tbody></table>`;
-            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:8px;">*每批最多只能種下當時等級的可用欄位數，超過會自動拆成下一批依序操作。每一批都是「先前批次的某個欄位空出後」才會發生的獨立動作，時間點不同即代表不是同時進行，請依標示的時間點依序操作。標示 🧪N 的作物請在種下該批次時使用 N 袋魔法肥料（同一株可疊加多袋）。跨過等級門檻後會自動切換到新等級解鎖的作物。總步驟數：${totalStepCount} 批。</p>`;
+            html += `<button type="button" class="mini-btn" onclick="clearProgressForCalc('${calcId}')">清除本次打勾進度</button>`;
+            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:8px;">*每批最多只能種下當時等級的可用欄位數，超過會自動拆成下一批依序操作。每一批都是「先前批次的某個欄位空出後」才會發生的獨立動作，時間點不同即代表不是同時進行，請依標示的時間點依序操作。標示 🧪N 的作物請在種下該批次時使用 N 袋魔法肥料（同一株可疊加多袋）。跨過等級門檻後會自動切換到新等級解鎖的作物。勾選的完成進度會保存在本機瀏覽器中，重新整理頁面也不會消失。總步驟數：${totalStepCount} 批。</p>`;
             return html;
         }
 
         function calculateSP(current, target, userLevel) {
             const diff = target - current;
+            const fertInputVal = parseInt(document.getElementById('fertilizerCount').value) || 0;
+            const calcId = `${current}-${target}-${userLevel}-${fertInputVal}`;
 
             if (diff === 0) {
                 showResult(`🎉 恭喜！您目前的 SP [<span class="highlight">${current}</span>] 已經符合條件，不需要種植任何作物！`, true, true, 'success');
@@ -778,7 +907,7 @@
                         <strong>最短總花費時間約為 ${formatDuration(totalMakespan)}</strong>。</p>
                       </div>`;
 
-            html += renderBatchesHTML(allEvents, segments, totalMakespan);
+            html += renderBatchesHTML(allEvents, segments, totalMakespan, calcId);
             
             showResult(html, true, true, 'success');
         }
