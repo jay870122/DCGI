@@ -245,6 +245,44 @@
 
     <div class="version-footer">版本 v3.5（新增：階段內若有多餘欄位，會自動改用更多株較快的作物填滿欄位以加速跨階段）</div>
 
+    <div style="text-align:center; font-size:0.8em; color:#aaa; margin-top:4px;">
+        <div id="online-count"></div>
+        <div id="history-count"></div>
+    </div>
+    <script>
+        const token = '2de8a5bf9a61065a';
+
+        //即時在線人數
+        function updateOnlineUser() {
+            fetch('https://statistics.wrlcc.synology.me/update.php?token=' + token, {
+                credentials: 'include'
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log(data);
+                document.getElementById('online-count').textContent = `目前在線：${data.online_users} 人`;
+            })
+            .catch(e => console.error(e));
+        }
+
+        setInterval(updateOnlineUser, 10000);
+        updateOnlineUser();
+
+        //歷史瀏覽次數
+        function updatehistory() {
+            fetch('https://statistics.wrlcc.synology.me/history.php?token=' + token, {
+                credentials: 'include'
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('history-count').textContent = `歷史瀏覽次數：${data.history_users} 次`;
+            });
+        }
+
+        setInterval(updatehistory, 10000);
+        updatehistory();
+    </script>
+
     <script>
         // 農作物資料庫 (包含對應解鎖等級與時間分鐘數轉換)
         const crops = [
