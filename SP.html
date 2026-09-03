@@ -210,7 +210,7 @@
             <li>活動只計算<strong>個位數至十萬位數共 6 位數字</strong>的組合（如 SP 為 44266724，則判定 `266724`）。</li>
             <li>農場總 SP 值不足 100,000 的玩家將<strong>不獲獎勵資格</strong>。</li>
             <li style="margin-top: 8px;"><span class="warning">注意：現時超級 TR 日活動內獲得的 25 TR 日箱子具有 SP 2025 UP 道具，請小心使用以免打亂計算數值！</span></li>
-            <li style="margin-top: 8px;">計算結果已考慮您所選等級<strong>可同時種植的欄位數量</strong>，會安排多種作物並行種植以縮短總花費時間，並提供分批種植步驟。</li>
+            <li style="margin-top: 8px;">系統已改為<strong>優先選擇「SP/時間效率」最高的作物組合</strong>湊出目標差額，而非單純種植次數最少的組合——例如同樣的 SP，時間短的作物（如檸檬）會比時間長 40 倍的作物（如芒果）優先被選用，藉此縮短總花費時間。</li>
         </ul>
     </div>
 
@@ -579,6 +579,9 @@
             });
             const availableSPs = Object.keys(bestCropForSP).map(Number).sort((a, b) => a - b);
 
+            // dp[i] 記錄湊到 SP = i 時，所需要的「最少總種植時間(分鐘)」，而不是最少種植次數。
+            // 這樣系統會優先選擇「SP 效率」最高(單位時間可獲得的 SP 最多)的作物組合，
+            // 而不是單純種植次數最少的組合，實際總花費時間會更短。
             const dp = new Array(diff + 1).fill(Infinity);
             const choice = new Array(diff + 1).fill(-1);
             dp[0] = 0;
@@ -587,8 +590,9 @@
                 if (dp[i] === Infinity) continue;
                 for (let sp of availableSPs) {
                     if (i + sp <= diff) {
-                        if (dp[i] + 1 < dp[i + sp]) {
-                            dp[i + sp] = dp[i] + 1;
+                        const candidateTime = dp[i] + bestCropForSP[sp].minutes;
+                        if (candidateTime < dp[i + sp]) {
+                            dp[i + sp] = candidateTime;
                             choice[i + sp] = sp;
                         }
                     }
