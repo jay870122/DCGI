@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔法農場 SP 湊齊計算器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            font-size: 1.8rem;
+        }
+        .container {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+            background-color: #fff;
+        }
+        input[type="number"]:focus, select:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .success {
+            background-color: #e8f8f5;
+            border-left: 5px solid #1abc9c;
+        }
+        .error {
+            background-color: #fdedec;
+            border-left: 5px solid #e74c3c;
+        }
+        .info {
+            background-color: #e3f2fd;
+            border-left: 5px solid #2196f3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background-color: white;
+        }
+        th, td {
+            padding: 12px 10px;
+            border: 1px solid #e0e0e0;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .note {
+            font-size: 0.95em;
+            color: #555;
+            background-color: #fff3cd;
+            border-left: 5px solid #ffecb5;
+        }
+        .note h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .warning {
+            color: #721c24;
+            font-weight: bold;
+            background-color: #f8d7da;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .highlight {
+            color: #e67e22;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>✨ 魔法農場 SP 湊齊計算器</h1>
+
+    <div class="container">
+        <div class="form-group">
+            <label for="currentSP">目前總 SP 值</label>
+            <input type="number" id="currentSP" placeholder="例如: 44266700 (輸入後會自動判定等級)" min="0">
+        </div>
+
+        <div class="form-group">
+            <label for="farmLevel">目前農場等級 (過濾無法購買的種子)</label>
+            <select id="farmLevel"></select>
+        </div>
+        
+        <div class="form-group">
+            <label>選擇計算模式：</label>
+            <select id="calcMode" onchange="toggleMode()">
+                <option value="auto">🎰 自動尋找最近的牌型組合</option>
+                <option value="custom">🎯 手動輸入目標 SP</option>
+            </select>
+        </div>
+
+        <!-- 自訂目標區塊 -->
+        <div class="form-group" id="customGroup" style="display: none;">
+            <label for="targetSP">目標總 SP 值</label>
+            <input type="number" id="targetSP" placeholder="例如: 44266724" min="0">
+        </div>
+
+        <!-- 自動尋找區塊 -->
+        <div class="form-group" id="autoGroup">
+            <label for="targetCombo">選擇想要的有效組合</label>
+            <select id="targetCombo">
+                <option value="pair">一對 (例如 11XXXX)</option>
+                <option value="twopair">兩對 (例如 1122XX)</option>
+                <option value="three">三條 (例如 111XXX)</option>
+                <option value="four">四條 (例如 1111XX)</option>
+                <option value="fullhouse">俘虜 (包含三條及一對，例如 11122X)</option>
+                <option value="five">五條 (例如 11111X)</option>
+                <option value="six">六條 (例如 111111)</option>
+                <option value="straight">順子 (連續六位數順序，例如 123456)</option>
+            </select>
+        </div>
+
+        <button onclick="processCalculation()">開始計算</button>
+
+        <div id="result"></div>
+    </div>
+
+    <div class="container note">
+        <h3>💡 活動溫馨提示</h3>
+        <ul>
+            <li>活動只計算<strong>個位數至十萬位數共 6 位數字</strong>的組合（如 SP 為 44266724，則判定 `266724`）。</li>
+            <li>農場總 SP 值不足 100,000 的玩家將<strong>不獲獎勵資格</strong>。</li>
+            <li style="margin-top: 8px;"><span class="warning">注意：現時超級 TR 日活動內獲得的 25 TR 日箱子具有 SP 2025 UP 道具，請小心使用以免打亂計算數值！</span></li>
+        </ul>
+    </div>
+
+    <script>
+        // 農作物資料庫 (包含對應解鎖等級)
+        const crops = [
+            { name: "豌豆", sp: 3, time: "5分鐘", lv: 1 }, { name: "茄子", sp: 5, time: "10分鐘", lv: 3 },
+            { name: "玉米", sp: 10, time: "30分鐘", lv: 2 }, { name: "紅蘿蔔", sp: 10, time: "15分鐘", lv: 8 },
+            { name: "蔥", sp: 14, time: "20分鐘", lv: 14 }, { name: "米", sp: 15, time: "1小時", lv: 4 },
+            { name: "草莓", sp: 30, time: "30分鐘", lv: 5 }, { name: "馬鈴薯", sp: 30, time: "2小時", lv: 7 },
+            { name: "小麥", sp: 40, time: "5小時", lv: 10 }, { name: "白菜", sp: 50, time: "1小時 30分鐘", lv: 17 },
+            { name: "小黃瓜", sp: 60, time: "12小時", lv: 11 }, { name: "梨", sp: 60, time: "30分鐘", lv: 22 },
+            { name: "地瓜", sp: 72, time: "1小時 40分鐘", lv: 30 }, { name: "水蜜桃", sp: 80, time: "1小時", lv: 13 },
+            { name: "蘿蔔", sp: 80, time: "4小時", lv: 16 }, { name: "番茄", sp: 80, time: "1日", lv: 20 },
+            { name: "辣椒", sp: 94, time: "2小時", lv: 36 }, { name: "橘子", sp: 100, time: "40分鐘", lv: 35 },
+            { name: "南瓜", sp: 110, time: "4小時", lv: 32 }, { name: "香蕉", sp: 120, time: "1小時", lv: 59 },
+            { name: "蜜瓜", sp: 130, time: "1小時 30分鐘", lv: 54 }, { name: "椰菜花", sp: 138, time: "6小時", lv: 27 },
+            { name: "人蔘", sp: 154, time: "2日", lv: 25 }, { name: "大蒜", sp: 156, time: "2小時 30分鐘", lv: 46 },
+            { name: "香瓜", sp: 163, time: "3小時", lv: 45 }, { name: "蘋果", sp: 190, time: "1小時", lv: 43 },
+            { name: "香菇", sp: 195, time: "2小時 30分鐘", lv: 55 }, { name: "西瓜", sp: 198, time: "7小時", lv: 41 },
+            { name: "蘆薈", sp: 220, time: "10小時", lv: 39 }, { name: "鳳梨", sp: 242, time: "15小時", lv: 37 },
+            { name: "高麗菜", sp: 260, time: "8小時", lv: 48 }, { name: "百年草", sp: 273, time: "6小時", lv: 52 },
+            { name: "木瓜", sp: 280, time: "3小時", lv: 60 }, { name: "櫻桃", sp: 330, time: "1小時 30分鐘", lv: 49 },
+            { name: "紅椒", sp: 390, time: "20小時", lv: 47 }, { name: "棉花", sp: 520, time: "15小時", lv: 50 },
+            { name: "檸檬", sp: 600, time: "30分鐘", lv: 56 }, { name: "可可", sp: 600, time: "8小時 20分鐘", lv: 58 },
+            { name: "芒果", sp: 900, time: "1日 6小時", lv: 57 }, { name: "猴麵包樹", sp: 1500, time: "1小時", lv: 61 }
+        ];
+
+        // 農場等級與經驗值對應表 (Lv 1 ~ Lv 63)
+        const farmLevels = [
+            { lv: 1, name: "紅色種子", sp: 0 }, { lv: 2, name: "橙色種子", sp: 30 }, { lv: 3, name: "黃色種子", sp: 60 },
+            { lv: 4, name: "綠色種子", sp: 105 }, { lv: 5, name: "藍色種子", sp: 165 }, { lv: 6, name: "深藍色種子", sp: 240 },
+            { lv: 7, name: "紫色種子", sp: 330 }, { lv: 8, name: "紅色樹根", sp: 630 }, { lv: 9, name: "橙色樹根", sp: 960 },
+            { lv: 10, name: "黃色樹根", sp: 1320 }, { lv: 11, name: "綠色樹根", sp: 1710 }, { lv: 12, name: "藍色樹根", sp: 2130 },
+            { lv: 13, name: "深藍色樹根", sp: 2580 }, { lv: 14, name: "紫色樹根", sp: 3060 }, { lv: 15, name: "紅色芽", sp: 3660 },
+            { lv: 16, name: "橙色芽", sp: 4320 }, { lv: 17, name: "黃色芽", sp: 5040 }, { lv: 18, name: "綠色芽", sp: 5820 },
+            { lv: 19, name: "藍色芽", sp: 6660 }, { lv: 20, name: "深藍色芽", sp: 7560 }, { lv: 21, name: "紫色芽", sp: 8520 },
+            { lv: 22, name: "紅色葉子", sp: 10020 }, { lv: 23, name: "橙色葉子", sp: 12020 }, { lv: 24, name: "黃色葉子", sp: 14520 },
+            { lv: 25, name: "綠色葉子", sp: 17520 }, { lv: 26, name: "藍色葉子", sp: 21020 }, { lv: 27, name: "深藍色葉子", sp: 25020 },
+            { lv: 28, name: "紫色葉子", sp: 29520 }, { lv: 29, name: "紅色樹枝", sp: 34520 }, { lv: 30, name: "橙色樹枝", sp: 41020 },
+            { lv: 31, name: "黃色樹枝", sp: 49020 }, { lv: 32, name: "綠色樹枝", sp: 58520 }, { lv: 33, name: "藍色樹枝", sp: 69520 },
+            { lv: 34, name: "深藍色樹枝", sp: 82020 }, { lv: 35, name: "紫色樹枝", sp: 96020 }, { lv: 36, name: "紅色花瓣", sp: 116020 },
+            { lv: 37, name: "橙色花瓣", sp: 141020 }, { lv: 38, name: "黃色花瓣", sp: 171020 }, { lv: 39, name: "綠色花瓣", sp: 206020 },
+            { lv: 40, name: "藍色花瓣", sp: 246020 }, { lv: 41, name: "深藍色花瓣", sp: 291020 }, { lv: 42, name: "紫色花瓣", sp: 341020 },
+            { lv: 43, name: "紅色花", sp: 411020 }, { lv: 44, name: "橙色花", sp: 491020 }, { lv: 45, name: "黃色花", sp: 581020 },
+            { lv: 46, name: "綠色花", sp: 681020 }, { lv: 47, name: "藍色花", sp: 791020 }, { lv: 48, name: "深藍色花", sp: 911020 },
+            { lv: 49, name: "紫色花", sp: 1041020 }, { lv: 50, name: "紅色果實", sp: 1341020 }, { lv: 51, name: "橙色果實", sp: 1741020 },
+            { lv: 52, name: "黃色果實", sp: 2241020 }, { lv: 53, name: "綠色果實", sp: 2841020 }, { lv: 54, name: "藍色果實", sp: 3541020 },
+            { lv: 55, name: "深藍色果實", sp: 4341020 }, { lv: 56, name: "紫色果實", sp: 5841020 }, { lv: 57, name: "紅色樹木", sp: 8041020 },
+            { lv: 58, name: "橙色樹木", sp: 10941020 }, { lv: 59, name: "黃色樹木", sp: 14541020 }, { lv: 60, name: "綠色樹木", sp: 18841020 },
+            { lv: 61, name: "藍色樹木", sp: 23841020 }, { lv: 62, name: "深藍色樹木", sp: 29541020 }, { lv: 63, name: "紫色樹木", sp: 36741020 }
+        ];
+
+        window.onload = function() {
+            // 初始化農場等級選單
+            const levelSelect = document.getElementById('farmLevel');
+            farmLevels.forEach(level => {
+                const option = document.createElement('option');
+                option.value = level.lv;
+                option.textContent = `Lv.${level.lv} - ${level.name} (需要 ${level.sp.toLocaleString()} SP)`;
+                levelSelect.appendChild(option);
+            });
+            levelSelect.value = 63; // 預設滿級
+
+            // 監聽 SP 輸入，自動切換相對應的農場等級
+            document.getElementById('currentSP').addEventListener('input', function() {
+                const sp = parseInt(this.value);
+                if (!isNaN(sp)) {
+                    let matchedLevel = 1;
+                    // 從最高級往低級找，找到第一個 SP 達標的即為目前等級
+                    for (let i = farmLevels.length - 1; i >= 0; i--) {
+                        if (sp >= farmLevels[i].sp) {
+                            matchedLevel = farmLevels[i].lv;
+                            break;
+                        }
+                    }
+                    document.getElementById('farmLevel').value = matchedLevel;
+                }
+            });
+        };
+
+        function toggleMode() {
+            const mode = document.getElementById('calcMode').value;
+            if (mode === 'custom') {
+                document.getElementById('customGroup').style.display = 'block';
+                document.getElementById('autoGroup').style.display = 'none';
+            } else {
+                document.getElementById('customGroup').style.display = 'none';
+                document.getElementById('autoGroup').style.display = 'block';
+            }
+        }
+
+        // 判斷是否符合牌型 (只看最後6位)
+        function checkCombo(sp, type) {
+            let s = String(sp).padStart(6, '0');
+            let last6 = s.slice(-6); // 嚴格取最後6位
+
+            switch(type) {
+                case 'six':
+                    // 111111
+                    return /(\d)\1{5}/.test(last6);
+                case 'five':
+                    // 11111X 或 X11111
+                    return /(\d)\1{4}/.test(last6);
+                case 'four':
+                    // 1111XX 等等
+                    return /(\d)\1{3}/.test(last6);
+                case 'three':
+                    // 111XXX 等等
+                    return /(\d)\1{2}/.test(last6);
+                case 'pair':
+                    // 11XXXX 等等
+                    return /(\d)\1/.test(last6);
+                case 'twopair':
+                    // 1122XX, 11X22X (兩對且數字不同)
+                    let tpMatch = last6.match(/(\d)\1.*?(\d)\2/);
+                    return tpMatch && tpMatch[1] !== tpMatch[2];
+                case 'fullhouse':
+                    // 包含一組三條跟一組一對 (數字需不同)
+                    let fh1 = last6.match(/(\d)\1{2}.*?(\d)\2/);
+                    let fh2 = last6.match(/(\d)\1.*?(\d)\2{2}/);
+                    return (fh1 && fh1[1] !== fh1[2]) || (fh2 && fh2[1] !== fh2[2]);
+                case 'straight':
+                    // 順子: 全連續順序
+                    const straights = ["123456","234567","345678","456789","012345","987654","876543","765432","654321","543210"];
+                    return straights.includes(last6);
+                default:
+                    return false;
+            }
+        }
+
+        function processCalculation() {
+            const currentStr = document.getElementById('currentSP').value;
+            if (!currentStr || isNaN(currentStr)) {
+                showResult("請先輸入有效的目前 SP 值。", false);
+                return;
+            }
+            const current = parseInt(currentStr);
+            const mode = document.getElementById('calcMode').value;
+            const userLevel = parseInt(document.getElementById('farmLevel').value) || 1;
+            let target = 0;
+
+            if (mode === 'custom') {
+                const targetStr = document.getElementById('targetSP').value;
+                if (!targetStr || isNaN(targetStr)) {
+                    showResult("請輸入目標 SP 值。", false);
+                    return;
+                }
+                target = parseInt(targetStr);
+                if (target < current) {
+                    showResult(`目標 SP (${target}) 小於目前 SP (${current})，農場無法減少 SP！`, false);
+                    return;
+                }
+            } else {
+                // 自動尋找模式
+                const comboType = document.getElementById('targetCombo').value;
+                const comboName = document.getElementById('targetCombo').options[document.getElementById('targetCombo').selectedIndex].text;
+                
+                showResult("🔍 正在尋找最近的組合，請稍候...", true, false, 'info');
+                
+                // 從目前 SP 往上找，官方規定最少要有 10 萬才有獎勵資格
+                let testSP = Math.max(100000, current);
+                let found = false;
+                
+                // 為了防止無窮迴圈，設定一個搜尋上限 (例如往上找最多加 30 萬 SP)
+                for (let i = 0; i < 300000; i++) {
+                    if (checkCombo(testSP, comboType)) {
+                        target = testSP;
+                        found = true;
+                        break;
+                    }
+                    testSP++;
+                }
+
+                if (!found) {
+                    showResult(`在合理範圍內找不到符合「${comboName}」的 SP，請嘗試手動輸入。`, false);
+                    return;
+                }
+            }
+
+            // 給予一點延遲，讓 UI 有時間顯示 "尋找中"
+            setTimeout(() => {
+                calculateSP(current, target, userLevel);
+            }, 50);
+        }
+
+        function calculateSP(current, target, userLevel) {
+            const diff = target - current;
+
+            if (diff === 0) {
+                showResult(`🎉 恭喜！您目前的 SP [<span class="highlight">${current}</span>] 已經符合條件，不需要種植任何作物！`, true, true, 'success');
+                return;
+            }
+            // 防呆機制：差太多會卡頓
+            if (diff > 150000) {
+                showResult(`需要補充的 SP 差距 (${diff}) 過大，計算可能會卡頓。<br>建議先隨意種植高 SP 作物，等差距小於 150,000 時再來計算。`, false, true);
+                return;
+            }
+
+            // 根據選擇的農場等級，過濾出「當下可以購買」的作物
+            const availableCrops = crops.filter(crop => crop.lv <= userLevel);
+            
+            if (availableCrops.length === 0) {
+                showResult("目前的等級無法種植任何作物！", false);
+                return;
+            }
+
+            // 整理過濾後，唯一 SP 的最佳作物清單
+            const bestCropForSP = {};
+            availableCrops.forEach(crop => {
+                if (!bestCropForSP[crop.sp]) {
+                    bestCropForSP[crop.sp] = crop;
+                }
+            });
+            const availableSPs = Object.keys(bestCropForSP).map(Number).sort((a, b) => a - b);
+
+            // 動態規劃 (Dynamic Programming) 計算最少種植次數
+            const dp = new Array(diff + 1).fill(Infinity);
+            const choice = new Array(diff + 1).fill(-1);
+            dp[0] = 0;
+
+            for (let i = 0; i <= diff; i++) {
+                if (dp[i] === Infinity) continue;
+                for (let sp of availableSPs) {
+                    if (i + sp <= diff) {
+                        if (dp[i] + 1 < dp[i + sp]) {
+                            dp[i + sp] = dp[i] + 1;
+                            choice[i + sp] = sp;
+                        }
+                    }
+                }
+            }
+
+            if (dp[diff] === Infinity) {
+                showResult(`以您目前的等級解鎖的作物，無法剛好湊出差額 <strong>${diff}</strong> SP。<br>請嘗試微調目標，或是提升農場等級解鎖更多種子。`, false, true);
+                return;
+            }
+
+            // 回溯找出所需種植的組合
+            const cropCounts = {};
+            let currDiff = diff;
+            while (currDiff > 0) {
+                const spUsed = choice[currDiff];
+                if (cropCounts[spUsed]) {
+                    cropCounts[spUsed]++;
+                } else {
+                    cropCounts[spUsed] = 1;
+                }
+                currDiff -= spUsed;
+            }
+
+            let modeText = document.getElementById('calcMode').value === 'auto' ? 
+                document.getElementById('targetCombo').options[document.getElementById('targetCombo').selectedIndex].text : '自訂數值';
+            
+            // 產生結果 HTML
+            let html = `<h3 style="margin-top:0; color:#16a085;">✅ 成功！目標 SP 為 <span class="highlight">${target}</span></h3>`;
+            html += `<p style="font-size: 0.95em;">(達成 <strong>${modeText.split(' ')[0]}</strong> 條件，判定數字為: <strong>${String(target).slice(-6)}</strong>)</p>`;
+            html += `<p>距離目前還差 <strong>${diff}</strong> SP，建議種植以下作物：</p>`;
+            html += `<table>
+                        <thead>
+                            <tr>
+                                <th>作物名稱</th>
+                                <th>單項 SP</th>
+                                <th>需種植數量</th>
+                                <th>生長時間</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            // 讓高 SP 的作物排在上面
+            const sortedSpUsed = Object.keys(cropCounts).map(Number).sort((a, b) => b - a);
+            for (let sp of sortedSpUsed) {
+                const crop = bestCropForSP[sp];
+                html += `<tr>
+                            <td><strong>${crop.name}</strong></td>
+                            <td>${sp}</td>
+                            <td style="color:#2980b9; font-size:1.1em;"><strong>${cropCounts[sp]} 個</strong></td>
+                            <td>${crop.time}</td>
+                         </tr>`;
+            }
+            
+            html += `</tbody></table>`;
+            html += `<p style="font-size:0.85em; color:#7f8c8d; margin-top:10px;">*註：若有 SP 相同的作物（如玉米/紅蘿蔔皆為10SP），您可根據擁有的種子自行替換。</p>`;
+            
+            showResult(html, true, true, 'success');
+        }
+
+        function showResult(message, isSuccess, isHTML = false, typeClass = null) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            
+            // 清除之前的狀態 class
+            resultDiv.classList.remove('success', 'error', 'info');
+            
+            if (typeClass) {
+                resultDiv.classList.add(typeClass);
+            } else {
+                resultDiv.classList.add(isSuccess ? 'success' : 'error');
+            }
+            
+            if (isHTML) {
+                resultDiv.innerHTML = message;
+            } else {
+                resultDiv.innerText = message;
+            }
+        }
+    </script>
+</body>
+</html>
