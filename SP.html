@@ -239,10 +239,11 @@
             <li style="margin-top: 8px;">計算結果已考慮您所選等級<strong>可同時種植的欄位數量</strong>，會安排多種作物並行種植以縮短總花費時間，並提供分批種植步驟。</li>
             <li style="margin-top: 8px;">計算過程會<strong>模擬農場等級隨 SP 累積而升級</strong>：如果種植過程中途會跨過升級門檻，系統會自動切成好幾個階段，每個階段結束後更新可用的作物種類與同時種植欄位數，不會再繼續用已經過時的低等級作物。</li>
             <li style="margin-top: 8px;">工具會把你輸入的目前 SP、肥料數量等資料<strong>自動保存在這個瀏覽器裡</strong>（不會上傳到任何伺服器），重新整理頁面會自動帶回上次的輸入；種植步驟也可以<strong>打勾記錄進度</strong>，方便中途離開後回來接著做，打勾狀態同樣保存在本機瀏覽器中。</li>
+            <li style="margin-top: 8px;">如果某個階段用效率最高的作物就能湊出 SP、但還有多餘欄位閒置，系統會嘗試<strong>改用更多株(較快)的作物填滿多出來的欄位</strong>，讓這個階段能更快完成、提早跨過升級門檻解鎖下一階段的作物；如果拆成更多株也無法再縮短時間，就會維持原本的組合。</li>
         </ul>
     </div>
 
-    <div class="version-footer">版本 v3.4（取消步驟過多時的省略顯示，改為完整列出所有批次）</div>
+    <div class="version-footer">版本 v3.5（新增：階段內若有多餘欄位，會自動改用更多株較快的作物填滿欄位以加速跨階段）</div>
 
     <script>
         // 農作物資料庫 (包含對應解鎖等級與時間分鐘數轉換)
@@ -624,6 +625,70 @@
             return { feasible: true, cropCounts, bestCropForSP };
         }
 
+        // 如果基本解（效率優先）用不到這個階段全部的欄位數，代表還有多餘欄位閒置。
+        // 這時嘗試改用「盡量利用更多欄位」的組合湊出同樣的 SP，
+        // 目標是讓「其中最長的單一作物種植時間」變短，這樣多株作物平行種植、
+        // 全部同時完成的時間就會比原本少數幾株慢作物的方案更快，藉此加速跨過等級門檻。
+        const PARALLEL_OPT_MAX_DIFF = 8000; // 避免差額太大時運算量爆炸，超過就直接沿用基本解
+
+        function solveDiffWithCropsParallel(diff, availableCrops, maxSlots) {
+            const base = solveDiffWithCrops(diff, availableCrops);
+            if (!base.feasible || diff === 0) return base;
+
+            const baseItemCount = Object.values(base.cropCounts).reduce((a, b) => a + b, 0);
+            if (baseItemCount >= maxSlots) return base; // 欄位已經用滿，沒有多餘欄位可以加速
+            if (diff > PARALLEL_OPT_MAX_DIFF) return base; // 差額太大，跳過加速運算，維持基本解
+
+            const bestCropForSP = base.bestCropForSP;
+            const availableSPs = Object.keys(bestCropForSP).map(Number);
+            const baseMaxDuration = Math.max(...Object.keys(base.cropCounts).map(sp => bestCropForSP[sp].minutes));
+
+            const K = maxSlots;
+            const INF = Infinity;
+            // dp[k][i]：剛好用 k 株作物湊到 SP = i 時，這些作物裡「最長種植時間」的最小值
+            const dp = Array.from({ length: K + 1 }, () => new Array(diff + 1).fill(INF));
+            const choice = Array.from({ length: K + 1 }, () => new Array(diff + 1).fill(-1));
+            dp[0][0] = 0;
+
+            for (let k = 1; k <= K; k++) {
+                const prev = dp[k - 1];
+                const cur = dp[k];
+                const curChoice = choice[k];
+                for (let i = 0; i <= diff; i++) {
+                    for (let sp of availableSPs) {
+                        if (sp <= i && prev[i - sp] !== INF) {
+                            const cand = Math.max(prev[i - sp], bestCropForSP[sp].minutes);
+                            if (cand < cur[i]) {
+                                cur[i] = cand;
+                                curChoice[i] = sp;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let bestK = -1, bestMax = baseMaxDuration; // 只有真的比基本解更快才換用
+            for (let k = baseItemCount + 1; k <= K; k++) {
+                if (dp[k][diff] < bestMax) {
+                    bestMax = dp[k][diff];
+                    bestK = k;
+                }
+            }
+
+            if (bestK === -1) return base; // 沒有更好的加速組合，維持基本解
+
+            const cropCounts = {};
+            let curI = diff, curK = bestK;
+            while (curK > 0) {
+                const sp = choice[curK][curI];
+                cropCounts[sp] = (cropCounts[sp] || 0) + 1;
+                curI -= sp;
+                curK -= 1;
+            }
+
+            return { feasible: true, cropCounts, bestCropForSP };
+        }
+
         // 判斷「目前 SP → 目前SP+diff」這段路程，考慮中途升級解鎖新作物後，是否能剛好湊出來
         function isDiffReachable(current, diff, userLevel) {
             if (diff === 0) return true;
@@ -777,7 +842,7 @@
             for (let s = 0; s < segments.length; s++) {
                 const seg = segments[s];
                 const segDiff = seg.end - seg.start;
-                const result = solveDiffWithCrops(segDiff, seg.availableCrops);
+                const result = solveDiffWithCropsParallel(segDiff, seg.availableCrops, seg.slots);
                 if (!result.feasible) {
                     showResult(`階段 ${s + 1}（Lv.${seg.level}，需湊 <strong>${segDiff}</strong> SP）以該等級解鎖的作物無法剛好湊出來。<br>請嘗試微調目標 SP。`, false, true);
                     return;
