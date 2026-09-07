@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跑Online BOSS 傷害與算式計算器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .formula-box {
+            margin-top: 15px;
+            padding: 12px;
+            background-color: #fff;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 14px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .highlight {
+            font-weight: bold;
+            color: #d9534f;
+        }
+        .highlight-fury {
+            font-weight: bold;
+            color: #ff8c00;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>跑Online BOSS 傷害與算式計算器</h2>
+    
+    <div class="input-group">
+        <label for="allBoss">所有王怪附加傷害 (%)</label>
+        <input type="number" id="allBoss" value="35" placeholder="例如: 35">
+    </div>
+
+    <div class="input-group">
+        <label for="specificBoss">特定類型王傷 (%)</label>
+        <input type="number" id="specificBoss" value="94" placeholder="例如: 94">
+    </div>
+
+    <div class="input-group">
+        <label for="furyMult">憤怒狀態倍率</label>
+        <select id="furyMult">
+            <option value="2" selected>2 倍 (現行版本 / 攻擊力 200)</option>
+            <option value="3">3 倍 (舊版本 / 攻擊力 300)</option>
+        </select>
+    </div>
+
+    <button onclick="calculate()">計算並顯示完整算式</button>
+
+    <div class="result-box" id="result" style="display:none;">
+        <div class="result-item">
+            <span>總王傷加成：</span>
+            <span id="totalRate" class="highlight">0%</span>
+        </div>
+        <div class="result-item">
+            <span>一般狀態傷害：</span>
+            <span id="normalDmg" class="highlight">0</span>
+        </div>
+        <div class="result-item">
+            <span>憤怒狀態傷害：</span>
+            <span id="furyDmg" class="highlight-fury">0</span>
+        </div>
+
+        <!-- 算式展示區 -->
+        <div class="formula-box" id="formulaDetail"></div>
+    </div>
+</div>
+
+<script>
+    function calculate() {
+        // 取得輸入值
+        const allBoss = parseFloat(document.getElementById('allBoss').value) || 0;
+        const specificBoss = parseFloat(document.getElementById('specificBoss').value) || 0;
+        const furyMult = parseFloat(document.getElementById('furyMult').value);
+
+        // 計算總王傷
+        const totalPercent = allBoss + specificBoss;
+        const decimalRate = (totalPercent / 100).toFixed(2);
+        const multiplier = 1 + (totalPercent / 100);
+
+        // 計算實際傷害
+        const normalDamage = Math.round(100 * multiplier);
+        const furyBase = 100 * furyMult;
+        const furyDamage = Math.round(furyBase * multiplier);
+
+        // 填入簡要結果
+        document.getElementById('totalRate').innerText = totalPercent + '%';
+        document.getElementById('normalDmg').innerText = normalDamage;
+        document.getElementById('furyDmg').innerText = furyDamage;
+
+        // 生成詳細算式
+        const formulaHtml = `
+            <strong>📐 詳細計算過程：</strong><br>
+            1. 總王傷加成：<br>
+               ${allBoss}% + ${specificBoss}% = <b>${totalPercent}%</b> (${decimalRate})<br><br>
+            2. 未憤怒傷害 (基礎 100)：<br>
+               100 × (1 + ${decimalRate})<br>
+               = 100 × ${multiplier.toFixed(2)} = <b>${normalDamage}</b><br><br>
+            3. 憤怒傷害 (基礎 ${furyBase})：<br>
+               ${furyBase} × (1 + ${decimalRate})<br>
+               = ${furyBase} × ${multiplier.toFixed(2)} = <b>${furyDamage}</b>
+        `;
+
+        document.getElementById('formulaDetail').innerHTML = formulaHtml;
+        document.getElementById('result').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
