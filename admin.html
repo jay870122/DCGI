@@ -2089,8 +2089,11 @@ async function api(params) {
       .then(data => { if (!settled) finishFromGas_(data); })
       .catch(err => {
         if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else { settled = true; resolve({ status: 'error', message: '❌ 連線失敗，請稍後再試' }); }
+        // 🌟🔧 修正bug:不管是逾時(AbortError)還是其他連線錯誤,都不能直接判定失敗——GAS那邊完全有可能
+        // 其實已經處理完成了,只是「回應送回來」這段路程剛好出了網路問題。兩種情況都應該交給輪詢機制
+        // 去確認「兌換紀錄」裡有沒有出現這筆結果,只有輪詢也找不到的時候才真的判定失敗。
+        gasDone = true;
+        checkBothGaveUp_();
       });
 
     pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled).then(result => {
