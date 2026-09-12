@@ -3413,14 +3413,19 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (select.value === '') { previewEl.innerHTML = ''; return; }
       const opt = itemOptions[parseInt(select.value)];
       let html = (opt && opt.pool) ? buildGachaContentBoxHtml_(opt.pool, "🎁 內容物一覽：") : '';
-      // 🌟🔧 修正:改成顯示「即時剩餘量」(opt.remain,後端已經即時查過歷史紀錄算出來),
-      // 不再只顯示設定值——玩家在按下去購買之前就能看到準確的剩餘數量,不用等被擋才知道。
+      // 🌟🔧 修正:改成分開顯示「每一種限制各自即時剩餘多少」,不要合併成一個數字——
+      // 套用跟商品本身限購標籤完全一致的風格(全體用灰底🌍、個人用藍底👤、日/週/月/總計/庫存分開列)。
       if (opt) {
-        const notes = [];
-        if (opt.remain !== null && opt.remain !== undefined) {
-          notes.push(`🔒 剩餘可買：${opt.remain} 份`);
-        }
-        if (notes.length > 0) html += `<div style="margin-top:6px;font-size:12px;color:#F0B232">${notes.join('　')}</div>`;
+        const tags = [];
+        if (opt.remainStock !== null && opt.remainStock !== undefined) tags.push(`<span class="limit-tag tag-global">📦 剩餘庫存: ${opt.remainStock}</span>`);
+        if (opt.remainGD !== null && opt.remainGD !== undefined) tags.push(`<span class="limit-tag tag-global">🌍 全體今日: ${opt.remainGD}</span>`);
+        if (opt.remainGW !== null && opt.remainGW !== undefined) tags.push(`<span class="limit-tag tag-global">🌍 全體本週: ${opt.remainGW}</span>`);
+        if (opt.remainGM !== null && opt.remainGM !== undefined) tags.push(`<span class="limit-tag tag-global">🌍 全體本月: ${opt.remainGM}</span>`);
+        if (opt.remainPD !== null && opt.remainPD !== undefined) tags.push(`<span class="limit-tag tag-personal">👤 個人今日: ${opt.remainPD}</span>`);
+        if (opt.remainPW !== null && opt.remainPW !== undefined) tags.push(`<span class="limit-tag tag-personal">👤 個人本週: ${opt.remainPW}</span>`);
+        if (opt.remainPM !== null && opt.remainPM !== undefined) tags.push(`<span class="limit-tag tag-personal">👤 個人本月: ${opt.remainPM}</span>`);
+        if (opt.remainPT !== null && opt.remainPT !== undefined) tags.push(`<span class="limit-tag tag-total">👑 個人總計: ${opt.remainPT}</span>`);
+        if (tags.length > 0) html += `<div class="limit-tags" style="margin-top:6px">${tags.join('')}</div>`;
       }
       previewEl.innerHTML = html;
     }
