@@ -3605,9 +3605,49 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      fetch(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`)
+
+      // 🌟🔧 修正重要缺口:購買是全站最常用的功能,但這裡原本完全沒有套用賽跑架構,只是單純的fetch()
+      // 乾等GAS原始回應——沒有逾時保護、沒有輪詢備援。GAS本身回應延遲是這整個系統從頭到尾都在處理的
+      // 已知問題(其他功能都有套用賽跑架構繞過這個問題),偏偏最重要的購買功能漏掉了,導致「明明已經
+      // 處理完成,畫面卻一直卡在處理中」——現在補上跟其他功能完全一致的賽跑架構。
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        alert(msg);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+      }
+      function finishWithResult_(data) {
+        if (settled) return; settled = true;
+        handleBuyResult_(data, itemId, itemName, safeId, maxQty, currencyName);
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
       .then(res => res.json())
-      .then(data => {
+      .then(data => { if (!settled) finishWithResult_(data); })
+      .catch(err => {
+        if (settled) return;
+        // 🌟🔧 不管是逾時(AbortError)還是其他連線錯誤,都要交給輪詢確認,不能直接判定失敗——
+        // GAS那邊完全有可能其實已經處理完成了,只是回應送回來的路上出了網路問題。
+        gasDone = true;
+        checkBothGaveUp_();
+      });
+
+      pollInstrumentedActionResult_('BUY', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishWithResult_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
+    }
+
+    // 🌟 購買結果的完整處理邏輯,抽成共用函式,不管結果是GAS直接回應的、還是輪詢查到的,都走同一套處理。
+    function handleBuyResult_(data, itemId, itemName, safeId, maxQty, currencyName) {
         if(data.status === "success") {
           let successMsg = "✅ 兌換處理完成！";
           if (data.cost !== undefined && data.cost > 0) {
@@ -3645,15 +3685,15 @@ function fetchScoresAndShop(discordId, callback = null) {
           if (data.totalRewards && data.totalRewards.length > 0) {
             successMsg += `\n📊 總共獲得：${data.totalRewards.join('、')}`;
           }
-          if (data.keys && data.keys.length > 0) {
-            successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
-          }
           if (data.milestoneRewards && data.milestoneRewards.length > 0) {
             successMsg += "\n\n🏆 累積兌換里程碑獎勵：";
             data.milestoneRewards.forEach(m => { successMsg += `\n第 ${m.count} 次${m.repeat ? '(重複)' : ''}：獲得 ${m.rewardText}`; });
           }
           if (data.milestoneErrors && data.milestoneErrors.length > 0) {
             successMsg += "\n\n⚠️ 部分里程碑獎勵發放異常,請聯絡管理員補發：\n" + data.milestoneErrors.join("\n");
+          }
+          if (data.keys && data.keys.length > 0) {
+            successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
           }
           alert(successMsg);
           fetchScoresAndShop(currentUser.id); 
@@ -3681,12 +3721,6 @@ function fetchScoresAndShop(discordId, callback = null) {
             document.getElementById('dashboard').style.display = 'block';
           }
         }
-      })
-      .catch(err => {
-        alert("網路錯誤，請稍後再試！");
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-      });
     }
 
     // ============================================================
