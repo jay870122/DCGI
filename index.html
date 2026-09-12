@@ -1483,7 +1483,7 @@
       .catch(err => {
         if (settled) return;
         if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else finishError_('❌ 連線失敗，請稍後再試');
+        else { gasDone = true; checkBothGaveUp_(); }
       });
 
       pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs, () => settled).then(polled => {
@@ -1540,7 +1540,7 @@
       .catch(err => {
         if (settled) return;
         if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else finishError_('❌ 連線失敗，請稍後再試');
+        else { gasDone = true; checkBothGaveUp_(); }
       });
 
       pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs, () => settled).then(polled => {
@@ -1652,7 +1652,7 @@
       .catch(err => {
         if (settled) return;
         if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else finishError_('❌ 連線失敗，請稍後再試');
+        else { gasDone = true; checkBothGaveUp_(); }
       });
 
       pollInstrumentedActionResult_('buyBingoNumber', requestStartMs, () => settled).then(polled => {
@@ -1729,7 +1729,7 @@
         .catch((err) => {
           if (settled) return;
           if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else finishError_('❌ 連線失敗，請稍後再試');
+          else { gasDone = true; checkBothGaveUp_(); }
         });
 
       pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs, () => settled).then(polled => {
@@ -1852,7 +1852,7 @@
         .catch(err => {
         if (settled) return;
         if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else finishError_('❌ 連線失敗，請稍後再試');
+        else { gasDone = true; checkBothGaveUp_(); }
       });
 
       pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs, () => settled).then(polled => {
@@ -1960,7 +1960,7 @@
         .catch(err => {
         if (settled) return;
         if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else finishError_('❌ 連線失敗，請稍後再試');
+        else { gasDone = true; checkBothGaveUp_(); }
       });
 
       pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs, () => settled).then(polled => {
@@ -2143,7 +2143,7 @@
         .catch(err => {
           if (settled) return;
           if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else finishError_('❌ 連線失敗，請稍後再試');
+          else { gasDone = true; checkBothGaveUp_(); }
         });
 
       pollInstrumentedActionResult_('useGeneralBackpackItemsByName', requestStartMs, () => settled).then(polled => {
@@ -2212,7 +2212,7 @@
         .catch(err => {
           if (settled) return;
           if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else finishError_('❌ 連線失敗，請稍後再試');
+          else { gasDone = true; checkBothGaveUp_(); }
         });
 
       pollInstrumentedActionResult_('clearUnusableGeneralBackpackItems', requestStartMs, () => settled).then(polled => {
@@ -2332,7 +2332,7 @@
         .catch(err => {
           if (settled) return;
           if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else finishError_('連線失敗，請稍後再試');
+          else { gasDone = true; checkBothGaveUp_(); }
         });
 
       pollInstrumentedActionResult_('redeemCode', requestStartMs, () => settled).then(polled => {
