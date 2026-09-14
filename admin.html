@@ -2039,10 +2039,10 @@ async function pollAdminActionResult_(discordId, actionType, sinceMs, shouldStop
     try {
       const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${discordId}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
       const data = await res.json();
-      if (onProgress) onProgress(i + 1, data.status === 'success' ? (data.found ? 'found' : 'not_found') : 'error');
+      if (onProgress) onProgress(i + 1, data.status === 'success' ? (data.found ? 'found' : 'not_found') : 'error', data);
       if (data.status === 'success' && data.found && data.result) return data.result;
     } catch (e) {
-      if (onProgress) onProgress(i + 1, 'fetch_error');
+      if (onProgress) onProgress(i + 1, 'fetch_error', null);
       /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */
     }
     await sleep_(600);
@@ -2114,8 +2114,17 @@ async function api(params) {
         checkBothGaveUp_();
       });
 
-    pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled, (attempt, status) => {
-      debugBox.textContent = `[輪詢除錯] action=${params.action}\n第${attempt}次查詢:${status}\nsinceTs=${requestStartMs}`;
+    pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled, (attempt, status, rawData) => {
+      let detail = '';
+      if (rawData && rawData.debugInfo) {
+        const di = rawData.debugInfo;
+        detail = `\n共查${di.checkedRows}列,discordId對上${di.didMatchCount}筆,標籤也對上${di.markerMatchCount}筆`;
+        if (di.closestReject) {
+          detail += `\n最接近的一筆:原始日期值=${di.closestReject.rawDate},解析後ts=${di.closestReject.parsedTs}`;
+          detail += `\nsinceTs=${di.closestReject.sinceTs}(含容許值=${di.closestReject.sinceTsWithTolerance})`;
+        }
+      }
+      debugBox.textContent = `[輪詢除錯] action=${params.action}\n第${attempt}次查詢:${status}${detail}\nmy discordId=${discordId}`;
     }).then(result => {
       if (settled) return;
       if (result) { finishFromPoll_(result); return; }
