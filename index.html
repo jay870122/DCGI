@@ -3636,7 +3636,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
-      startLoadingProgress_(5000); // 🌟 預期時間抓5秒(實測GAS平均執行時間),超過的話進度條停在95%不會滿
+      startLoadingProgress_(9000); // 🌟 預期時間抓9秒(實測GAS執行時間可能落在8-10秒),超過的話進度條停在95%不會滿
 
 
       // 🌟🔧 修正重要缺口:購買是全站最常用的功能,但這裡原本完全沒有套用賽跑架構,只是單純的fetch()
