@@ -342,10 +342,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="fab" onclick="navTo('add-auction')">➕ 新增拍賣</button>
           </div>
         </div>
+        <div class="toolbar" id="auction-batch-toolbar" style="display:none;padding:10px 0;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="hint">已勾選 <b id="auction-selected-count">0</b> 項：</span>
+          <button class="btn btn-close" onclick="batchCloseAuctions()">🔨 截標</button>
+          <button class="btn btn-edit" onclick="batchSetAuctionStatus('DRAFT')">📥 下架</button>
+          <button class="btn btn-del" onclick="batchDeleteAuctions()">🗑️ 刪除已選</button>
+          <button class="btn btn-edit" onclick="toggleAuctionSelectAll(false)">✕ 取消全選</button>
+        </div>
         <div class="tbl-wrap tbl-wrap-table">
           <table>
             <thead><tr>
               <th id="auction-th-order" style="display:none;width:70px">順序</th>
+              <th style="width:36px"><input type="checkbox" id="auction-select-all" onchange="toggleAuctionSelectAll(this.checked)"></th>
               <th class="sortable" onclick="sortAuctionBy('name')">拍賣名稱<span class="sort-arrow" id="th-auction-name"></span></th>
               <th class="sortable" onclick="sortAuctionBy('type')">類型<span class="sort-arrow" id="th-auction-type"></span></th>
               <th class="sortable" onclick="sortAuctionBy('category')">分類<span class="sort-arrow" id="th-auction-category"></span></th>
@@ -2021,6 +2029,7 @@ const WRITE_ADMIN_ACTIONS_ = new Set([
   'adminDeletePushSchedule', 'adminGrantBingoItem', 'adminRemoveBingoBackpackItem',
   'adminAddBingoActivity', 'adminUpdateBingoActivity', 'adminDeleteBingoActivity',
   'adminResetBingoCards', 'adminGiveBingoNumber', 'adminAdjustPlayerCurrency',
+  'adminBatchDeleteAuctions', 'adminBatchSetAuctionStatus', 'adminBatchCloseAuctions',
 ]);
 const ADMIN_ACTION_TIMEOUT_MS = 25000;
 function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -3117,6 +3126,58 @@ async function duplicateShopItem(id) {
 }
 
 // ── Auction ──
+// 🌟 拍賣多選批次操作,邏輯完全比照商品的批次操作(shopSelectedIds/toggleShopItemSelect那一套)
+let auctionSelectedIds = new Set();
+function toggleAuctionItemSelect(auctionId, checked) {
+  if (checked) auctionSelectedIds.add(auctionId); else auctionSelectedIds.delete(auctionId);
+  updateAuctionBatchToolbar();
+}
+function toggleAuctionSelectAll(checked) {
+  if (checked) {
+    document.querySelectorAll('.auction-row-check').forEach(cb => { auctionSelectedIds.add(cb.dataset.id); cb.checked = true; });
+  } else {
+    auctionSelectedIds.clear();
+    document.querySelectorAll('.auction-row-check').forEach(cb => { cb.checked = false; });
+  }
+  const selectAllCb = document.getElementById('auction-select-all');
+  if (selectAllCb) selectAllCb.checked = checked;
+  updateAuctionBatchToolbar();
+}
+function updateAuctionBatchToolbar() {
+  const toolbar = document.getElementById('auction-batch-toolbar');
+  const countEl = document.getElementById('auction-selected-count');
+  if (!toolbar || !countEl) return;
+  countEl.textContent = auctionSelectedIds.size;
+  toolbar.style.display = auctionSelectedIds.size > 0 ? 'flex' : 'none';
+}
+
+async function batchDeleteAuctions() {
+  if (auctionSelectedIds.size === 0) return;
+  if (!confirm(`確定要刪除已勾選的 ${auctionSelectedIds.size} 個拍賣嗎？此操作無法還原。`)) return;
+  const d = await api({ action: 'adminBatchDeleteAuctions', auctionIds: JSON.stringify(Array.from(auctionSelectedIds)) });
+  if (d.status === 'success') { toast('🗑️ ' + d.message); auctionSelectedIds.clear(); loadAuctionItems(); }
+  else toast('❌ ' + d.message, false);
+}
+
+async function batchSetAuctionStatus(status) {
+  if (auctionSelectedIds.size === 0) return;
+  const label = status === 'DRAFT' ? '下架' : '上架';
+  if (!confirm(`確定要把已勾選的 ${auctionSelectedIds.size} 個拍賣${label}嗎？`)) return;
+  const d = await api({ action: 'adminBatchSetAuctionStatus', auctionIds: JSON.stringify(Array.from(auctionSelectedIds)), status });
+  if (d.status === 'success') { toast('✅ ' + d.message); auctionSelectedIds.clear(); loadAuctionItems(); }
+  else toast('❌ ' + d.message, false);
+}
+
+// 🌟 截標:強制把已勾選、目前「進行中」的拍賣提前結束(套用跟原本結標排程一樣的結算邏輯,
+// 已經結束/草稿狀態的拍賣會被自動跳過,不會被誤結算兩次)
+async function batchCloseAuctions() {
+  if (auctionSelectedIds.size === 0) return;
+  if (!confirm(`確定要把已勾選的 ${auctionSelectedIds.size} 個拍賣強制截標嗎？(只有「進行中」的會被結算,已結束/草稿狀態的會自動跳過)`)) return;
+  const d = await api({ action: 'adminBatchCloseAuctions', auctionIds: JSON.stringify(Array.from(auctionSelectedIds)) });
+  if (d.status === 'success') { toast('🔨 ' + d.message); auctionSelectedIds.clear(); loadAuctionItems(); }
+  else toast('❌ ' + d.message, false);
+}
+
 async function loadAuctionItems() {
   document.getElementById('auction-tbody').innerHTML = '<tr><td colspan="9" class="empty">讀取中...</td></tr>';
   const d = await apiWorkerRead('adminAuctionsList', {}, {action:'adminGetAuctions'});
@@ -3176,13 +3237,14 @@ async function saveAuctionReorderInline() {
 function renderAuctionTable() {
   if (auctionReorderMode) {
     document.getElementById('auction-tbody').innerHTML = auctionReorderList.length === 0
-      ? '<tr><td colspan="10" class="empty">此分類沒有拍賣品</td></tr>'
+      ? '<tr><td colspan="11" class="empty">此分類沒有拍賣品</td></tr>'
       : auctionReorderList.map((a, idx) => `<tr class="drag-row" data-idx="${idx}">
         <td><div class="btn-row">
           <span class="drag-handle" title="拖曳調整順序">⠿</span>
           <button class="btn btn-edit" onclick="moveAuctionReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
           <button class="btn btn-edit" onclick="moveAuctionReorderRow(${idx},1)" ${idx===auctionReorderList.length-1?'disabled':''}>▼</button>
         </div></td>
+        <td></td>
         <td class="cell-name" title="${a.name}" data-label="拍賣名稱">${a.name}${a.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</td>
         <td></td>
         <td data-label="分類">${a.category||'—'}</td>
@@ -3225,8 +3287,9 @@ function renderAuctionTable() {
   const typeLabel = {PUBLIC:'<span class="type-badge type-pub">公開</span>',SEALED:'<span class="type-badge type-seal">暗標↑</span>',SEALED_LOW:'<span class="type-badge type-low">暗標↓</span>'};
   const stateLabel = {open:'<span class="status status-open">● 進行中</span>',ended:'<span class="status status-ended">● 已結標</span>',not_started:'<span class="status status-ns">● 未開始</span>',closed:'<span class="status status-closed">● 已關閉</span>',pending:'<span class="status status-pending">● 待結算</span>'};
   document.getElementById('auction-tbody').innerHTML = items.length===0
-    ? '<tr><td colspan="9" class="empty">沒有符合條件的拍賣</td></tr>'
+    ? '<tr><td colspan="10" class="empty">沒有符合條件的拍賣</td></tr>'
     : items.map(i => `<tr>
+      <td><input type="checkbox" class="auction-row-check" data-id="${i.auctionId}" ${auctionSelectedIds.has(i.auctionId)?'checked':''} onchange="toggleAuctionItemSelect('${i.auctionId}', this.checked)"></td>
       <td class="cell-name" title="${i.name}" data-label="拍賣名稱">${i.name}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${i.winnerCount > 1 ? ` <span class="type-badge type-low" title="前${i.winnerCount}名都得標">🏆 前${i.winnerCount}名</span>` : ''}${i.raffleSlots > 0 ? ` <span class="type-badge type-seal" title="安慰獎抽${i.raffleSlots}位">🎰 安慰獎x${i.raffleSlots}</span>` : ''}</td>
       <td data-label="類型">${typeLabel[i.type]||i.type}</td>
       <td data-label="分類">${i.category||'—'}</td>
