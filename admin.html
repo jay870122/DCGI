@@ -382,6 +382,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <input type="hidden" id="ns-extracostamount">
             <div class="field"><label>分類 <span class="hint">可用「父分類＞子分類」建立子分類,例：活動＞夏日活動2026(不要用/,容易跟日期撞名)</span></label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
             <div class="field"><label>庫存 <span class="hint">留空=無限</span></label><input id="ns-stock" placeholder="無限"></div>
+            <div class="field"><label>連結序號庫存 <span class="hint">填「序號庫」A欄的名稱,設定後庫存自動等於該序號剩餘量(忽略上面的庫存欄位),序號發完就自動無法購買,留空=不掛勾</span></label><input id="ns-linkedserialpool" placeholder="例：steam虛擬禮物卡NT150(留空=不掛勾)"></div>
             <div class="field"><label>狀態</label><select id="ns-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
             <div class="fsep">時間（可選）</div>
             <div class="field"><label>開始時間</label><input id="ns-sdate" type="datetime-local"></div>
@@ -1155,6 +1156,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <input type="hidden" id="em-extracostamount">
       <div class="field"><label>分類</label><input id="em-category" list="sc-list"></div>
       <div class="field"><label>庫存</label><input id="em-stock"></div>
+      <div class="field"><label>連結序號庫存 <span class="hint">填「序號庫」A欄的名稱,設定後庫存自動等於該序號剩餘量(忽略上面的庫存欄位),序號發完就自動無法購買,留空=不掛勾</span></label><input id="em-linkedserialpool" placeholder="例：steam虛擬禮物卡NT150(留空=不掛勾)"></div>
       <div class="field"><label>狀態</label><select id="em-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
       <div class="fsep">時間</div>
       <div class="field"><label>開始時間</label><input id="em-sdate" type="datetime-local"></div>
@@ -2988,6 +2990,7 @@ function openEditShop(itemId) {
   updateHiddenNamePreview('em-name', 'em-name-preview'); // 🌟 打開既有商品編輯時就先跑一次,不用等打字才觸發
   f('em-currency').value=i.currency||'幻彩水晶'; f('em-category').value=i.category||'';
   f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
+  f('em-linkedserialpool').value=i.linkedSerialPool||'';
   f('em-status').value=i.status==='DRAFT'?'DRAFT':'';
   f('em-sortorder').value=i.sortOrder!==null&&i.sortOrder!==undefined?i.sortOrder:'';
   f('em-sdate').value=i.startDate||''; f('em-edate').value=i.endDate||'';
@@ -3048,7 +3051,7 @@ async function saveShopItem() {
   const btn = document.getElementById('em-save');
   btn.disabled=true; btn.textContent='儲存中...';
   const d = await api({action:'adminUpdateShopItem',itemId:f('em-id'),name:f('em-name'),price:f('em-price'),
-    currency:f('em-currency'),category:f('em-category'),stock:f('em-stock'),
+    currency:f('em-currency'),category:f('em-category'),stock:f('em-stock'),linkedSerialPool:f('em-linkedserialpool'),
     status:f('em-status'),sortOrder:f('em-sortorder'),
     startDate:f('em-sdate'),endDate:f('em-edate'),
     limitGD:f('em-lgd'),limitGM:f('em-lgm'),limitPD:f('em-lpd'),limitPM:f('em-lpm'),
@@ -3381,7 +3384,7 @@ async function submitAddShop(forceStatus) {
   const originalText = btn.textContent;
   btn.disabled=true; btn.textContent=isDraft ? '存草稿中...' : '新增中...';
   const d=await api({action:'adminAddShopItem',name:f('ns-name'),price:f('ns-price')||0,
-    currency:f('ns-currency'),category:f('ns-category'),stock:f('ns-stock'),
+    currency:f('ns-currency'),category:f('ns-category'),stock:f('ns-stock'),linkedSerialPool:f('ns-linkedserialpool'),
     status:isDraft?'DRAFT':'',
     startDate:f('ns-sdate'),endDate:f('ns-edate'),
     limitGD:f('ns-lgd'),limitGM:f('ns-lgm'),limitPD:f('ns-lpd'),limitPM:f('ns-lpm'),
@@ -3857,7 +3860,7 @@ function renderItemOptions(prefix) {
     ['limitPD', '個人/日', ''], ['limitPW', '個人/週', ''], ['limitPM', '個人/月', ''], ['limitPT', '個人/總計', ''],
   ];
   container.innerHTML = list.map((opt, idx) => {
-    const hasAnyLimit = limitFieldDefs.some(([f]) => opt[f] !== undefined && opt[f] !== '' && opt[f] !== null);
+    const hasAnyLimit = limitFieldDefs.some(([f]) => opt[f] !== undefined && opt[f] !== '' && opt[f] !== null) || !!(opt.linkedSerialPool && opt.linkedSerialPool.trim());
     return `
     <div style="background:#2F3136;border-radius:8px;padding:12px;margin-bottom:10px">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
@@ -3870,11 +3873,15 @@ function renderItemOptions(prefix) {
       <div class="gacha-preview" id="${prefix}-option-preview-${idx}" style="display:none"></div>
       <details style="margin-top:8px" ${hasAnyLimit ? 'open' : ''}>
         <summary style="cursor:pointer;font-size:12px;color:var(--gold)">🔒 這個選項自己的庫存/限購(選填,跟商品本身的限購互不相干、各自獨立扣除)${hasAnyLimit ? '　<span style="color:#43B581">已設定</span>' : ''}</summary>
+        <div style="margin-top:8px">
+          <label style="font-size:11px;color:#B9BBBE;display:block;margin-bottom:2px">連結序號庫存 <span class="hint">填「序號庫」A欄的名稱,設定後這個選項的庫存自動等於該序號剩餘量(下面的「總庫存」欄位會失效),序號發完就自動無法選這個選項,留空=不掛勾</span></label>
+          <input placeholder="留空=不掛勾" value="${(opt.linkedSerialPool||'').replace(/"/g,'&quot;')}" style="width:100%" oninput="updateItemOptionField('${prefix}',${idx},'linkedSerialPool',this.value)">
+        </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
           ${limitFieldDefs.map(([field, label, hint]) => `
             <div>
               <label style="font-size:11px;color:#B9BBBE;display:block;margin-bottom:2px">${label}${hint ? ` <span class="hint">${hint}</span>` : ''}</label>
-              <input type="number" min="0" placeholder="不限" value="${opt[field] !== undefined && opt[field] !== null ? opt[field] : ''}" style="width:100%" oninput="updateItemOptionField('${prefix}',${idx},'${field}',this.value)">
+              <input type="number" min="0" placeholder="不限" value="${opt[field] !== undefined && opt[field] !== null ? opt[field] : ''}" style="width:100%" ${field === 'stock' && opt.linkedSerialPool ? 'disabled title="已掛勾序號庫存,這個欄位不會生效"' : ''} oninput="updateItemOptionField('${prefix}',${idx},'${field}',this.value)">
             </div>
           `).join('')}
         </div>
@@ -3908,9 +3915,9 @@ function loadItemOptions(prefix, rawJson) {
   renderItemOptions(prefix);
 }
 
-const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-status','ns-sdate','ns-edate',
+const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-linkedserialpool','ns-status','ns-sdate','ns-edate',
   'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights','ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-poollock','ns-gambling-maxodds'];
-const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-status','em-sdate','em-edate',
+const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-linkedserialpool','em-status','em-sdate','em-edate',
   'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights','em-gambling-mode','em-gambling-refund','em-gambling-options','em-gambling-poollock','em-gambling-maxodds'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate','ea-wincount','ea-raffleslots','ea-rafflepool'];
