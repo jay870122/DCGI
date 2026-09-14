@@ -1552,7 +1552,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full" style="text-align:right">
         <button class="btn btn-cancel" onclick="closeModal('item-template-modal')">取消</button>
-        <button class="btn btn-edit" onclick="submitItemTemplate()">💾 儲存</button>
+        <button class="btn btn-edit" id="it-save-btn" onclick="submitItemTemplate()">💾 儲存</button>
       </div>
     </div>
   </div>
@@ -1591,7 +1591,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full" style="text-align:right">
         <button class="btn btn-cancel" onclick="closeModal('redeem-code-modal')">取消</button>
-        <button class="btn btn-edit" onclick="submitRedeemCodeAdmin()">💾 儲存</button>
+        <button class="btn btn-edit" id="rc-save-btn" onclick="submitRedeemCodeAdmin()">💾 儲存</button>
       </div>
     </div>
   </div>
@@ -4733,15 +4733,22 @@ async function submitItemTemplate() {
   const usableFrom = document.getElementById('it-usablefrom').value;
   const originalName = document.getElementById('it-original-name').value;
 
-  // 🌟 修改名稱等於新建一個模板,舊名稱那筆要先刪掉,避免留下一筆孤兒資料
-  if (originalName && originalName !== name) {
-    await api({ action: 'adminDeleteItemTemplate', name: originalName });
+  const btn = document.getElementById('it-save-btn');
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 儲存中...';
+  try {
+    // 🌟 修改名稱等於新建一個模板,舊名稱那筆要先刪掉,避免留下一筆孤兒資料
+    if (originalName && originalName !== name) {
+      await api({ action: 'adminDeleteItemTemplate', name: originalName });
+    }
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom });
+    if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
+    toast(d.message);
+    closeModal('item-template-modal');
+    loadItemTemplates();
+  } finally {
+    btn.disabled = false; btn.textContent = originalText;
   }
-  const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom });
-  if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
-  toast(d.message);
-  closeModal('item-template-modal');
-  loadItemTemplates();
 }
 
 async function deleteItemTemplate(name) {
@@ -4886,16 +4893,23 @@ async function submitRedeemCodeAdmin() {
   const endTime = document.getElementById('rc-endtime').value;
   const originalCode = document.getElementById('rc-original-code').value;
 
-  // 🌟 修改碼內容等於新建一組,舊碼那筆要先刪掉,避免留下一筆孤兒資料(注意:這樣會讓舊碼的兌換紀錄跟著消失,
-  // 提示文字裡已經跟管理員說明過這件事)
-  if (originalCode && originalCode !== code) {
-    await api({ action: 'adminDeleteRedeemCode', code: originalCode });
+  const btn = document.getElementById('rc-save-btn');
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 儲存中...';
+  try {
+    // 🌟 修改碼內容等於新建一組,舊碼那筆要先刪掉,避免留下一筆孤兒資料(注意:這樣會讓舊碼的兌換紀錄跟著消失,
+    // 提示文字裡已經跟管理員說明過這件事)
+    if (originalCode && originalCode !== code) {
+      await api({ action: 'adminDeleteRedeemCode', code: originalCode });
+    }
+    const d = await api({ action: 'adminSaveRedeemCode', code, poolRaw, maxRedeemers, startTime, endTime });
+    if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
+    toast(d.message);
+    closeModal('redeem-code-modal');
+    loadRedeemCodes();
+  } finally {
+    btn.disabled = false; btn.textContent = originalText;
   }
-  const d = await api({ action: 'adminSaveRedeemCode', code, poolRaw, maxRedeemers, startTime, endTime });
-  if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
-  toast(d.message);
-  closeModal('redeem-code-modal');
-  loadRedeemCodes();
 }
 
 async function deleteRedeemCode(code) {
