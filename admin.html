@@ -570,6 +570,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」;範圍限定重複用「每數量(起點~終點) =&gt; 獎勵」(例如「每2(50~100)」代表第50~100次之間每2次觸發一次);獎勵後面可加「, 個人X次數」限制每人最多領幾次(份數本身是全體共用的庫存,個人限量是額外疊加的限制)</span></label>
               <textarea id="ns-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
               <div class="gacha-preview" id="ns-milestone-preview" style="display:none"></div>
+              <label style="margin-top:6px;font-size:12px;color:#F0B232;display:block">🌟 標籤用法(填在規則最前面):<br>‧ <code>[全體]</code>：門檻改算「全站累積」,論到門檻自動發放給那位買家(先搶先贏,例如 <code>[全體]1 =&gt; 拍賣幣:10000</code>)<br>‧ <code>[全體領獎:個人X,名額N]</code>：全站門檻達成後,在商品畫面出現領獎按鈕,需要自己買過X次以上才能按,名額N代表限最先按的前N人(名額留空或填「不限」=不限人數)</label>
             </div>
             <div class="field full">
               <label>里程碑共用目標商品ID <span class="hint">選填,填了的話這個商品的購買量會算進「那個商品ID」的里程碑進度裡,自己上面的里程碑規則就不會生效(規則統一以目標商品為準);留空=用自己的規則、不共用</span></label>
@@ -1333,6 +1334,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>里程碑規則 <span class="hint">留空=不啟用;一次性用「數量 =&gt; 獎勵」,重複性用「每數量 =&gt; 獎勵」;範圍限定重複用「每數量(起點~終點) =&gt; 獎勵」(例如「每2(50~100)」代表第50~100次之間每2次觸發一次);獎勵後面可加「, 個人X次數」限制每人最多領幾次(份數本身是全體共用的庫存,個人限量是額外疊加的限制)</span></label>
         <textarea id="em-milestone" placeholder="例如(第10次送一次水晶,之後每滿5次都再送一次,限量50份):&#10;10 => 水晶:100&#10;每5 => 水晶寶箱 | 水晶:20, 50份"></textarea>
         <div class="gacha-preview" id="em-milestone-preview" style="display:none"></div>
+        <label style="margin-top:6px;font-size:12px;color:#F0B232;display:block">🌟 標籤用法(填在規則最前面):<code>[全體]</code>先搶先贏自動發放；<code>[全體領獎:個人X,名額N]</code>門檻達成後出現領獎按鈕(詳見新增商品頁面說明)</label>
       </div>
       <div class="full field">
         <label>里程碑共用目標商品ID <span class="hint">選填,填了的話這個商品的購買量會算進「那個商品ID」的里程碑進度裡,自己上面的里程碑規則就不會生效(規則統一以目標商品為準);留空=用自己的規則、不共用</span></label>
