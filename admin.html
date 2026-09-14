@@ -2032,19 +2032,15 @@ function fetchWithTimeout_(url, timeoutMs) {
 // 🌟 理由跟 index.html 的 pollInstrumentedActionResult_ 完全一樣:GAS本身回應可能拖很久,但伺服器端往往
 // 早就做完了,只是回應沒送達——改用Worker主動輪詢「兌換紀錄」表M欄補救查詢。接受shouldStop檢查函式,
 // 外層已經有答案了就提早停止,避免浪費Sheets API配額(整個服務帳戶共用,不是每個人各自有額度)。
-async function pollAdminActionResult_(discordId, actionType, sinceMs, shouldStop, onProgress) {
+async function pollAdminActionResult_(discordId, actionType, sinceMs, shouldStop) {
   await sleep_(600);
   for (let i = 0; i < 40; i++) {
     if (shouldStop && shouldStop()) return null;
     try {
       const res = await fetch(`${DASHBOARD_WORKER_URL}?action=checkRecentActionResult&discordId=${discordId}&actionType=${actionType}&sinceTs=${sinceMs}&accessToken=${encodeURIComponent(localStorage.getItem('admin_dc_access_token') || '')}`);
       const data = await res.json();
-      if (onProgress) onProgress(i + 1, data.status === 'success' ? (data.found ? 'found' : 'not_found') : 'error', data);
       if (data.status === 'success' && data.found && data.result) return data.result;
-    } catch (e) {
-      if (onProgress) onProgress(i + 1, 'fetch_error', null);
-      /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */
-    }
+    } catch (e) { /* 單次輪詢失敗不中斷,繼續下一次重試,反正還有GAS本身那條路線在跑 */ }
     await sleep_(600);
   }
   return null;
@@ -2090,17 +2086,6 @@ async function api(params) {
       resolve({ status: 'error', message: '⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。' });
     }
 
-    // 🌟 除錯用:輪詢進度顯示在畫面右下角一個小提示框,不用開發者工具就能看到實際發生什麼事
-    // (例如:輪詢真的有在跑、每次查詢的結果是什麼)。等確認問題排除後,這段可以拿掉。
-    let debugBox = document.getElementById('poll-debug-box');
-    if (!debugBox) {
-      debugBox = document.createElement('div');
-      debugBox.id = 'poll-debug-box';
-      debugBox.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#202225;color:#B9BBBE;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;z-index:9999;max-width:280px;line-height:1.6';
-      document.body.appendChild(debugBox);
-    }
-    debugBox.textContent = `[輪詢除錯] action=${params.action} 開始輪詢...`;
-
     fetchWithTimeout_(url, ADMIN_ACTION_TIMEOUT_MS)
       .then(res => res.json())
       .then(data => { if (!settled) finishFromGas_(data); })
@@ -2109,23 +2094,11 @@ async function api(params) {
         // 🌟🔧 修正bug:不管是逾時(AbortError)還是其他連線錯誤,都不能直接判定失敗——GAS那邊完全有可能
         // 其實已經處理完成了,只是「回應送回來」這段路程剛好出了網路問題。兩種情況都應該交給輪詢機制
         // 去確認「兌換紀錄」裡有沒有出現這筆結果,只有輪詢也找不到的時候才真的判定失敗。
-        debugBox.textContent = `[輪詢除錯] GAS直接回應失敗(${err && err.name || '未知錯誤'}),等輪詢...`;
         gasDone = true;
         checkBothGaveUp_();
       });
 
-    pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled, (attempt, status, rawData) => {
-      let detail = '';
-      if (rawData && rawData.debugInfo) {
-        const di = rawData.debugInfo;
-        detail = `\n共查${di.checkedRows}列,discordId對上${di.didMatchCount}筆,標籤也對上${di.markerMatchCount}筆`;
-        if (di.closestReject) {
-          detail += `\n最接近的一筆:原始日期值=${di.closestReject.rawDate},解析後ts=${di.closestReject.parsedTs}`;
-          detail += `\nsinceTs=${di.closestReject.sinceTs}(含容許值=${di.closestReject.sinceTsWithTolerance})`;
-        }
-      }
-      debugBox.textContent = `[輪詢除錯] action=${params.action}\n第${attempt}次查詢:${status}${detail}\nmy discordId=${discordId}`;
-    }).then(result => {
+    pollAdminActionResult_(discordId, params.action, requestStartMs, () => settled).then(result => {
       if (settled) return;
       if (result) { finishFromPoll_(result); return; }
       pollDone = true;
