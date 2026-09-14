@@ -2030,6 +2030,9 @@ const WRITE_ADMIN_ACTIONS_ = new Set([
   'adminAddBingoActivity', 'adminUpdateBingoActivity', 'adminDeleteBingoActivity',
   'adminResetBingoCards', 'adminGiveBingoNumber', 'adminAdjustPlayerCurrency',
   'adminBatchDeleteAuctions', 'adminBatchSetAuctionStatus', 'adminBatchCloseAuctions',
+  'adminSaveItemTemplate', 'adminDeleteItemTemplate', 'adminDuplicateItemTemplate',
+  'adminGrantGeneralItem', 'adminSaveRedeemCode', 'adminDeleteRedeemCode',
+  'adminDuplicateRedeemCode', 'adminResetPlayerRedemption',
 ]);
 const ADMIN_ACTION_TIMEOUT_MS = 25000;
 function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
