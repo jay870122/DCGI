@@ -2172,11 +2172,12 @@ async function loadMeta() {
 
   const sc = document.getElementById('sc-list');
   d.shopCategories.forEach(c => { const o=document.createElement('option'); o.value=c; sc.appendChild(o); });
-  document.getElementById('shop-cat-filter').innerHTML = '<option value="">全部分類</option>' + d.shopCategories.map(c => `<option>${c}</option>`).join('');
+  // 🌟 篩選器只顯示「真的有商品」的分類,不要把還沒放商品的空分類也列進來
+  document.getElementById('shop-cat-filter').innerHTML = '<option value="">全部分類</option>' + (d.shopCategoriesWithItems || d.shopCategories).map(c => `<option>${c}</option>`).join('');
 
   const ac = document.getElementById('ac-list');
   d.auctionCategories.forEach(c => { const o=document.createElement('option'); o.value=c; ac.appendChild(o); });
-  document.getElementById('auction-cat-filter').innerHTML = '<option value="">全部分類</option>' + d.auctionCategories.map(c => `<option>${c}</option>`).join('');
+  document.getElementById('auction-cat-filter').innerHTML = '<option value="">全部分類</option>' + (d.auctionCategoriesWithItems || d.auctionCategories).map(c => `<option>${c}</option>`).join('');
 
   // 🌟 限定身分組:任一/全部/其中N個 模式選單 — 切換時顯示或隱藏「N個」的數字輸入框
   ['ns-role','na-role','em-role','ea-role'].forEach(prefix => {
