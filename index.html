@@ -396,6 +396,9 @@
 
     <div id="loading" style="text-align: center;">
       <p id="loading-text" style="font-size: 18px;">⏳ 正在連線至資料庫...</p>
+      <div id="loading-progress-wrap" style="display:none;width:80%;max-width:320px;margin:12px auto 0;background:#2C2F33;border-radius:6px;overflow:hidden;height:8px">
+        <div id="loading-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#5865F2,#43B581);transition:width 0.3s linear"></div>
+      </div>
     </div>
 
     <div id="dashboard">
@@ -1560,6 +1563,34 @@
     }
     const BINGO_ITEM_USE_TIMEOUT_MS = 25000; // 🌟 GAS本身的逾時上限
     function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    // 🌟 購買/兌換這類需要等賽跑架構跑完的操作,用時間估算進度條(不是真的知道GAS什麼時候會完成,
+    // 只是給玩家一個「有在動、還要等多久」的視覺回饋)。expectedMs抓一個合理的預期時間,超過的話進度條
+    // 停在95%不會滿(避免看起來像卡住,又不會在真的完成前就先跳到100%)。
+    let _loadingProgressTimer = null;
+    function startLoadingProgress_(expectedMs) {
+      const wrap = document.getElementById('loading-progress-wrap');
+      const bar = document.getElementById('loading-progress-bar');
+      if (!wrap || !bar) return;
+      wrap.style.display = 'block';
+      bar.style.width = '0%';
+      const startTime = Date.now();
+      stopLoadingProgress_(false); // 🌟 防呆:萬一忘記清上一次的計時器,先清掉再開新的
+      _loadingProgressTimer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(95, (elapsed / expectedMs) * 100);
+        bar.style.width = pct + '%';
+      }, 200);
+    }
+    function stopLoadingProgress_(hide = true) {
+      if (_loadingProgressTimer) { clearInterval(_loadingProgressTimer); _loadingProgressTimer = null; }
+      if (hide) {
+        const wrap = document.getElementById('loading-progress-wrap');
+        const bar = document.getElementById('loading-progress-bar');
+        if (bar) bar.style.width = '100%'; // 🌟 完成的瞬間讓它跑滿,視覺上比較有「完成了」的感覺
+        if (wrap) setTimeout(() => { wrap.style.display = 'none'; }, 300);
+      }
+    }
 
     // 🌟🔧 核心設計:「使用道具/抽號/重抽/重開」送出後,不是死等GAS本身的HTTP回應——GAS Web App沒有真正的
     // 請求佇列,回應可能拖很久甚至逾時,但伺服器端往往還是有把事情做完,只是「回應」沒送達而已。這裡改成讓
@@ -3605,6 +3636,8 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
+      startLoadingProgress_(5000); // 🌟 預期時間抓5秒(實測GAS平均執行時間),超過的話進度條停在95%不會滿
+
 
       // 🌟🔧 修正重要缺口:購買是全站最常用的功能,但這裡原本完全沒有套用賽跑架構,只是單純的fetch()
       // 乾等GAS原始回應——沒有逾時保護、沒有輪詢備援。GAS本身回應延遲是這整個系統從頭到尾都在處理的
@@ -3618,6 +3651,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       }
       function finishError_(msg) {
         if (settled) return; settled = true;
+        stopLoadingProgress_();
         alert(msg);
         document.getElementById('loading').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
@@ -3648,6 +3682,7 @@ function fetchScoresAndShop(discordId, callback = null) {
 
     // 🌟 購買結果的完整處理邏輯,抽成共用函式,不管結果是GAS直接回應的、還是輪詢查到的,都走同一套處理。
     function handleBuyResult_(data, itemId, itemName, safeId, maxQty, currencyName) {
+        stopLoadingProgress_(); // 🌟 不管接下來走哪個分支,結果出來了就該停止進度條
         if(data.status === "success") {
           let successMsg = "✅ 兌換處理完成！";
           if (data.cost !== undefined && data.cost > 0) {
