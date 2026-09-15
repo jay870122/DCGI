@@ -3227,7 +3227,7 @@ function fetchScoresAndShop(discordId, callback = null) {
                   : `⬜ 全站累積 ${m.currentGlobalTotal} / ${m.count} 次,達標後開放領獎按鈕`)
               : m.repeat
               ? `🔁 每累積 ${m.count} 次觸發一次${(m.rangeStart !== null && m.rangeStart !== undefined) ? `（限第${m.rangeStart}~${m.rangeEnd}次）` : ''}（已觸發過 ${m.timesTriggered} 次）`
-              : (m.achieved ? `✅ 已達成（累積第 ${m.count} 次）` : `⬜ 尚未達成（累積第 ${m.count} 次）`);
+              : (m.achieved ? `✅ 已達成（累積第 ${m.count} 次）` : `⬜ 尚未達成（目前 ${m.currentTotal} / ${m.count} 次）`);
             const stockText = (m.stock !== null && m.stock !== undefined) ? `　剩 ${m.stock} 份` : '';
             const exhaustedText = m.exhausted ? `　<span style="color:#ED4245">(已發完)</span>` : '';
             let poolHtml = '';
