@@ -3222,7 +3222,9 @@ function fetchScoresAndShop(discordId, callback = null) {
               ? `<span style="background:#5865F2;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">🏆 全體領獎(個人門檻${m.claimPersonalReq}${m.claimLimit !== null ? `,名額${m.claimLimit},剩餘${Math.max(0, m.claimLimit - (m.claimedCount || 0))}` : ',不限名額'})</span>`
               : `<span style="background:#40444B;color:#CCC;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">👤 個人</span>`;
             const statusText = m.mode === 'global_claim'
-              ? `🏆 全站累積達第 ${m.count} 次時開放領獎按鈕`
+              ? (m.currentGlobalTotal >= m.count
+                  ? `🏆 全站累積已達第 ${m.count} 次,已開放領獎按鈕（目前全站累積 ${m.currentGlobalTotal} 次）`
+                  : `⬜ 全站累積 ${m.currentGlobalTotal} / ${m.count} 次,達標後開放領獎按鈕`)
               : m.repeat
               ? `🔁 每累積 ${m.count} 次觸發一次（已觸發過 ${m.timesTriggered} 次）`
               : (m.achieved ? `✅ 已達成（累積第 ${m.count} 次）` : `⬜ 尚未達成（累積第 ${m.count} 次）`);
