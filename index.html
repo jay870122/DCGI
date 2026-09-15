@@ -3215,7 +3215,15 @@ function fetchScoresAndShop(discordId, callback = null) {
         let milestoneListHtml = "";
         if (item.milestones && item.milestones.length > 0) {
           const entries = item.milestones.map(m => {
-            const statusText = m.repeat
+            // 🌟 模式標示:讓玩家清楚分辨這條規則是算「自己」還是「全站」的累積次數
+            const modeTag = m.mode === 'global_auto'
+              ? `<span style="background:#F0B232;color:#000;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">🌍 全體(先搶先贏)</span>`
+              : m.mode === 'global_claim'
+              ? `<span style="background:#5865F2;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">🏆 全體領獎(個人門檻${m.claimPersonalReq}${m.claimLimit !== null ? `,名額${m.claimLimit}` : ',不限名額'})</span>`
+              : `<span style="background:#40444B;color:#CCC;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">👤 個人</span>`;
+            const statusText = m.mode === 'global_claim'
+              ? `🏆 全站累積達第 ${m.count} 次時開放領獎按鈕`
+              : m.repeat
               ? `🔁 每累積 ${m.count} 次觸發一次（已觸發過 ${m.timesTriggered} 次）`
               : (m.achieved ? `✅ 已達成（累積第 ${m.count} 次）` : `⬜ 尚未達成（累積第 ${m.count} 次）`);
             const stockText = (m.stock !== null && m.stock !== undefined) ? `　剩 ${m.stock} 份` : '';
@@ -3232,7 +3240,8 @@ function fetchScoresAndShop(discordId, callback = null) {
                 }).join('') + `</div>`;
             }
             return `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #40444B">
-                <div style="color:#FEE75C;font-size:12px">${statusText}${stockText}${exhaustedText}</div>
+                <div>${modeTag}</div>
+                <div style="color:#FEE75C;font-size:12px;margin-top:2px">${statusText}${stockText}${exhaustedText}</div>
                 <div style="color:#CCC;font-size:12px;margin-top:2px">🎁 ${m.rewardText}</div>
                 ${poolHtml}
               </div>`;
@@ -3378,7 +3387,11 @@ function fetchScoresAndShop(discordId, callback = null) {
               ` : `📦 庫存：${item.limits.baseStock}`}
               ${limitsHtml}
               ${gachaHtml}
-              ${item.nextMilestone ? `<div style="color:#FEE75C;font-size:12px;margin-top:6px">🏆 ${item.nextMilestone.repeat ? '(重複)' : ''}累積兌換過 ${item.personalTotalPurchased} 次,再兌換 ${item.nextMilestone.count - item.personalTotalPurchased} 次(達第 ${item.nextMilestone.count} 次)可額外獲得：${item.nextMilestone.rewardText}${(item.nextMilestone.stock !== null && item.nextMilestone.stock !== undefined) ? `(僅剩 ${item.nextMilestone.stock} 份)` : ''}${item.milestoneSharedFrom ? `<br>💠 這個進度跟「${item.milestoneSharedFrom}」共用,買那個商品也會一起累積喔！` : ''}</div>` : ''}
+              ${item.nextMilestone ? (() => {
+                const nmTotal = item.nextMilestone.mode === 'global_auto' ? item.globalTotalPurchased : item.personalTotalPurchased;
+                const nmTag = item.nextMilestone.mode === 'global_auto' ? '🌍 全體(先搶先贏) ' : '';
+                return `<div style="color:#FEE75C;font-size:12px;margin-top:6px">🏆 ${nmTag}${item.nextMilestone.repeat ? '(重複)' : ''}累積兌換過 ${nmTotal} 次,再兌換 ${item.nextMilestone.count - nmTotal} 次(達第 ${item.nextMilestone.count} 次)可額外獲得：${item.nextMilestone.rewardText}${(item.nextMilestone.stock !== null && item.nextMilestone.stock !== undefined) ? `(僅剩 ${item.nextMilestone.stock} 份)` : ''}${item.milestoneSharedFrom ? `<br>💠 這個進度跟「${item.milestoneSharedFrom}」共用,買那個商品也會一起累積喔！` : ''}</div>`;
+              })() : ''}
               ${milestonePoolHtml}
               ${milestoneListHtml}
             </div>
