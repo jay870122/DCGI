@@ -3219,7 +3219,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             const modeTag = m.mode === 'global_auto'
               ? `<span style="background:#F0B232;color:#000;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">🌍 全體(先搶先贏)</span>`
               : m.mode === 'global_claim'
-              ? `<span style="background:#5865F2;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">🏆 全體領獎(個人門檻${m.claimPersonalReq}${m.claimLimit !== null ? `,名額${m.claimLimit}` : ',不限名額'})</span>`
+              ? `<span style="background:#5865F2;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">🏆 全體領獎(個人門檻${m.claimPersonalReq}${m.claimLimit !== null ? `,名額${m.claimLimit},剩餘${Math.max(0, m.claimLimit - (m.claimedCount || 0))}` : ',不限名額'})</span>`
               : `<span style="background:#40444B;color:#CCC;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:4px">👤 個人</span>`;
             const statusText = m.mode === 'global_claim'
               ? `🏆 全站累積達第 ${m.count} 次時開放領獎按鈕`
