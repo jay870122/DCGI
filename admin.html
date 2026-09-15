@@ -3873,6 +3873,10 @@ function renderMilestonePreview(textareaId, previewId) {
         const bpDesc = describeBingoBackpackTag_(p.varName);
         const giDesc = describeGeneralItemTag_(p.varName);
         const nameDisplay = bpDesc || giDesc || p.dispName;
+        // 🌟🔧 修正缺漏:之前只顯示顯示名稱,沒有顯示實際要發放的變數是什麼——如果顯示名稱跟變數名稱
+        // 不一樣(例如打錯格式、整段被誤判成一個變數名稱),管理員完全看不出來哪裡有問題。跟一般盲盒
+        // 預覽(renderGachaPreviewToBox_)保持一致,變數名稱不同於顯示名稱時額外標示出來。
+        if (!bpDesc && !giDesc && p.varName !== p.dispName) bits.push(`變數:${p.varName}`);
         return `<div style="padding-left:18px;color:${bad?'#ED4245':'#B9BBBE'}">- ${nameDisplay}　${bits.join('　')}</div>`;
       }).join('');
       let poolSummary;
