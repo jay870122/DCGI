@@ -4072,8 +4072,11 @@ function fetchScoresAndShop(discordId, callback = null) {
     }
 
     function shareItem(itemId, itemName) {
-      const baseUrl = window.location.origin + window.location.pathname;
-      const shareUrl = `${baseUrl}?item=${itemId}`;
+      // 🌟🔧 改成用Worker的/share端點,而不是直接分享商店網址——直接分享商店網址的話,Discord抓不到
+      // 商品資訊(是SPA,爬蟲看不到JS動態載入的內容),只會顯示很陽春的通用預覽。/share端點是Worker
+      // 動態組出來給爬蟲看的,會顯示商品名稱/價格/庫存/內容物一覽等豐富資訊;一般玩家點擊時則會自動
+      // 轉址到真正的商店頁面,體驗不受影響。
+      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?item=${itemId}`;
       
       // 建立隱藏輸入框來執行複製動作
       const tmp = document.createElement("input");
