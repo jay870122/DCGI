@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跑Online BOSS 傷害與算式計算器</title>
+    <title>跑Online BOSS 傷害計算器</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -35,7 +35,7 @@
             margin-bottom: 5px;
             color: #555;
         }
-        input[type="number"], select {
+        input[type="number"] {
             width: 100%;
             padding: 10px;
             border: 1px solid #ccc;
@@ -95,7 +95,7 @@
 <body>
 
 <div class="container">
-    <h2>跑Online BOSS 傷害與算式計算器</h2>
+    <h2>跑Online BOSS 傷害計算器</h2>
     
     <div class="input-group">
         <label for="allBoss">所有王怪附加傷害 (%)</label>
@@ -108,14 +108,11 @@
     </div>
 
     <div class="input-group">
-        <label for="furyMult">憤怒狀態倍率</label>
-        <select id="furyMult">
-            <option value="2" selected>2 倍 (現行版本 / 攻擊力 200)</option>
-            <option value="3">3 倍 (舊版本 / 攻擊力 300)</option>
-        </select>
+        <label for="furyAdd">憤怒額外加成傷害</label>
+        <input type="number" id="furyAdd" value="200" placeholder="預設 +200">
     </div>
 
-    <button onclick="calculate()">計算並顯示完整算式</button>
+    <button onclick="calculate()">計算傷害與顯示算式</button>
 
     <div class="result-box" id="result" style="display:none;">
         <div class="result-item">
@@ -141,17 +138,16 @@
         // 取得輸入值
         const allBoss = parseFloat(document.getElementById('allBoss').value) || 0;
         const specificBoss = parseFloat(document.getElementById('specificBoss').value) || 0;
-        const furyMult = parseFloat(document.getElementById('furyMult').value);
+        const furyAdd = parseFloat(document.getElementById('furyAdd').value) || 0;
 
         // 計算總王傷
         const totalPercent = allBoss + specificBoss;
         const decimalRate = (totalPercent / 100).toFixed(2);
         const multiplier = 1 + (totalPercent / 100);
 
-        // 計算實際傷害
+        // 計算實際傷害 (憤怒改為獨立 +200)
         const normalDamage = Math.round(100 * multiplier);
-        const furyBase = 100 * furyMult;
-        const furyDamage = Math.round(furyBase * multiplier);
+        const furyDamage = normalDamage + furyAdd;
 
         // 填入簡要結果
         document.getElementById('totalRate').innerText = totalPercent + '%';
@@ -163,12 +159,10 @@
             <strong>📐 詳細計算過程：</strong><br>
             1. 總王傷加成：<br>
                ${allBoss}% + ${specificBoss}% = <b>${totalPercent}%</b> (${decimalRate})<br><br>
-            2. 未憤怒傷害 (基礎 100)：<br>
-               100 × (1 + ${decimalRate})<br>
-               = 100 × ${multiplier.toFixed(2)} = <b>${normalDamage}</b><br><br>
-            3. 憤怒傷害 (基礎 ${furyBase})：<br>
-               ${furyBase} × (1 + ${decimalRate})<br>
-               = ${furyBase} × ${multiplier.toFixed(2)} = <b>${furyDamage}</b>
+            2. 未憤怒傷害 (基礎 100 × 王傷倍率)：<br>
+               100 × (1 + ${decimalRate}) = <b>${normalDamage}</b><br><br>
+            3. 憤怒傷害 (基礎王傷 + 憤怒固定加成)：<br>
+               ${normalDamage} + ${furyAdd} = <b>${furyDamage}</b>
         `;
 
         document.getElementById('formulaDetail').innerHTML = formulaHtml;
