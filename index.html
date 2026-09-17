@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.1</div>
+    <div class="version-tag">系統版本：v5.4.2</div>
   </div>
 
   <script>
@@ -4058,8 +4058,9 @@ function fetchScoresAndShop(discordId, callback = null) {
     }
 
     function shareAuction(auctionId, auctionName) {
-      const baseUrl = window.location.origin + window.location.pathname;
-      const shareUrl = `${baseUrl}?auction=${auctionId}`;
+      // 🌟🔧 改成跟shareItem一樣,用Worker的/share端點(帶auction參數)而不是直接分享商店網址,
+      // 這樣Discord貼上連結時才抓得到拍賣名稱/目前最高出價/截止時間等預覽卡片內容(SPA直連的話爬蟲看不到動態內容)。
+      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?auction=${auctionId}`;
 
       const tmp = document.createElement("input");
       tmp.value = shareUrl;
