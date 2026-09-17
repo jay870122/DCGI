@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.4</div>
+    <div class="version-tag">系統版本：v5.4.6</div>
   </div>
 
   <script>
@@ -730,6 +730,18 @@
         }
       });
       sidebar.innerHTML = bingoEntryHtml + html;
+      // 🌟🆕 手機版側邊欄會變成橫向的一排分類條,不管是滑動切換、點擊分類、還是分享連結跳轉過來的,
+      // 都要讓目前選中的分類自動捲動置中,不然使用者切到旁邊的分類卻看不到自己選中了哪一個。
+      // 用requestAnimationFrame等這次innerHTML真的畫出來、有版面資訊之後再捲動,不然位置會抓到舊的。
+      requestAnimationFrame(() => centerActiveCategoryTab_('category-sidebar'));
+    }
+    // 🌟 把指定容器裡「目前選中」(class=active)的分類項目捲動到可視範圍正中間;拍賣分類標籤列跟商店側邊欄共用這個函式。
+    function centerActiveCategoryTab_(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const active = container.querySelector('.active');
+      if (!active) return;
+      active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
     // 🌟 點擊父分類標題(或旁邊的箭頭)手動展開/收合底下的子分類,只影響這一個父分類,不會連動收掉其他的
     // (自動把「其他」父分類收起來的手風琴效果是在 selectCategory 切換分類時觸發,這裡只是單純開關)
@@ -2623,6 +2635,8 @@
           }
         });
         tabsEl.innerHTML = tabsHtml;
+        // 🌟🆕 拍賣分類標籤列理由跟商店側邊欄一致:切換分類時要自動把目前選中的標籤捲動置中
+        requestAnimationFrame(() => centerActiveCategoryTab_('auction-category-tabs'));
       } else {
         tabsEl.style.display = 'none';
       }
@@ -4136,6 +4150,89 @@ function fetchScoresAndShop(discordId, callback = null) {
 
       alert(`🔗 已複製拍賣分類【${catName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！\n\n💡 這次複製的連結是全新的(避免Discord快取舊預覽卡片),如果分類內容之後又有更新,重新按一次這個按鈕再貼一次新連結,才會顯示最新資訊。`);
     }
+
+    // 🌟🆕 手機版:商品列表/拍賣列表左右滑動可以直接切換到上一個/下一個分類,不用特地滑回頂端點側邊欄或分類標籤。
+    // 只在觸控裝置上生效(用touch事件偵測,滑鼠拖曳不會觸發),而且要求滑動角度夠水平才算數,避免使用者只是
+    // 正常上下捲動內容時被誤判成切換分類。
+
+    // 🌟 商店分類的完整排序清單:跟renderSidebar()裡建立側邊欄項目用的是同一套分組/排序/隱藏規則,
+    // 這樣滑動切換到的下一個分類,一定是使用者在側邊欄上實際看得到、點得到的那個,不會滑進被完全隱藏的分類。
+    function getOrderedShopCategories() {
+      const visibleShopItems = currentShopItems.filter(shouldShowLinkOnlyItem);
+      const categories = Array.from(new Set(visibleShopItems.map(item => item.category)));
+      const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
+      const groups = buildCategoryGroups(categories, getOrderIndex);
+      const flat = [];
+      groups.forEach(g => {
+        if (g.type === 'flat') { flat.push(g.cat); }
+        else { if (g.selfCat) flat.push(g.selfCat); g.children.forEach(c => flat.push(c.cat)); }
+      });
+      return flat.filter(cat => {
+        if (cat === currentCategory) return true; // 目前所在的分類一定要留著,不然找不到自己的位置
+        const sample = visibleShopItems.find(i => i.category === cat);
+        const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(cat);
+        const isHideFromSidebar = locked && (!sample.categoryLockVisibility || sample.categoryLockVisibility === '') && sample.categoryLockShowHint === 'HIDE';
+        return !isHideFromSidebar;
+      });
+    }
+
+    // 🌟 拍賣分類的完整排序清單,理由跟getOrderedShopCategories()一致;拍賣分類沒有「鎖定/隱藏」的機制,所以不用另外過濾。
+    function getOrderedAuctionCategories() {
+      const allCategories = Array.from(new Set(currentAuctions.map(a => a.category || '未分類')));
+      const getOrderIndex = (cat) => getCategoryOrderIndex(cat, AUCTION_CATEGORY_ORDER);
+      const groups = buildCategoryGroups(allCategories, getOrderIndex);
+      const flat = [];
+      groups.forEach(g => {
+        if (g.type === 'flat') { flat.push(g.cat); }
+        else { if (g.selfCat) flat.push(g.selfCat); g.children.forEach(c => flat.push(c.cat)); }
+      });
+      return flat;
+    }
+
+    // 🌟 通用的「切到上一個/下一個分類」邏輯,direction傳1(下一個)或-1(上一個)
+    function swipeToAdjacentCategory(direction, getList, getCurrent, selectFn) {
+      const list = getList();
+      if (list.length < 2) return; // 只有一個分類的話,滑動也沒地方可以滑過去
+      let idx = list.indexOf(getCurrent());
+      if (idx === -1) idx = 0;
+      idx = (idx + direction + list.length) % list.length; // 滑到底/滑到頭會循環回另一端
+      selectFn(list[idx]);
+    }
+
+    // 🌟 幫指定容器加上左右滑動偵測。用touchstart記錄起點、touchend算位移量:
+    // 水平位移要夠大(SWIPE_MIN_DISTANCE_PX)、而且要比垂直位移明顯更大(避免跟上下捲動內容衝突),才判定成切換分類的滑動手勢。
+    function attachCategorySwipe_(containerId, onSwipeNext, onSwipePrev) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const SWIPE_MIN_DISTANCE_PX = 60;
+      let touchStartX = 0, touchStartY = 0, touchActive = false;
+      el.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) { touchActive = false; return; }
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchActive = true;
+      }, { passive: true });
+      el.addEventListener('touchend', (e) => {
+        if (!touchActive) return;
+        touchActive = false;
+        const touch = e.changedTouches[0];
+        if (!touch) return;
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE_PX) return; // 滑動距離太短,不當作換分類手勢
+        if (Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return; // 角度太斜(比較像在上下捲動),忽略
+        if (deltaX < 0) onSwipeNext(); else onSwipePrev();
+      }, { passive: true });
+    }
+
+    window.addEventListener('load', () => {
+      attachCategorySwipe_('shop-list',
+        () => swipeToAdjacentCategory(1, getOrderedShopCategories, () => currentCategory, selectCategory),
+        () => swipeToAdjacentCategory(-1, getOrderedShopCategories, () => currentCategory, selectCategory));
+      attachCategorySwipe_('auction-list-container',
+        () => swipeToAdjacentCategory(1, getOrderedAuctionCategories, () => currentAuctionCategory, selectAuctionCategory),
+        () => swipeToAdjacentCategory(-1, getOrderedAuctionCategories, () => currentAuctionCategory, selectAuctionCategory));
+    });
   </script>
 </body>
 </html>
