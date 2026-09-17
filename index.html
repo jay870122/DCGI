@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.2</div>
+    <div class="version-tag">系統版本：v5.4.3</div>
   </div>
 
   <script>
@@ -4060,7 +4060,11 @@ function fetchScoresAndShop(discordId, callback = null) {
     function shareAuction(auctionId, auctionName) {
       // 🌟🔧 改成跟shareItem一樣,用Worker的/share端點(帶auction參數)而不是直接分享商店網址,
       // 這樣Discord貼上連結時才抓得到拍賣名稱/目前最高出價/截止時間等預覽卡片內容(SPA直連的話爬蟲看不到動態內容)。
-      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?auction=${auctionId}`;
+      // 🌟🆕 每次複製都加一段隨機亂碼(&r=xxxxxx)當作快取破壞參數:Discord會把同一個網址的預覽卡片快取住,
+      // 拍賣價格更新後重貼同一個網址還是顯示舊資料;網址結尾不一樣,Discord才會當成新連結重新抓一次最新狀態。
+      // Worker那邊只看auction參數,多帶的r參數不影響運作。
+      const cacheBuster = Math.random().toString(36).slice(2, 8);
+      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?auction=${auctionId}&r=${cacheBuster}`;
 
       const tmp = document.createElement("input");
       tmp.value = shareUrl;
@@ -4069,7 +4073,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.execCommand("copy");
       document.body.removeChild(tmp);
 
-      alert(`🔗 已複製拍賣【${auctionName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
+      alert(`🔗 已複製拍賣【${auctionName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！\n\n💡 這次複製的連結是全新的(避免Discord快取舊預覽卡片),如果拍賣狀態之後又有更新,重新按一次這個按鈕再貼一次新連結,才會顯示最新資訊。`);
     }
 
     function shareItem(itemId, itemName) {
@@ -4077,7 +4081,10 @@ function fetchScoresAndShop(discordId, callback = null) {
       // 商品資訊(是SPA,爬蟲看不到JS動態載入的內容),只會顯示很陽春的通用預覽。/share端點是Worker
       // 動態組出來給爬蟲看的,會顯示商品名稱/價格/庫存/內容物一覽等豐富資訊;一般玩家點擊時則會自動
       // 轉址到真正的商店頁面,體驗不受影響。
-      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?item=${itemId}`;
+      // 🌟🆕 每次複製都加一段隨機亂碼(&r=xxxxxx)當作快取破壞參數,理由跟shareAuction一致:
+      // 商品改價格/補庫存後,重貼同一個網址Discord還是會顯示舊的快取預覽,網址結尾不一樣才會強制重新抓。
+      const cacheBuster = Math.random().toString(36).slice(2, 8);
+      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?item=${itemId}&r=${cacheBuster}`;
       
       // 建立隱藏輸入框來執行複製動作
       const tmp = document.createElement("input");
@@ -4087,7 +4094,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.execCommand("copy");
       document.body.removeChild(tmp);
       
-      alert(`🔗 已複製商品【${itemName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
+      alert(`🔗 已複製商品【${itemName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！\n\n💡 這次複製的連結是全新的(避免Discord快取舊預覽卡片),如果商品之後又有更新,重新按一次這個按鈕再貼一次新連結,才會顯示最新資訊。`);
     }
 
     // 🌟 複製分類專屬網址 (新增)
