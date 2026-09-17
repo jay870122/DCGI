@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.3</div>
+    <div class="version-tag">系統版本：v5.4.4</div>
   </div>
 
   <script>
@@ -4101,8 +4101,10 @@ function fetchScoresAndShop(discordId, callback = null) {
     function shareCategory(event, catName) {
       event.stopPropagation(); // 避免觸發上層的 onclick 切換分類
       
-      const baseUrl = window.location.origin + window.location.pathname;
-      const shareUrl = `${baseUrl}?category=${encodeURIComponent(catName)}`;
+      // 🌟🔧 改用Worker的/share端點(帶category參數),才有預覽卡片(分類名稱、商品數量、每項的價格清單);
+      // 同樣加上隨機亂碼(&r=xxxxxx)避免Discord快取住舊的分類內容,理由跟shareItem/shareAuction一致。
+      const cacheBuster = Math.random().toString(36).slice(2, 8);
+      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?category=${encodeURIComponent(catName)}&r=${cacheBuster}`;
       
       const displayCatName = catName;
 
@@ -4114,14 +4116,15 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.execCommand("copy");
       document.body.removeChild(tmp);
 
-      alert(`🔗 已複製分類【${displayCatName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
+      alert(`🔗 已複製分類【${displayCatName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！\n\n💡 這次複製的連結是全新的(避免Discord快取舊預覽卡片),如果分類內容之後又有更新,重新按一次這個按鈕再貼一次新連結,才會顯示最新資訊。`);
     }
     // 🌟 複製拍賣分類專屬網址 (新增)
     function shareAuctionCategory(event, catName) {
       event.stopPropagation(); // 避免觸發上層的 onclick 切換分類
 
-      const baseUrl = window.location.origin + window.location.pathname;
-      const shareUrl = `${baseUrl}?auctionCategory=${encodeURIComponent(catName)}`;
+      // 🌟🔧 改用Worker的/share端點(帶auctionCategory參數),理由跟shareCategory一致
+      const cacheBuster = Math.random().toString(36).slice(2, 8);
+      const shareUrl = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?auctionCategory=${encodeURIComponent(catName)}&r=${cacheBuster}`;
 
       // 建立隱藏輸入框來執行複製動作
       const tmp = document.createElement("input");
@@ -4131,7 +4134,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.execCommand("copy");
       document.body.removeChild(tmp);
 
-      alert(`🔗 已複製拍賣分類【${catName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！`);
+      alert(`🔗 已複製拍賣分類【${catName}】的專屬連結！\n快去 Discord 貼上分享給大家吧！\n\n💡 這次複製的連結是全新的(避免Discord快取舊預覽卡片),如果分類內容之後又有更新,重新按一次這個按鈕再貼一次新連結,才會顯示最新資訊。`);
     }
   </script>
 </body>
