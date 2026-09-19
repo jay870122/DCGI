@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.6</div>
+    <div class="version-tag">系統版本：v5.4.7</div>
   </div>
 
   <script>
@@ -2109,22 +2109,42 @@
         </div>`;
       }).join('');
 
-      // 🌟 已用完/過期的道具(不能疊加、不能開,只能查看/清除)
-      const unusableHtml = unusableItems.map(it => {
+      // 🌟 已用完/過期/還沒到時間的道具(不能疊加、不能開,只能查看/清除)
+      const unusableHtml = unusableItems.map((it, uIdx) => {
         const isWaiting = it.usableFrom && new Date(it.usableFrom) > new Date();
         const waitHtml = isWaiting ? `<span style="color:#72767D;font-size:11px;display:block">🔒 ${new Date(it.usableFrom).toLocaleString()} 後才能打開</span>` : '';
         const isDeletable = !isWaiting;
+        // 🌟🔧 修正bug:限時道具(還沒到「可使用起始時間」的isWaiting)後端其實有把內容獎池(pool)一起傳回來,
+        // 但這裡原本完全沒有讀it.pool、也沒有組contentBoxHtml,導致玩家在道具解鎖之前完全看不到裡面會開出什麼——
+        // 跟上面「還能用」的道具卡片(groupsHtml)比對就會發現,只有那邊有渲染內容物一覽,這裡漏掉了。
+        // 只在「還在等待解鎖」的狀態下顯示內容預覽(讓玩家提早知道值不值得等);真的已經用完/過期的道具
+        // 沒有必要再讓玩家看內容,維持原本不顯示。
+        const uBoxId = `gi-unusable-pool-${uIdx}`;
+        let unusableContentBoxHtml = '';
+        if (isWaiting && it.pool && it.pool.length > 0) {
+          if (it.pool.length <= 3) {
+            unusableContentBoxHtml = buildGachaContentBoxHtml_(it.pool, "🎁 內容物一覽：");
+          } else {
+            unusableContentBoxHtml = `
+              <button onclick="toggleGeneralItemPoolBox_('${uBoxId}')" id="${uBoxId}-toggle" data-count="${it.pool.length}" style="background:none;border:none;color:#7289DA;font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline">▼ 展開查看內容物一覽(共${it.pool.length}項)</button>
+              <div id="${uBoxId}" style="display:none">${buildGachaContentBoxHtml_(it.pool, "🎁 內容物一覽：")}</div>
+            `;
+          }
+        }
         return `
-        <div style="background:#2F3136;border-radius:8px;padding:10px 12px;opacity:0.5;display:flex;justify-content:space-between;align-items:center">
-          <span style="display:flex;align-items:center;gap:6px">
-            ${isDeletable ? `<input type="checkbox" class="general-item-delete-checkbox" data-instance="${it.instanceId}" onchange="updateDeletableGeneralItemSelectedCount()">` : ''}
-            <span>
-              <b>${it.itemName}</b>
-              ${waitHtml}
-              ${it.unusableReason && !waitHtml ? `<span style="color:#ED4245;font-size:11px;display:block">${it.unusableReason}</span>` : ''}
+        <div style="background:#2F3136;border-radius:8px;padding:10px 12px;opacity:0.5">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span style="display:flex;align-items:center;gap:6px">
+              ${isDeletable ? `<input type="checkbox" class="general-item-delete-checkbox" data-instance="${it.instanceId}" onchange="updateDeletableGeneralItemSelectedCount()">` : ''}
+              <span>
+                <b>${it.itemName}</b>
+                ${waitHtml}
+                ${it.unusableReason && !waitHtml ? `<span style="color:#ED4245;font-size:11px;display:block">${it.unusableReason}</span>` : ''}
+              </span>
             </span>
-          </span>
-          <span style="color:#72767D;font-size:12px">${it.status === 'DEPLETED' ? '已用完' : '無法使用'}</span>
+            <span style="color:#72767D;font-size:12px;flex-shrink:0">${it.status === 'DEPLETED' ? '已用完' : '無法使用'}</span>
+          </div>
+          ${unusableContentBoxHtml}
         </div>`;
       }).join('');
 
