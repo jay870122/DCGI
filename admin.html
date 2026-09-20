@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.2</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.3</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2044,7 +2044,7 @@ const WRITE_ADMIN_ACTIONS_ = new Set([
   'adminUpdateShopItem', 'adminDeleteShopItem', 'adminBatchDeleteShopItems',
   'adminBatchSetShopItemStatus', 'adminBatchDrawShopRaffles', 'adminAddShopItem',
   'adminDuplicateShopItem', 'adminDuplicateAuction', 'adminAddAdminUser',
-  'adminRemoveAdminUser', 'adminUpdateAuction', 'adminCloseAuction',
+  'adminRemoveAdminUser', 'adminUpdateAuction', 'adminCloseAuction', 'adminReannounceAuctionWinner',
   'adminDeleteAuction', 'adminAddAuction', 'adminReorderShopItems',
   'adminReorderAuctions', 'adminSaveCategoryOrder', 'adminSaveCategoryLock',
   'adminAddUnlockCodes', 'adminAddRewardKeys', 'adminDeleteRewardKeys',
@@ -3330,6 +3330,7 @@ function renderAuctionTable() {
         <button class="btn btn-edit" onclick="openEditAuction('${i.auctionId}')">編輯</button>
         <button class="btn btn-edit" onclick="duplicateAuction('${i.auctionId}')">📋 複製</button>
         ${i.state==='open'?`<button class="btn btn-close" onclick="closeAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">關閉</button>`:''}
+        ${i.state==='ended'?`<button class="btn btn-edit" onclick="reannounceAuctionWinner('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')" title="結算已完成,補發一次得標公告">📢 重新公告</button>`:''}
         <button class="btn btn-del" onclick="delAuction('${i.auctionId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
       </div></td>
     </tr>`).join('');
@@ -3394,6 +3395,15 @@ async function closeAuction(id, name) {
   if (!confirm(`確定要手動關閉「${name}」嗎？關閉後下次定時結算會自動退款並通知得標者。`)) return;
   const d = await api({action:'adminCloseAuction', auctionId:id});
   if (d.status==='success') { toast('🔒 拍賣已關閉'); loadAuctionItems(); }
+  else toast('❌ '+d.message, false);
+}
+
+// 🌟 補發得標公告:給「已經結算完成」的拍賣用,萬一公告當下Discord那邊剛好出狀況沒發出去,
+// 不用重新結算整場拍賣,直接照原本結算時的內容重發一次就好
+async function reannounceAuctionWinner(id, name) {
+  if (!confirm(`確定要重新發送「${name}」的得標公告嗎？`)) return;
+  const d = await api({action:'adminReannounceAuctionWinner', auctionId:id});
+  if (d.status==='success') toast('📢 ' + d.message);
   else toast('❌ '+d.message, false);
 }
 
