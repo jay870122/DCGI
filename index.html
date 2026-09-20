@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.7</div>
+    <div class="version-tag">系統版本：v5.4.8</div>
   </div>
 
   <script>
@@ -2959,9 +2959,17 @@
 function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
 
-      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      // 🌟🔧 修正「有時候會卡在載入畫面很久」的問題:瀏覽器原生fetch沒有內建逾時,如果Worker那邊
+      // 剛好卡住(例如Cloudflare Worker冷啟動、Google試算表API一時回應變慢),畫面會一直停在
+      // 「載入中」,玩家不知道到底是壞了還是只是要多等一下。這裡加一個20秒的逾時保護,時間到就主動
+      // 中斷這次請求、顯示清楚的逾時訊息+重試按鈕,不要讓玩家無限期卡住不知道該怎麼辦。
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 20000);
+
+      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}`, { signal: abortController.signal })
       .then(res => res.json())
       .then(result => {
+        clearTimeout(timeoutId);
         if (result.status !== "success") {
           // 🌟 原本這裡只有 return,Worker 回傳失敗(例如試算表暫時讀取失敗、Google 認證過期、玩家資料格式異常等)
           // 時畫面會永遠停在「⏳ 載入分數與商店目錄...」不會有任何提示,也叫不出重整鈕。
@@ -3094,9 +3102,14 @@ function fetchScoresAndShop(discordId, callback = null) {
         }
       })
       .catch(err => {
+        clearTimeout(timeoutId);
         console.error("載入失敗:", err);
+        // 🌟 err.name === 'AbortError' 代表是我們自己主動逾時中斷的(伺服器那邊還沒回應),
+        // 跟一般的網路斷線/連線失敗分開顯示,玩家比較知道實際發生什麼事
+        const isTimeout = err && err.name === 'AbortError';
+        const msg = isTimeout ? '載入時間過長(伺服器可能忙碌中)，請重試' : '載入失敗，請稍後再試';
         document.getElementById('loading-text').innerHTML =
-          `❌ 載入失敗，請稍後再試<br><button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button>`;
+          `❌ ${msg}<br><button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button>`;
       });
     }
     function renderShop() {
