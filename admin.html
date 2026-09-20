@@ -237,15 +237,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="login-screen">
   <div class="login-card">
-    <h2>🛡️ 管理後台</h2>
-    <p>此工具僅限授權管理員使用。<br>請以 Discord 帳號登入，系統將自動驗證您的權限。</p>
-    <button class="btn-discord" onclick="loginWithDiscord()">🎮 以 Discord 登入</button>
+    <h2 id="login-title">🛡️ 管理後台</h2>
+    <p id="login-desc">此工具僅限授權管理員使用。<br>請以 Discord 帳號登入，系統將自動驗證您的權限。</p>
+    <button class="btn-discord" id="login-btn" onclick="loginWithDiscord()">🎮 以 Discord 登入</button>
   </div>
 </div>
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.4</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.6</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2028,18 +2028,36 @@ async function init() {
     // 玩家/管理員看起來就是「按登入沒反應、也不知道為什麼」。這裡補上明確的錯誤訊息,
     // 之後如果再卡住,畫面上會直接告訴你實際失敗原因,方便判斷是網路問題還是真的沒權限。
     ME = u;
+    // 🌟 這一步要打GAS查「管理員清單」工作表,第一次執行GAS常常要幾秒鐘才有回應,
+    // 不加提示的話畫面看起來就像卡住的登入畫面,讓人以為按登入沒反應。
+    const loginBtn = document.getElementById('login-btn');
+    const loginDesc = document.getElementById('login-desc');
+    const originalBtnHtml = loginBtn.innerHTML;
+    const originalDescHtml = loginDesc.innerHTML;
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '⏳ 驗證管理員身分中…';
+    loginDesc.innerHTML = '正在確認您的管理員權限,首次驗證可能需要 5~10 秒,請稍候。';
     let check;
     try {
-      check = await api({action:'adminGetMeta'});
+      // 🌟 改用 Worker 查(Google token跨isolate快取+直接查Sheets API),不再直接打GAS——
+      // GAS常常有幾秒的冷啟動延遲,Worker沒有這個問題,可以把登入卡在「驗證身分中」的時間縮短很多。
+      const verifyRes = await fetch(`${DASHBOARD_WORKER_URL}?action=adminVerify&discordId=${encodeURIComponent(u.id)}&accessToken=${encodeURIComponent(tok)}`);
+      check = await verifyRes.json();
     } catch (e) {
       alert('❌ 驗證管理員權限時發生錯誤(可能是網路問題或後端暫時異常),請稍後再試一次。\n錯誤訊息：' + (e && e.message ? e.message : e));
       ME = null;
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = originalBtnHtml;
+      loginDesc.innerHTML = originalDescHtml;
       return; // 🌟 不清掉token,讓使用者可以直接重新整理再試一次,不用重新走一次Discord登入
     }
     if (check.status !== 'success') {
       alert('❌ 您沒有管理員權限\n後端回應：' + (check.message || '未知原因(後端沒有回傳訊息)'));
       localStorage.removeItem('admin_dc_access_token');
       ME = null;
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = originalBtnHtml;
+      loginDesc.innerHTML = originalDescHtml;
       return;
     }
   }
