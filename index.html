@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.8</div>
+    <div class="version-tag">系統版本：v5.4.9</div>
   </div>
 
   <script>
@@ -3020,8 +3020,12 @@ function fetchScoresAndShop(discordId, callback = null) {
           // ==========================================
           // 🌟 管理員設定區塊
           // ==========================================
-          const ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444']; 
-          const isAdmin = ADMIN_IDS.includes(discordId);
+          // 🌟 改成直接採用後端(dashboard-worker.js)算好的 isAdmin,不再前端自己寫死3個固定ID。
+          // 原本這裡寫死的清單沒辦法反映後台「管理員管理」動態新增的管理員,導致新增的管理員在
+          // 這個網頁上還是被當一般玩家(看不到[隱藏]/[測試]商品)。保留舊的固定清單當作後端欄位
+          // 萬一缺漏時的備援,避免舊版後端還沒更新時整個判斷壞掉。
+          const FALLBACK_ADMIN_IDS = ['176681551189377024', '425655020017680395', '999888777666555444'];
+          const isAdmin = (typeof result.isAdmin === 'boolean') ? result.isAdmin : FALLBACK_ADMIN_IDS.includes(discordId);
           isAdminUser = isAdmin; // 🌟 存成全域變數,shouldShowLinkOnlyItem等其他地方也要用
 
           // 🌟 判斷：如果是管理員就保留，如果不是管理員就過濾掉 [隱藏] 商品
