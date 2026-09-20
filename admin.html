@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.3</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.4</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2023,9 +2023,25 @@ async function init() {
   }
   if (!ADMIN_IDS.includes(u.id)) {
     // 🌟 不在固定名單裡,可能是後台動態新增的管理員,交給後端(isAdmin_)再驗證一次
+    // 🔧 修正:原本這裡沒有try/catch,只要api()呼叫失敗(網路問題、GAS暫時異常、回應不是合法JSON等)
+    // 就會整個拋出例外、整個init()中斷執行——畫面上完全不會顯示任何錯誤,登入畫面卡住,
+    // 玩家/管理員看起來就是「按登入沒反應、也不知道為什麼」。這裡補上明確的錯誤訊息,
+    // 之後如果再卡住,畫面上會直接告訴你實際失敗原因,方便判斷是網路問題還是真的沒權限。
     ME = u;
-    const check = await api({action:'adminGetMeta'});
-    if (check.status !== 'success') { alert('❌ 您沒有管理員權限'); localStorage.removeItem('admin_dc_access_token'); ME = null; return; }
+    let check;
+    try {
+      check = await api({action:'adminGetMeta'});
+    } catch (e) {
+      alert('❌ 驗證管理員權限時發生錯誤(可能是網路問題或後端暫時異常),請稍後再試一次。\n錯誤訊息：' + (e && e.message ? e.message : e));
+      ME = null;
+      return; // 🌟 不清掉token,讓使用者可以直接重新整理再試一次,不用重新走一次Discord登入
+    }
+    if (check.status !== 'success') {
+      alert('❌ 您沒有管理員權限\n後端回應：' + (check.message || '未知原因(後端沒有回傳訊息)'));
+      localStorage.removeItem('admin_dc_access_token');
+      ME = null;
+      return;
+    }
   }
   ME = u;
   document.getElementById('ua-img').src = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`;
