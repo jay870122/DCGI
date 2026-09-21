@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.6</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.7</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1699,6 +1699,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="fsep">同時發放序號(選填) <span class="hint">這次勾選的每位玩家,每種序號都各發一組;不管下面「私訊通知」有沒有勾,序號一定會私訊給玩家</span></div>
       <div id="adjust-serial-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;grid-column:span 2"></div>
       <button class="btn-cancel" onclick="addAdjustSerialRow()" style="grid-column:span 2">➕ 新增一種序號</button>
+
+      <div class="fsep">同時發放道具禮包(選填) <span class="hint">可以加好幾種不同道具、各自填不同數量,整包一次發給這次勾選的每一位玩家(跟下面「私訊通知」「公開公告」共用同一組勾選)</span></div>
+      <div id="adjust-itemgrant-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;grid-column:span 2"></div>
+      <button class="btn-cancel" onclick="addAdjustItemGrantRow()" style="grid-column:span 2">➕ 新增一種道具</button>
 
       <div class="field full" style="margin-top:14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -4552,11 +4556,16 @@ async function openAdjustPanel() {
   document.getElementById('adjust-columns-container').innerHTML = '';
   addAdjustCurrencyColumn(); // 預設先放一種貨幣,省一次點擊
   document.getElementById('adjust-serial-container').innerHTML = '';
+  document.getElementById('adjust-itemgrant-container').innerHTML = '';
   document.getElementById('adjust-currency-modal').classList.add('open');
 
   // 🌟 抓序號庫摘要(名稱+剩餘可用數),給序號下拉選單用
   const d = await apiWorkerRead('adminKeyPoolSummary', {}, {action:'adminGetKeyPoolSummary'});
   pcKeyPools = (d.status === 'success') ? d.pools : [];
+
+  // 🌟 抓一份最新的道具模板清單,給「同時發放道具禮包」下拉選單用(不管有沒有先去道具管理頁面看過都會是最新的)
+  const dt = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' });
+  itemTemplates = (dt.status === 'success') ? (dt.templates || []) : [];
 }
 
 // 🌟 新增一種要發放的序號(下拉選單選對應名稱,選好之後即時顯示「預計發X組/剩X組可用」)
@@ -4593,6 +4602,24 @@ function updateAdjustSerialRow(rowId) {
 // 🌟 重新整理所有序號列的「預計發X組」顯示(勾選的玩家人數變了就要重算全部列)
 function refreshAllAdjustSerialRows() {
   document.querySelectorAll('#adjust-serial-container > div').forEach(row => updateAdjustSerialRow(row.id));
+}
+
+// 🌟 新增一種要發放的道具(下拉選單選模板+填數量),可以加好幾種組成一份「禮包」,一起發給這次勾選的所有玩家。
+// 跟序號那組是同樣的邏輯(對象=目前已勾選的玩家),不用另外選對象。
+function addAdjustItemGrantRow() {
+  if (itemTemplates.length === 0) { toast('目前還沒有任何道具模板,請先到「通用道具管理」頁面新增模板', false); return; }
+  const rowId = 'itemgrantrow_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  const row = document.createElement('div');
+  row.id = rowId;
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px';
+  row.innerHTML = `
+    <select class="adjitem-template" style="width:auto;flex:1;min-width:0">
+      ${itemTemplates.map(t => `<option value="${t.name}">${t.name}</option>`).join('')}
+    </select>
+    <input class="adjitem-quantity" type="number" min="1" value="1" style="width:70px;flex-shrink:0" placeholder="數量">
+    <button class="btn btn-del" onclick="document.getElementById('${rowId}').remove()">✕</button>
+  `;
+  document.getElementById('adjust-itemgrant-container').appendChild(row);
 }
 
 // 🌟 新增一種要調整的貨幣(每種貨幣一組「選貨幣+選模式」,底下的玩家表格會自動多一欄可以各自填金額)
@@ -4659,6 +4686,12 @@ function renderAdjustPlayerTable(keepValues) {
 async function confirmAdjustCurrency() {
   const serialKeyNames = Array.from(document.querySelectorAll('.adjserial-pool')).map(sel => sel.value).filter(Boolean);
 
+  // 🌟 組出「這份禮包要發哪幾種道具、各自數量多少」,對象統一是目前已勾選的玩家(跟序號發放共用同一份清單)
+  const itemGrants = Array.from(document.querySelectorAll('#adjust-itemgrant-container > div')).map(row => ({
+    templateName: row.querySelector('.adjitem-template').value,
+    quantity: parseInt(row.querySelector('.adjitem-quantity').value, 10) || 0,
+  })).filter(g => g.templateName && g.quantity > 0);
+
   // 🌟 組出「每個玩家各自要調整哪幾項、各自金額多少」的物件,留空的欄位不會被放進去
   const playerAdjustments = {};
   document.querySelectorAll('.adj-amount-input').forEach(inp => {
@@ -4671,14 +4704,21 @@ async function confirmAdjustCurrency() {
   });
 
   const affectedCount = Object.keys(playerAdjustments).length;
-  if (affectedCount === 0 && serialKeyNames.length === 0) {
-    document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額,或新增要發放的序號';
+  if (affectedCount === 0 && serialKeyNames.length === 0 && itemGrants.length === 0) {
+    document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額,或新增要發放的序號/道具禮包';
+    return;
+  }
+  if (itemGrants.length > 0 && pcSelectedIds.size === 0) {
+    document.getElementById('adjust-warning').textContent = '要發放道具禮包,請先在表格裡勾選至少一位玩家';
     return;
   }
 
   const btn = document.getElementById('adjust-confirm-btn');
-  const confirmMsg = serialKeyNames.length > 0
-    ? `確定要套用貨幣調整(${affectedCount}位玩家有異動)並發放「${serialKeyNames.join('、')}」序號給已勾選的 ${pcSelectedIds.size} 位玩家嗎？此動作無法復原！`
+  const extraParts = [];
+  if (serialKeyNames.length > 0) extraParts.push(`「${serialKeyNames.join('、')}」序號`);
+  if (itemGrants.length > 0) extraParts.push(`「${itemGrants.map(g => g.templateName + (g.quantity > 1 ? 'x' + g.quantity : '')).join('、')}」道具禮包`);
+  const confirmMsg = extraParts.length > 0
+    ? `確定要套用貨幣調整(${affectedCount}位玩家有異動)並發放${extraParts.join('、')}給已勾選的 ${pcSelectedIds.size} 位玩家嗎？此動作無法復原！`
     : `確定要對 ${affectedCount} 位玩家套用各自填寫的貨幣調整嗎？此動作無法復原！`;
   if (!confirm(confirmMsg)) return;
   btn.disabled = true; btn.textContent = '處理中...';
@@ -4686,6 +4726,8 @@ async function confirmAdjustCurrency() {
   const d = await api({
     action: 'adminAdjustPlayerCurrency',
     playerAdjustments: JSON.stringify(playerAdjustments),
+    itemGrants: JSON.stringify(itemGrants),
+    itemGrantTargetIds: JSON.stringify(Array.from(pcSelectedIds)),
     notify: document.getElementById('adjust-notify').checked,
     broadcast: document.getElementById('adjust-broadcast').checked,
     reason: document.getElementById('adjust-reason').value,
@@ -4695,12 +4737,12 @@ async function confirmAdjustCurrency() {
   btn.disabled = false; btn.textContent = '✅ 確認套用';
 
   if (d.status === 'success') {
-    // 🌟 就算整體回傳success,序號發放還是可能個別失敗(例如名稱打錯字、庫存用完),要把詳細原因秀出來,
-    // 不然管理員只看到「已完成調整」會誤以為都成功了
-    const serialFails = (d.results || []).filter(r => r.status === 'error');
-    if (serialFails.length > 0) {
-      const uniqueMsgs = [...new Set(serialFails.map(r => r.message))];
-      alert(`🛠️ 貨幣調整已完成，但有 ${serialFails.length} 筆序號發放失敗：\n\n${uniqueMsgs.join('\n')}`);
+    // 🌟 就算整體回傳success,序號/道具禮包發放還是可能個別失敗(例如名稱打錯字、庫存用完、模板不存在),
+    // 要把詳細原因秀出來,不然管理員只看到「已完成調整」會誤以為都成功了
+    const partFails = (d.results || []).filter(r => r.status === 'error');
+    if (partFails.length > 0) {
+      const uniqueMsgs = [...new Set(partFails.map(r => r.message))];
+      alert(`🛠️ 貨幣調整已完成，但有 ${partFails.length} 筆序號/道具發放失敗：\n\n${uniqueMsgs.join('\n')}`);
     } else {
       toast(`🛠️ 已完成調整！`);
     }
