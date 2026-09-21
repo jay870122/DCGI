@@ -444,7 +444,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.9</div>
+    <div class="version-tag">系統版本：v5.4.10</div>
   </div>
 
   <script>
@@ -2956,7 +2956,30 @@
     }
 
 
+// 🌟🔧 修正「有時候會卡在載入畫面很久(甚至30分鐘)、重新整理才會好」的問題:
+// 手機瀏覽器、Discord App內建瀏覽器、甚至電腦分頁只要切到背景/最小化,瀏覽器為了省電
+// 會把該分頁的計時器(包含20秒逾時保護)跟網路連線大幅降頻甚至整個暫停,導致畫面凍結在
+// 「載入中」不會前進,也不會跳出逾時錯誤,直到玩家切回來/重新整理才會恢復——不是後端真的卡住30分鐘,
+// 是分頁在背景被瀏覽器凍結了那麼久。這裡監聽分頁「切回前景」的事件,如果剛好還停在載入畫面
+// 就自動重新抓一次資料,不用玩家自己手動重新整理。
+let fetchScoresAndShopInFlight_ = false;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!currentUser) return;
+  if (fetchScoresAndShopInFlight_) return; // 🌟 已經有一次請求正在跑,不要重複打
+  const loadingEl = document.getElementById('loading');
+  const loadingTextEl = document.getElementById('loading-text');
+  const stillLoading = loadingEl && loadingEl.style.display !== 'none' &&
+    loadingTextEl && (loadingTextEl.innerText.indexOf('載入') !== -1 || loadingTextEl.innerText.indexOf('連線') !== -1) &&
+    loadingTextEl.innerHTML.indexOf('btn-action') === -1; // 🌟 已經顯示重試按鈕的錯誤畫面不算「還在載入」,不用自動重抓
+  if (stillLoading) {
+    console.log('[自動復原] 分頁切回前景時發現還停在載入畫面,自動重新讀取一次');
+    fetchScoresAndShop(currentUser.id);
+  }
+});
+
 function fetchScoresAndShop(discordId, callback = null) {
+      fetchScoresAndShopInFlight_ = true;
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
 
       // 🌟🔧 修正「有時候會卡在載入畫面很久」的問題:瀏覽器原生fetch沒有內建逾時,如果Worker那邊
@@ -3114,7 +3137,8 @@ function fetchScoresAndShop(discordId, callback = null) {
         const msg = isTimeout ? '載入時間過長(伺服器可能忙碌中)，請重試' : '載入失敗，請稍後再試';
         document.getElementById('loading-text').innerHTML =
           `❌ ${msg}<br><button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button>`;
-      });
+      })
+      .finally(() => { fetchScoresAndShopInFlight_ = false; });
     }
     function renderShop() {
       const container = document.getElementById('shop-list');
