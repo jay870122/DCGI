@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.7</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.8</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1700,7 +1700,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="adjust-serial-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;grid-column:span 2"></div>
       <button class="btn-cancel" onclick="addAdjustSerialRow()" style="grid-column:span 2">➕ 新增一種序號</button>
 
-      <div class="fsep">同時發放道具禮包(選填) <span class="hint">可以加好幾種不同道具、各自填不同數量,整包一次發給這次勾選的每一位玩家(跟下面「私訊通知」「公開公告」共用同一組勾選)</span></div>
+      <div class="fsep">同時發放道具禮包(選填) <span class="hint">先加要發放的道具種類,底下每個玩家表格會多一欄,各自填自己要拿到的數量(可以都不一樣,留空=這位玩家這項不發)</span></div>
       <div id="adjust-itemgrant-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;grid-column:span 2"></div>
       <button class="btn-cancel" onclick="addAdjustItemGrantRow()" style="grid-column:span 2">➕ 新增一種道具</button>
 
@@ -4491,6 +4491,7 @@ let pcPlayers = [], pcCurrencyFields = [], pcTableColumns = [], pcRoleMap = {};
 let pcKeyPools = []; // 🌟 序號庫摘要(名稱+剩餘可用數),開批次調整面板時才去抓,不用每次載入頁面都抓
 let pcSelectedIds = new Set();
 let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動用哪幾種貨幣
+let adjustItemColumns = []; // [{id, templateName}] 這次批次要發放哪幾種道具(跟adjustColumns同一套邏輯,每種道具一欄,底下玩家表格各自填數量)
 
 async function loadPlayerCurrency() {
   document.getElementById('pc-tbody').innerHTML = '<tr><td colspan="10" class="empty">讀取中...</td></tr>';
@@ -4553,6 +4554,7 @@ async function openAdjustPanel() {
   document.getElementById('adjust-broadcast').checked = false;
   document.getElementById('adjust-warning').textContent = '';
   adjustColumns = [];
+  adjustItemColumns = [];
   document.getElementById('adjust-columns-container').innerHTML = '';
   addAdjustCurrencyColumn(); // 預設先放一種貨幣,省一次點擊
   document.getElementById('adjust-serial-container').innerHTML = '';
@@ -4604,22 +4606,38 @@ function refreshAllAdjustSerialRows() {
   document.querySelectorAll('#adjust-serial-container > div').forEach(row => updateAdjustSerialRow(row.id));
 }
 
-// 🌟 新增一種要發放的道具(下拉選單選模板+填數量),可以加好幾種組成一份「禮包」,一起發給這次勾選的所有玩家。
-// 跟序號那組是同樣的邏輯(對象=目前已勾選的玩家),不用另外選對象。
+// 🌟🔧 新增一種要發放的道具:改成跟「要調整的貨幣」同一套邏輯——這裡只選道具模板,不再直接填數量,
+// 數量改成到底下「每位玩家的調整金額」表格裡,每個玩家自己那一欄各自填(留空=這位玩家這項不發),
+// 可以加好幾種道具組成好幾欄,每位玩家可以各自拿到完全不同的組合跟數量。
 function addAdjustItemGrantRow() {
   if (itemTemplates.length === 0) { toast('目前還沒有任何道具模板,請先到「通用道具管理」頁面新增模板', false); return; }
   const rowId = 'itemgrantrow_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  adjustItemColumns.push({ id: rowId, templateName: itemTemplates[0].name });
+
   const row = document.createElement('div');
   row.id = rowId;
   row.style.cssText = 'display:flex;gap:8px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px';
   row.innerHTML = `
-    <select class="adjitem-template" style="width:auto;flex:1;min-width:0">
+    <select class="adjitem-template" onchange="updateAdjustItemColumn('${rowId}')" style="width:auto;flex:1;min-width:0">
       ${itemTemplates.map(t => `<option value="${t.name}">${t.name}</option>`).join('')}
     </select>
-    <input class="adjitem-quantity" type="number" min="1" value="1" style="width:70px;flex-shrink:0" placeholder="數量">
-    <button class="btn btn-del" onclick="document.getElementById('${rowId}').remove()">✕</button>
+    <button class="btn btn-del" onclick="removeAdjustItemColumn('${rowId}')">✕</button>
   `;
   document.getElementById('adjust-itemgrant-container').appendChild(row);
+  renderAdjustPlayerTable(true);
+}
+
+function updateAdjustItemColumn(colId) {
+  const col = adjustItemColumns.find(c => c.id === colId);
+  if (!col) return;
+  col.templateName = document.getElementById(colId).querySelector('.adjitem-template').value;
+  renderAdjustPlayerTable(true); // 保留玩家已經填的數量,只更新表頭文字
+}
+
+function removeAdjustItemColumn(colId) {
+  adjustItemColumns = adjustItemColumns.filter(c => c.id !== colId);
+  document.getElementById(colId).remove();
+  renderAdjustPlayerTable(true);
 }
 
 // 🌟 新增一種要調整的貨幣(每種貨幣一組「選貨幣+選模式」,底下的玩家表格會自動多一欄可以各自填金額)
@@ -4665,32 +4683,35 @@ function removeAdjustColumn(colId) {
   renderAdjustPlayerTable();
 }
 
-// 🌟 畫出「每位玩家 x 每種貨幣」的金額輸入表格,keepValues=true時會盡量保留玩家已經輸入的數字
+// 🌟🔧 畫出「每位玩家 x 每種貨幣/每種道具」的數量輸入表格,keepValues=true時會盡量保留玩家已經輸入的數字。
+// 道具欄位(adjustItemColumns)現在跟貨幣欄位(adjustColumns)共用同一張表格、同一套「留空=不動這項」邏輯,
+// 只是道具數量限制最小值是1(沒有負數/小數,道具不能用「減少」或「設定為」的概念)。
 function renderAdjustPlayerTable(keepValues) {
   const oldValues = {};
+  const oldItemValues = {};
   if (keepValues) {
     document.querySelectorAll('.adj-amount-input').forEach(inp => {
       if (inp.value !== '') oldValues[inp.dataset.pid + '|' + inp.dataset.colid] = inp.value;
+    });
+    document.querySelectorAll('.adj-item-qty-input').forEach(inp => {
+      if (inp.value !== '') oldItemValues[inp.dataset.pid + '|' + inp.dataset.colid] = inp.value;
     });
   }
   // 🌟 依照「勾選的順序」排列,不是照系統清單原本的順序——Set本身就會記得插入順序(取消勾選再勾回去會排到最後面),
   // 這樣管理員照著自己準備好的清單依序勾選,這裡的表格順序就會完全對得上,不用再逐一去找人
   const targets = Array.from(pcSelectedIds).map(id => pcPlayers.find(p => p.discordId === id)).filter(Boolean);
-  document.getElementById('adjust-player-thead').innerHTML = '<th>玩家</th>' + adjustColumns.map(c => `<th>${c.display}</th>`).join('');
+  document.getElementById('adjust-player-thead').innerHTML = '<th>玩家</th>'
+    + adjustColumns.map(c => `<th>${c.display}</th>`).join('')
+    + adjustItemColumns.map(c => `<th>🎁 ${c.templateName}</th>`).join('');
   document.getElementById('adjust-player-tbody').innerHTML = targets.map(p => `<tr>
       <td>${p.nickname}<br><span class="cell-id" style="font-size:11px">${p.discordId}</span></td>
       ${adjustColumns.map(c => `<td><input class="adj-amount-input" type="number" step="any" style="width:90px" data-pid="${p.discordId}" data-colid="${c.id}" value="${oldValues[p.discordId+'|'+c.id]||''}" placeholder="留空=不調"></td>`).join('')}
+      ${adjustItemColumns.map(c => `<td><input class="adj-item-qty-input" type="number" min="1" step="1" style="width:70px" data-pid="${p.discordId}" data-colid="${c.id}" value="${oldItemValues[p.discordId+'|'+c.id]||''}" placeholder="留空=不發"></td>`).join('')}
     </tr>`).join('');
 }
 
 async function confirmAdjustCurrency() {
   const serialKeyNames = Array.from(document.querySelectorAll('.adjserial-pool')).map(sel => sel.value).filter(Boolean);
-
-  // 🌟 組出「這份禮包要發哪幾種道具、各自數量多少」,對象統一是目前已勾選的玩家(跟序號發放共用同一份清單)
-  const itemGrants = Array.from(document.querySelectorAll('#adjust-itemgrant-container > div')).map(row => ({
-    templateName: row.querySelector('.adjitem-template').value,
-    quantity: parseInt(row.querySelector('.adjitem-quantity').value, 10) || 0,
-  })).filter(g => g.templateName && g.quantity > 0);
 
   // 🌟 組出「每個玩家各自要調整哪幾項、各自金額多少」的物件,留空的欄位不會被放進去
   const playerAdjustments = {};
@@ -4703,22 +4724,32 @@ async function confirmAdjustCurrency() {
     playerAdjustments[pid].push({ internal: col.internal, display: col.display, mode: col.mode, amount: parseFloat(inp.value) });
   });
 
+  // 🌟🔧 道具禮包改成跟上面貨幣調整同一套寫法:「每個玩家各自要拿哪幾種道具、各自數量多少」,
+  // 留空/0的欄位不會被放進去,不再是整包統一數量發給所有勾選的玩家。
+  const playerItemGrants = {};
+  document.querySelectorAll('.adj-item-qty-input').forEach(inp => {
+    const qty = parseInt(inp.value, 10) || 0;
+    if (qty < 1) return;
+    const col = adjustItemColumns.find(c => c.id === inp.dataset.colid);
+    if (!col) return;
+    const pid = inp.dataset.pid;
+    if (!playerItemGrants[pid]) playerItemGrants[pid] = [];
+    playerItemGrants[pid].push({ templateName: col.templateName, quantity: qty });
+  });
+
   const affectedCount = Object.keys(playerAdjustments).length;
-  if (affectedCount === 0 && serialKeyNames.length === 0 && itemGrants.length === 0) {
-    document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額,或新增要發放的序號/道具禮包';
-    return;
-  }
-  if (itemGrants.length > 0 && pcSelectedIds.size === 0) {
-    document.getElementById('adjust-warning').textContent = '要發放道具禮包,請先在表格裡勾選至少一位玩家';
+  const itemGrantAffectedCount = Object.keys(playerItemGrants).length;
+  if (affectedCount === 0 && serialKeyNames.length === 0 && itemGrantAffectedCount === 0) {
+    document.getElementById('adjust-warning').textContent = '請至少為一位玩家填寫調整金額,或設定要發放的序號、填寫要發放的道具禮包數量';
     return;
   }
 
   const btn = document.getElementById('adjust-confirm-btn');
   const extraParts = [];
   if (serialKeyNames.length > 0) extraParts.push(`「${serialKeyNames.join('、')}」序號`);
-  if (itemGrants.length > 0) extraParts.push(`「${itemGrants.map(g => g.templateName + (g.quantity > 1 ? 'x' + g.quantity : '')).join('、')}」道具禮包`);
+  if (itemGrantAffectedCount > 0) extraParts.push(`「${adjustItemColumns.map(c => c.templateName).join('、')}」道具禮包(每位玩家數量已各自設定)`);
   const confirmMsg = extraParts.length > 0
-    ? `確定要套用貨幣調整(${affectedCount}位玩家有異動)並發放${extraParts.join('、')}給已勾選的 ${pcSelectedIds.size} 位玩家嗎？此動作無法復原！`
+    ? `確定要套用貨幣調整(${affectedCount}位玩家有異動)並發放${extraParts.join('、')}嗎？此動作無法復原！`
     : `確定要對 ${affectedCount} 位玩家套用各自填寫的貨幣調整嗎？此動作無法復原！`;
   if (!confirm(confirmMsg)) return;
   btn.disabled = true; btn.textContent = '處理中...';
@@ -4726,8 +4757,7 @@ async function confirmAdjustCurrency() {
   const d = await api({
     action: 'adminAdjustPlayerCurrency',
     playerAdjustments: JSON.stringify(playerAdjustments),
-    itemGrants: JSON.stringify(itemGrants),
-    itemGrantTargetIds: JSON.stringify(Array.from(pcSelectedIds)),
+    playerItemGrants: JSON.stringify(playerItemGrants),
     notify: document.getElementById('adjust-notify').checked,
     broadcast: document.getElementById('adjust-broadcast').checked,
     reason: document.getElementById('adjust-reason').value,
