@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.8</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.9</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -523,6 +523,30 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               🎰 <b>集資池分配</b>:所有人下注的錢混在一起,結果出來後,輸家那邊的錢(扣掉退還比例後)全部依下注金額比例分給贏家,贏家的本金也會拿回來。集資池分配還可以選「賠率計算基準」:選<b>依最終結算總額</b>,賠率會隨大家陸續下注一直變動,要等結算才知道確切倍率;選<b>以下注當下的即時賠率為主</b>,你下注那一刻系統就依當時的池子狀況幫你鎖定賠率,之後不管誰再下注多少都不會影響你已經下的那幾筆。<br>
               ⚠️ <b>「依最終結算總額」保證不會超發</b>(發出去的錢一定等於收進來的錢);<b>「以下注當下賠率為主」不保證</b>——如果押某個選項的人多、押其他選項的人少或完全沒人押,結算時有可能發出去的獎金比實際收到的下注總額還多(等於系統自己貼錢)。這是這個玩法本來就有的風險,概念上你(管理員)扮演的是「莊家」的角色,要自行承擔這個風險,選這個模式前請注意。<br>
               ⚠️ 上面的「獎勵數量/盲盒規則」欄位對賭博模式沒有作用,不用填。
+            </div>
+            <div class="fsep">🔢 終極密碼(選填)</div>
+            <div class="field full">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ns-up" onchange="toggleUpFields('ns')" style="width:auto">
+                設為終極密碼玩法(玩家改用猜數字兌換,不能直接一般購買;猜錯會回報比較大/比較小,並扣一次「價格」欄位設定的費用)
+              </label>
+            </div>
+            <div class="field" id="ns-up-min-box" style="display:none">
+              <label>數字範圍下限</label>
+              <input id="ns-up-min" type="number" placeholder="例：1">
+            </div>
+            <div class="field" id="ns-up-max-box" style="display:none">
+              <label>數字範圍上限</label>
+              <input id="ns-up-max" type="number" placeholder="例：100">
+            </div>
+            <div class="field full" id="ns-up-answer-box" style="display:none">
+              <label>🔒 正確答案 <span class="hint">全站共用同一組答案(不是每個玩家各自的),絕對不會出現在玩家看得到的任何畫面裡</span></label>
+              <input id="ns-up-answer" type="number" placeholder="例：42">
+            </div>
+            <div class="up-guide" id="ns-up-guide" style="display:none;grid-column:span 2">
+              🔢 <b>終極密碼怎麼用？</b>設定一個數字範圍跟正確答案,玩家每次猜測都要花「價格」欄位設定的費用(貨幣/次數上限規則都跟一般商品共用同一套欄位)。猜對了才會真的扣庫存、執行這個商品原本設定的兌換效果(獎勵/盲盒等);猜錯的話只會扣這次的嘗試費用,並回報答案比猜測的數字大還是小。<br>
+              ⚠️ 這是<b>全站共用</b>的一組答案跟猜測進度,不是每個玩家分開猜——大家一起縮小範圍,任何人都可能是猜中的人。<br>
+              ⚠️ 「次數上限」欄位(每日/每週/每月/個人終身/全站等)沿用商品本身既有的限購欄位,設定方式跟一般商品一樣。
             </div>
             <div class="fsep">其他</div>
             <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
@@ -1305,6 +1329,34 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </label>
       </div>
       <div id="em-gambling-settled-hint" style="display:none;grid-column:span 2;color:#F0B232;font-size:13px;padding:8px 0">⚠️ 這場賭博已經公布結果並結算完成了,再次儲存不會重新結算。</div>
+      <div class="fsep">🔢 終極密碼(選填)</div>
+      <div class="field full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="em-up" onchange="toggleUpFields('em')" style="width:auto">
+          設為終極密碼玩法(玩家改用猜數字兌換,不能直接一般購買)
+        </label>
+      </div>
+      <div class="field" id="em-up-min-box" style="display:none">
+        <label>數字範圍下限</label>
+        <input id="em-up-min" type="number" placeholder="例：1">
+      </div>
+      <div class="field" id="em-up-max-box" style="display:none">
+        <label>數字範圍上限</label>
+        <input id="em-up-max" type="number" placeholder="例：100">
+      </div>
+      <div class="field full" id="em-up-answer-box" style="display:none">
+        <label>🔒 正確答案 <span class="hint">留空 = 不變更答案;目前的答案基於安全考量不會顯示在這裡,要改才需要填</span></label>
+        <input id="em-up-answer" type="number" placeholder="留空 = 不變更">
+      </div>
+      <div class="field full" id="em-up-resetnarrow-box" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="em-up-resetnarrow" style="width:auto">
+          重置目前已知的猜測範圍提示(通常搭配上面改答案/改範圍一起勾選,不然玩家之前猜出來的提示範圍可能跟新答案矛盾)
+        </label>
+      </div>
+      <div class="up-guide" id="em-up-guide" style="display:none;grid-column:span 2">
+        🔢 終極密碼是全站共用同一組答案跟猜測進度,「次數上限」沿用商品本身既有的限購欄位。改答案或範圍時記得考慮要不要一併勾選「重置猜測範圍提示」。
+      </div>
       <div class="fsep">其他</div>
       <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
       <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
@@ -2605,6 +2657,16 @@ function toggleGamblingPoolLockField(prefix) {
   if (maxOddsBox) maxOddsBox.style.display = (enabled && poolLockSel && poolLockSel.value === 'BETTIME') ? '' : 'none';
 }
 
+// 🌟 終極密碼:勾選後才顯示範圍/答案/重置提示等欄位跟說明文字,理由跟toggleGamblingFields一致
+function toggleUpFields(prefix) {
+  const cb = document.getElementById(prefix + '-up');
+  const enabled = !!(cb && cb.checked);
+  ['-up-min-box', '-up-max-box', '-up-answer-box', '-up-resetnarrow-box', '-up-guide'].forEach(suffix => {
+    const el = document.getElementById(prefix + suffix);
+    if (el) el.style.display = enabled ? '' : 'none';
+  });
+}
+
 function toggleGuessLimit(key) {
   const m = GUESS_LIMIT_FIELD_MAP[key];
   if (!m) return;
@@ -2846,7 +2908,7 @@ function renderShopTable() {
     ? '<tr><td colspan="9" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
       <td><input type="checkbox" class="shop-row-check" data-id="${i.itemId}" ${shopSelectedIds.has(i.itemId)?'checked':''} onchange="toggleShopItemSelect('${i.itemId}', this.checked)"></td>
-      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
+      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.upEnabled ? ` <span class="type-badge type-low" title="範圍 ${i.upMin}~${i.upMax},目前已知提示範圍 ${i.upNarrowLow||i.upMin}~${i.upNarrowHigh||i.upMax}(全站共用一組答案)">🔢 終極密碼</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
       <td data-label="庫存">${i.stock||'無限'}</td>
@@ -3112,6 +3174,14 @@ function openEditShop(itemId) {
   document.getElementById('em-gambling-broadcast').checked = !!i.gamblingBroadcast;
   document.getElementById('em-gambling-settled-hint').style.display = (i.isGambling && i.gamblingResult) ? '' : 'none';
   toggleGamblingFields('em');
+  f('em-up').checked = !!i.upEnabled;
+  f('em-up-min').value = i.upMin !== undefined && i.upMin !== '' ? i.upMin : '';
+  f('em-up-max').value = i.upMax !== undefined && i.upMax !== '' ? i.upMax : '';
+  // 🌟🔒 正確答案基於安全考量絕對不預先填入畫面(即使adminShopItems有回傳真實答案給管理員API),
+  // 留空代表「不變更」,管理員要改答案才需要自己輸入新的值,理由跟saveShopItem的處理方式對應。
+  f('em-up-answer').value = '';
+  document.getElementById('em-up-resetnarrow').checked = false;
+  toggleUpFields('em');
   editShopAutosave.checkAndOffer();
 }
 
@@ -3145,7 +3215,9 @@ async function saveShopItem() {
     isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
     gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
     gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked,
-    gamblingMaxOdds:f('em-gambling-maxodds')});
+    gamblingMaxOdds:f('em-gambling-maxodds'),
+    upEnabled:document.getElementById('em-up').checked,upMin:f('em-up-min'),upMax:f('em-up-max'),
+    upAnswer:f('em-up-answer'),upResetNarrow:document.getElementById('em-up-resetnarrow').checked});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -3468,7 +3540,8 @@ function resetAddShop() {
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
    'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-milestone-share','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule','ns-raffle-weights',
-   'ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-maxodds'].forEach(id => document.getElementById(id).value='');
+   'ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-maxodds',
+   'ns-up-min','ns-up-max','ns-up-answer'].forEach(id => document.getElementById(id).value='');
   itemOptionsState.ns = [];
   renderItemOptions('ns');
   document.getElementById('ns-raffle').checked = false;
@@ -3478,6 +3551,8 @@ function resetAddShop() {
   document.getElementById('ns-gambling-poollock').value = 'FINAL';
   document.getElementById('ns-gambling-broadcast').checked = false;
   toggleGamblingFields('ns');
+  document.getElementById('ns-up').checked = false;
+  toggleUpFields('ns');
   setAltCurrencyRows('ns', '', '');
   setExtraCostRows('ns', '', '');
   document.getElementById('ns-currency').value='幻彩水晶';
@@ -3542,7 +3617,8 @@ async function submitAddShop(forceStatus) {
     isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
     gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked,
-    gamblingMaxOdds:f('ns-gambling-maxodds')});
+    gamblingMaxOdds:f('ns-gambling-maxodds'),
+    upEnabled:document.getElementById('ns-up').checked,upMin:f('ns-up-min'),upMax:f('ns-up-max'),upAnswer:f('ns-up-answer')});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
@@ -4086,9 +4162,9 @@ function loadItemOptions(prefix, rawJson) {
 }
 
 const NS_FIELDS = ['ns-name','ns-price','ns-currency','ns-category','ns-stock','ns-linkedserialpool','ns-status','ns-sdate','ns-edate',
-  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights','ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-poollock','ns-gambling-maxodds'];
+  'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights','ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-poollock','ns-gambling-maxodds','ns-up-min','ns-up-max'];
 const EM_FIELDS = ['em-name','em-price','em-currency','em-category','em-stock','em-linkedserialpool','em-status','em-sdate','em-edate',
-  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights','em-gambling-mode','em-gambling-refund','em-gambling-options','em-gambling-poollock','em-gambling-maxodds'];
+  'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights','em-gambling-mode','em-gambling-refund','em-gambling-options','em-gambling-poollock','em-gambling-maxodds','em-up-min','em-up-max'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate','ea-wincount','ea-raffleslots','ea-rafflepool'];
 
