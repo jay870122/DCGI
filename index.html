@@ -3900,16 +3900,20 @@ function fetchScoresAndShop(discordId, callback = null) {
           document.getElementById('dashboard').style.display = 'block';
           return;
         }
-        if (data.correct) {
-          // 🌟 猜對了:交給跟一般購買完全共用的結果處理邏輯(獎勵/里程碑/序號顯示都一樣),
-          // 只是把開頭的成功訊息換成後端已經組好的"🎉 密碼正確！答案就是X！"文字。
-          handleBuyResult_(data, itemId, itemName, safeId, 1, currencyName, data.message);
-        } else {
+        // 🌟🔧 修正bug:後端猜對時回傳的是purchaseResult原封不動+多一個ultimatePasswordCorrect:true欄位,
+        // 「不會」有correct欄位;只有猜錯的分支才會明確回傳correct:false。如果這裡判斷`data.correct`,
+        // 猜對的情況會因為data.correct是undefined(視為false)而被誤判成猜錯,顯示錯的訊息、漏掉完整的
+        // 購買獎勵顯示。要用`data.correct === false`來判斷猜錯,其餘(包含correct未定義)一律視為猜對。
+        if (data.correct === false) {
           // 🌟 猜錯了:後端已經扣款、更新全站共用的收斂範圍並回報大小提示,重新整理商店讓大家看到最新提示
           stopLoadingProgress_();
           alert('🔢 ' + data.message);
           document.getElementById('loading-text').innerText = "🔄 正在同步最新提示...";
           fetchScoresAndShop(currentUser.id);
+        } else {
+          // 🌟 猜對了(或其他任何不是明確correct:false的成功回應):交給跟一般購買完全共用的結果處理邏輯
+          // (獎勵/里程碑/序號顯示都一樣),只是把開頭的成功訊息換成後端已經組好的"🎉 密碼正確！答案就是X！"文字。
+          handleBuyResult_(data, itemId, itemName, safeId, 1, currencyName, data.message);
         }
       }
 
