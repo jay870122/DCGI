@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.9</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.10</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -542,6 +542,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field full" id="ns-up-answer-box" style="display:none">
               <label>🔒 正確答案 <span class="hint">全站共用同一組答案(不是每個玩家各自的),絕對不會出現在玩家看得到的任何畫面裡</span></label>
               <input id="ns-up-answer" type="number" placeholder="例：42">
+            </div>
+            <div class="field full" id="ns-up-hiderange-box" style="display:none">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ns-up-hiderange" style="width:auto">
+                不公開目前已知的收斂提示範圍給玩家看 <span class="hint">勾選後,玩家永遠只看到原始的範圍下限~上限,不會看到大家陸續猜錯後收斂出來的更窄範圍(每次猜測還是照樣會提示這次猜的數字比較大/比較小);後台這裡永遠看得到真實的收斂進度,不受這個開關影響</span>
+              </label>
             </div>
             <div class="up-guide" id="ns-up-guide" style="display:none;grid-column:span 2">
               🔢 <b>終極密碼怎麼用？</b>設定一個數字範圍跟正確答案,玩家每次猜測都要花「價格」欄位設定的費用(貨幣/次數上限規則都跟一般商品共用同一套欄位)。猜對了才會真的扣庫存、執行這個商品原本設定的兌換效果(獎勵/盲盒等);猜錯的話只會扣這次的嘗試費用,並回報答案比猜測的數字大還是小。<br>
@@ -1347,6 +1353,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" id="em-up-answer-box" style="display:none">
         <label>🔒 正確答案 <span class="hint">留空 = 不變更答案;目前的答案基於安全考量不會顯示在這裡,要改才需要填</span></label>
         <input id="em-up-answer" type="number" placeholder="留空 = 不變更">
+      </div>
+      <div class="field full" id="em-up-hiderange-box" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="em-up-hiderange" style="width:auto">
+          不公開目前已知的收斂提示範圍給玩家看 <span class="hint">勾選後,玩家永遠只看到原始的範圍下限~上限,不會看到大家陸續猜錯後收斂出來的更窄範圍(每次猜測還是照樣會提示這次猜的數字比較大/比較小);後台這裡永遠看得到真實的收斂進度,不受這個開關影響</span>
+        </label>
       </div>
       <div class="field full" id="em-up-resetnarrow-box" style="display:none">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -2661,7 +2673,7 @@ function toggleGamblingPoolLockField(prefix) {
 function toggleUpFields(prefix) {
   const cb = document.getElementById(prefix + '-up');
   const enabled = !!(cb && cb.checked);
-  ['-up-min-box', '-up-max-box', '-up-answer-box', '-up-resetnarrow-box', '-up-guide'].forEach(suffix => {
+  ['-up-min-box', '-up-max-box', '-up-answer-box', '-up-hiderange-box', '-up-resetnarrow-box', '-up-guide'].forEach(suffix => {
     const el = document.getElementById(prefix + suffix);
     if (el) el.style.display = enabled ? '' : 'none';
   });
@@ -2908,7 +2920,7 @@ function renderShopTable() {
     ? '<tr><td colspan="9" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
       <td><input type="checkbox" class="shop-row-check" data-id="${i.itemId}" ${shopSelectedIds.has(i.itemId)?'checked':''} onchange="toggleShopItemSelect('${i.itemId}', this.checked)"></td>
-      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.upEnabled ? ` <span class="type-badge type-low" title="範圍 ${i.upMin}~${i.upMax},目前已知提示範圍 ${i.upNarrowLow||i.upMin}~${i.upNarrowHigh||i.upMax}(全站共用一組答案)">🔢 終極密碼</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
+      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.upEnabled ? ` <span class="type-badge type-low" title="範圍 ${i.upMin}~${i.upMax},目前已知提示範圍 ${i.upNarrowLow||i.upMin}~${i.upNarrowHigh||i.upMax}(全站共用一組答案)${i.upHideRange ? '；⚠️ 玩家端已隱藏收斂提示範圍,只會看到原始範圍' : ''}">🔢 終極密碼${i.upHideRange ? '🙈' : ''}</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
       <td data-label="庫存">${i.stock||'無限'}</td>
@@ -3180,6 +3192,7 @@ function openEditShop(itemId) {
   // 🌟🔒 正確答案基於安全考量絕對不預先填入畫面(即使adminShopItems有回傳真實答案給管理員API),
   // 留空代表「不變更」,管理員要改答案才需要自己輸入新的值,理由跟saveShopItem的處理方式對應。
   f('em-up-answer').value = '';
+  document.getElementById('em-up-hiderange').checked = !!i.upHideRange;
   document.getElementById('em-up-resetnarrow').checked = false;
   toggleUpFields('em');
   editShopAutosave.checkAndOffer();
@@ -3217,7 +3230,7 @@ async function saveShopItem() {
     gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked,
     gamblingMaxOdds:f('em-gambling-maxodds'),
     upEnabled:document.getElementById('em-up').checked,upMin:f('em-up-min'),upMax:f('em-up-max'),
-    upAnswer:f('em-up-answer'),upResetNarrow:document.getElementById('em-up-resetnarrow').checked});
+    upAnswer:f('em-up-answer'),upHideRange:document.getElementById('em-up-hiderange').checked,upResetNarrow:document.getElementById('em-up-resetnarrow').checked});
   btn.disabled=false; btn.textContent='💾 儲存變更';
   if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
@@ -3552,6 +3565,7 @@ function resetAddShop() {
   document.getElementById('ns-gambling-broadcast').checked = false;
   toggleGamblingFields('ns');
   document.getElementById('ns-up').checked = false;
+  document.getElementById('ns-up-hiderange').checked = false;
   toggleUpFields('ns');
   setAltCurrencyRows('ns', '', '');
   setExtraCostRows('ns', '', '');
@@ -3618,7 +3632,8 @@ async function submitAddShop(forceStatus) {
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
     gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked,
     gamblingMaxOdds:f('ns-gambling-maxodds'),
-    upEnabled:document.getElementById('ns-up').checked,upMin:f('ns-up-min'),upMax:f('ns-up-max'),upAnswer:f('ns-up-answer')});
+    upEnabled:document.getElementById('ns-up').checked,upMin:f('ns-up-min'),upMax:f('ns-up-max'),upAnswer:f('ns-up-answer'),
+    upHideRange:document.getElementById('ns-up-hiderange').checked});
   btn.disabled=false; btn.textContent=originalText;
   if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
