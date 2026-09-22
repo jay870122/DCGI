@@ -453,7 +453,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.11</div>
+    <div class="version-tag">系統版本：v5.4.12</div>
   </div>
 
   <script>
@@ -3392,7 +3392,19 @@ function fetchScoresAndShop(discordId, callback = null) {
         }
 
         let actionHtml = '';
-        if (isAvail) {
+        if (isAvail && item.ultimatePassword && item.ultimatePassword.enabled) {
+          // 🌟 終極密碼(猜數字兌換):跟一般數量+兌換按鈕互斥,改成一個數字輸入框+「猜測」按鈕,
+          // 每次點擊都是呼叫guessUltimatePassword(),不是buyItem()——猜對了後端才會執行真正的購買效果。
+          const upLo = item.ultimatePassword.narrowLow !== null && item.ultimatePassword.narrowLow !== undefined ? item.ultimatePassword.narrowLow : item.ultimatePassword.min;
+          const upHi = item.ultimatePassword.narrowHigh !== null && item.ultimatePassword.narrowHigh !== undefined ? item.ultimatePassword.narrowHigh : item.ultimatePassword.max;
+          actionHtml = `
+            ${lockHtml}
+            <div class="item-actions">
+              <input type="number" id="ulpw-${safeId}" class="qty-input" placeholder="${upLo}~${upHi}" min="${item.ultimatePassword.min}" max="${item.ultimatePassword.max}">
+              <button id="btn-${safeId}" class="btn btn-buy" onclick="guessUltimatePassword('${item.id}', '${displayName}', '${safeId}', '${item.displayCurrency}')">🔢 猜測</button>
+            </div>
+          `;
+        } else if (isAvail) {
           let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
           const gamblingSelectHtml = item.isGambling ? `
             <select id="gopt-${safeId}" class="qty-input" style="width:100%;margin-bottom:4px" onchange="updateGamblingPreview('${safeId}')">
@@ -3470,7 +3482,13 @@ function fetchScoresAndShop(discordId, callback = null) {
                 }).join('')}
                 💰 全場總下注：${item.gamblingTotalPool}${item.gamblingLoserRefundPercent > 0 ? `　輸家可退還 ${item.gamblingLoserRefundPercent}%` : ''}<br>
                 ${item.gamblingResult ? (item.gamblingResult.isSweep ? `🔪 結果：通殺(全員未中獎)` : `🎉 獲勝選項：「${item.gamblingResult.winningOption}」`) : ''}
-              ` : `📦 庫存：${item.limits.baseStock}`}
+              ` : item.ultimatePassword && item.ultimatePassword.enabled ? (() => {
+                const upLo = item.ultimatePassword.narrowLow !== null && item.ultimatePassword.narrowLow !== undefined ? item.ultimatePassword.narrowLow : item.ultimatePassword.min;
+                const upHi = item.ultimatePassword.narrowHigh !== null && item.ultimatePassword.narrowHigh !== undefined ? item.ultimatePassword.narrowHigh : item.ultimatePassword.max;
+                return `🔢 <b>終極密碼</b>：猜一個數字,系統會提示「答案比較大/比較小」,猜對就直接兌換成功(全站玩家共用同一組答案跟提示範圍)<br>
+                📏 目前已知範圍：${upLo} ~ ${upHi}（原始範圍 ${item.ultimatePassword.min} ~ ${item.ultimatePassword.max}）<br>
+                💰 每次猜測花費：${formatCost_(item.price, item.displayCurrency)}`;
+              })() : `📦 庫存：${item.limits.baseStock}`}
               ${limitsHtml}
               ${gachaHtml}
               ${item.nextMilestone ? (() => {
@@ -3833,11 +3851,91 @@ function fetchScoresAndShop(discordId, callback = null) {
       });
     }
 
+    // 🌟 終極密碼(猜數字兌換):跟buyItem()是互斥的兩條路——這類商品改成送出一個猜測數字,套用跟其他
+    // 寫入動作一樣的賽跑架構(GAS回應 vs Worker輪詢,誰先給結果就用誰的)。猜對了後端會直接執行完整的
+    // 購買效果(用handleBuyResult_共用同一套獎勵顯示邏輯,只是把成功訊息換成後端組好的"密碼正確"文字);
+    // 猜錯了後端只會扣這次的花費、回報大小提示、更新全站共用的收斂範圍,不會走購買流程。
+    function guessUltimatePassword(itemId, itemName, safeId, currencyName) {
+      if (!currentUser) return;
+      const guessInput = document.getElementById(`ulpw-${safeId}`);
+      const guessValRaw = guessInput ? guessInput.value.trim() : '';
+      if (guessValRaw === '' || isNaN(parseInt(guessValRaw, 10))) { alert('請輸入一個數字！'); return; }
+      const guess = parseInt(guessValRaw, 10);
+
+      const item = currentShopItems.find(it => it.id === itemId);
+      if (item && item.ultimatePassword && item.ultimatePassword.enabled) {
+        const lo = item.ultimatePassword.min, hi = item.ultimatePassword.max;
+        if ((lo !== null && lo !== undefined && guess < lo) || (hi !== null && hi !== undefined && guess > hi)) {
+          alert(`超出範圍！請輸入 ${lo} ~ ${hi} 之間的數字`);
+          return;
+        }
+      }
+      const guessCost = item ? item.price : 0;
+      if (!confirm(`確定要猜「${guess}」嗎？\n猜對了就直接兌換成功；猜錯了一樣會${formatCostPhrase_(guessCost, currencyName)}（只會提示答案比較大或比較小）。`)) return;
+
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('loading-text').innerText = "⏳ 正在核對密碼...";
+      startLoadingProgress_(9000);
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次猜測很可能真的沒有成功,可以放心重新整理後再試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        stopLoadingProgress_();
+        alert(msg);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+      }
+      function finishWithResult_(data) {
+        if (settled) return; settled = true;
+        if (data.status !== 'success') {
+          stopLoadingProgress_();
+          alert('❌ ' + data.message);
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          return;
+        }
+        if (data.correct) {
+          // 🌟 猜對了:交給跟一般購買完全共用的結果處理邏輯(獎勵/里程碑/序號顯示都一樣),
+          // 只是把開頭的成功訊息換成後端已經組好的"🎉 密碼正確！答案就是X！"文字。
+          handleBuyResult_(data, itemId, itemName, safeId, 1, currencyName, data.message);
+        } else {
+          // 🌟 猜錯了:後端已經扣款、更新全站共用的收斂範圍並回報大小提示,重新整理商店讓大家看到最新提示
+          stopLoadingProgress_();
+          alert('🔢 ' + data.message);
+          document.getElementById('loading-text').innerText = "🔄 正在同步最新提示...";
+          fetchScoresAndShop(currentUser.id);
+        }
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=guessUltimatePassword&discordId=${currentUser.id}&itemId=${itemId}&guess=${guess}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      .then(res => res.json())
+      .then(data => { if (!settled) finishWithResult_(data); })
+      .catch(err => {
+        if (settled) return;
+        gasDone = true;
+        checkBothGaveUp_();
+      });
+
+      pollInstrumentedActionResult_('GUESS_UP', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishWithResult_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
+    }
+
     // 🌟 購買結果的完整處理邏輯,抽成共用函式,不管結果是GAS直接回應的、還是輪詢查到的,都走同一套處理。
-    function handleBuyResult_(data, itemId, itemName, safeId, maxQty, currencyName) {
+    function handleBuyResult_(data, itemId, itemName, safeId, maxQty, currencyName, successPrefix) {
         stopLoadingProgress_(); // 🌟 不管接下來走哪個分支,結果出來了就該停止進度條
         if(data.status === "success") {
-          let successMsg = "✅ 兌換處理完成！";
+          // 🌟 終極密碼猜對時會傳入successPrefix(後端已經組好的"🎉 密碼正確！答案就是X！"訊息),取代預設的兌換文字
+          let successMsg = successPrefix || "✅ 兌換處理完成！";
           if (data.cost !== undefined && data.cost > 0) {
             successMsg += `\n💰 花費：${data.cost} ${data.costCurrencyName || currencyName}`;
           }
