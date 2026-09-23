@@ -453,7 +453,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.14</div>
+    <div class="version-tag">系統版本：v5.4.15</div>
   </div>
 
   <script>
@@ -3499,8 +3499,10 @@ function fetchScoresAndShop(discordId, callback = null) {
                 const upHi = item.ultimatePassword.narrowHigh !== null && item.ultimatePassword.narrowHigh !== undefined ? item.ultimatePassword.narrowHigh : item.ultimatePassword.max;
                 // 🌟 猜對之後如果庫存還有剩,後端會自動重新產生新答案讓遊戲可以繼續玩,這裡把庫存顯示出來,
                 // 玩家才知道這一組答案還能被猜中幾次(庫存歸零之後猜對就不會再重新出題了)。
+                // 🌟🆕 把「有沒有隱藏收斂範圍」的狀態也講清楚,不然玩家會誤以為系統壞了(猜了老半天範圍都沒變窄)。
+                const upRangeNote = item.ultimatePassword.hideRange ? '不會隨猜測更新範圍' : '全體玩家猜測會自動更新範圍';
                 return `🔢 <b>終極密碼</b>：猜一個數字,系統會提示「答案比較大/比較小」,猜對就直接兌換成功(全站玩家共用同一組答案跟提示範圍)<br>
-                📏 目前已知範圍：${upLo} ~ ${upHi}（原始範圍 ${item.ultimatePassword.min} ~ ${item.ultimatePassword.max}）<br>
+                📏 目前已知範圍：${upLo} ~ ${upHi}（${upRangeNote}）<br>
                 📦 剩餘庫存：${item.limits.baseStock}${item.limits.baseStock !== "無限" && item.limits.baseStock > 0 ? '(猜對後庫存還有剩會自動換新答案,可以繼續玩)' : ''}<br>
                 💰 每次猜測花費：${formatCost_(item.price, item.displayCurrency)}`;
               })() : `📦 庫存：${item.limits.baseStock}`}
