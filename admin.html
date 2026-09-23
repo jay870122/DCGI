@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.10</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.11</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -552,7 +552,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="up-guide" id="ns-up-guide" style="display:none;grid-column:span 2">
               🔢 <b>終極密碼怎麼用？</b>設定一個數字範圍跟正確答案,玩家每次猜測都要花「價格」欄位設定的費用(貨幣/次數上限規則都跟一般商品共用同一套欄位)。猜對了才會真的扣庫存、執行這個商品原本設定的兌換效果(獎勵/盲盒等);猜錯的話只會扣這次的嘗試費用,並回報答案比猜測的數字大還是小。<br>
               ⚠️ 這是<b>全站共用</b>的一組答案跟猜測進度,不是每個玩家分開猜——大家一起縮小範圍,任何人都可能是猜中的人。<br>
-              ⚠️ 「次數上限」欄位(每日/每週/每月/個人終身/全站等)沿用商品本身既有的限購欄位,設定方式跟一般商品一樣。
+              ⚠️ 「次數上限」欄位(每日/每週/每月/個人終身/全站等)沿用商品本身既有的限購欄位,設定方式跟一般商品一樣。<br>
+              🆕 <b>猜對之後會自動換新題目</b>:猜中會照這個商品的「庫存」欄位正常扣1(扣完之後如果庫存還有剩,或庫存留空=無限),系統會自動重新骰一組新答案、清空目前已知的收斂範圍提示,直接讓大家繼續猜下一輪,不用手動重設;庫存扣到0之後才會真的停止(下次猜對不會再出新題)。所以想讓這個終極密碼可以重複玩很多輪,記得把「庫存」欄位設大一點或留空。
             </div>
             <div class="fsep">其他</div>
             <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
@@ -1367,7 +1368,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </label>
       </div>
       <div class="up-guide" id="em-up-guide" style="display:none;grid-column:span 2">
-        🔢 終極密碼是全站共用同一組答案跟猜測進度,「次數上限」沿用商品本身既有的限購欄位。改答案或範圍時記得考慮要不要一併勾選「重置猜測範圍提示」。
+        🔢 終極密碼是全站共用同一組答案跟猜測進度,「次數上限」沿用商品本身既有的限購欄位。改答案或範圍時記得考慮要不要一併勾選「重置猜測範圍提示」。<br>
+        🆕 猜對之後會照「庫存」欄位正常扣1,扣完還有剩(或庫存留空=無限)就會自動重新骰一組新答案、清空收斂範圍提示,直接開下一輪;庫存扣到0才會真的停止出新題。
       </div>
       <div class="fsep">其他</div>
       <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
