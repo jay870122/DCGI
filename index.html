@@ -453,7 +453,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.12</div>
+    <div class="version-tag">系統版本：v5.4.13</div>
   </div>
 
   <script>
@@ -464,6 +464,14 @@
     // 🌟🔒 安全性修正:所有打後端的請求都要帶上這個 accessToken,讓後端自己向 Discord 官方驗證使用者身分,
     // 不能只靠自己在網址上宣稱的 discordId(那樣任何人都能冒充別人)
     function getAccessToken() { return localStorage.getItem('dc_access_token') || ''; }
+    // 🌟🆕 手動「重新登入」:清掉本地存的Discord token、直接導去Discord重新授權。
+    // 用來因應「載入卡住/逾時」偶爾是因為本地存的token其實已經失效(Discord那邊過期或被撤銷),
+    // 但网页只是純粹連線逾時、不會主動判斷是token失效,玩家自己按重試也不會好——
+    // 給一個明確的按鈕讓玩家自己強制重新登入一次,不用手動去清瀏覽器資料。
+    function forceReLogin_() {
+      localStorage.removeItem('dc_access_token'); localStorage.removeItem('dc_token_type');
+      window.location.href = "https://discord.com/api/oauth2/authorize?client_id=1365601646448607335&redirect_uri=https%3A%2F%2Fjay870122.github.io%2FDCGI%2F&response_type=token&scope=identify";
+    }
   
     let currentUser = null; 
     let currentShopItems = []; 
@@ -3008,7 +3016,9 @@ function fetchScoresAndShop(discordId, callback = null) {
           // 改成清楚顯示錯誤原因 + 一個可以重新嘗試的按鈕,不要讓玩家卡住不知道發生什麼事。
           console.error("讀取分數與商店資料失敗:", result.message);
           document.getElementById('loading-text').innerHTML =
-            `❌ 載入失敗：${result.message || '未知錯誤'}<br><button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button>`;
+            `❌ 載入失敗：${result.message || '未知錯誤'}<br>` +
+            `<button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button> ` +
+            `<button class="btn-action" style="margin-top:12px;background-color:#7289DA" onclick="forceReLogin_()">🔑 重新登入</button>`;
           return;
         }
 
@@ -3145,7 +3155,9 @@ function fetchScoresAndShop(discordId, callback = null) {
         const isTimeout = err && err.name === 'AbortError';
         const msg = isTimeout ? '載入時間過長(伺服器可能忙碌中)，請重試' : '載入失敗，請稍後再試';
         document.getElementById('loading-text').innerHTML =
-          `❌ ${msg}<br><button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button>`;
+          `❌ ${msg}<br>` +
+          `<button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button> ` +
+          `<button class="btn-action" style="margin-top:12px;background-color:#7289DA" onclick="forceReLogin_()">🔑 重新登入</button>`;
       })
       .finally(() => { fetchScoresAndShopInFlight_ = false; });
     }
