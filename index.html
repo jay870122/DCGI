@@ -2109,15 +2109,22 @@
             ⚠️ 這批裡面混了不同過期時間(開啟時會自動優先使用最快過期的)：<br>
             ${g.expiryBreakdown.map(b => `・${b.count}個${b.expiresAt ? new Date(b.expiresAt).toLocaleString() + '過期' : '永不過期'}`).join('<br>')}
           </div>` : '';
+        // 🌟 單次最多開啟數量:後端可能因為這個道具的模板有自訂上限、或全站預設值,限制不能一次開太多個。
+        // 輸入框的max直接取「手上有幾個」跟「這個道具的上限」兩者較小值,超過上限的部分乾脆不給填,
+        // 比等玩家按下去才被後端擋掉(還要多等一次來回)更直覺。
+        const effectiveMaxOpen = Math.min(g.totalCount, g.maxOpenPerRequest || g.totalCount);
+        const maxOpenHintHtml = g.maxOpenPerRequest && g.maxOpenPerRequest < g.totalCount
+          ? `<span style="color:#72767D;font-size:11px;display:block">單次最多開 ${g.maxOpenPerRequest} 個</span>` : '';
         return `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <span>
               <b>${g.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（共 ${g.totalCount} 個）</span>
               ${countdownHtml}
+              ${maxOpenHintHtml}
             </span>
             <span style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="gi-qty-${idx}" min="1" max="${g.totalCount}" value="1" style="width:60px;padding:4px;text-align:center">
+              <input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${effectiveMaxOpen}" value="1" style="width:60px;padding:4px;text-align:center">
               <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="openGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx})">🎁 開啟</button>
             </span>
           </div>
@@ -2184,6 +2191,10 @@
       const qtyInput = document.getElementById(`gi-qty-${idx}`);
       const quantity = parseInt(qtyInput.value, 10) || 1;
       if (quantity < 1) { alert('請輸入至少1個'); return; }
+      // 🌟 這個道具(或全站預設)單次能開的上限,跟輸入框的max屬性是同一個值,提早在前端擋掉超過的數量,
+      // 不用等送出後才被後端拒絕、多一次來回等待。
+      const maxOpen = parseInt(qtyInput.dataset.maxOpen, 10);
+      if (maxOpen && quantity > maxOpen) { alert(`「${itemName}」一次最多只能開啟${maxOpen}個,請分批開啟。`); return; }
       if (!confirm(`確定要打開「${itemName}」x${quantity} 嗎？打開後會立刻隨機抽取內容,無法反悔。`)) return;
 
       generalItemActionInFlight = true;
