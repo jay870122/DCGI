@@ -1640,6 +1640,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>可使用起始時間 <span class="hint">選填,留空=取得後就能馬上打開</span></label>
         <input id="it-usablefrom" type="datetime-local">
       </div>
+      <div class="field">
+        <label>單次最多開啟數量 <span class="hint">選填,留空=使用全站預設上限(目前500)。玩家在前台一次要開這個道具幾個,不能超過這裡設定的數字</span></label>
+        <input id="it-maxopen" type="number" min="1" placeholder="留空=預設值">
+      </div>
       <div class="field full" style="text-align:right">
         <button class="btn btn-cancel" onclick="closeModal('item-template-modal')">取消</button>
         <button class="btn btn-edit" id="it-save-btn" onclick="submitItemTemplate()">💾 儲存</button>
@@ -4921,7 +4925,7 @@ function renderItemTemplates() {
           <div id="itpool-detail-${idx}" style="display:none;white-space:pre-wrap;margin-top:4px;padding:6px;background:var(--s2);border-radius:4px">${t.poolRaw}</div>
         ` : ''}
       </td>
-      <td>${t.maxUses}次</td>
+      <td>${t.maxUses}次<br><span class="hint">單次最多開${t.maxOpenPerRequest ? t.maxOpenPerRequest + '個' : '(預設值)'}</span></td>
       <td>${expiryLabel(t)}${t.usableFrom ? `<br><span class="hint">${new Date(t.usableFrom).toLocaleString()}後才能用</span>` : ''}</td>
       <td>
         <button class="btn btn-edit" onclick="editItemTemplate('${t.name.replace(/'/g,"\\'")}')">✏️ 編輯</button>
@@ -4951,6 +4955,7 @@ function openItemTemplateForm() {
   document.getElementById('it-expiryvalue-box').style.display = 'none';
   document.getElementById('it-expiryvalue').value = '';
   document.getElementById('it-usablefrom').value = '';
+  document.getElementById('it-maxopen').value = '';
   document.getElementById('item-template-modal').classList.add('open');
 }
 
@@ -4965,6 +4970,7 @@ function editItemTemplate(name) {
   document.getElementById('it-expirymode').value = t.expiryMode || 'NEVER';
   document.getElementById('it-expiryvalue').value = t.expiryValue || '';
   document.getElementById('it-usablefrom').value = t.usableFrom || '';
+  document.getElementById('it-maxopen').value = t.maxOpenPerRequest || '';
   toggleItemTemplateExpiryValue();
   updateItemTemplatePreview();
   document.getElementById('item-template-modal').classList.add('open');
@@ -4995,6 +5001,7 @@ async function submitItemTemplate() {
   const expiryMode = document.getElementById('it-expirymode').value;
   const expiryValue = document.getElementById('it-expiryvalue').value.trim();
   const usableFrom = document.getElementById('it-usablefrom').value;
+  const maxOpenPerRequest = document.getElementById('it-maxopen').value.trim();
   const originalName = document.getElementById('it-original-name').value;
 
   const btn = document.getElementById('it-save-btn');
@@ -5005,7 +5012,7 @@ async function submitItemTemplate() {
     if (originalName && originalName !== name) {
       await api({ action: 'adminDeleteItemTemplate', name: originalName });
     }
-    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom });
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest });
     if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
     toast(d.message);
     closeModal('item-template-modal');
