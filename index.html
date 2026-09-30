@@ -2510,6 +2510,12 @@
     let collapsedAuctionParents = new Set(); // 🌟 拍賣分類頁籤:記住哪些父分類被收合了(重新整理會重置)
     let allAuctionParentNames = new Set(); // 🌟 目前拍賣裡所有的父分類名稱,重繪頁籤時會更新,給手風琴收合邏輯用
     let lastAuctionAccordionCategory; // 🌟 記錄上次套用手風琴收合時是哪個分類,同一個分類不重複套用(不然手動展開的又會被收回去)
+    // 🌟🆕 修正bug:每10秒自動重整拍賣列表,就算完全沒有任何拍賣有變動,舊寫法也會把整個列表清掉重建一次,
+    // 導致畫面被強制捲動回最上面(尤其手機瀏覽器很明顯)。這裡改成:(1) 抓回來的資料整體跟上次完全一樣
+    // 就整個跳過重繪;(2) 就算有變動,也逐張卡片比對,沒變的那幾張直接沿用原本DOM節點,只重繪真的有變的。
+    let lastAuctionsSnapshotJSON = null;
+    let lastAuctionCategoryOrderJSON = null;
+    let auctionCardSnapshot = {}; // 🌟 auctionId -> 上次用來畫出這張卡片的資料JSON,拿來判斷這次要不要重繪
     function toggleAuctionCategoryParent(parentName) {
       if (collapsedAuctionParents.has(parentName)) collapsedAuctionParents.delete(parentName);
       else collapsedAuctionParents.add(parentName);
@@ -2592,6 +2598,19 @@
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
+          const refreshLabel = document.getElementById('auction-last-refresh');
+
+          // 🌟🆕 這次抓回來的資料跟上次一模一樣(沒有任何拍賣有變動、分類順序也沒變)就整個跳過重繪,
+          // 連renderAuctions()都不呼叫——畫面完全不動,不會有任何捲動位置被打斷的問題。
+          const newAuctionsJSON = JSON.stringify(data.auctions);
+          const newCategoryOrderJSON = JSON.stringify(data.categoryOrder || []);
+          if (newAuctionsJSON === lastAuctionsSnapshotJSON && newCategoryOrderJSON === lastAuctionCategoryOrderJSON) {
+            if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}（每10秒自動更新,目前沒有變動）`;
+            return;
+          }
+          lastAuctionsSnapshotJSON = newAuctionsJSON;
+          lastAuctionCategoryOrderJSON = newCategoryOrderJSON;
+
           const extendedIds = data.auctions
             .filter(a => prevEndDates[a.id] && a.endDate && new Date(a.endDate).getTime() > new Date(prevEndDates[a.id]).getTime())
             .map(a => a.id);
@@ -2601,7 +2620,6 @@
           renderAuctions();
           if (auctionCountdownInterval) clearInterval(auctionCountdownInterval);
           auctionCountdownInterval = setInterval(updateAuctionCountdowns, 1000);
-          const refreshLabel = document.getElementById('auction-last-refresh');
           if (refreshLabel) refreshLabel.textContent = `🕓 上次更新：${new Date().toLocaleTimeString('zh-TW')}（每10秒自動更新）`;
 
           extendedIds.forEach(id => {
@@ -2701,8 +2719,57 @@
         localStorage.removeItem('shared_auction_target'); // 🌟 沒有東西可以捲動定位,清掉避免下次一直重複觸發
         return;
       }
-      container.innerHTML = '';
+      // 🌟🆕 每張卡片的auctionAltInfo(折抵預覽用的匯率/餘額)不管這張卡片這次要不要重繪都要更新,
+      // 不然「因為資料沒變而沒被重繪」的卡片,折抵勾選會抓不到最新匯率/餘額。
       displayAuctions.forEach(a => {
+        if (a.altCurrency) {
+          auctionAltInfo[a.id] = { rate: a.altCurrencyRate, balance: a.altCurrencyBalance, altName: a.altCurrencyDisplay || a.altCurrency, mainCurrency: a.displayCurrency };
+        }
+      });
+
+      // 🌟🆕 逐張卡片比對資料有沒有變:沒變的直接沿用原本DOM節點(只搬動位置,不重新產生HTML),
+      // 真的有變動(出價、狀態、截止時間...)的才重新產生——不再整批清空重建整個列表,不會打斷
+      // 使用者正在看的畫面或捲動位置,也不會讓沒變動的卡片跟著閃爍/重置。
+      displayAuctions.forEach((a, idx) => {
+        const snapshotKey = JSON.stringify(a);
+        let el = document.getElementById('auction-card-' + a.id);
+        if (!el || auctionCardSnapshot[a.id] !== snapshotKey) {
+          auctionCardSnapshot[a.id] = snapshotKey;
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = buildAuctionCardHtml_(a).trim();
+          const newEl = wrapper.firstElementChild;
+          if (el) el.replaceWith(newEl); else container.appendChild(newEl);
+          el = newEl;
+        }
+        // 🌟 確保順序正確:卡片如果剛好已經在對的位置上,insertBefore對它是no-op,不會產生多餘的DOM異動
+        const refNode = container.children[idx];
+        if (refNode !== el) container.insertBefore(el, refNode || null);
+      });
+      // 🌟 清掉不再顯示的卡片(分類篩選掉/拍賣已經被刪除)跟對應的快照紀錄,避免快照無限累積
+      Array.from(container.children).slice(displayAuctions.length).forEach(el => el.remove());
+      const desiredAuctionIds = new Set(displayAuctions.map(a => a.id));
+      Object.keys(auctionCardSnapshot).forEach(id => { if (!desiredAuctionIds.has(id)) delete auctionCardSnapshot[id]; });
+      updateAuctionCountdowns();
+
+      // 🌟 檢查是否有待跳轉的分享拍賣,捲動並高亮該卡片
+      const targetAuctionId2 = localStorage.getItem('shared_auction_target');
+      if (targetAuctionId2) {
+        setTimeout(() => {
+          const el = document.getElementById('auction-card-' + targetAuctionId2);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.style.transition = "box-shadow 0.3s ease-in-out";
+            el.style.boxShadow = "0 0 20px 6px #F0B232";
+            setTimeout(() => { el.style.boxShadow = "none"; }, 3000);
+          }
+          localStorage.removeItem('shared_auction_target');
+        }, 300);
+      }
+    }
+
+    // 🌟🆕 把單一拍賣品的卡片HTML組成字串(從renderAuctions()抽出來,搭配上面的逐卡片diff邏輯使用)
+    function buildAuctionCardHtml_(a) {
+      {
         const isEnded = a.state !== 'open';
         let typeLabel, typeClass;
         if (a.type === 'SEALED') { typeLabel = '🕵️ 暗標(高者得)'; typeClass = 'auction-type-sealed'; }
@@ -2798,7 +2865,7 @@
         const imageHtml = a.imageUrl ? `<img src="${a.imageUrl}" class="auction-image" alt="拍賣品圖片" title="點擊放大觀看" onclick="openImage('${a.imageUrl}')">` : '';
         const remarkHtml = a.remark ? `<div class="item-remark" style="margin-bottom:10px;">📝 ${a.remark}</div>` : '';
 
-        container.insertAdjacentHTML('beforeend', `
+        return `
           <div class="auction-card ${isEnded ? 'ended' : ''}" id="auction-card-${a.id}">
             ${imageHtml}
             <div class="auction-header">
@@ -2818,23 +2885,7 @@
             ${statusHtml}
             ${bidRowHtml}
           </div>
-        `);
-      });
-      updateAuctionCountdowns();
-
-      // 🌟 檢查是否有待跳轉的分享拍賣,捲動並高亮該卡片
-      const targetAuctionId = localStorage.getItem('shared_auction_target');
-      if (targetAuctionId) {
-        setTimeout(() => {
-          const el = document.getElementById('auction-card-' + targetAuctionId);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.style.transition = "box-shadow 0.3s ease-in-out";
-            el.style.boxShadow = "0 0 20px 6px #F0B232";
-            setTimeout(() => { el.style.boxShadow = "none"; }, 3000);
-          }
-          localStorage.removeItem('shared_auction_target');
-        }, 300);
+        `;
       }
     }
 
