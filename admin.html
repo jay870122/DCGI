@@ -1002,6 +1002,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <p class="hint" style="margin-bottom:12px">
           道具模板是「內容比照盲盒」的萬用道具:玩家取得的當下不知道裡面是什麼,要自己選擇打開才會像開盲盒一樣重新抽一次內容。
           可以在商品/里程碑/抽獎/拍賣安慰獎/BINGO連線與整卡獎勵的盲盒規則裡,用 <code>[道具:模板名稱]顯示名稱</code> 這個標籤來發放這個模板做出來的道具。
+          編輯模板時,「內容獎池」裡還可以用 <code>[銷毀道具]</code>、<code>[不消耗]</code>、<code>[增加次數:N]</code> 三個標籤控制開出該獎項後道具的使用次數要怎麼變(詳見編輯畫面裡的說明)。
         </p>
         <div class="tbl-wrap tbl-wrap-table">
           <table>
@@ -1618,6 +1619,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>內容獎池<span style="color:var(--red)">*</span> <span class="hint">格式跟商品的「獎勵數量/盲盒規則」完全一樣,玩家每次打開這個道具都會照這份規則重新抽一次</span></label>
         <textarea id="it-pool" rows="4" placeholder="幻彩水晶:50, 30%&#10;幻彩水晶碎片:10, 50%&#10;稀有道具:1, 20%, 10份" oninput="updateItemTemplatePreview()"></textarea>
         <div class="gacha-preview" id="it-pool-preview" style="display:none"></div>
+        <details class="gacha-guide" style="margin-top:6px">
+          <summary style="cursor:pointer">📖 <b>道具專用標籤</b>（控制「使用次數」怎麼變化,點這裡展開）</summary>
+          這三個標籤只對「通用道具模板」的獎池有意義(因為只有道具才有「剩餘使用次數」這個概念),可以跟上面商品盲盒規則指南裡的其他標籤(<code>[序號]</code>、<code>[道具:...]</code>、<code>[背包]</code>...)、以及 <code>+</code> 多變數並用。三個標籤本身不發放任何獎勵,只控制「開這次之後,這個道具的剩餘使用次數要怎麼變」：<br>
+          　・<b>[銷毀道具]</b>：這次抽到不管原本還剩幾次使用次數,道具直接被銷毀(從背包移除),不會再出現。例如 <code>傳說道具, 幻彩水晶:100+[銷毀道具], 10%, 5份</code><br>
+          　・<b>[不消耗]</b>：這次使用不會扣掉任何使用次數,道具的剩餘次數維持不變(等於白抽一次)。例如 <code>幸運一擊, 幻彩水晶:10+[不消耗], 30%</code><br>
+          　・<b>[增加次數:N]</b>：這次使用不扣次數,反而讓這個道具倒加 N 次使用次數(可以讓道具比原本設定的使用次數上限開更多次)。例如 <code>續命符, 幻彩水晶:20+[增加次數:2], 20%</code> 代表中這個獎時不扣原本次數,還倒加2次。<br>
+          　・沒有中到以上三個標籤的獎項,規則跟原來一樣:正常扣1次使用次數,次數用完道具自動消失。<br>
+          　・這三個標籤如果誤填到商品/里程碑/抽獎/拍賣安慰獎/BINGO等「非道具」的盲盒規則裡,系統會直接忽略它們(不會被當成貨幣欄位名稱亂發獎勵)。
+        </details>
       </div>
       <div class="field">
         <label>使用次數上限<span style="color:var(--red)">*</span> <span class="hint">每次使用都重新抽一次內容</span></label>
@@ -2480,6 +2490,17 @@ function setAltCurrencyRows(prefix, altCurrencyStr, altRateStr) {
   syncAltCurrencyHidden(prefix);
 }
 
+// 🌟🆕 修正bug:排序列表按▲▼按鈕時,重繪會把「正在被點擊、正取得焦點」的那顆按鈕整個換掉
+// (innerHTML整個重建),瀏覽器會把焦點掉回<body>——連帶把可捲動的內容區(#main-content)捲動
+// 位置重置到最上面,體驗上就像「整理排序時,畫面突然被拉到最上面」。這裡在重繪前記住捲軸位置,
+// 重繪後(下一個影格,等瀏覽器自己的捲動行為跑完)再复位回去,不管整理商品/拍賣/分類順序都適用。
+function keepMainScroll(renderFn) {
+  const main = document.getElementById('main-content');
+  const top = main ? main.scrollTop : 0;
+  renderFn();
+  requestAnimationFrame(() => { if (main) main.scrollTop = top; });
+}
+
 // 🌟 通用拖曳排序:container 裡符合 rowSelector 的每個元素都能用滑鼠拖曳調整順序,
 // 放開時呼叫 onReorder(fromIndex, toIndex),呼叫端自己去搬動陣列再重繪(觸控裝置請繼續用旁邊的 ▲▼ 按鈕,手機瀏覽器對原生拖曳支援不穩定)
 function enableDragReorder(container, rowSelector, onReorder) {
@@ -2855,7 +2876,7 @@ function moveShopReorderRow(idx, dir) {
   const t = idx + dir;
   if (t < 0 || t >= shopReorderList.length) return;
   [shopReorderList[idx], shopReorderList[t]] = [shopReorderList[t], shopReorderList[idx]];
-  renderShopTable();
+  keepMainScroll(renderShopTable);
 }
 async function saveShopReorderInline() {
   if (shopReorderList.length === 0) { toast('這個分類沒有商品可以排序', false); return; }
@@ -3374,7 +3395,7 @@ function moveAuctionReorderRow(idx, dir) {
   const t = idx + dir;
   if (t < 0 || t >= auctionReorderList.length) return;
   [auctionReorderList[idx], auctionReorderList[t]] = [auctionReorderList[t], auctionReorderList[idx]];
-  renderAuctionTable();
+  keepMainScroll(renderAuctionTable);
 }
 async function saveAuctionReorderInline() {
   if (auctionReorderList.length === 0) { toast('這個分類沒有拍賣品可以排序', false); return; }
@@ -4242,7 +4263,7 @@ function moveCategory(kind, idx, dir) {
   const t = idx + dir;
   if (t < 0 || t >= list.length) return;
   [list[idx], list[t]] = [list[t], list[idx]];
-  renderCategoryOrderList(kind);
+  keepMainScroll(() => renderCategoryOrderList(kind));
 }
 function removeCategory(kind, idx) {
   categoryOrderData[kind].splice(idx, 1);
@@ -4298,7 +4319,7 @@ function moveItemOrder(idx, dir) {
   const t = idx + dir;
   if (t < 0 || t >= currentItemOrderList.length) return;
   [currentItemOrderList[idx], currentItemOrderList[t]] = [currentItemOrderList[t], currentItemOrderList[idx]];
-  paintItemOrderList();
+  keepMainScroll(paintItemOrderList);
 }
 async function saveItemOrder() {
   if (currentItemOrderList.length === 0) { toast('這個分類沒有商品可以排序', false); return; }
@@ -4346,7 +4367,7 @@ function moveAuctionOrder(idx, dir) {
   const t = idx + dir;
   if (t < 0 || t >= currentAuctionOrderList.length) return;
   [currentAuctionOrderList[idx], currentAuctionOrderList[t]] = [currentAuctionOrderList[t], currentAuctionOrderList[idx]];
-  paintAuctionOrderList();
+  keepMainScroll(paintAuctionOrderList);
 }
 async function saveAuctionOrder() {
   if (currentAuctionOrderList.length === 0) { toast('這個分類沒有拍賣品可以排序', false); return; }
