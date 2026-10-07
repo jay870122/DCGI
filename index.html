@@ -86,11 +86,17 @@
     }
     .item-image:hover { transform: scale(1.03); border-color: #5865F2; }
 
-    .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px solid #40444B; padding-bottom: 8px; gap: 10px;}
+    /* 🌟🔧 修正bug:原本.item-header是display:flex沒有flex-wrap,.item-badge又是white-space:nowrap+
+       flex-shrink:0(死不換行、死不縮小)。遇到像賭盤「⌛ 已截止下注，等待管理員公布結果」這種
+       特別長的狀態文字時,badge會硬撐出很寬的一塊,把同一排的標題擠到只剩幾px寬,導致標題變成
+       逐字換行、整張卡片畫面跑掉(就是這次回報的「右邊那個紅色太長了」)。
+       改成:這排允許換行(flex-wrap:wrap),badge文字太長時也允許自己換行(white-space:normal+
+       max-width),空間不夠時badge會自動換到下一行,不會再把標題擠爆。 */
+    .item-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px solid #40444B; padding-bottom: 8px; gap: 6px 10px;}
     .item-name { font-size: 18px; font-weight: bold; color: #FFF; line-height: 1.3;}
     .btn-share { margin-left: 8px; cursor: pointer; font-size: 16px; opacity: 0.6; transition: 0.2s; user-select: none; }
     .btn-share:hover { opacity: 1; transform: scale(1.2); }
-    .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
+    .item-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; flex-shrink: 0; white-space: normal; max-width: 100%; text-align: right; }
     .badge-avail { background-color: #43B581; color: white; }
     .badge-unavail { background-color: #ED4245; color: white; }
     .item-remark { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 8px; background-color: #202225; border-left: 3px solid #5865F2; border-radius: 4px; line-height: 1.4; white-space: pre-wrap; }
@@ -453,7 +459,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.15</div>
+    <div class="version-tag">系統版本：v5.4.16</div>
   </div>
 
   <script>
@@ -3507,7 +3513,7 @@ function fetchScoresAndShop(discordId, callback = null) {
           <div class="shop-item-card ${!isAvail ? 'disabled' : ''}" id="card-${safeId}">
             ${imageHtml}
             <div class="item-header">
-              <div style="display: flex; align-items: center;">
+              <div style="display: flex; align-items: center; flex: 1; min-width: 120px;">
                 <span class="item-name">${isLocked ? '🔒 ' : ''}${displayName}</span>
                 <span class="btn-share" onclick="shareItem('${item.id}', '${displayName}')" title="複製分享連結">🔗</span>
               </div>
