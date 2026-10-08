@@ -475,8 +475,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
                 <option value="REMOVE_ALL">中獎後這個人的票全部移除(整場最多中一次)</option>
               </select>
             </div>
+            <div class="field full" id="ns-raffle-manual-box" style="display:none">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ns-raffle-manual" style="width:auto">
+                手動開獎(時間到不自動開獎) <span class="hint">勾選後,「結束時間」只會擋投票(時間到就不能再買票投票),不會自動開獎,要在商品清單按「🎯 開獎控制台」才能開獎——可以隨機抽、也可以自選要開哪個獎品,一次抽1位或整批抽完都行,方便自己挑時間對著直播/語音通話開獎。留空=照舊,時間到系統自動開獎。</span>
+              </label>
+            </div>
             <div class="gacha-guide" id="ns-raffle-guide" style="display:none;grid-column:span 2">
-              🎰 <b>抽獎模式怎麼用？</b>勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池(格式跟盲盒完全一樣,可多獎項多得獎人,份數=要抽出幾位得獎者)。玩家兌換這個商品 = 投票,不會立即拿到獎勵;時間到系統每5~10分鐘會自動檢查一次,自動依加權票數抽出得獎者、自動發獎、自動公告。分類/價格/貨幣/限購/身分組限定/替代貨幣折抵/密碼鎖定/圖片/備註等其他設定完全比照一般商品,照樣可以用。
+              🎰 <b>抽獎模式怎麼用？</b>勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池(格式跟盲盒完全一樣,可多獎項多得獎人,份數=要抽出幾位得獎者)。玩家兌換這個商品 = 投票,不會立即拿到獎勵;時間到系統每5~10分鐘會自動檢查一次,自動依加權票數抽出得獎者、自動發獎、自動公告(勾選「手動開獎」的話則改成要管理員自己按按鈕才會開獎)。分類/價格/貨幣/限購/身分組限定/替代貨幣折抵/密碼鎖定/圖片/備註等其他設定完全比照一般商品,照樣可以用。
             </div>
             <div class="fsep">🎲 賭博模式(選填)</div>
             <div class="field full">
@@ -1293,8 +1299,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <option value="REMOVE_ALL">中獎後這個人的票全部移除(整場最多中一次)</option>
         </select>
       </div>
+      <div class="field full" id="em-raffle-manual-box" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="em-raffle-manual" style="width:auto">
+          手動開獎(時間到不自動開獎) <span class="hint">勾選後,「結束時間」只會擋投票(時間到就不能再買票投票),不會自動開獎,要在商品清單按「🎯 開獎控制台」才能開獎——可以隨機抽、也可以自選要開哪個獎品,一次抽1位或整批抽完都行,方便自己挑時間對著直播/語音通話開獎。留空=照舊,時間到系統自動開獎。</span>
+        </label>
+      </div>
       <div class="gacha-guide" id="em-raffle-guide" style="display:none;grid-column:span 2">
-        🎰 勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池。玩家兌換 = 投票,時間到系統會自動抽出得獎者、自動發獎、自動公告。
+        🎰 勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池。玩家兌換 = 投票,時間到系統會自動抽出得獎者、自動發獎、自動公告(勾選「手動開獎」的話則改成要管理員自己按按鈕才會開獎)。
       </div>
       <div id="em-raffle-drawn-hint" style="display:none;grid-column:span 2;color:#F0B232;font-size:13px;padding:8px 0">⚠️ 這個抽獎已經開獎過了,再次儲存不會重新開獎,但也不會清掉開獎結果。</div>
       <div class="fsep">🎲 賭博模式(選填)</div>
@@ -1591,6 +1603,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3 id="raffle-participants-title">🎫 投票名單</h3><button class="modal-close" onclick="closeModal('raffle-participants-modal')">×</button></div>
     <div class="modal-body">
       <div id="raffle-participants-container">讀取中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 🌟🆕 抽獎「自選獎品/依序手動開獎」控制台 -->
+<div class="overlay" id="raffle-draw-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3 id="raffle-draw-title">🎯 開獎控制台</h3><button class="modal-close" onclick="closeModal('raffle-draw-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="raffle-draw-container">讀取中...</div>
     </div>
   </div>
 </div>
@@ -2298,7 +2320,18 @@ async function apiWorkerRead(workerAction, extraParams, gasParams) {
       accessToken: localStorage.getItem('admin_dc_access_token') || '',
       ...(extraParams || {}),
     });
-    const res = await fetch(`${DASHBOARD_WORKER_URL}?${qs}`);
+    // 🌟🔧 修正bug:原本這裡沒有設定逾時,Worker那端如果剛好遇到Google Sheets API變慢(配額限流、
+    // 偶發延遲等),fetch會傻傻一直等,畫面上就會卡在「讀取中...」很久很久,也不會照設計自動退回GAS。
+    // 改成最多等8秒,逾時就直接視為Worker這條路線失敗,退回原本的GAS api()(雖然GAS本身也可能慢,
+    // 但至少不會讓使用者完全看不到任何進度/結果)。
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 8000);
+    let res;
+    try {
+      res = await fetch(`${DASHBOARD_WORKER_URL}?${qs}`, { signal: abortController.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
     const data = await res.json();
     if (data.status === 'success') return data;
     throw new Error(data.message || 'Worker回應失敗');
@@ -2666,10 +2699,12 @@ function toggleRaffleFields(prefix) {
   const guide = document.getElementById(prefix + '-raffle-guide');
   const notifyBox = document.getElementById(prefix + '-raffle-notify-box');
   const repeatBox = document.getElementById(prefix + '-raffle-repeat-box');
+  const manualBox = document.getElementById(prefix + '-raffle-manual-box');
   if (box) box.style.display = enabled ? '' : 'none';
   if (guide) guide.style.display = enabled ? '' : 'none';
   if (notifyBox) notifyBox.style.display = enabled ? '' : 'none';
   if (repeatBox) repeatBox.style.display = enabled ? '' : 'none';
+  if (manualBox) manualBox.style.display = enabled ? '' : 'none';
 }
 
 // 🌟 賭博模式:勾選後才顯示賠率模式/下注選項/輸家退還比例等欄位跟說明文字
@@ -2947,7 +2982,7 @@ function renderShopTable() {
     ? '<tr><td colspan="9" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
       <td><input type="checkbox" class="shop-row-check" data-id="${i.itemId}" ${shopSelectedIds.has(i.itemId)?'checked':''} onchange="toggleShopItemSelect('${i.itemId}', this.checked)"></td>
-      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="買=投票,時間到自動開獎">🎰 抽獎</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.upEnabled ? ` <span class="type-badge type-low" title="範圍 ${i.upMin}~${i.upMax},目前已知提示範圍 ${i.upNarrowLow||i.upMin}~${i.upNarrowHigh||i.upMax}(全站共用一組答案)${i.upHideRange ? '；⚠️ 玩家端已隱藏收斂提示範圍,只會看到原始範圍' : ''}">🔢 終極密碼${i.upHideRange ? '🙈' : ''}</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
+      <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.isRaffle ? ` <span class="type-badge type-low" title="${i.raffleManualDraw ? '買=投票,結束時間只會停止投票,要管理員自己按「開獎控制台」才會抽獎(可以自選獎品、一次抽1位或整批抽完)' : '買=投票,時間到自動開獎'}">🎰 抽獎${i.raffleManualDraw ? '🖐️手動' : ''}</span>` : ''}${i.isGambling ? ` <span class="type-badge type-low" title="買=下注,管理員手動公布結果">🎲 賭博</span>` : ''}${i.upEnabled ? ` <span class="type-badge type-low" title="範圍 ${i.upMin}~${i.upMax},目前已知提示範圍 ${i.upNarrowLow||i.upMin}~${i.upNarrowHigh||i.upMax}(全站共用一組答案)${i.upHideRange ? '；⚠️ 玩家端已隱藏收斂提示範圍,只會看到原始範圍' : ''}">🔢 終極密碼${i.upHideRange ? '🙈' : ''}</span>` : ''}${i.altCurrency ? ` <span class="type-badge type-pub" title="可用 ${i.altCurrency} 折抵(匯率 ${i.altCurrencyRate})">💱 ${i.altCurrency}</span>` : ''}${(i.lockFixedPassword||i.lockCodeName) ? ` <span class="type-badge type-seal" title="需要密碼才能購買">🔒 已鎖定</span>` : ''}</td>
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
       <td data-label="庫存">${i.stock||'無限'}</td>
@@ -2957,7 +2992,8 @@ function renderShopTable() {
         ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         ${i.isRaffle ? `<button class="btn btn-edit" onclick="showRaffleParticipants('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看名單</button>` : ''}
-        ${i.isRaffle && !i.raffleResult ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
+        ${i.isRaffle && !i.raffleResult && i.raffleManualDraw ? `<button class="btn btn-close" onclick="openRaffleDrawModal('${i.itemId}')">🎯 開獎控制台(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
+        ${i.isRaffle && !i.raffleResult && !i.raffleManualDraw ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
         ${i.isGambling ? `<button class="btn btn-edit" onclick="showGamblingBets('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看下注</button>` : ''}
         ${i.isGambling && !i.gamblingResult ? `<button class="btn btn-close" onclick="openSettleGambling('${i.itemId}','${i.name.replace(/'/g,"\\'")}','${(i.gamblingOptions||'').replace(/'/g,"\\'")}')">🎲 公布結果</button>` : ''}
         <button class="btn btn-edit" onclick="duplicateShopItem('${i.itemId}')">📋 複製</button>
@@ -3089,6 +3125,57 @@ async function drawShopRaffleNow(itemId, name) {
   else toast('❌ '+d.message, false);
 }
 
+// 🌟🆕 抽獎商品:開獎控制台——可以「隨機抽1位/全部抽完」,也可以「自選某個獎品」抽1位或把那個獎品剩下的
+// 份數全部開完,對著直播/語音通話一輪一輪公開抽。每次操作完會重新整理面板(進度/剩餘份數即時更新)。
+function openRaffleDrawModal(itemId) {
+  document.getElementById('raffle-draw-modal').classList.add('open');
+  renderRaffleDrawModal(itemId);
+}
+function renderRaffleDrawModal(itemId) {
+  const i = shopItems.find(x => x.itemId === itemId);
+  const box = document.getElementById('raffle-draw-container');
+  if (!i) { box.innerHTML = '找不到這個商品(可能已經被刪除或改頁了),請關掉重開一次'; return; }
+  document.getElementById('raffle-draw-title').textContent = '🎯 開獎控制台：' + i.name;
+  const total = i.stock || 1, drawn = i.raffleDrawnCount || 0, remainTotal = total - drawn;
+  if (i.raffleResult) { box.innerHTML = `<div style="padding:12px 0">🏆 這場抽獎已經開獎結束了。</div>`; return; }
+  const esc = s => (s||'').toString().replace(/'/g,"\\'");
+  let html = `<div style="margin-bottom:12px">整場進度：<b>${drawn} / ${total}</b>（還剩 ${remainTotal} 個名額）</div>`;
+  html += `<div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-close" onclick="drawShopRaffleStep('${itemId}','',1)">🎲 隨機抽1位</button>
+    <button class="btn btn-close" onclick="drawShopRaffleStep('${itemId}','','ALL')">🎲 隨機全部抽完(剩${remainTotal}位)</button>
+  </div>`;
+  const tiers = (i.raffleTierStatus||[]).filter(t => t.remaining === null || t.remaining > 0);
+  if (tiers.length > 0) {
+    html += `<div class="fsep">🎁 自選獎品(指定要開哪一項,抽到誰還是隨機)</div>`;
+    html += `<table style="width:100%;font-size:14px"><tbody>`;
+    tiers.forEach(t => {
+      const remainTxt = t.remaining === null ? '不限量(保底)' : `剩 ${t.remaining} 份`;
+      html += `<tr>
+        <td style="padding:6px 4px">${t.name}<br><span class="hint">${remainTxt}</span></td>
+        <td style="padding:6px 4px;text-align:right;white-space:nowrap">
+          <button class="btn btn-edit" onclick="drawShopRaffleStep('${itemId}','${esc(t.name)}',1)">抽1位</button>
+          ${t.remaining !== null ? `<button class="btn btn-close" onclick="drawShopRaffleStep('${itemId}','${esc(t.name)}','ALL')">全部開完(${t.remaining})</button>` : ''}
+        </td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  html += `<div id="raffle-draw-result" style="margin-top:14px;white-space:pre-wrap;font-size:14px;color:var(--text-dim)"></div>`;
+  box.innerHTML = html;
+}
+async function drawShopRaffleStep(itemId, prizeName, count) {
+  const d = await api({action:'adminDrawShopRaffleOneSlot', itemId, prizeName: prizeName||'', count});
+  if (d.status==='success') {
+    toast(d.message.split('\n')[0]);
+    await loadShopItems();
+    const resultBox = document.getElementById('raffle-draw-result');
+    if (resultBox) resultBox.textContent = d.message;
+    renderRaffleDrawModal(itemId);
+  } else {
+    toast('❌ '+d.message, false);
+  }
+}
+
 // 🌟 賭博模式:查看某個賭博商品目前每一筆下注明細(依選項分組並統計總額,方便公布結果前參考)
 async function showGamblingBets(itemId, name) {
   document.getElementById('gambling-bets-title').textContent = '🎲 下注明細：' + name;
@@ -3202,6 +3289,7 @@ function openEditShop(itemId) {
   f('em-raffle-weights').value = i.raffleRoleWeights || '';
   document.getElementById('em-raffle-notify').checked = i.raffleNotifyResult !== false;
   document.getElementById('em-raffle-repeat').value = i.raffleRepeatWinMode || 'ALLOW';
+  document.getElementById('em-raffle-manual').checked = !!i.raffleManualDraw;
   document.getElementById('em-raffle-drawn-hint').style.display = (i.isRaffle && i.raffleResult) ? '' : 'none';
   toggleRaffleFields('em');
   f('em-gambling').checked = !!i.isGambling;
@@ -3252,6 +3340,7 @@ async function saveShopItem() {
     lockGuessLimitEnabled:document.getElementById('em-lockguesslimit').checked,lockGuessLimitCount:f('em-lockguesscount'),lockGuessLimitPeriod:f('em-lockguessperiod'),
     isRaffle:document.getElementById('em-raffle').checked,raffleRoleWeights:f('em-raffle-weights'),
     raffleNotifyResult:document.getElementById('em-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('em-raffle-repeat').value,
+    raffleManualDraw:document.getElementById('em-raffle-manual').checked,
     isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
     gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
     gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked,
@@ -3585,6 +3674,7 @@ function resetAddShop() {
   itemOptionsState.ns = [];
   renderItemOptions('ns');
   document.getElementById('ns-raffle').checked = false;
+  document.getElementById('ns-raffle-manual').checked = false;
   toggleRaffleFields('ns');
   document.getElementById('ns-gambling').checked = false;
   document.getElementById('ns-gambling-mode').value = 'FIXED';
@@ -3655,6 +3745,7 @@ async function submitAddShop(forceStatus) {
     lockGuessLimitEnabled:document.getElementById('ns-lockguesslimit').checked,lockGuessLimitCount:f('ns-lockguesscount'),lockGuessLimitPeriod:f('ns-lockguessperiod'),
     isRaffle:document.getElementById('ns-raffle').checked,raffleRoleWeights:f('ns-raffle-weights'),
     raffleNotifyResult:document.getElementById('ns-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('ns-raffle-repeat').value,
+    raffleManualDraw:document.getElementById('ns-raffle-manual').checked,
     isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
     gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked,
