@@ -2487,13 +2487,32 @@
       document.getElementById('trade-modal').style.display = 'none';
     }
 
+    // 🌟🔧 查詢(讀取)改走Worker鏡射(跟我的道具背包同一套「Worker優先、失敗才退回GAS」架構),避免每次
+    // 開「道具交易」彈窗都要等GAS執行——GAS執行一次常常要好幾秒,Worker有分頁快取查詢快很多。
+    // 發起/取消/確認交易這些「寫入」動作還是維持走GAS(見submitCreateTrade_/cancelTrade_/respondTrade_),
+    // 只有這裡的「查詢」換成Worker優先。
     function loadTradeData() {
       const itemsContainer = document.getElementById('trade-items-container');
       itemsContainer.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">讀取中...</p>';
+      fetch(`${DASHBOARD_WORKER_URL}?action=tradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(res => res.json())
+        .then(data => { if (data.status === 'success') renderTradableItems(data.items || []); else loadTradableItemsViaGas_(); })
+        .catch(() => { loadTradableItemsViaGas_(); });
+      fetch(`${DASHBOARD_WORKER_URL}?action=itemTrades&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(res => res.json())
+        .then(data => { if (data.status === 'success') renderTradeLists(data); else loadItemTradesViaGas_(); })
+        .catch(() => { loadItemTradesViaGas_(); });
+    }
+
+    function loadTradableItemsViaGas_() {
+      const itemsContainer = document.getElementById('trade-items-container');
       fetchWithTimeout_(`${GAS_API_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
         .then(data => { if (data.status === 'success') renderTradableItems(data.items || []); else itemsContainer.innerHTML = `<p style="text-align:center;color:#ED4245;font-size:13px;">❌ ${data.message||'讀取失敗'}</p>`; })
         .catch(() => { itemsContainer.innerHTML = '<p style="text-align:center;color:#ED4245;font-size:13px;">❌ 連線失敗</p>'; });
+    }
+
+    function loadItemTradesViaGas_() {
       fetchWithTimeout_(`${GAS_API_URL}?action=getMyItemTrades&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
         .then(data => { if (data.status === 'success') renderTradeLists(data); })
