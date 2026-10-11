@@ -2185,9 +2185,18 @@
         // 🌟 單次最多開啟數量:後端可能因為這個道具的模板有自訂上限、或全站預設值,限制不能一次開太多個。
         // 輸入框的max直接取「手上有幾個」跟「這個道具的上限」兩者較小值,超過上限的部分乾脆不給填,
         // 比等玩家按下去才被後端擋掉(還要多等一次來回)更直覺。
-        const effectiveMaxOpen = Math.min(g.totalCount, g.maxOpenPerRequest || g.totalCount);
+        // 🌟🆕 開啟次數上限(週期性節流):後端如果設了每日/每週/每月/終身總共能開幾次,這裡顯示剩餘次數,
+        // 並把輸入框上限再收緊一次(跟單次最多開啟數量一樣道理),剩0次的話直接把開啟按鈕關掉,不用等按下去
+        // 才被後端擋掉。
+        const periodLabelMap_ = { DAILY: '今日', WEEKLY: '本週', MONTHLY: '本月', LIFETIME: '總共' };
+        const openLimitHintHtml = g.openLimitStatus
+          ? `<span style="color:${g.openLimitStatus.remaining > 0 ? '#F0B232' : '#ED4245'};font-size:11px;display:block">⏱️ ${periodLabelMap_[g.openLimitStatus.mode] || ''}剩餘開啟次數：${g.openLimitStatus.remaining} / ${g.openLimitStatus.limit}</span>`
+          : '';
+        const openLimitRemaining = g.openLimitStatus ? g.openLimitStatus.remaining : Infinity;
+        const effectiveMaxOpen = Math.max(0, Math.min(g.totalCount, g.maxOpenPerRequest || g.totalCount, openLimitRemaining));
         const maxOpenHintHtml = g.maxOpenPerRequest && g.maxOpenPerRequest < g.totalCount
           ? `<span style="color:#72767D;font-size:11px;display:block">單次最多開 ${g.maxOpenPerRequest} 個</span>` : '';
+        const openLimitExhausted = g.openLimitStatus && g.openLimitStatus.remaining <= 0;
         return `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -2195,10 +2204,11 @@
               <b>${g.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（共 ${g.totalCount} 個）</span>
               ${countdownHtml}
               ${maxOpenHintHtml}
+              ${openLimitHintHtml}
             </span>
             <span style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${effectiveMaxOpen}" value="1" style="width:60px;padding:4px;text-align:center">
-              <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="openGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx})">🎁 開啟</button>
+              <input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${effectiveMaxOpen}" value="1" style="width:60px;padding:4px;text-align:center" ${openLimitExhausted ? 'disabled' : ''}>
+              <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="openGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx})" ${openLimitExhausted ? 'disabled' : ''}>🎁 開啟</button>
             </span>
           </div>
           ${breakdownHtml}
@@ -2804,8 +2814,8 @@
       const restoreBtn = setBtnBusy_(btn, '取消鎖定中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=unlockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); loadGeneralItems(); })
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); loadGeneralItems(); });
     }
 
     function cancelTradeSessionWindow_(btn) {
