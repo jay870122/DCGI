@@ -1676,6 +1676,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>單次最多開啟數量 <span class="hint">選填,留空=使用全站預設上限(目前500)。玩家在前台一次要開這個道具幾個,不能超過這裡設定的數字</span></label>
         <input id="it-maxopen" type="number" min="1" placeholder="留空=預設值">
       </div>
+      <div class="field full" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="it-tradable" style="width:auto"><label for="it-tradable" style="margin:0">🤝 開放玩家互相交易 <span class="hint">勾選後,持有這個模板道具的玩家可以在網頁上發起跟其他玩家交換/贈送</span></label>
+      </div>
       <div class="field full" style="text-align:right">
         <button class="btn btn-cancel" onclick="closeModal('item-template-modal')">取消</button>
         <button class="btn btn-edit" id="it-save-btn" onclick="submitItemTemplate()">💾 儲存</button>
@@ -5029,7 +5032,7 @@ function renderItemTemplates() {
     const moreCount = poolLines.length - 1;
     return `
     <tr>
-      <td><b>${t.name}</b></td>
+      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}</td>
       <td style="max-width:280px;font-size:12px;color:var(--muted)">
         <div>${firstLineShort}${moreCount > 0 ? `<span class="hint">　(共${poolLines.length}個獎項)</span>` : ''}</div>
         ${moreCount > 0 ? `
@@ -5068,6 +5071,7 @@ function openItemTemplateForm() {
   document.getElementById('it-expiryvalue').value = '';
   document.getElementById('it-usablefrom').value = '';
   document.getElementById('it-maxopen').value = '';
+  document.getElementById('it-tradable').checked = false;
   document.getElementById('item-template-modal').classList.add('open');
 }
 
@@ -5083,6 +5087,7 @@ function editItemTemplate(name) {
   document.getElementById('it-expiryvalue').value = t.expiryValue || '';
   document.getElementById('it-usablefrom').value = t.usableFrom || '';
   document.getElementById('it-maxopen').value = t.maxOpenPerRequest || '';
+  document.getElementById('it-tradable').checked = !!t.tradable;
   toggleItemTemplateExpiryValue();
   updateItemTemplatePreview();
   document.getElementById('item-template-modal').classList.add('open');
@@ -5114,6 +5119,7 @@ async function submitItemTemplate() {
   const expiryValue = document.getElementById('it-expiryvalue').value.trim();
   const usableFrom = document.getElementById('it-usablefrom').value;
   const maxOpenPerRequest = document.getElementById('it-maxopen').value.trim();
+  const tradable = document.getElementById('it-tradable').checked;
   const originalName = document.getElementById('it-original-name').value;
 
   const btn = document.getElementById('it-save-btn');
@@ -5124,7 +5130,7 @@ async function submitItemTemplate() {
     if (originalName && originalName !== name) {
       await api({ action: 'adminDeleteItemTemplate', name: originalName });
     }
-    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest });
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable });
     if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
     toast(d.message);
     closeModal('item-template-modal');
