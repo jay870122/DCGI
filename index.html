@@ -331,7 +331,7 @@
                 <input type="text" id="trade-target-input" list="trade-target-datalist" placeholder="輸入或選擇對方暱稱" style="width:100%;padding:6px;margin-top:2px">
                 <datalist id="trade-target-datalist"></datalist>
               </label>
-              <button class="btn-action" style="padding:6px;font-size:13px;background-color:#5865F2" onclick="submitCreateTradeInvite_()">送出交易邀請</button>
+              <button class="btn-action" style="padding:6px;font-size:13px;background-color:#5865F2" onclick="submitCreateTradeInvite_(this)">送出交易邀請</button>
             </div>
           </div>
           <div id="trade-history-section">
@@ -356,12 +356,12 @@
           <div id="trade-session-add-row" style="display:flex;gap:6px;margin-top:10px;">
             <select id="trade-session-item-select" style="flex:1;padding:6px;"></select>
             <input type="number" id="trade-session-item-qty" min="1" value="1" style="width:70px;padding:6px;">
-            <button class="btn-action" style="padding:6px 10px;font-size:12px;background-color:#43B581" onclick="addTradeSessionItem_()">放入</button>
+            <button class="btn-action" style="padding:6px 10px;font-size:12px;background-color:#43B581" onclick="addTradeSessionItem_(this)">放入</button>
           </div>
           <div style="display:flex;gap:8px;margin-top:12px;">
-            <button id="trade-session-lock-btn" class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#43B581" onclick="lockTradeSessionMySide_()">🔒 鎖定</button>
-            <button id="trade-session-unlock-btn" class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#FAA61A;display:none" onclick="unlockTradeSessionMySide_()">🔓 取消鎖定</button>
-            <button class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#ED4245" onclick="cancelTradeSessionWindow_()">✖ 取消交易</button>
+            <button id="trade-session-lock-btn" class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#43B581" onclick="lockTradeSessionMySide_(this)">🔒 鎖定</button>
+            <button id="trade-session-unlock-btn" class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#FAA61A;display:none" onclick="unlockTradeSessionMySide_(this)">🔓 取消鎖定</button>
+            <button class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#ED4245" onclick="cancelTradeSessionWindow_(this)">✖ 取消交易</button>
           </div>
         </div>
       </div>
@@ -2518,6 +2518,24 @@
     let tradeSessionPollTimer_ = null;
     let tradeSessionMyTradableItems_ = [];
 
+    // 🌟 按鈕防連點用的「XX中...」狀態:disable按鈕(span類元素改成pointer-events:none)並把文字換成忙碌中文案,
+    // 回傳一個restore函式,不管最後成功/失敗/連線逾時都要呼叫restore把按鈕還原,避免卡在「XX中」動不了。
+    function setBtnBusy_(el, busyText) {
+      if (!el) return function () {};
+      el.dataset.origText = el.textContent;
+      if (el.tagName === 'BUTTON') el.disabled = true;
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.6';
+      el.textContent = busyText;
+      return function restore() {
+        if (!el) return;
+        el.disabled = false;
+        el.style.pointerEvents = '';
+        el.style.opacity = '';
+        el.textContent = el.dataset.origText;
+      };
+    }
+
     function openTrade() {
       document.getElementById('trade-modal').style.display = 'flex';
       showTradeListView_();
@@ -2568,7 +2586,7 @@
       datalist.innerHTML = players.map(p => `<option value="${p.nickname.replace(/"/g,'&quot;')}"></option>`).join('');
     }
 
-    function submitCreateTradeInvite_() {
+    function submitCreateTradeInvite_(btn) {
       if (tradeActionInFlight) return;
       const inputVal = document.getElementById('trade-target-input').value.trim();
       if (!inputVal) { alert('請選擇交易對象'); return; }
@@ -2577,16 +2595,18 @@
       if (!confirm(`確定要發起跟 ${matched.nickname} 的交易邀請嗎？`)) return;
 
       tradeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '送出中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=createItemTradeSession&discordId=${currentUser.id}&targetDiscordId=${encodeURIComponent(matched.discordId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
           tradeActionInFlight = false;
+          restoreBtn();
           if (data.status !== 'success') { alert('❌ ' + data.message); return; }
           alert('✅ ' + data.message);
           document.getElementById('trade-target-input').value = '';
           loadTradeData();
         })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複送出。'); loadTradeData(); });
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複送出。'); loadTradeData(); });
     }
 
     function renderTradeLists(data) {
@@ -2596,8 +2616,8 @@
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="font-size:13px"><b>${r.otherName}</b> 想找你進行道具交易</div>
           <div style="display:flex;gap:6px;margin-top:8px">
-            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#43B581" onclick="respondTradeInvite_('${r.tradeId}', true)">✅ 接受</button>
-            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#ED4245" onclick="respondTradeInvite_('${r.tradeId}', false)">❌ 拒絕</button>
+            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#43B581" onclick="respondTradeInvite_(this, '${r.tradeId}', true)">✅ 接受</button>
+            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#ED4245" onclick="respondTradeInvite_(this, '${r.tradeId}', false)">❌ 拒絕</button>
           </div>
         </div>`).join('');
 
@@ -2608,7 +2628,7 @@
           return `<div style="background:#2F3136;border-radius:8px;padding:10px 12px">
             <div style="font-size:13px">等待 <b>${r.otherName}</b> 接受你的交易邀請</div>
             <div style="margin-top:8px">
-              <button class="btn-action" style="width:100%;padding:6px;font-size:12px;background-color:#ED4245" onclick="cancelTradeFromList_('${r.tradeId}')">取消這筆邀請</button>
+              <button class="btn-action" style="width:100%;padding:6px;font-size:12px;background-color:#ED4245" onclick="cancelTradeFromList_(this, '${r.tradeId}')">取消這筆邀請</button>
             </div>
           </div>`;
         }
@@ -2629,29 +2649,32 @@
         </div>`).join('');
     }
 
-    function respondTradeInvite_(tradeId, accept) {
+    function respondTradeInvite_(btn, tradeId, accept) {
       if (tradeActionInFlight) return;
       if (!confirm(accept ? '確定要接受這筆交易邀請嗎？接受後會開啟交易視窗。' : '確定要拒絕這筆交易邀請嗎？')) return;
       tradeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, accept ? '接受中...' : '拒絕中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=respondItemTradeSessionInvite&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accept=${accept}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
           tradeActionInFlight = false;
+          restoreBtn();
           if (data.status !== 'success') { alert('❌ ' + data.message); loadTradeData(); return; }
           alert('✅ ' + data.message);
           loadTradeData();
         })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複點擊。'); loadTradeData(); });
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複點擊。'); loadTradeData(); });
     }
 
-    function cancelTradeFromList_(tradeId) {
+    function cancelTradeFromList_(btn, tradeId) {
       if (tradeActionInFlight) return;
       if (!confirm('確定要取消這筆交易嗎？')) return;
       tradeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '取消中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; if (data.status !== 'success') alert('❌ ' + data.message); loadTradeData(); loadGeneralItems(); })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請重新整理確認結果。'); loadTradeData(); });
+        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); loadTradeData(); loadGeneralItems(); })
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請重新整理確認結果。'); loadTradeData(); });
     }
 
     // ── 以下是進行中交易的雙方交易視窗 ──
@@ -2712,7 +2735,7 @@
         return items.map(it => `
           <div style="display:flex;justify-content:space-between;align-items:center;background:#36393F;border-radius:6px;padding:4px 8px;font-size:13px">
             <span>「${it.itemName}」x${it.quantity}</span>
-            ${isMine && !data.me.locked ? `<span style="color:#ED4245;cursor:pointer;font-size:12px" onclick="removeTradeSessionItem_('${it.itemName.replace(/'/g,"\\'")}')">移除</span>` : ''}
+            ${isMine && !data.me.locked ? `<span style="color:#ED4245;cursor:pointer;font-size:12px" onclick="removeTradeSessionItem_(this, '${it.itemName.replace(/'/g,"\\'")}')">移除</span>` : ''}
           </div>`).join('');
       };
       document.getElementById('trade-session-my-items').innerHTML = renderItems(data.me.items || [], true);
@@ -2729,17 +2752,18 @@
       }
     }
 
-    function updateMyTradeItems_(items) {
+    function updateMyTradeItems_(items, btn, busyText) {
       if (tradeActionInFlight) return;
       tradeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, busyText || '更新中...');
       const params = new URLSearchParams({ action: 'updateTradeSessionItems', discordId: currentUser.id, tradeId: tradeSessionId_, items: JSON.stringify(items), accessToken: getAccessToken() });
       fetchWithTimeout_(`${GAS_API_URL}?${params.toString()}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
     }
 
-    function addTradeSessionItem_() {
+    function addTradeSessionItem_(btn) {
       const select = document.getElementById('trade-session-item-select');
       const itemName = select.value;
       const qty = parseInt(document.getElementById('trade-session-item-qty').value, 10) || 1;
@@ -2747,54 +2771,59 @@
       const items = tradeSessionMyItems_.map(it => ({ itemName: it.itemName, quantity: it.quantity }));
       const existing = items.find(it => it.itemName === itemName);
       if (existing) existing.quantity += qty; else items.push({ itemName, quantity: qty });
-      updateMyTradeItems_(items);
+      updateMyTradeItems_(items, btn, '放入中...');
     }
 
-    function removeTradeSessionItem_(itemName) {
+    function removeTradeSessionItem_(el, itemName) {
       const items = tradeSessionMyItems_.filter(it => it.itemName !== itemName).map(it => ({ itemName: it.itemName, quantity: it.quantity }));
-      updateMyTradeItems_(items);
+      updateMyTradeItems_(items, el, '移除中...');
     }
 
-    function lockTradeSessionMySide_() {
+    function lockTradeSessionMySide_(btn) {
       if (tradeActionInFlight) return;
-      if (!tradeSessionMyItems_.length) { alert('你還沒放入任何道具'); return; }
-      if (!confirm('確定要鎖定嗎？雙方都鎖定後會立刻執行交換,無法反悔。')) return;
+      const confirmMsg = tradeSessionMyItems_.length ? '確定要鎖定嗎？雙方都鎖定後會立刻執行交換,無法反悔。' : '你還沒放入任何道具,確定要空手鎖定嗎？雙方都鎖定後會立刻執行交換,無法反悔。';
+      if (!confirm(confirmMsg)) return;
       tradeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '鎖定中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=lockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
           tradeActionInFlight = false;
+          restoreBtn();
           if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(); return; }
           if (data.bothLocked) { alert('✅ ' + data.message); }
           pollTradeSession_();
           loadGeneralItems();
         })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
     }
 
-    function unlockTradeSessionMySide_() {
+    function unlockTradeSessionMySide_(btn) {
       if (tradeActionInFlight) return;
       tradeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '取消鎖定中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=unlockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
     }
 
-    function cancelTradeSessionWindow_() {
+    function cancelTradeSessionWindow_(btn) {
       if (tradeActionInFlight) return;
       if (!confirm('確定要取消這筆交易嗎？雙方已放入的道具都會退回背包。')) return;
       tradeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '取消中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
         .then(data => {
           tradeActionInFlight = false;
+          restoreBtn();
           if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(); return; }
           alert('✅ ' + data.message);
           closeTradeSession_();
           loadGeneralItems();
         })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
     }
     // ── 道具交易系統結束 ──
 
