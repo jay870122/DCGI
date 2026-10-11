@@ -304,8 +304,9 @@
     </div>
   </div>
 
-  <!-- 🌟 道具交易彈窗:選擇自己背包裡「開放交易」的道具,指定交易對象、數量,選填想換回的貨幣/道具
-  (留空就是單純送禮,對方接受就直接拿走)。雙方都要透過這個彈窗確認/拒絕,成立後系統會自動過戶並私訊雙方。 -->
+  <!-- 🌟 道具交易彈窗(楓之谷式雙方交易視窗,只交易道具不交易貨幣):
+  1) 列表畫面:選擇交易對象(從玩家暱稱清單勾選)發起邀請、接受/拒絕別人的邀請、查看進行中/歷史交易。
+  2) 交易視窗畫面:雙方各自把道具放進自己這一側,互相看得到對方放了什麼,雙方都按下「鎖定」後系統才會真正執行交換。 -->
   <div id="trade-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 520px;">
       <div class="modal-header">
@@ -313,22 +314,55 @@
         <h2 style="margin:0;">🤝 道具交易</h2>
       </div>
       <div class="modal-body">
-        <div id="trade-incoming-section" style="margin-bottom:16px;">
-          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">📥 待我確認的交易</div>
-          <div id="trade-incoming-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="trade-list-view">
+          <div id="trade-incoming-section" style="margin-bottom:16px;">
+            <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">📥 待我確認的邀請</div>
+            <div id="trade-incoming-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+          <div id="trade-active-section" style="margin-bottom:16px;">
+            <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🤝 進行中的交易</div>
+            <div id="trade-active-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+          <div id="trade-create-section" style="margin-bottom:16px;">
+            <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">➕ 發起新交易</div>
+            <p style="color:#72767D;font-size:12px;margin:0 0 8px">先選擇交易對象送出邀請,對方接受後會開啟交易視窗,雙方再各自把要交易的道具放進去。只有管理員開放交易的道具才能拿來交易。</p>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;color:#B9BBBE">交易對象(從暱稱選擇)
+                <input type="text" id="trade-target-input" list="trade-target-datalist" placeholder="輸入或選擇對方暱稱" style="width:100%;padding:6px;margin-top:2px">
+                <datalist id="trade-target-datalist"></datalist>
+              </label>
+              <button class="btn-action" style="padding:6px;font-size:13px;background-color:#5865F2" onclick="submitCreateTradeInvite_()">送出交易邀請</button>
+            </div>
+          </div>
+          <div id="trade-history-section">
+            <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🕘 最近的交易紀錄</div>
+            <div id="trade-history-container" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
         </div>
-        <div id="trade-outgoing-section" style="margin-bottom:16px;">
-          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">📤 我發起的交易(等待對方確認)</div>
-          <div id="trade-outgoing-container" style="display:flex;flex-direction:column;gap:8px;"></div>
-        </div>
-        <div id="trade-create-section" style="margin-bottom:16px;">
-          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">➕ 發起新交易</div>
-          <p style="color:#72767D;font-size:12px;margin:0 0 8px">只有管理員開放交易的道具才能拿來交易。想換回的貨幣/道具都是選填,留空就是直接送給對方。</p>
-          <div id="trade-items-container" style="display:flex;flex-direction:column;gap:8px;"></div>
-        </div>
-        <div id="trade-history-section">
-          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🕘 最近的交易紀錄</div>
-          <div id="trade-history-container" style="display:flex;flex-direction:column;gap:6px;"></div>
+
+        <div id="trade-session-view" style="display:none;">
+          <button class="btn-action" style="margin-bottom:12px;background-color:#4F545C" onclick="closeTradeSession_()">← 返回列表</button>
+          <div style="text-align:center;font-size:13px;color:#B9BBBE;margin-bottom:10px">跟 <b id="trade-session-other-name">-</b> 的交易　<span id="trade-session-status-label"></span></div>
+          <div style="display:flex;gap:10px;">
+            <div style="flex:1;background:#2F3136;border-radius:8px;padding:10px;">
+              <div style="font-weight:bold;font-size:12px;color:#43B581;margin-bottom:6px">🧍 我放入的道具</div>
+              <div id="trade-session-my-items" style="display:flex;flex-direction:column;gap:4px;min-height:60px;"></div>
+            </div>
+            <div style="flex:1;background:#2F3136;border-radius:8px;padding:10px;">
+              <div style="font-weight:bold;font-size:12px;color:#FAA61A;margin-bottom:6px">🧍 對方放入的道具</div>
+              <div id="trade-session-other-items" style="display:flex;flex-direction:column;gap:4px;min-height:60px;"></div>
+            </div>
+          </div>
+          <div id="trade-session-add-row" style="display:flex;gap:6px;margin-top:10px;">
+            <select id="trade-session-item-select" style="flex:1;padding:6px;"></select>
+            <input type="number" id="trade-session-item-qty" min="1" value="1" style="width:70px;padding:6px;">
+            <button class="btn-action" style="padding:6px 10px;font-size:12px;background-color:#43B581" onclick="addTradeSessionItem_()">放入</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button id="trade-session-lock-btn" class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#43B581" onclick="lockTradeSessionMySide_()">🔒 鎖定</button>
+            <button id="trade-session-unlock-btn" class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#FAA61A;display:none" onclick="unlockTradeSessionMySide_()">🔓 取消鎖定</button>
+            <button class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#ED4245" onclick="cancelTradeSessionWindow_()">✖ 取消交易</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2473,180 +2507,294 @@
       });
     }
 
-    // 🌟🌟🌟 ===== 道具交易系統 ===== 🌟🌟🌟
-    // 玩家可以把背包裡「模板有開放交易」的道具,送給指定的另一位玩家,可以選填想換回的貨幣/道具,也可以
-    // 完全留空(單純送禮)。全部流程都走GAS(沒有Worker鏡射,避免又踩到admin.html那次「兩套清單實作沒同步」
-    // 的坑——這幾個action只在GAS存在,前端直接打GAS,不會有鏡射不同步的問題)。
+    // 🌟🌟🌟 ===== 道具交易系統(楓之谷式雙方交易視窗,V2,純道具不含貨幣) ===== 🌟🌟🌟
+    // 流程:A從暱稱清單選B發起邀請→B接受後交易視窗開啟(ACTIVE)→雙方各自把要交易的道具放進自己這一側,
+    // 隨時可以調整(調整會重置雙方的鎖定)→雙方都按下鎖定後系統立刻執行雙向過戶,狀態變成COMPLETED。
+    // 查詢(讀取)一律Worker優先、失敗退回GAS;發起/回應/調整/鎖定/取消鎖定/取消交易這些「寫入」一律走GAS。
     let tradeActionInFlight = false;
+    let tradeablePlayers_ = [];
+    let tradeSessionId_ = null;
+    let tradeSessionMyItems_ = [];
+    let tradeSessionPollTimer_ = null;
+    let tradeSessionMyTradableItems_ = [];
 
     function openTrade() {
       document.getElementById('trade-modal').style.display = 'flex';
+      showTradeListView_();
       loadTradeData();
     }
     function closeTrade() {
       document.getElementById('trade-modal').style.display = 'none';
+      stopTradeSessionPolling_();
     }
 
-    // 🌟🔧 查詢(讀取)改走Worker鏡射(跟我的道具背包同一套「Worker優先、失敗才退回GAS」架構),避免每次
-    // 開「道具交易」彈窗都要等GAS執行——GAS執行一次常常要好幾秒,Worker有分頁快取查詢快很多。
-    // 發起/取消/確認交易這些「寫入」動作還是維持走GAS(見submitCreateTrade_/cancelTrade_/respondTrade_),
-    // 只有這裡的「查詢」換成Worker優先。
+    function showTradeListView_() {
+      stopTradeSessionPolling_();
+      document.getElementById('trade-list-view').style.display = 'block';
+      document.getElementById('trade-session-view').style.display = 'none';
+    }
+
     function loadTradeData() {
-      const itemsContainer = document.getElementById('trade-items-container');
-      itemsContainer.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">讀取中...</p>';
-      fetch(`${DASHBOARD_WORKER_URL}?action=tradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      const activeContainer = document.getElementById('trade-active-container');
+      activeContainer.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">讀取中...</p>';
+      fetch(`${DASHBOARD_WORKER_URL}?action=getTradeablePlayerList&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
         .then(res => res.json())
-        .then(data => { if (data.status === 'success') renderTradableItems(data.items || []); else loadTradableItemsViaGas_(); })
-        .catch(() => { loadTradableItemsViaGas_(); });
-      fetch(`${DASHBOARD_WORKER_URL}?action=itemTrades&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(data => { if (data.status === 'success') renderTradeablePlayers_(data.players || []); else loadTradeablePlayersViaGas_(); })
+        .catch(() => { loadTradeablePlayersViaGas_(); });
+      fetch(`${DASHBOARD_WORKER_URL}?action=getMyItemTrades&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
         .then(res => res.json())
-        .then(data => { if (data.status === 'success') renderTradeLists(data); else loadItemTradesViaGas_(); })
-        .catch(() => { loadItemTradesViaGas_(); });
+        .then(data => { if (data.status === 'success') renderTradeLists(data); else loadMyItemTradesViaGas_(); })
+        .catch(() => { loadMyItemTradesViaGas_(); });
     }
 
-    function loadTradableItemsViaGas_() {
-      const itemsContainer = document.getElementById('trade-items-container');
-      fetchWithTimeout_(`${GAS_API_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+    function loadTradeablePlayersViaGas_() {
+      fetchWithTimeout_(`${GAS_API_URL}?action=getTradeablePlayerList&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
-        .then(data => { if (data.status === 'success') renderTradableItems(data.items || []); else itemsContainer.innerHTML = `<p style="text-align:center;color:#ED4245;font-size:13px;">❌ ${data.message||'讀取失敗'}</p>`; })
-        .catch(() => { itemsContainer.innerHTML = '<p style="text-align:center;color:#ED4245;font-size:13px;">❌ 連線失敗</p>'; });
-    }
-
-    function loadItemTradesViaGas_() {
-      fetchWithTimeout_(`${GAS_API_URL}?action=getMyItemTrades&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
-        .then(res => res.json())
-        .then(data => { if (data.status === 'success') renderTradeLists(data); })
+        .then(data => { if (data.status === 'success') renderTradeablePlayers_(data.players || []); })
         .catch(() => {});
     }
 
-    function renderTradableItems(items) {
-      const container = document.getElementById('trade-items-container');
-      if (items.length === 0) { container.innerHTML = '<p style="text-align:center;color:#B9BBBE;font-size:13px;">目前沒有任何開放交易的道具</p>'; return; }
-      container.innerHTML = items.map((it, idx) => `
-        <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-            <span><b>${it.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（持有 ${it.totalCount} 個）</span></span>
-            <button class="btn-action" style="padding:4px 12px;font-size:12px;background-color:#43B581" onclick="toggleTradeForm_(${idx})">發起交易</button>
-          </div>
-          <div id="trade-form-${idx}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #40444B">
-            <div style="display:flex;flex-direction:column;gap:6px">
-              <label style="font-size:12px;color:#B9BBBE">交易對象的 Discord ID<input type="text" id="trade-target-${idx}" placeholder="對方的Discord ID數字" style="width:100%;padding:6px;margin-top:2px"></label>
-              <label style="font-size:12px;color:#B9BBBE">要送出的數量(最多 ${it.totalCount})<input type="number" id="trade-qty-${idx}" min="1" max="${it.totalCount}" value="1" style="width:100%;padding:6px;margin-top:2px"></label>
-              <div style="font-size:11px;color:#72767D;margin-top:2px">以下想換回的東西都是選填,留空就是直接送給對方：</div>
-              <label style="font-size:12px;color:#B9BBBE">想換回的貨幣名稱(選填)<input type="text" id="trade-wantcur-${idx}" placeholder="例：幻彩水晶" style="width:100%;padding:6px;margin-top:2px"></label>
-              <label style="font-size:12px;color:#B9BBBE">想換回的貨幣數量(選填)<input type="number" id="trade-wantcuramt-${idx}" min="0" placeholder="0" style="width:100%;padding:6px;margin-top:2px"></label>
-              <label style="font-size:12px;color:#B9BBBE">想換回的道具名稱(選填,對方也要有這個道具且開放交易)<input type="text" id="trade-wantitem-${idx}" placeholder="道具名稱" style="width:100%;padding:6px;margin-top:2px"></label>
-              <label style="font-size:12px;color:#B9BBBE">想換回的道具數量(選填)<input type="number" id="trade-wantitemqty-${idx}" min="0" placeholder="0" style="width:100%;padding:6px;margin-top:2px"></label>
-              <button class="btn-action" style="padding:6px;font-size:13px;background-color:#5865F2" onclick="submitCreateTrade_(${idx}, '${it.itemName.replace(/'/g,"\\'")}')">送出交易邀請</button>
-            </div>
-          </div>
-        </div>`).join('');
+    function loadMyItemTradesViaGas_() {
+      const activeContainer = document.getElementById('trade-active-container');
+      fetchWithTimeout_(`${GAS_API_URL}?action=getMyItemTrades&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => { if (data.status === 'success') renderTradeLists(data); else activeContainer.innerHTML = `<p style="text-align:center;color:#ED4245;font-size:13px;">❌ ${data.message||'讀取失敗'}</p>`; })
+        .catch(() => { activeContainer.innerHTML = '<p style="text-align:center;color:#ED4245;font-size:13px;">❌ 連線失敗</p>'; });
     }
 
-    function toggleTradeForm_(idx) {
-      const el = document.getElementById(`trade-form-${idx}`);
-      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    function renderTradeablePlayers_(players) {
+      tradeablePlayers_ = players;
+      const datalist = document.getElementById('trade-target-datalist');
+      datalist.innerHTML = players.map(p => `<option value="${p.nickname.replace(/"/g,'&quot;')}"></option>`).join('');
     }
 
-    function submitCreateTrade_(idx, itemName) {
+    function submitCreateTradeInvite_() {
       if (tradeActionInFlight) return;
-      const targetDiscordId = document.getElementById(`trade-target-${idx}`).value.trim();
-      const quantity = parseInt(document.getElementById(`trade-qty-${idx}`).value, 10) || 1;
-      const wantCurrencyName = document.getElementById(`trade-wantcur-${idx}`).value.trim();
-      const wantCurrencyAmount = document.getElementById(`trade-wantcuramt-${idx}`).value.trim();
-      const wantItemName = document.getElementById(`trade-wantitem-${idx}`).value.trim();
-      const wantItemQuantity = document.getElementById(`trade-wantitemqty-${idx}`).value.trim();
-      if (!targetDiscordId) { alert('請輸入交易對象的Discord ID'); return; }
-      const wantText = [
-        wantCurrencyAmount ? `${wantCurrencyAmount} ${wantCurrencyName||'(未填名稱)'}` : '',
-        (wantItemName && wantItemQuantity) ? `「${wantItemName}」x${wantItemQuantity}` : '',
-      ].filter(Boolean).join('、');
-      if (!confirm(`確定要送出交易邀請嗎？\n送出：「${itemName}」x${quantity}\n換回：${wantText || '（不需要,直接送給對方）'}\n\n送出後道具會先被鎖住,對方確認前你還是可以自己取消。`)) return;
+      const inputVal = document.getElementById('trade-target-input').value.trim();
+      if (!inputVal) { alert('請選擇交易對象'); return; }
+      const matched = tradeablePlayers_.find(p => p.nickname === inputVal || p.discordId === inputVal);
+      if (!matched) { alert('找不到這位玩家,請從清單裡選擇正確的暱稱'); return; }
+      if (!confirm(`確定要發起跟 ${matched.nickname} 的交易邀請嗎？`)) return;
 
       tradeActionInFlight = true;
-      const params = new URLSearchParams({
-        action: 'createItemTradeOffer', discordId: currentUser.id, accessToken: getAccessToken(),
-        targetDiscordId, itemName, quantity,
-        wantCurrencyName, wantCurrencyAmount: wantCurrencyAmount || 0,
-        wantItemName, wantItemQuantity: wantItemQuantity || 0,
-      });
-      fetchWithTimeout_(`${GAS_API_URL}?${params.toString()}`, 20000)
+      fetchWithTimeout_(`${GAS_API_URL}?action=createItemTradeSession&discordId=${currentUser.id}&targetDiscordId=${encodeURIComponent(matched.discordId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
           tradeActionInFlight = false;
           if (data.status !== 'success') { alert('❌ ' + data.message); return; }
           alert('✅ ' + data.message);
+          document.getElementById('trade-target-input').value = '';
           loadTradeData();
-          loadGeneralItems();
         })
         .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複送出。'); loadTradeData(); });
     }
 
     function renderTradeLists(data) {
-      const wantTextOf = r => [
-        r.wantCurrencyAmount ? `${r.wantCurrencyAmount} ${r.wantCurrencyName}` : '',
-        (r.wantItemName && r.wantItemQuantity) ? `「${r.wantItemName}」x${r.wantItemQuantity}` : '',
-      ].filter(Boolean).join('、') || '（不需要,直接送給對方）';
-
       const incomingContainer = document.getElementById('trade-incoming-container');
-      const incoming = data.incoming || [];
-      incomingContainer.innerHTML = incoming.length === 0 ? '<p style="color:#72767D;font-size:12px">目前沒有待確認的交易</p>' : incoming.map(r => `
+      const incoming = data.incomingInvites || [];
+      incomingContainer.innerHTML = incoming.length === 0 ? '<p style="color:#72767D;font-size:12px">目前沒有待確認的邀請</p>' : incoming.map(r => `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
-          <div style="font-size:13px"><b>${r.initiatorName}</b> 想用「${r.itemName}」x${r.quantity} 跟你交易</div>
-          <div style="font-size:12px;color:#B9BBBE;margin-top:2px">想換回：${wantTextOf(r)}</div>
+          <div style="font-size:13px"><b>${r.otherName}</b> 想找你進行道具交易</div>
           <div style="display:flex;gap:6px;margin-top:8px">
-            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#43B581" onclick="respondTrade_('${r.tradeId}', true)">✅ 接受</button>
-            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#ED4245" onclick="respondTrade_('${r.tradeId}', false)">❌ 拒絕</button>
+            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#43B581" onclick="respondTradeInvite_('${r.tradeId}', true)">✅ 接受</button>
+            <button class="btn-action" style="flex:1;padding:6px;font-size:12px;background-color:#ED4245" onclick="respondTradeInvite_('${r.tradeId}', false)">❌ 拒絕</button>
           </div>
         </div>`).join('');
 
-      const outgoingContainer = document.getElementById('trade-outgoing-container');
-      const outgoing = data.outgoing || [];
-      outgoingContainer.innerHTML = outgoing.length === 0 ? '<p style="color:#72767D;font-size:12px">目前沒有發起中的交易</p>' : outgoing.map(r => `
-        <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
-          <div style="font-size:13px">送給 <b>${r.targetName}</b>：「${r.itemName}」x${r.quantity}</div>
-          <div style="font-size:12px;color:#B9BBBE;margin-top:2px">想換回：${wantTextOf(r)}</div>
+      const activeContainer = document.getElementById('trade-active-container');
+      const active = data.active || [];
+      activeContainer.innerHTML = active.length === 0 ? '<p style="color:#72767D;font-size:12px">目前沒有進行中的交易</p>' : active.map(r => {
+        if (r.status === 'INVITED') {
+          return `<div style="background:#2F3136;border-radius:8px;padding:10px 12px">
+            <div style="font-size:13px">等待 <b>${r.otherName}</b> 接受你的交易邀請</div>
+            <div style="margin-top:8px">
+              <button class="btn-action" style="width:100%;padding:6px;font-size:12px;background-color:#ED4245" onclick="cancelTradeFromList_('${r.tradeId}')">取消這筆邀請</button>
+            </div>
+          </div>`;
+        }
+        return `<div style="background:#2F3136;border-radius:8px;padding:10px 12px">
+          <div style="font-size:13px">跟 <b>${r.otherName}</b> 的交易視窗已開啟</div>
           <div style="margin-top:8px">
-            <button class="btn-action" style="width:100%;padding:6px;font-size:12px;background-color:#ED4245" onclick="cancelTrade_('${r.tradeId}')">取消這筆交易</button>
+            <button class="btn-action" style="width:100%;padding:6px;font-size:12px;background-color:#5865F2" onclick="openTradeSession_('${r.tradeId}', '${r.otherName.replace(/'/g,"\\'")}')">開啟交易視窗</button>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
 
       const historyContainer = document.getElementById('trade-history-container');
       const history = data.history || [];
       const statusLabel = { COMPLETED: '✅ 已完成', DECLINED: '❌ 對方拒絕', CANCELLED: '↩️ 已取消' };
-      historyContainer.innerHTML = history.length === 0 ? '<p style="color:#72767D;font-size:12px">沒有歷史紀錄</p>' : history.map(r => {
-        const isMine = r.initiatorId === currentUser.id.toString();
-        return `<div style="font-size:12px;color:#B9BBBE;padding:4px 0;border-bottom:1px solid #40444B">
-          ${statusLabel[r.status] || r.status}　${isMine ? `送給 ${r.targetName}` : `來自 ${r.initiatorName}`}「${r.itemName}」x${r.quantity}
-        </div>`;
-      }).join('');
+      historyContainer.innerHTML = history.length === 0 ? '<p style="color:#72767D;font-size:12px">沒有歷史紀錄</p>' : history.map(r => `
+        <div style="font-size:12px;color:#B9BBBE;padding:4px 0;border-bottom:1px solid #40444B">
+          ${statusLabel[r.status] || r.status}　跟 ${r.otherName} 的交易
+        </div>`).join('');
     }
 
-    function cancelTrade_(tradeId) {
+    function respondTradeInvite_(tradeId, accept) {
       if (tradeActionInFlight) return;
-      if (!confirm('確定要取消這筆交易嗎？道具會退回你的背包。')) return;
+      if (!confirm(accept ? '確定要接受這筆交易邀請嗎？接受後會開啟交易視窗。' : '確定要拒絕這筆交易邀請嗎？')) return;
       tradeActionInFlight = true;
-      fetchWithTimeout_(`${GAS_API_URL}?action=cancelItemTradeOffer&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
-        .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; if (data.status !== 'success') alert('❌ ' + data.message); loadTradeData(); loadGeneralItems(); })
-        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請重新整理確認結果。'); loadTradeData(); });
-    }
-
-    function respondTrade_(tradeId, accept) {
-      if (tradeActionInFlight) return;
-      if (!confirm(accept ? '確定要接受這筆交易嗎？接受後會立刻執行過戶,無法反悔。' : '確定要拒絕這筆交易嗎？')) return;
-      tradeActionInFlight = true;
-      fetchWithTimeout_(`${GAS_API_URL}?action=respondItemTradeOffer&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accept=${accept}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+      fetchWithTimeout_(`${GAS_API_URL}?action=respondItemTradeSessionInvite&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accept=${accept}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
           tradeActionInFlight = false;
           if (data.status !== 'success') { alert('❌ ' + data.message); loadTradeData(); return; }
           alert('✅ ' + data.message);
           loadTradeData();
-          loadGeneralItems();
-          fetchScoresAndShop(currentUser.id);
         })
         .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複點擊。'); loadTradeData(); });
+    }
+
+    function cancelTradeFromList_(tradeId) {
+      if (tradeActionInFlight) return;
+      if (!confirm('確定要取消這筆交易嗎？')) return;
+      tradeActionInFlight = true;
+      fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => { tradeActionInFlight = false; if (data.status !== 'success') alert('❌ ' + data.message); loadTradeData(); loadGeneralItems(); })
+        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請重新整理確認結果。'); loadTradeData(); });
+    }
+
+    // ── 以下是進行中交易的雙方交易視窗 ──
+
+    function openTradeSession_(tradeId, otherName) {
+      tradeSessionId_ = tradeId;
+      document.getElementById('trade-list-view').style.display = 'none';
+      document.getElementById('trade-session-view').style.display = 'block';
+      document.getElementById('trade-session-other-name').textContent = otherName;
+      fetchWithTimeout_(`${GAS_API_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => { tradeSessionMyTradableItems_ = (data.status === 'success') ? (data.items || []) : []; renderTradeSessionItemSelect_(); })
+        .catch(() => {});
+      pollTradeSession_();
+      stopTradeSessionPolling_();
+      tradeSessionPollTimer_ = setInterval(pollTradeSession_, 4000);
+    }
+
+    function closeTradeSession_() {
+      showTradeListView_();
+      loadTradeData();
+    }
+
+    function stopTradeSessionPolling_() {
+      if (tradeSessionPollTimer_) { clearInterval(tradeSessionPollTimer_); tradeSessionPollTimer_ = null; }
+    }
+
+    function renderTradeSessionItemSelect_() {
+      const select = document.getElementById('trade-session-item-select');
+      if (!tradeSessionMyTradableItems_.length) { select.innerHTML = '<option value="">（沒有開放交易的道具）</option>'; return; }
+      select.innerHTML = tradeSessionMyTradableItems_.map(it => `<option value="${it.itemName.replace(/"/g,'&quot;')}">${it.itemName}（持有${it.totalCount}）</option>`).join('');
+    }
+
+    function pollTradeSession_() {
+      if (!tradeSessionId_) return;
+      const tradeId = tradeSessionId_;
+      fetch(`${DASHBOARD_WORKER_URL}?action=getItemTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(res => res.json())
+        .then(data => { if (data.status === 'success') renderTradeSession_(data); else pollTradeSessionViaGas_(tradeId); })
+        .catch(() => { pollTradeSessionViaGas_(tradeId); });
+    }
+
+    function pollTradeSessionViaGas_(tradeId) {
+      fetchWithTimeout_(`${GAS_API_URL}?action=getItemTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => { if (data.status === 'success') renderTradeSession_(data); })
+        .catch(() => {});
+    }
+
+    function renderTradeSession_(data) {
+      tradeSessionMyItems_ = data.me.items || [];
+      const statusLabelMap = { ACTIVE: '🟢 進行中', COMPLETED: '✅ 已完成', CANCELLED: '↩️ 已取消', DECLINED: '❌ 已拒絕' };
+      document.getElementById('trade-session-status-label').textContent = statusLabelMap[data.tradeStatus] || data.tradeStatus;
+      document.getElementById('trade-session-other-name').textContent = data.other.name;
+
+      const renderItems = (items, isMine) => {
+        if (!items.length) return '<p style="color:#72767D;font-size:12px;margin:0">（還沒放入任何道具）</p>';
+        return items.map(it => `
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#36393F;border-radius:6px;padding:4px 8px;font-size:13px">
+            <span>「${it.itemName}」x${it.quantity}</span>
+            ${isMine && !data.me.locked ? `<span style="color:#ED4245;cursor:pointer;font-size:12px" onclick="removeTradeSessionItem_('${it.itemName.replace(/'/g,"\\'")}')">移除</span>` : ''}
+          </div>`).join('');
+      };
+      document.getElementById('trade-session-my-items').innerHTML = renderItems(data.me.items || [], true);
+      document.getElementById('trade-session-other-items').innerHTML = renderItems(data.other.items || [], false);
+
+      const isOpen = data.tradeStatus === 'ACTIVE';
+      document.getElementById('trade-session-add-row').style.display = (isOpen && !data.me.locked) ? 'flex' : 'none';
+      document.getElementById('trade-session-lock-btn').style.display = (isOpen && !data.me.locked) ? 'inline-block' : 'none';
+      document.getElementById('trade-session-unlock-btn').style.display = (isOpen && data.me.locked) ? 'inline-block' : 'none';
+
+      if (data.tradeStatus !== 'ACTIVE') {
+        stopTradeSessionPolling_();
+        if (data.tradeStatus === 'COMPLETED') { loadGeneralItems(); }
+      }
+    }
+
+    function updateMyTradeItems_(items) {
+      if (tradeActionInFlight) return;
+      tradeActionInFlight = true;
+      const params = new URLSearchParams({ action: 'updateTradeSessionItems', discordId: currentUser.id, tradeId: tradeSessionId_, items: JSON.stringify(items), accessToken: getAccessToken() });
+      fetchWithTimeout_(`${GAS_API_URL}?${params.toString()}`, 15000)
+        .then(res => res.json())
+        .then(data => { tradeActionInFlight = false; if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
+        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+    }
+
+    function addTradeSessionItem_() {
+      const select = document.getElementById('trade-session-item-select');
+      const itemName = select.value;
+      const qty = parseInt(document.getElementById('trade-session-item-qty').value, 10) || 1;
+      if (!itemName) { alert('請選擇要放入的道具'); return; }
+      const items = tradeSessionMyItems_.map(it => ({ itemName: it.itemName, quantity: it.quantity }));
+      const existing = items.find(it => it.itemName === itemName);
+      if (existing) existing.quantity += qty; else items.push({ itemName, quantity: qty });
+      updateMyTradeItems_(items);
+    }
+
+    function removeTradeSessionItem_(itemName) {
+      const items = tradeSessionMyItems_.filter(it => it.itemName !== itemName).map(it => ({ itemName: it.itemName, quantity: it.quantity }));
+      updateMyTradeItems_(items);
+    }
+
+    function lockTradeSessionMySide_() {
+      if (tradeActionInFlight) return;
+      if (!tradeSessionMyItems_.length) { alert('你還沒放入任何道具'); return; }
+      if (!confirm('確定要鎖定嗎？雙方都鎖定後會立刻執行交換,無法反悔。')) return;
+      tradeActionInFlight = true;
+      fetchWithTimeout_(`${GAS_API_URL}?action=lockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+        .then(res => res.json())
+        .then(data => {
+          tradeActionInFlight = false;
+          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(); return; }
+          if (data.bothLocked) { alert('✅ ' + data.message); }
+          pollTradeSession_();
+          loadGeneralItems();
+        })
+        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+    }
+
+    function unlockTradeSessionMySide_() {
+      if (tradeActionInFlight) return;
+      tradeActionInFlight = true;
+      fetchWithTimeout_(`${GAS_API_URL}?action=unlockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => { tradeActionInFlight = false; if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
+        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+    }
+
+    function cancelTradeSessionWindow_() {
+      if (tradeActionInFlight) return;
+      if (!confirm('確定要取消這筆交易嗎？雙方已放入的道具都會退回背包。')) return;
+      tradeActionInFlight = true;
+      fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => {
+          tradeActionInFlight = false;
+          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(); return; }
+          alert('✅ ' + data.message);
+          closeTradeSession_();
+          loadGeneralItems();
+        })
+        .catch(() => { tradeActionInFlight = false; alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
     }
     // ── 道具交易系統結束 ──
 
