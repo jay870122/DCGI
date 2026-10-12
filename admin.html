@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.13</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.14</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -907,6 +907,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="tbl-wrap" style="padding:24px">
           <div style="color:var(--mu);font-size:12px">購買 [序號] 商品 / 盲盒 [序號] 中獎用；跟「密碼鎖定管理」裡的解鎖序號庫是<b>不同的兩張表</b>,這裡是商品名稱帶 [序號]、或盲盒規則裡變數名帶 [序號] 時,實際發給玩家的專屬序號池</div>
+          <div style="color:var(--orange,#f0ad4e);font-size:12px;margin-top:4px">⚠️ 這張表是用「試算表從左數來第5個分頁」這個位置去讀的,不是用分頁名稱——如果分頁順序被調動過,這裡顯示的就會是另一張表的內容。目前實際讀到的分頁：<b id="rk-sheet-title">—</b></div>
           <div class="toolbar" style="margin-top:12px">
             <button class="btn btn-edit" onclick="loadRewardKeys()">🔄 重新查詢</button>
             <button class="btn btn-del" onclick="deleteSelectedRewardKeys()">🗑️ 刪除選中的序號</button>
@@ -4649,6 +4650,7 @@ async function loadRewardKeys() {
   const d = await apiWorkerRead('adminRewardKeys', {}, { action: 'adminGetRewardKeys' });
   const tbody = document.getElementById('reward-keys-tbody');
   if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
+  document.getElementById('rk-sheet-title').textContent = d.sheetTitle || '（讀不到分頁名稱）';
   const keys = d.keys || [];
   tbody.innerHTML = keys.length === 0 ? '<tr><td colspan="5" class="empty">還沒有任何序號</td></tr>' : keys.map((k, idx) => `
     <tr>
