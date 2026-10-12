@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.12</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.13</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1681,6 +1681,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full" style="display:flex;align-items:center;gap:8px">
         <input type="checkbox" id="it-requiretrade" style="width:auto"><label for="it-requiretrade" style="margin:0">⚠️ 強迫交易(需交易後才能使用) <span class="hint">勾選後,玩家拿到的這個道具一定要先透過一次已完成的交易轉手過(交易出去或交易回來都算),才能打開使用——需要同時勾選「開放玩家互相交易」,不然道具會卡死</span></label>
+      </div>
+      <div class="field">
+        <label>可交易次數上限 <span class="hint">留空=不限制。同一份道具(不管拆分成幾份)終身總共最多能被交易幾次,達到上限後這份道具還是能正常使用,只是不能再被拿去交易</span></label>
+        <input id="it-tradecountlimit" type="number" min="1" placeholder="留空=不限制">
       </div>
       <div class="field">
         <label>開啟次數上限(週期) <span class="hint">不限制=手上有多少就能開多少次;選了週期就要填次數,不管手上有幾個,這個週期內總共只能開那麼多次</span></label>
@@ -5049,7 +5053,7 @@ function renderItemTemplates() {
     const moreCount = poolLines.length - 1;
     return `
     <tr>
-      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.openLimitMode && t.openLimitMode !== 'NONE' ? ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(t.openLimitMode)}限${t.openLimitCount}次</span>` : ''}</td>
+      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.tradeCountLimit ? ` <span class="hint" style="color:var(--green)">🤝限交易${t.tradeCountLimit}次</span>` : ''}${t.openLimitMode && t.openLimitMode !== 'NONE' ? ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(t.openLimitMode)}限${t.openLimitCount}次</span>` : ''}</td>
       <td style="max-width:280px;font-size:12px;color:var(--muted)">
         <div>${firstLineShort}${moreCount > 0 ? `<span class="hint">　(共${poolLines.length}個獎項)</span>` : ''}</div>
         ${moreCount > 0 ? `
@@ -5097,6 +5101,7 @@ function openItemTemplateForm() {
   document.getElementById('it-maxopen').value = '';
   document.getElementById('it-tradable').checked = false;
   document.getElementById('it-requiretrade').checked = false;
+  document.getElementById('it-tradecountlimit').value = '';
   document.getElementById('it-openlimitmode').value = 'NONE';
   document.getElementById('it-openlimitcount').value = '';
   toggleItemTemplateOpenLimitValue();
@@ -5117,6 +5122,7 @@ function editItemTemplate(name) {
   document.getElementById('it-maxopen').value = t.maxOpenPerRequest || '';
   document.getElementById('it-tradable').checked = !!t.tradable;
   document.getElementById('it-requiretrade').checked = !!t.requireTradeBeforeUse;
+  document.getElementById('it-tradecountlimit').value = t.tradeCountLimit || '';
   document.getElementById('it-openlimitmode').value = t.openLimitMode || 'NONE';
   document.getElementById('it-openlimitcount').value = t.openLimitCount || '';
   toggleItemTemplateExpiryValue();
@@ -5159,6 +5165,7 @@ async function submitItemTemplate() {
   const tradable = document.getElementById('it-tradable').checked;
   const requireTradeBeforeUse = document.getElementById('it-requiretrade').checked;
   if (requireTradeBeforeUse && !tradable) { toast('「強迫交易」需要同時勾選「開放玩家互相交易」,不然道具發出去會卡死', false); return; }
+  const tradeCountLimit = document.getElementById('it-tradecountlimit').value.trim();
   const openLimitMode = document.getElementById('it-openlimitmode').value;
   const openLimitCount = document.getElementById('it-openlimitcount').value.trim();
   if (openLimitMode !== 'NONE' && !openLimitCount) { toast('選了開啟次數上限的週期,要填次數', false); return; }
@@ -5172,7 +5179,7 @@ async function submitItemTemplate() {
     if (originalName && originalName !== name) {
       await api({ action: 'adminDeleteItemTemplate', name: originalName });
     }
-    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, openLimitMode, openLimitCount });
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, tradeCountLimit, openLimitMode, openLimitCount });
     if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
     toast(d.message);
     closeModal('item-template-modal');
