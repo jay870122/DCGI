@@ -526,7 +526,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.19</div>
+    <div class="version-tag">系統版本：v5.4.20</div>
   </div>
 
   <script>
@@ -2718,9 +2718,16 @@
       select.innerHTML = tradeSessionMyTradableItems_.map(it => `<option value="${it.itemName.replace(/"/g,'&quot;')}">${it.itemName}（持有${it.totalCount}${it.tradeCountLimit ? `，限交易${it.tradeCountLimit}次` : ''}）</option>`).join('');
     }
 
-    function pollTradeSession_() {
+    // 🌟🔧 forceFresh:Worker那邊「道具交易」表現在走4秒共用快取(避免很多人同時開交易視窗時
+    // 把Google Sheets API配額打爆),但這代表「自己剛做完一個動作(放道具/鎖定/取消鎖定)後馬上要
+    // 確認結果」這種情境,如果還是走Worker的快取路徑,很可能讀到自己剛剛那個寫入「之前」的舊快照,
+    // 畫面看起來像是沒反應、卡住、甚至下一次操作會蓋掉這次剛做的變更。所以「確認自己剛做的操作」一律
+    // 加forceFresh=true直接跳過Worker走GAS(GAS本身沒有快取,一定是最新資料);純粹被動觀察「對方
+    // 有沒有動作」的定時輪詢(每4秒的setInterval)才維持用Worker的快取路徑,降低配額壓力。
+    function pollTradeSession_(forceFresh) {
       if (!tradeSessionId_) return;
       const tradeId = tradeSessionId_;
+      if (forceFresh) { pollTradeSessionViaGas_(tradeId); return; }
       fetch(`${DASHBOARD_WORKER_URL}?action=getItemTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`)
         .then(res => res.json())
         .then(data => { if (data.status === 'success') renderTradeSession_(data); else pollTradeSessionViaGas_(tradeId); })
@@ -2769,8 +2776,8 @@
       const params = new URLSearchParams({ action: 'updateTradeSessionItems', discordId: currentUser.id, tradeId: tradeSessionId_, items: JSON.stringify(items), accessToken: getAccessToken() });
       fetchWithTimeout_(`${GAS_API_URL}?${params.toString()}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(true); })
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); });
     }
 
     function addTradeSessionItem_(btn) {
@@ -2800,12 +2807,12 @@
         .then(data => {
           tradeActionInFlight = false;
           restoreBtn();
-          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(); return; }
+          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(true); return; }
           if (data.bothLocked) { alert('✅ ' + data.message); }
-          pollTradeSession_();
+          pollTradeSession_(true);
           loadGeneralItems();
         })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); });
     }
 
     function unlockTradeSessionMySide_(btn) {
@@ -2814,8 +2821,8 @@
       const restoreBtn = setBtnBusy_(btn, '取消鎖定中...');
       fetchWithTimeout_(`${GAS_API_URL}?action=unlockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(); loadGeneralItems(); })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); loadGeneralItems(); });
+        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(true); loadGeneralItems(); })
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); loadGeneralItems(); });
     }
 
     function cancelTradeSessionWindow_(btn) {
@@ -2828,12 +2835,12 @@
         .then(data => {
           tradeActionInFlight = false;
           restoreBtn();
-          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(); return; }
+          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(true); return; }
           alert('✅ ' + data.message);
           closeTradeSession_();
           loadGeneralItems();
         })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(); });
+        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); });
     }
     // ── 道具交易系統結束 ──
 
