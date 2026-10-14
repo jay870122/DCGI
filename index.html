@@ -526,7 +526,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.18</div>
+    <div class="version-tag">系統版本：v5.4.19</div>
   </div>
 
   <script>
@@ -2645,7 +2645,7 @@
         return `<div style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="font-size:13px">跟 <b>${r.otherName}</b> 的交易視窗已開啟</div>
           <div style="margin-top:8px">
-            <button class="btn-action" style="width:100%;padding:6px;font-size:12px;background-color:#5865F2" onclick="openTradeSession_('${r.tradeId}', '${r.otherName.replace(/'/g,"\\'")}')">開啟交易視窗</button>
+            <button class="btn-action" style="width:100%;padding:6px;font-size:12px;background-color:#5865F2" onclick="openTradeSession_('${r.tradeId}', '${(r.otherName || '').toString().replace(/'/g,"\\'")}')">開啟交易視窗</button>
           </div>
         </div>`;
       }).join('');
