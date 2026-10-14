@@ -526,7 +526,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.20</div>
+    <div class="version-tag">系統版本：v5.4.21</div>
   </div>
 
   <script>
@@ -2126,13 +2126,25 @@
 
     function loadGeneralItemsViaGas_() {
       const container = document.getElementById('general-items-container');
-      fetch(`${GAS_API_URL}?action=getMyGeneralBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      // 🌟🔧 修正bug:這條GAS備援路線原本用沒有逾時保護的fetch——Worker那邊讀取失敗(例如配額被
+      // 打爆429)才會退到這裡,而GAS Web App冷啟動/排隊時常常要10~20秒才回應,玩家完全看不出
+      // 到底是卡住了還是只是要多等一下。加上20秒逾時保護+清楚的重試按鈕,逾時或失敗都不會讓畫面
+      // 無限期停在「讀取中」。
+      fetchWithTimeout_(`${GAS_API_URL}?action=getMyGeneralBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
-          if (data.status !== 'success') { container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ ${data.message || '讀取失敗'}</p>`; return; }
+          if (data.status !== 'success') {
+            container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ ${data.message || '讀取失敗'}<br>` +
+              `<button class="btn-action" style="margin-top:8px;font-size:12px;padding:4px 10px" onclick="loadGeneralItems()">🔄 點我重試</button></p>`;
+            return;
+          }
           renderGeneralItems(data);
         })
-        .catch(() => { container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ 連線失敗，請稍後再試</p>`; });
+        .catch((err) => {
+          const isTimeout = err && err.name === 'AbortError';
+          container.innerHTML = `<p style="text-align:center; color:#ED4245; font-size:13px;">❌ ${isTimeout ? '讀取時間過長(伺服器可能忙碌中)' : '連線失敗'}，請重試<br>` +
+            `<button class="btn-action" style="margin-top:8px;font-size:12px;padding:4px 10px" onclick="loadGeneralItems()">🔄 點我重試</button></p>`;
+        });
     }
 
     function renderGeneralItems(data) {
