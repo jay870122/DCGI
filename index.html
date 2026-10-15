@@ -526,7 +526,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.25</div>
+    <div class="version-tag">系統版本：v5.4.26</div>
   </div>
 
   <script>
@@ -2124,8 +2124,11 @@
     function loadGeneralItems(forceFresh) {
       const container = document.getElementById('general-items-container');
       container.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">讀取中...</p>';
-      const freshParam = forceFresh ? '&fresh=true' : '';
-      fetch(`${DASHBOARD_WORKER_URL}?action=generalBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}${freshParam}`)
+      // 🌟🔧 forceFresh時額外帶一個每次都不同的「_t」時間戳參數——Worker那邊已經加了Cache-Control: no-store,
+      // 但保險起見再從前端這邊把URL變成每次都不一樣,確保就算中間還有什麼環節(瀏覽器/CDN/代理)不理會
+      // 那個標頭,也不會因為「URL跟上次一模一樣」而把回應當成同一份快取資料重複使用。
+      const freshParam = forceFresh ? `&fresh=true&_t=${Date.now()}` : '';
+      fetch(`${DASHBOARD_WORKER_URL}?action=generalBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}${freshParam}`, forceFresh ? { cache: 'no-store' } : undefined)
         .then(res => res.json())
         .then(data => {
           if (data.status !== 'success') { loadGeneralItemsViaGas_(); return; }
