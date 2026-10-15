@@ -526,7 +526,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.21</div>
+    <div class="version-tag">系統版本：v5.4.22</div>
   </div>
 
   <script>
@@ -1230,7 +1230,10 @@
       loadBingoActivityList();
     }
 
-    // 🌟 賓果卡狀態讀取:先打Cloudflare Worker(action=bingoStatus,不套用快取,直接讀最新資料,速度比Apps Script快很多)。
+    // 🌟 賓果卡狀態讀取:先打Cloudflare Worker(action=bingoStatus,速度比Apps Script快很多)。
+    // 🌟🔧 這裡原本完全不套快取以求即時,但人多的時候這是唯一還會隨同時在線人數線性疊加打Sheets API
+    // 的端點,容易把配額打爆,所以後端已經改成2秒的短效共用快取,畫面感覺還是接近即時,但不會再讓
+    // 人數把配額吃光。
     // 如果Worker回報needsCreate(玩家第一次玩這個活動、還沒有卡),Worker不負責建卡(建卡可能要扣開盤費用,
     // 需要走Apps Script那邊有鎖定機制的寫入流程),這時才改打Apps Script的getBingoStatus。
     function loadBingoStatus() {
