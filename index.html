@@ -526,7 +526,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.22</div>
+    <div class="version-tag">系統版本：v5.4.25</div>
   </div>
 
   <script>
@@ -2115,10 +2115,17 @@
 
     let generalItemActionInFlight = false;
 
-    function loadGeneralItems() {
+    // 🌟🔧 forceFresh:「自己剛開完道具/清除完道具後馬上要確認結果」這種情境,如果還是走Worker的4秒
+    // 共用快取,很可能讀到自己這次寫入「之前」的舊快照,畫面看起來像是今日剩餘開啟次數、道具數量都沒有
+    // 變化,其實只是快取還沒更新。
+    // 🌟🔧 改成不再整個繞去GAS(GAS Web App冷啟動常常要等好幾秒,體感比Worker慢很多)——Worker的
+    // generalBackpack端點現在支援「fresh=true」,會跳過快取直接重新打一次Sheets API,一樣是最新資料,
+    // 但還是走比較快的Worker路線。GAS(loadGeneralItemsViaGas_)只保留當Worker本身請求失敗時的備援。
+    function loadGeneralItems(forceFresh) {
       const container = document.getElementById('general-items-container');
       container.innerHTML = '<p style="text-align:center; color:#B9BBBE; font-size:13px;">讀取中...</p>';
-      fetch(`${DASHBOARD_WORKER_URL}?action=generalBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      const freshParam = forceFresh ? '&fresh=true' : '';
+      fetch(`${DASHBOARD_WORKER_URL}?action=generalBackpack&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}${freshParam}`)
         .then(res => res.json())
         .then(data => {
           if (data.status !== 'success') { loadGeneralItemsViaGas_(); return; }
@@ -2311,14 +2318,14 @@
       function finishError_(msg) {
         if (settled) return; settled = true;
         generalItemActionInFlight = false;
-        loadGeneralItems();
+        loadGeneralItems(true);
         alert(msg);
       }
       function finishSuccess_(data) {
         if (settled) return; settled = true;
         generalItemActionInFlight = false;
         alert(data.message || `🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
-        loadGeneralItems();
+        loadGeneralItems(true);
         fetchScoresAndShop(currentUser.id);
       }
 
@@ -2381,14 +2388,14 @@
       function finishError_(msg) {
         if (settled) return; settled = true;
         generalItemActionInFlight = false;
-        loadGeneralItems();
+        loadGeneralItems(true);
         alert(msg);
       }
       function finishSuccess_(data) {
         if (settled) return; settled = true;
         generalItemActionInFlight = false;
         alert('🗑️ ' + data.message);
-        loadGeneralItems();
+        loadGeneralItems(true);
       }
 
       fetchWithTimeout_(`${GAS_API_URL}?action=clearUnusableGeneralBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
@@ -2621,17 +2628,44 @@
 
       tradeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, '送出中...');
+
+      // 🌟🔧 套用賽跑架構(同openGeneralItemStack):GAS回應會被同步發送的Discord webhook網路延遲拖慢,
+      // 改成GAS回應+Worker輪詢兩條路線同時進行,誰先給出結果就用哪個,不用整個等webhook送完。
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        alert(msg);
+        loadTradeData();
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        alert('✅ ' + data.message);
+        document.getElementById('trade-target-input').value = '';
+        loadTradeData();
+      }
+
       fetchWithTimeout_(`${GAS_API_URL}?action=createItemTradeSession&discordId=${currentUser.id}&targetDiscordId=${encodeURIComponent(matched.discordId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
-          tradeActionInFlight = false;
-          restoreBtn();
-          if (data.status !== 'success') { alert('❌ ' + data.message); return; }
-          alert('✅ ' + data.message);
-          document.getElementById('trade-target-input').value = '';
-          loadTradeData();
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
         })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複送出。'); loadTradeData(); });
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+
+      pollInstrumentedActionResult_('createItemTradeSession', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
 
     function renderTradeLists(data) {
@@ -2679,16 +2713,41 @@
       if (!confirm(accept ? '確定要接受這筆交易邀請嗎？接受後會開啟交易視窗。' : '確定要拒絕這筆交易邀請嗎？')) return;
       tradeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, accept ? '接受中...' : '拒絕中...');
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        alert(msg);
+        loadTradeData();
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        alert('✅ ' + data.message);
+        loadTradeData();
+      }
+
       fetchWithTimeout_(`${GAS_API_URL}?action=respondItemTradeSessionInvite&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accept=${accept}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
-          tradeActionInFlight = false;
-          restoreBtn();
-          if (data.status !== 'success') { alert('❌ ' + data.message); loadTradeData(); return; }
-          alert('✅ ' + data.message);
-          loadTradeData();
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
         })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請重新整理「道具交易」畫面確認結果,不要重複點擊。'); loadTradeData(); });
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+
+      pollInstrumentedActionResult_('respondItemTradeSessionInvite', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
 
     function cancelTradeFromList_(btn, tradeId) {
@@ -2696,10 +2755,40 @@
       if (!confirm('確定要取消這筆交易嗎？')) return;
       tradeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, '取消中...');
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        if (msg) alert(msg);
+        loadTradeData(); loadGeneralItems();
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        loadTradeData(); loadGeneralItems();
+      }
+
       fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); loadTradeData(); loadGeneralItems(); })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請重新整理確認結果。'); loadTradeData(); });
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
+        })
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+
+      pollInstrumentedActionResult_('cancelTradeSession', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
 
     // ── 以下是進行中交易的雙方交易視窗 ──
@@ -2788,11 +2877,41 @@
       if (tradeActionInFlight) return;
       tradeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, busyText || '更新中...');
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        if (msg) alert(msg);
+        pollTradeSession_(true);
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        pollTradeSession_(true);
+      }
+
       const params = new URLSearchParams({ action: 'updateTradeSessionItems', discordId: currentUser.id, tradeId: tradeSessionId_, items: JSON.stringify(items), accessToken: getAccessToken() });
       fetchWithTimeout_(`${GAS_API_URL}?${params.toString()}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(true); })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); });
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
+        })
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+
+      pollInstrumentedActionResult_('updateTradeSessionItems', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
 
     function addTradeSessionItem_(btn) {
@@ -2817,27 +2936,82 @@
       if (!confirm(confirmMsg)) return;
       tradeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, '鎖定中...');
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        if (msg) alert(msg);
+        pollTradeSession_(true);
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        if (data.bothLocked) { alert('✅ ' + data.message); }
+        pollTradeSession_(true);
+        loadGeneralItems();
+      }
+
       fetchWithTimeout_(`${GAS_API_URL}?action=lockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
         .then(data => {
-          tradeActionInFlight = false;
-          restoreBtn();
-          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(true); return; }
-          if (data.bothLocked) { alert('✅ ' + data.message); }
-          pollTradeSession_(true);
-          loadGeneralItems();
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
         })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); });
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+
+      pollInstrumentedActionResult_('lockTradeSession', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
 
     function unlockTradeSessionMySide_(btn) {
       if (tradeActionInFlight) return;
       tradeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, '取消鎖定中...');
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        if (msg) alert(msg);
+        pollTradeSession_(true); loadGeneralItems();
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        pollTradeSession_(true); loadGeneralItems();
+      }
+
       fetchWithTimeout_(`${GAS_API_URL}?action=unlockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
-        .then(data => { tradeActionInFlight = false; restoreBtn(); if (data.status !== 'success') alert('❌ ' + data.message); pollTradeSession_(true); loadGeneralItems(); })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); loadGeneralItems(); });
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
+        })
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+
+      pollInstrumentedActionResult_('unlockTradeSession', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
 
     function cancelTradeSessionWindow_(btn) {
@@ -2845,17 +3019,42 @@
       if (!confirm('確定要取消這筆交易嗎？雙方已放入的道具都會退回背包。')) return;
       tradeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, '取消中...');
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        if (msg) alert(msg);
+        pollTradeSession_(true);
+      }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true;
+        tradeActionInFlight = false; restoreBtn();
+        alert('✅ ' + data.message);
+        closeTradeSession_();
+        loadGeneralItems();
+      }
+
       fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
         .then(res => res.json())
         .then(data => {
-          tradeActionInFlight = false;
-          restoreBtn();
-          if (data.status !== 'success') { alert('❌ ' + data.message); pollTradeSession_(true); return; }
-          alert('✅ ' + data.message);
-          closeTradeSession_();
-          loadGeneralItems();
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccess_(data);
         })
-        .catch(() => { tradeActionInFlight = false; restoreBtn(); alert('⚠️ 連線失敗或逾時,請確認結果。'); pollTradeSession_(true); });
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+
+      pollInstrumentedActionResult_('cancelTradeSession', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
     // ── 道具交易系統結束 ──
 
