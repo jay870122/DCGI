@@ -378,17 +378,19 @@
         <h2 style="margin:0;">🎫 序號兌換</h2>
       </div>
       <div class="modal-body">
-        <p style="color:#B9BBBE;font-size:13px;margin-top:0">輸入活動或管理員發布的兌換碼,即可領取對應的獎勵。每組兌換碼每人限兌一次。</p>
-        <input id="redeem-code-input" type="text" placeholder="請輸入兌換碼" style="width:100%;padding:10px;font-size:15px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')submitRedeemCode()">
+        <p style="color:#B9BBBE;font-size:13px;margin-top:0">輸入活動/管理員發布的兌換碼,或是其他玩家給你的「道具序號」,都在這裡輸入即可,系統會自動判斷。每組碼/序號限兌一次。</p>
+        <input id="redeem-code-input" type="text" placeholder="請輸入兌換碼或道具序號" style="width:100%;padding:10px;font-size:15px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')submitRedeemCode()">
         <button class="btn-action" style="width:100%;margin-top:12px;background-color:#43B581" onclick="submitRedeemCode()" id="redeem-code-submit-btn">🎁 兌換</button>
+        <div style="text-align:center;margin-top:10px;">
+          <a href="javascript:void(0)" style="color:#9B59B6;font-size:12px;text-decoration:underline" onclick="closeRedeemCode();openGiftCode();">把自己的道具轉成序號送給別人 →</a>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- 🌟 道具序號贈禮:跟上面「道具交易」不一樣,不需要雙方同時在線——把可交易道具轉成一組一次性序號,
-  自己把序號傳給朋友(語音、私訊都行,系統不經手),對方自己找時間輸入兌換。也跟上面的「序號兌換」
-  (redeem-code-modal,管理員/活動發的、可以讓很多人各自兌換一次)不同,這裡每組序號是玩家自己產生、
-  只能被兌換一次。 -->
+  自己把序號傳給朋友(語音、私訊都行,系統不經手),對方自己找時間輸入兌換。兌換的輸入框已經合併進
+  「序號兌換」(redeem-code-modal)那個彈窗,這裡只負責「產生序號」跟「查看我產生過的序號」。 -->
   <div id="gift-code-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header">
@@ -396,7 +398,7 @@
         <h2 style="margin:0;">🎫 道具序號贈禮</h2>
       </div>
       <div class="modal-body">
-        <p style="color:#72767D;font-size:12px;margin:0 0 10px">把可交易的道具轉成一組一次性序號,自己把序號傳給朋友,對方自己找時間輸入兌換,不用雙方同時在線。只有管理員開放交易的道具才能轉換;道具原本的過期時間不會因為轉成序號而暫停。</p>
+        <p style="color:#72767D;font-size:12px;margin:0 0 10px">把可交易的道具轉成一組一次性序號,自己把序號傳給朋友,對方在「序號兌換」輸入就能領取,不用雙方同時在線。只有管理員開放交易的道具才能轉換;道具原本的過期時間不會因為轉成序號而暫停。</p>
 
         <div style="margin-bottom:16px;">
           <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">➕ 把道具轉成序號</div>
@@ -404,14 +406,6 @@
             <select id="giftcode-item-select" style="width:100%;padding:6px;"></select>
             <input type="number" id="giftcode-qty-input" min="1" value="1" style="width:100%;padding:6px;" placeholder="數量">
             <button class="btn-action" style="padding:6px;font-size:13px;background-color:#5865F2" onclick="submitCreateGiftCode_(this)">產生序號</button>
-          </div>
-        </div>
-
-        <div style="margin-bottom:16px;">
-          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🎁 兌換別人給你的道具序號</div>
-          <div style="display:flex;gap:6px">
-            <input type="text" id="giftcode-redeem-input" placeholder="輸入對方給你的序號" style="flex:1;padding:6px;text-transform:uppercase" onkeydown="if(event.key==='Enter')submitRedeemGiftCode_(this)">
-            <button class="btn-action" style="padding:6px 12px;font-size:13px;background-color:#43B581" onclick="submitRedeemGiftCode_(this)">兌換</button>
           </div>
         </div>
 
@@ -565,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.27</div>
+    <div class="version-tag">系統版本：v5.4.28</div>
   </div>
 
   <script>
@@ -2558,9 +2552,12 @@
         alert(data.message || '🎉 兌換成功！');
         if (!isStale_()) closeRedeemCode();
         fetchScoresAndShop(currentUser.id); // 🌟 不管是不是過期的請求,分數都要刷新(獎勵確實已經到帳了)
+        loadGeneralItems(true); // 🌟 這裡現在也接受玩家互傳的「道具序號」,兌換成功有可能是拿到道具,背包也要一起刷新成即時版本
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=redeemCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+      // 🌟🔧 合併「序號兌換」:這個輸入框現在同時接受管理員發的兌換碼跟玩家互傳的道具序號,改呼叫
+      // 後端統一入口redeemAnyCode(會自己先查兌換碼表、找不到再查道具序號表),玩家不用自己分辨是哪一種。
+      fetchWithTimeout_(`${GAS_API_URL}?action=redeemAnyCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
         .then(res => res.json())
         .then(data => {
           if (settled) return;
@@ -2573,7 +2570,7 @@
           else { gasDone = true; checkBothGaveUp_(); }
         });
 
-      pollInstrumentedActionResult_('redeemCode', requestStartMs, () => settled).then(polled => {
+      pollInstrumentedActionResult_('redeemAnyCode', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) { finishSuccess_(polled); return; }
         pollDone = true;
@@ -3197,35 +3194,6 @@
         .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
         .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
       pollInstrumentedActionResult_('createGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
-    }
-
-    function submitRedeemGiftCode_(btn) {
-      if (giftCodeActionInFlight) return;
-      const code = document.getElementById('giftcode-redeem-input').value.trim();
-      if (!code) { alert('請輸入序號'); return; }
-
-      giftCodeActionInFlight = true;
-      const restoreBtn = setBtnBusy_(btn, '兌換中...');
-      let settled = false, gasDone = false, pollDone = false;
-      const requestStartMs = Date.now();
-      function checkBothGaveUp_() { if (settled) return; if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。'); }
-      function finishError_(msg) { if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn(); alert(msg); }
-      function finishSuccess_(data) {
-        if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn();
-        alert(data.message);
-        document.getElementById('giftcode-redeem-input').value = '';
-        loadGeneralItems(true);
-      }
-      fetchWithTimeout_(`${GAS_API_URL}?action=redeemGeneralItemGiftCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
-        .then(res => res.json())
-        .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
-      pollInstrumentedActionResult_('redeemGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) { finishSuccess_(polled); return; }
         pollDone = true;
