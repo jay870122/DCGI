@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.28</div>
+    <div class="version-tag">系統版本：v5.4.29</div>
   </div>
 
   <script>
@@ -2607,6 +2607,21 @@
       };
     }
 
+    // 🌟🔧 選物品用的「我可交易的道具」清單改走Worker即時版本(跟loadGeneralItems同一套做法),GAS失敗才退回。
+    // 這裡共用一支函式,因為「交易視窗選物品」(openTradeSession_)跟「序號贈禮選物品」(loadGiftCodeData)
+    // 兩邊原本各自重複一樣的fetch+fallback邏輯。
+    function fetchMyTradableItems_(forceFresh) {
+      const freshParam = forceFresh ? `&fresh=true&_t=${Date.now()}` : '';
+      const viaGas_ = () => fetchWithTimeout_(`${GAS_API_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(d => (d.status === 'success') ? (d.items || []) : [])
+        .catch(() => []);
+      return fetch(`${DASHBOARD_WORKER_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}${freshParam}`, forceFresh ? { cache: 'no-store' } : undefined)
+        .then(res => res.json())
+        .then(data => (data.status === 'success') ? (data.items || []) : viaGas_())
+        .catch(() => viaGas_());
+    }
+
     function openTrade() {
       document.getElementById('trade-modal').style.display = 'flex';
       showTradeListView_();
@@ -2837,10 +2852,7 @@
       document.getElementById('trade-list-view').style.display = 'none';
       document.getElementById('trade-session-view').style.display = 'block';
       document.getElementById('trade-session-other-name').textContent = otherName;
-      fetchWithTimeout_(`${GAS_API_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
-        .then(res => res.json())
-        .then(data => { tradeSessionMyTradableItems_ = (data.status === 'success') ? (data.items || []) : []; renderTradeSessionItemSelect_(); })
-        .catch(() => {});
+      fetchMyTradableItems_(true).then(items => { tradeSessionMyTradableItems_ = items; renderTradeSessionItemSelect_(); });
       pollTradeSession_();
       stopTradeSessionPolling_();
       tradeSessionPollTimer_ = setInterval(pollTradeSession_, 4000);
@@ -3114,10 +3126,7 @@
     }
 
     function loadGiftCodeData() {
-      fetchWithTimeout_(`${GAS_API_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
-        .then(res => res.json())
-        .then(data => { giftCodeMyTradableItems_ = (data.status === 'success') ? (data.items || []) : []; renderGiftCodeItemSelect_(); })
-        .catch(() => {});
+      fetchMyTradableItems_(true).then(items => { giftCodeMyTradableItems_ = items; renderGiftCodeItemSelect_(); });
       loadMyGiftCodesList_();
     }
 
