@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.31</div>
+    <div class="version-tag">系統版本：v5.4.32</div>
   </div>
 
   <script>
@@ -3165,7 +3165,8 @@
             <div style="white-space:nowrap">${GIFT_CODE_STATUS_LABEL_[c.status] || c.status}</div>
           </div>
           ${c.status === 'ACTIVE' ? `<div style="margin-top:6px;display:flex;gap:6px;">
-            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#4F545C" onclick="copyGiftCode_('${c.code}')">📋 複製</button>
+            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#4F545C" onclick="copyGiftCode_('${c.code}')">📋 複製序號</button>
+            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#5865F2" onclick="copyGiftCodeLink_('${c.code}')">🔗 複製連結</button>
             <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#ED4245" onclick="submitCancelGiftCode_('${c.code}', this)">取消</button>
           </div>` : ''}
         </div>
@@ -3177,6 +3178,17 @@
         navigator.clipboard.writeText(code).then(() => alert('已複製序號：' + code)).catch(() => alert('序號：' + code));
       } else {
         alert('序號：' + code);
+      }
+    }
+
+    // 🌟🆕 複製序號連結:帶?redeem=序號的分享連結,跟分享「兌換碼」連結共用同一套機制(maybeShowSharedRedeemCode)——
+    // 對方點進連結、登入後會自動打開「序號兌換」彈窗、把序號預先填好(不會自動送出,對方自己按兌換確認)。
+    function copyGiftCodeLink_(code) {
+      const link = `${window.location.origin}${window.location.pathname}?redeem=${encodeURIComponent(code)}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => alert('已複製連結,傳給對方,對方點開連結登入後會自動帶出序號兌換！\n' + link)).catch(() => alert('連結：' + link));
+      } else {
+        alert('連結：' + link);
       }
     }
 
