@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.32</div>
+    <div class="version-tag">系統版本：v5.4.33</div>
   </div>
 
   <script>
@@ -3164,6 +3164,7 @@
             <div><b style="font-family:monospace;letter-spacing:1px">${c.code}</b>　${c.itemName}×${c.amount}</div>
             <div style="white-space:nowrap">${GIFT_CODE_STATUS_LABEL_[c.status] || c.status}</div>
           </div>
+          ${c.status === 'REDEEMED' && c.redeemedByName ? `<div style="color:#72767D;margin-top:2px;">兌換者：${c.redeemedByName.replace(/</g,'&lt;')}</div>` : ''}
           ${c.status === 'ACTIVE' ? `<div style="margin-top:6px;display:flex;gap:6px;">
             <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#4F545C" onclick="copyGiftCode_('${c.code}')">📋 複製序號</button>
             <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#5865F2" onclick="copyGiftCodeLink_('${c.code}')">🔗 複製連結</button>
