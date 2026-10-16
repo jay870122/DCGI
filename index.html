@@ -296,6 +296,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div style="font-weight:bold;color:#B9BBBE;font-size:13px;">🎁 我的道具</div>
             <button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#5865F2" onclick="openTrade()">🤝 道具交易</button>
+            <button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#9B59B6;margin-left:6px" onclick="openGiftCode()">🎫 序號贈禮</button>
           </div>
           <div id="general-items-container" style="display:flex;flex-direction:column;gap:8px;"></div>
         </div>
@@ -380,6 +381,44 @@
         <p style="color:#B9BBBE;font-size:13px;margin-top:0">輸入活動或管理員發布的兌換碼,即可領取對應的獎勵。每組兌換碼每人限兌一次。</p>
         <input id="redeem-code-input" type="text" placeholder="請輸入兌換碼" style="width:100%;padding:10px;font-size:15px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')submitRedeemCode()">
         <button class="btn-action" style="width:100%;margin-top:12px;background-color:#43B581" onclick="submitRedeemCode()" id="redeem-code-submit-btn">🎁 兌換</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🌟 道具序號贈禮:跟上面「道具交易」不一樣,不需要雙方同時在線——把可交易道具轉成一組一次性序號,
+  自己把序號傳給朋友(語音、私訊都行,系統不經手),對方自己找時間輸入兌換。也跟上面的「序號兌換」
+  (redeem-code-modal,管理員/活動發的、可以讓很多人各自兌換一次)不同,這裡每組序號是玩家自己產生、
+  只能被兌換一次。 -->
+  <div id="gift-code-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeGiftCode()">×</span>
+        <h2 style="margin:0;">🎫 道具序號贈禮</h2>
+      </div>
+      <div class="modal-body">
+        <p style="color:#72767D;font-size:12px;margin:0 0 10px">把可交易的道具轉成一組一次性序號,自己把序號傳給朋友,對方自己找時間輸入兌換,不用雙方同時在線。只有管理員開放交易的道具才能轉換;道具原本的過期時間不會因為轉成序號而暫停。</p>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">➕ 把道具轉成序號</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <select id="giftcode-item-select" style="width:100%;padding:6px;"></select>
+            <input type="number" id="giftcode-qty-input" min="1" value="1" style="width:100%;padding:6px;" placeholder="數量">
+            <button class="btn-action" style="padding:6px;font-size:13px;background-color:#5865F2" onclick="submitCreateGiftCode_(this)">產生序號</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🎁 兌換別人給你的道具序號</div>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="giftcode-redeem-input" placeholder="輸入對方給你的序號" style="flex:1;padding:6px;text-transform:uppercase" onkeydown="if(event.key==='Enter')submitRedeemGiftCode_(this)">
+            <button class="btn-action" style="padding:6px 12px;font-size:13px;background-color:#43B581" onclick="submitRedeemGiftCode_(this)">兌換</button>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">🕘 我產生過的序號</div>
+          <div id="giftcode-my-list-container" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -526,7 +565,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.26</div>
+    <div class="version-tag">系統版本：v5.4.27</div>
   </div>
 
   <script>
@@ -3060,6 +3099,166 @@
       });
     }
     // ── 道具交易系統結束 ──
+
+    // 🌟🌟🌟 ===== 道具序號贈禮系統(單向、不需要雙方同時在線版) ===== 🌟🌟🌟
+    // 跟上面的「道具交易」不一樣:不用選定對象、不用對方同時在線確認——把可交易道具轉成一組一次性序號,
+    // 序號文字自己想辦法傳給對方(語音、私訊都行,系統不經手),對方自己找時間輸入兌換。
+    // 查詢(讀取)一律Worker優先、失敗退回GAS;轉換/兌換/取消這些「寫入」一律走GAS,套用跟其他道具
+    // 操作一致的賽跑架構(GAS回應+Worker輪詢兩條路線同時進行)。
+    let giftCodeActionInFlight = false;
+    let giftCodeMyTradableItems_ = [];
+
+    function openGiftCode() {
+      document.getElementById('gift-code-modal').style.display = 'flex';
+      loadGiftCodeData();
+    }
+    function closeGiftCode() {
+      document.getElementById('gift-code-modal').style.display = 'none';
+    }
+
+    function loadGiftCodeData() {
+      fetchWithTimeout_(`${GAS_API_URL}?action=getMyTradableItems&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => { giftCodeMyTradableItems_ = (data.status === 'success') ? (data.items || []) : []; renderGiftCodeItemSelect_(); })
+        .catch(() => {});
+      loadMyGiftCodesList_();
+    }
+
+    function renderGiftCodeItemSelect_() {
+      const select = document.getElementById('giftcode-item-select');
+      if (!select) return;
+      if (!giftCodeMyTradableItems_.length) { select.innerHTML = '<option value="">（沒有開放交易的道具）</option>'; return; }
+      select.innerHTML = giftCodeMyTradableItems_.map(it => `<option value="${it.itemName.replace(/"/g,'&quot;')}">${it.itemName}（持有${it.totalCount}${it.tradeCountLimit ? `，限交易${it.tradeCountLimit}次` : ''}）</option>`).join('');
+    }
+
+    function loadMyGiftCodesList_() {
+      const container = document.getElementById('giftcode-my-list-container');
+      container.innerHTML = '<p style="text-align:center;color:#B9BBBE;font-size:13px;">讀取中...</p>';
+      fetch(`${DASHBOARD_WORKER_URL}?action=getMyItemGiftCodes&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+        .then(res => res.json())
+        .then(data => { if (data.status === 'success') renderMyGiftCodesList_(data.codes || []); else loadMyGiftCodesListViaGas_(); })
+        .catch(() => { loadMyGiftCodesListViaGas_(); });
+    }
+    function loadMyGiftCodesListViaGas_() {
+      const container = document.getElementById('giftcode-my-list-container');
+      fetchWithTimeout_(`${GAS_API_URL}?action=getMyItemGiftCodes&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+        .then(res => res.json())
+        .then(data => { if (data.status === 'success') renderMyGiftCodesList_(data.codes || []); else container.innerHTML = `<p style="text-align:center;color:#ED4245;font-size:13px;">❌ ${data.message||'讀取失敗'}</p>`; })
+        .catch(() => { container.innerHTML = '<p style="text-align:center;color:#ED4245;font-size:13px;">❌ 連線失敗</p>'; });
+    }
+
+    const GIFT_CODE_STATUS_LABEL_ = { ACTIVE: '⏳ 尚未兌換', REDEEMED: '✅ 已兌換', CANCELLED: '🚫 已取消' };
+    function renderMyGiftCodesList_(codes) {
+      const container = document.getElementById('giftcode-my-list-container');
+      if (!codes.length) { container.innerHTML = '<p style="text-align:center;color:#B9BBBE;font-size:13px;">還沒有產生過任何序號</p>'; return; }
+      container.innerHTML = codes.map(c => `
+        <div style="background:#2F3136;border-radius:8px;padding:8px;font-size:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <div><b style="font-family:monospace;letter-spacing:1px">${c.code}</b>　${c.itemName}×${c.amount}</div>
+            <div style="white-space:nowrap">${GIFT_CODE_STATUS_LABEL_[c.status] || c.status}</div>
+          </div>
+          ${c.status === 'ACTIVE' ? `<div style="margin-top:6px;display:flex;gap:6px;">
+            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#4F545C" onclick="copyGiftCode_('${c.code}')">📋 複製</button>
+            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#ED4245" onclick="submitCancelGiftCode_('${c.code}', this)">取消</button>
+          </div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function copyGiftCode_(code) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => alert('已複製序號：' + code)).catch(() => alert('序號：' + code));
+      } else {
+        alert('序號：' + code);
+      }
+    }
+
+    function submitCreateGiftCode_(btn) {
+      if (giftCodeActionInFlight) return;
+      const itemName = document.getElementById('giftcode-item-select').value;
+      if (!itemName) { alert('請選擇要轉換的道具'); return; }
+      const quantity = parseInt(document.getElementById('giftcode-qty-input').value, 10) || 1;
+      if (quantity < 1) { alert('數量至少要1個'); return; }
+      if (!confirm(`確定要把「${itemName}」x${quantity} 轉成一組一次性序號嗎？轉換後這份道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
+
+      giftCodeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '產生中...');
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() { if (settled) return; if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。'); }
+      function finishError_(msg) { if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn(); alert(msg); loadGiftCodeData(); }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn();
+        alert(data.message);
+        loadGiftCodeData();
+      }
+      fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCode&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+        .then(res => res.json())
+        .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      pollInstrumentedActionResult_('createGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
+    }
+
+    function submitRedeemGiftCode_(btn) {
+      if (giftCodeActionInFlight) return;
+      const code = document.getElementById('giftcode-redeem-input').value.trim();
+      if (!code) { alert('請輸入序號'); return; }
+
+      giftCodeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '兌換中...');
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() { if (settled) return; if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。'); }
+      function finishError_(msg) { if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn(); alert(msg); }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn();
+        alert(data.message);
+        document.getElementById('giftcode-redeem-input').value = '';
+        loadGeneralItems(true);
+      }
+      fetchWithTimeout_(`${GAS_API_URL}?action=redeemGeneralItemGiftCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+        .then(res => res.json())
+        .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      pollInstrumentedActionResult_('redeemGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
+    }
+
+    function submitCancelGiftCode_(code, btn) {
+      if (giftCodeActionInFlight) return;
+      if (!confirm(`確定要取消序號「${code}」嗎？道具會退回你的背包。`)) return;
+      giftCodeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '取消中...');
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() { if (settled) return; if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。'); }
+      function finishError_(msg) { if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn(); alert(msg); loadGiftCodeData(); }
+      function finishSuccess_(data) {
+        if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn();
+        alert(data.message);
+        loadGiftCodeData();
+      }
+      fetchWithTimeout_(`${GAS_API_URL}?action=cancelGeneralItemGiftCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+        .then(res => res.json())
+        .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      pollInstrumentedActionResult_('cancelGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
+    }
+    // ── 道具序號贈禮系統結束 ──
 
     function showBackpack() {
       renderBackpackItems();
