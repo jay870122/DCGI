@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.30</div>
+    <div class="version-tag">系統版本：v5.4.31</div>
   </div>
 
   <script>
@@ -3198,6 +3198,7 @@
         if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn();
         alert(data.message);
         loadGiftCodeData();
+        loadGeneralItems(true); // 🌟🔧 道具轉成序號後會從背包暫時消失(TRADE_LOCKED),外層背包清單也要跟著即時刷新,不然玩家會看到數量沒變
       }
       fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCode&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
@@ -3224,6 +3225,7 @@
         if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn();
         alert(data.message);
         loadGiftCodeData();
+        loadGeneralItems(true); // 🌟🔧 取消序號後道具解鎖退回背包,外層背包清單也要跟著即時刷新
       }
       fetchWithTimeout_(`${GAS_API_URL}?action=cancelGeneralItemGiftCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
         .then(res => res.json())
