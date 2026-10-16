@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.29</div>
+    <div class="version-tag">系統版本：v5.4.30</div>
   </div>
 
   <script>
@@ -3140,7 +3140,8 @@
     function loadMyGiftCodesList_() {
       const container = document.getElementById('giftcode-my-list-container');
       container.innerHTML = '<p style="text-align:center;color:#B9BBBE;font-size:13px;">讀取中...</p>';
-      fetch(`${DASHBOARD_WORKER_URL}?action=getMyItemGiftCodes&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      // 🌟🔧 剛產生/兌換/取消完序號,馬上要看到最新狀態,帶fresh=true跳過Worker快取(跟loadGeneralItems同一套做法)。
+      fetch(`${DASHBOARD_WORKER_URL}?action=getMyItemGiftCodes&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}&fresh=true&_t=${Date.now()}`, { cache: 'no-store' })
         .then(res => res.json())
         .then(data => { if (data.status === 'success') renderMyGiftCodesList_(data.codes || []); else loadMyGiftCodesListViaGas_(); })
         .catch(() => { loadMyGiftCodesListViaGas_(); });
