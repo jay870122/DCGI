@@ -1687,19 +1687,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>可交易次數上限 <span class="hint">留空=不限制。同一份道具(不管拆分成幾份)終身總共最多能被交易幾次,達到上限後這份道具還是能正常使用,只是不能再被拿去交易</span></label>
         <input id="it-tradecountlimit" type="number" min="1" placeholder="留空=不限制">
       </div>
-      <div class="field">
-        <label>開啟次數上限(週期) <span class="hint">不限制=手上有多少就能開多少次;選了週期就要填次數,不管手上有幾個,這個週期內總共只能開那麼多次</span></label>
-        <select id="it-openlimitmode" onchange="toggleItemTemplateOpenLimitValue()">
-          <option value="NONE">不限制</option>
-          <option value="DAILY">每日</option>
-          <option value="WEEKLY">每週(週一重算)</option>
-          <option value="MONTHLY">每月</option>
-          <option value="LIFETIME">終身(永久累計,不會重置)</option>
-        </select>
-      </div>
-      <div class="field" id="it-openlimitcount-box" style="display:none">
-        <label>開啟次數上限 <span class="hint">這個週期內總共最多能開幾次</span></label>
-        <input id="it-openlimitcount" type="number" min="1" placeholder="例如 3">
+      <div class="field full">
+        <label>開啟次數上限(可同時設定多種週期) <span class="hint">每個週期各自留空=該週期不限制;填了的週期,這個週期內總共只能開那麼多次(不管手上有幾個)。可以同時設定好幾種週期,全部會同時生效(例如每小時5次+每日20次+終身500次一起套用)</span></label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+          <div><div class="hint">每小時</div><input id="it-openlimit-hourly" type="number" min="1" placeholder="不限制" style="width:90px"></div>
+          <div><div class="hint">每日</div><input id="it-openlimit-daily" type="number" min="1" placeholder="不限制" style="width:90px"></div>
+          <div><div class="hint">每週(週一重算)</div><input id="it-openlimit-weekly" type="number" min="1" placeholder="不限制" style="width:90px"></div>
+          <div><div class="hint">每月</div><input id="it-openlimit-monthly" type="number" min="1" placeholder="不限制" style="width:90px"></div>
+          <div><div class="hint">終身(永久累計)</div><input id="it-openlimit-lifetime" type="number" min="1" placeholder="不限制" style="width:90px"></div>
+        </div>
+        <label style="margin-top:8px;display:flex;align-items:center;gap:6px;font-weight:normal">
+          <input id="it-openlimit-perinstance" type="checkbox" style="width:auto">
+          每個實體道具各自計次 <span class="hint">預設關閉=同一個道具名稱不管手上有幾份,全部加起來共用同一份額度；開啟後,手上的每一份道具各自獨立計次、互不共用(等於額度隨持有份數倍增)</span>
+        </label>
       </div>
       <div class="field full" style="text-align:right">
         <button class="btn btn-cancel" onclick="closeModal('item-template-modal')">取消</button>
@@ -5055,7 +5055,7 @@ function renderItemTemplates() {
     const moreCount = poolLines.length - 1;
     return `
     <tr>
-      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.tradeCountLimit ? ` <span class="hint" style="color:var(--green)">🤝限交易${t.tradeCountLimit}次</span>` : ''}${t.openLimitMode && t.openLimitMode !== 'NONE' ? ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(t.openLimitMode)}限${t.openLimitCount}次</span>` : ''}</td>
+      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.tradeCountLimit ? ` <span class="hint" style="color:var(--green)">🤝限交易${t.tradeCountLimit}次</span>` : ''}${(t.openLimitRules || []).map(r => ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(r.mode)}限${r.limit}次</span>`).join('')}${(t.openLimitRules && t.openLimitRules.length > 0 && t.perInstanceOpenLimit) ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">(每個實體各自計次)</span>' : ''}</td>
       <td style="max-width:280px;font-size:12px;color:var(--muted)">
         <div>${firstLineShort}${moreCount > 0 ? `<span class="hint">　(共${poolLines.length}個獎項)</span>` : ''}</div>
         ${moreCount > 0 ? `
@@ -5075,6 +5075,7 @@ function renderItemTemplates() {
   }).join('');
 }
 function openLimitModeLabel_(mode) {
+  if (mode === 'HOURLY') return '每小時';
   if (mode === 'DAILY') return '每日';
   if (mode === 'WEEKLY') return '每週';
   if (mode === 'MONTHLY') return '每月';
@@ -5104,9 +5105,12 @@ function openItemTemplateForm() {
   document.getElementById('it-tradable').checked = false;
   document.getElementById('it-requiretrade').checked = false;
   document.getElementById('it-tradecountlimit').value = '';
-  document.getElementById('it-openlimitmode').value = 'NONE';
-  document.getElementById('it-openlimitcount').value = '';
-  toggleItemTemplateOpenLimitValue();
+  document.getElementById('it-openlimit-hourly').value = '';
+  document.getElementById('it-openlimit-daily').value = '';
+  document.getElementById('it-openlimit-weekly').value = '';
+  document.getElementById('it-openlimit-monthly').value = '';
+  document.getElementById('it-openlimit-lifetime').value = '';
+  document.getElementById('it-openlimit-perinstance').checked = false;
   document.getElementById('item-template-modal').classList.add('open');
 }
 
@@ -5125,10 +5129,15 @@ function editItemTemplate(name) {
   document.getElementById('it-tradable').checked = !!t.tradable;
   document.getElementById('it-requiretrade').checked = !!t.requireTradeBeforeUse;
   document.getElementById('it-tradecountlimit').value = t.tradeCountLimit || '';
-  document.getElementById('it-openlimitmode').value = t.openLimitMode || 'NONE';
-  document.getElementById('it-openlimitcount').value = t.openLimitCount || '';
+  const openLimitRuleMap_ = {};
+  (t.openLimitRules || []).forEach(r => { openLimitRuleMap_[r.mode] = r.limit; });
+  document.getElementById('it-openlimit-hourly').value = openLimitRuleMap_.HOURLY || '';
+  document.getElementById('it-openlimit-daily').value = openLimitRuleMap_.DAILY || '';
+  document.getElementById('it-openlimit-weekly').value = openLimitRuleMap_.WEEKLY || '';
+  document.getElementById('it-openlimit-monthly').value = openLimitRuleMap_.MONTHLY || '';
+  document.getElementById('it-openlimit-lifetime').value = openLimitRuleMap_.LIFETIME || '';
+  document.getElementById('it-openlimit-perinstance').checked = !!t.perInstanceOpenLimit;
   toggleItemTemplateExpiryValue();
-  toggleItemTemplateOpenLimitValue();
   updateItemTemplatePreview();
   document.getElementById('item-template-modal').classList.add('open');
 }
@@ -5143,11 +5152,6 @@ function toggleItemTemplateExpiryValue() {
   if (mode === 'MINUTES') { label.textContent = '幾分鐘後過期'; input.type = 'number'; input.placeholder = '例如：30'; }
   else if (mode === 'HOURS') { label.textContent = '幾小時後過期'; input.type = 'number'; input.placeholder = '例如：24'; }
   else { label.textContent = '到期時間'; input.type = 'datetime-local'; input.placeholder = ''; }
-}
-
-function toggleItemTemplateOpenLimitValue() {
-  const mode = document.getElementById('it-openlimitmode').value;
-  document.getElementById('it-openlimitcount-box').style.display = mode === 'NONE' ? 'none' : '';
 }
 
 function updateItemTemplatePreview() {
@@ -5168,9 +5172,16 @@ async function submitItemTemplate() {
   const requireTradeBeforeUse = document.getElementById('it-requiretrade').checked;
   if (requireTradeBeforeUse && !tradable) { toast('「強迫交易」需要同時勾選「開放玩家互相交易」,不然道具發出去會卡死', false); return; }
   const tradeCountLimit = document.getElementById('it-tradecountlimit').value.trim();
-  const openLimitMode = document.getElementById('it-openlimitmode').value;
-  const openLimitCount = document.getElementById('it-openlimitcount').value.trim();
-  if (openLimitMode !== 'NONE' && !openLimitCount) { toast('選了開啟次數上限的週期,要填次數', false); return; }
+  // 🌟🆕 開啟次數上限改成可以同時設定好幾種週期,把填了值的那些週期各自收集成規則陣列,留空的週期視為不限制。
+  const openLimitRules = [];
+  [['HOURLY', 'it-openlimit-hourly'], ['DAILY', 'it-openlimit-daily'], ['WEEKLY', 'it-openlimit-weekly'], ['MONTHLY', 'it-openlimit-monthly'], ['LIFETIME', 'it-openlimit-lifetime']].forEach(([mode, elId]) => {
+    const raw = document.getElementById(elId).value.trim();
+    if (raw) {
+      const limit = parseInt(raw, 10) || 0;
+      if (limit >= 1) openLimitRules.push({ mode, limit });
+    }
+  });
+  const perInstanceOpenLimit = document.getElementById('it-openlimit-perinstance').checked;
   const originalName = document.getElementById('it-original-name').value;
 
   const btn = document.getElementById('it-save-btn');
@@ -5181,7 +5192,7 @@ async function submitItemTemplate() {
     if (originalName && originalName !== name) {
       await api({ action: 'adminDeleteItemTemplate', name: originalName });
     }
-    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, tradeCountLimit, openLimitMode, openLimitCount });
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, tradeCountLimit, openLimitRules: JSON.stringify(openLimitRules), perInstanceOpenLimit });
     if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
     toast(d.message);
     closeModal('item-template-modal');
