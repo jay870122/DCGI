@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.36</div>
+    <div class="version-tag">系統版本：v5.4.37</div>
   </div>
 
   <script>
@@ -2263,6 +2263,10 @@
         const maxOpenHintHtml = g.maxOpenPerRequest && g.maxOpenPerRequest < g.totalCount
           ? `<span style="color:#72767D;font-size:11px;display:block">單次最多開 ${g.maxOpenPerRequest} 個</span>` : '';
         const openLimitExhausted = openLimitStatusList_.some(s => s.remaining <= 0);
+        // 🌟🆕 是否開放交易:讓玩家在背包畫面就能看出這個道具能不能拿去交易/轉成序號,不用點開交易畫面才知道。
+        const tradableHintHtml = g.tradable
+          ? `<span style="color:#43B581;font-size:11px;display:block">🤝 可交易</span>`
+          : `<span style="color:#72767D;font-size:11px;display:block">🚫 不可交易</span>`;
         return `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -2271,6 +2275,7 @@
               ${countdownHtml}
               ${maxOpenHintHtml}
               ${openLimitHintHtml}
+              ${tradableHintHtml}
             </span>
             <span style="display:flex;align-items:center;gap:6px">
               <input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${effectiveMaxOpen}" value="1" style="width:60px;padding:4px;text-align:center" ${openLimitExhausted ? 'disabled' : ''}>
