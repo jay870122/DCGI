@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.40</div>
+    <div class="version-tag">系統版本：v5.4.41</div>
   </div>
 
   <script>
@@ -2356,44 +2356,72 @@
       const originalText = btnEl.textContent;
       btnEl.textContent = '⏳ 開啟中...';
 
-      // 🌟🔧 改回GAS處理(Python常駐服務暫停使用):套用賽跑架構(GAS回應+Worker輪詢兩條路線同時進行),
-      // 因為GAS本身回應可能會延遲,不能只靠單一條路線判斷結果。
-      let settled = false, gasDone = false, pollDone = false;
-      const requestStartMs = Date.now();
-      function checkBothGaveUp_() {
-        if (settled) return;
-        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      }
       function finishError_(msg) {
-        if (settled) return; settled = true;
         generalItemActionInFlight = false;
         loadGeneralItems(true);
         alert(msg);
       }
       function finishSuccess_(data) {
-        if (settled) return; settled = true;
         generalItemActionInFlight = false;
         alert(data.message || `🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
         loadGeneralItems(true);
         fetchScoresAndShop(currentUser.id);
       }
 
+      // 🌟🆕 開道具Worker試行版:先試著直接打Worker(略過GAS冷啟動/排隊),只有「沒有開啟次數上限/沒有
+      // 每個實體各自計次/獎池不含序號等特殊標籤」這種單純道具才會真的被Worker接受處理(status:'success')。
+      // 不符合條件的話Worker保證回傳status:'unsupported'且完全沒有寫入任何資料,這時才安全地fallback回
+      // 原本GAS+輪詢的賽跑架構。如果Worker那次請求本身就失敗/逾時(有可能剛好卡在寫入途中,無法確定
+      // 到底有沒有真的成功),為了不要冒「兩條路線都寫入、玩家開到兩倍獎勵」的風險,這裡刻意不自動
+      // fallback回GAS,而是提示玩家自行確認背包/歷史紀錄再手動重試。
+      tryOpenGeneralItemsByNameViaWorker_(itemName, quantity)
+        .then(workerResult => {
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runGeneralItemOpenViaGas_(itemName, quantity, finishError_, finishSuccess_); return; }
+          // 🌟 workerResult是null(連線失敗/逾時)或status==='error':狀態不明確,不自動重試,請玩家自己確認
+          finishError_('⚠️ 開啟請求的結果不確定,請重新整理頁面,確認「' + itemName + '」有沒有真的被開啟(看背包數量/歷史紀錄),不確定的話再重新操作一次,避免重複開啟。');
+        });
+    }
+
+    // 🌟🆕 呼叫開道具Worker試行版端點。回傳{status:'success',...}成功、{status:'unsupported',...}代表這個
+    // 道具不符合Worker試行版的條件(保證完全沒有寫入),其餘情況(連線失敗/逾時/status:'error')一律回傳null,
+    // 讓呼叫端把它當成「結果不確定」處理,不能直接當成「沒成功所以可以放心fallback回GAS」。
+    async function tryOpenGeneralItemsByNameViaWorker_(itemName, quantity) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=useGeneralBackpackItemsByNameWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + quantity * 300);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        return null; // 🌟 status==='error'也視為不確定,見上面呼叫端的註解
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 🌟 原本GAS+輪詢的賽跑架構,搬出來成獨立函式,給Worker試行版判定「unsupported」之後fallback呼叫。
+    function runGeneralItemOpenViaGas_(itemName, quantity, finishError_, finishSuccess_) {
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) { settled = true; finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。'); }
+      }
+
       fetchWithTimeout_(`${GAS_API_URL}?action=useGeneralBackpackItemsByName&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + quantity * 300)
         .then(res => res.json())
         .then(data => {
           if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
+          if (data.status !== 'success') { settled = true; finishError_('❌ ' + data.message); return; }
+          settled = true; finishSuccess_(data);
         })
         .catch(err => {
           if (settled) return;
-          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else { gasDone = true; checkBothGaveUp_(); }
+          gasDone = true; checkBothGaveUp_();
         });
 
       pollInstrumentedActionResult_('useGeneralBackpackItemsByName', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
+        if (polled) { settled = true; finishSuccess_(polled); return; }
         pollDone = true;
         checkBothGaveUp_();
       });
