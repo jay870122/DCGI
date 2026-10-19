@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.43</div>
+    <div class="version-tag">系統版本：v5.4.50</div>
   </div>
 
   <script>
@@ -1811,25 +1811,58 @@
         finishSuccessFromGas_(data);
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => {
-        if (settled) return;
-        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-        finishSuccessFromGas_(data);
-      })
-      .catch(err => {
-        if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else { gasDone = true; checkBothGaveUp_(); }
-      });
+      function runBuyBingoNumberViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=buyBingoNumber&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccessFromGas_(data);
+        })
+        .catch(err => {
+          if (settled) return;
+          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+          else { gasDone = true; checkBothGaveUp_(); }
+        });
 
-      pollInstrumentedActionResult_('buyBingoNumber', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccessFromPoll_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('buyBingoNumber', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccessFromPoll_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 BINGO買號碼Worker試行版:先試著直接打Worker(略過GAS冷啟動/排隊),只有獎池內容不含
+      // [序號]/[背包:]/[道具:]/[非即時]/[身分組]這些特殊標籤的活動才會真的被Worker接受處理
+      // (status:'success')。不符合條件保證回傳status:'unsupported'且完全沒有寫入,這時才安全地
+      // fallback回原本GAS+輪詢的賽跑架構。如果Worker那次請求本身失敗/逾時而且無法確定有沒有寫入
+      // (safeNoWrite不是true),為了不要冒「兩條路線都寫入、玩家被扣兩次錢」的風險,刻意不自動
+      // fallback回GAS,改成提示玩家自行確認卡片狀態再手動重試,跟開道具試行版同一個精神。
+      tryBuyBingoNumberViaWorker_(mode, targetNumber, quantity)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { settled = true; finishSuccessFromGas_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runBuyBingoNumberViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 買號碼請求的結果不確定,請重新整理頁面,確認賓果卡狀態(已標記數字/餘額)有沒有變化,不確定的話再重新操作一次,避免重複購買。');
+        });
+    }
+
+    // 🌟🆕 呼叫BINGO買號碼Worker試行版端點,回應格式跟tryOpenGeneralItemsByNameViaWorker_同一個精神:
+    // status==='success'/'unsupported'/('error'且safeNoWrite===true)這三種直接把Worker回應原樣傳回去,
+    // 其餘情況(連線失敗/逾時/status==='error'但沒有safeNoWrite標記)回傳null,代表結果不確定。
+    async function tryBuyBingoNumberViaWorker_(mode, targetNumber, quantity) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=buyBingoNumberWorker&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&mode=${mode}&targetNumber=${encodeURIComponent(targetNumber)}&quantity=${quantity}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
 
     // 🌟 使用背包裡的道具(例如指定券):跳出輸入框讓玩家填要指定的數字,範圍限定的道具會先告知能填的範圍
