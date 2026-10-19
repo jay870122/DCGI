@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.50</div>
+    <div class="version-tag">系統版本：v5.4.54</div>
   </div>
 
   <script>
@@ -1842,10 +1842,28 @@
       tryBuyBingoNumberViaWorker_(mode, targetNumber, quantity)
         .then(workerResult => {
           if (settled) return;
-          if (workerResult && workerResult.status === 'success') { settled = true; finishSuccessFromGas_(workerResult); return; }
+          // 🌟🔧 真正的bug根源:finishSuccessFromGas_自己開頭就有「if (settled) return; settled = true;」
+          // 的自我防重入保護——這裡如果先手動把settled設成true,等於呼叫finishSuccessFromGas_的當下
+          // settled已經是true,函式一進去就直接return,後面的alert()/resetButtons_()/bingoActionInFlight
+          // =false/loadBingoStatus()全部都不會執行。這就是「後端明明成功寫入、Network也拿得到200成功
+          // 回應,畫面卻完全沒有任何提示、按鈕永遠卡在處理中」的真正原因(根本沒有拋出例外,所以
+          // 外層.catch()也不會被觸發)。修正方式:不要在這裡手動設settled,交給finishSuccessFromGas_
+          // 自己的保護機制處理就好。
+          if (workerResult && workerResult.status === 'success') { finishSuccessFromGas_(workerResult); return; }
           if (workerResult && workerResult.status === 'unsupported') { runBuyBingoNumberViaGasAndPoll_(); return; }
           if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
           finishError_('⚠️ 買號碼請求的結果不確定,請重新整理頁面,確認賓果卡狀態(已標記數字/餘額)有沒有變化,不確定的話再重新操作一次,避免重複購買。');
+        })
+        // 🌟🔧 debug:原本這個.then()沒有接.catch(),一旦callback內部(例如finishSuccessFromGas_)
+        // 丟出例外,整條promise鏈就會變成unhandled rejection靜默卡住——畫面上完全沒有alert、按鈕也
+        // 卡在「處理中」不會恢復,而且不一定每個瀏覽器都會把這種unhandled rejection印成看得到的紅字。
+        // 這裡補上.catch(),把真正的錯誤內容直接跳出來(同時也在console.error留一份,方便之後排查),
+        // 不要讓按鈕卡死。
+        .catch(err => {
+          if (settled) return; settled = true;
+          bingoActionInFlight = false; resetButtons_();
+          console.error('[buyBingoNumberAction] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認賓果卡狀態。');
         });
     }
 
