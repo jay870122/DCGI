@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.33</div>
+    <div class="version-tag">系統版本：v5.4.35</div>
   </div>
 
   <script>
@@ -2246,15 +2246,23 @@
         // 🌟🆕 開啟次數上限(週期性節流):後端如果設了每日/每週/每月/終身總共能開幾次,這裡顯示剩餘次數,
         // 並把輸入框上限再收緊一次(跟單次最多開啟數量一樣道理),剩0次的話直接把開啟按鈕關掉,不用等按下去
         // 才被後端擋掉。
-        const periodLabelMap_ = { DAILY: '今日', WEEKLY: '本週', MONTHLY: '本月', LIFETIME: '總共' };
-        const openLimitHintHtml = g.openLimitStatus
-          ? `<span style="color:${g.openLimitStatus.remaining > 0 ? '#F0B232' : '#ED4245'};font-size:11px;display:block">⏱️ ${periodLabelMap_[g.openLimitStatus.mode] || ''}剩餘開啟次數：${g.openLimitStatus.remaining} / ${g.openLimitStatus.limit}</span>`
+        // 🌟🔧 開啟次數上限改成可能同時有好幾條規則(HOURLY/DAILY/WEEKLY/MONTHLY/LIFETIME同時生效),
+        // 優先用新的openLimitStatusList陣列逐條顯示;舊版只有單一openLimitStatus時也相容顯示。
+        const periodLabelMap_ = { HOURLY: '這小時', DAILY: '今日', WEEKLY: '本週', MONTHLY: '本月', LIFETIME: '總共' };
+        const openLimitStatusList_ = g.openLimitStatusList && g.openLimitStatusList.length > 0
+          ? g.openLimitStatusList
+          : (g.openLimitStatus ? [g.openLimitStatus] : []);
+        // 🌟🆕 「每個實體各自計次」模式下,這裡顯示的是這一組所有份數加總的參考值(近似值,真正把關在後端
+        // 逐一扣減),額外加一個小標籤讓玩家知道這跟「共用額度」模式的數字含義不一樣。
+        const openLimitPerInstanceHint_ = g.perInstanceOpenLimit ? '<span style="color:#72767D;font-size:10px">(已依持有份數加總)</span>' : '';
+        const openLimitHintHtml = openLimitStatusList_.length > 0
+          ? openLimitStatusList_.map(s => `<span style="color:${s.remaining > 0 ? '#F0B232' : '#ED4245'};font-size:11px;display:block">⏱️ ${periodLabelMap_[s.mode] || ''}剩餘開啟次數：${s.remaining} / ${s.limit} ${openLimitPerInstanceHint_}</span>`).join('')
           : '';
-        const openLimitRemaining = g.openLimitStatus ? g.openLimitStatus.remaining : Infinity;
+        const openLimitRemaining = openLimitStatusList_.length > 0 ? Math.min(...openLimitStatusList_.map(s => s.remaining)) : Infinity;
         const effectiveMaxOpen = Math.max(0, Math.min(g.totalCount, g.maxOpenPerRequest || g.totalCount, openLimitRemaining));
         const maxOpenHintHtml = g.maxOpenPerRequest && g.maxOpenPerRequest < g.totalCount
           ? `<span style="color:#72767D;font-size:11px;display:block">單次最多開 ${g.maxOpenPerRequest} 個</span>` : '';
-        const openLimitExhausted = g.openLimitStatus && g.openLimitStatus.remaining <= 0;
+        const openLimitExhausted = openLimitStatusList_.some(s => s.remaining <= 0);
         return `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
