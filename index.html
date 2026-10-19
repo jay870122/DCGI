@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.37</div>
+    <div class="version-tag">系統版本：v5.4.38</div>
   </div>
 
   <script>
@@ -3362,7 +3362,10 @@
       document.getElementById('raffle-participants-modal').style.display = 'flex';
       document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
 
-      fetch(`${GAS_API_URL}?action=getRaffleParticipants&itemId=${itemId}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      // 🌟🔧 改走DASHBOARD_WORKER_URL(跟history/bingoActivities/auctions同一套),不再直接打GAS——
+      // GAS Web App冷啟動/排隊等鎖偶爾會拖到快10秒甚至逾時,這個彈窗之前常常卡在「讀取中...」轉圈圈,
+      // Worker這邊讀取快、沒有那種冷啟動開銷,而且邏輯跟GAS端的getRaffleParticipants完全一致。
+      fetch(`${DASHBOARD_WORKER_URL}?action=raffleParticipants&discordId=${currentUser.id}&itemId=${itemId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         const container = document.getElementById('raffle-participants-container');
