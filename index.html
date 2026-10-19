@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.41</div>
+    <div class="version-tag">系統版本：v5.4.43</div>
   </div>
 
   <script>
@@ -2378,13 +2378,19 @@
         .then(workerResult => {
           if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
           if (workerResult && workerResult.status === 'unsupported') { runGeneralItemOpenViaGas_(itemName, quantity, finishError_, finishSuccess_); return; }
-          // 🌟 workerResult是null(連線失敗/逾時)或status==='error':狀態不明確,不自動重試,請玩家自己確認
+          // 🌟🔧 status==='error'且safeNoWrite===true:Worker保證這次請求「完全沒有寫入任何資料」就失敗了
+          // (例如道具還沒符合使用條件、已過期、鎖定忙碌中),可以直接當成一般失敗訊息顯示,不用嚇玩家。
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          // 🌟 workerResult是null(連線失敗/逾時)或status==='error'但safeNoWrite不是true:狀態不明確,
+          // 不自動重試,請玩家自己確認
           finishError_('⚠️ 開啟請求的結果不確定,請重新整理頁面,確認「' + itemName + '」有沒有真的被開啟(看背包數量/歷史紀錄),不確定的話再重新操作一次,避免重複開啟。');
         });
     }
 
     // 🌟🆕 呼叫開道具Worker試行版端點。回傳{status:'success',...}成功、{status:'unsupported',...}代表這個
-    // 道具不符合Worker試行版的條件(保證完全沒有寫入),其餘情況(連線失敗/逾時/status:'error')一律回傳null,
+    // 道具不符合Worker試行版的條件(保證完全沒有寫入)、{status:'error',safeNoWrite:true,...}代表請求本身
+    // 乾淨地失敗了(同樣保證完全沒有寫入,只是單純沒成功,例如道具不符合使用條件),這三種都直接把Worker
+    // 回應原樣傳回去給呼叫端。其餘情況(連線失敗/逾時/status==='error'但沒有safeNoWrite標記)才回傳null,
     // 讓呼叫端把它當成「結果不確定」處理,不能直接當成「沒成功所以可以放心fallback回GAS」。
     async function tryOpenGeneralItemsByNameViaWorker_(itemName, quantity) {
       try {
@@ -2392,7 +2398,8 @@
         const data = await res.json();
         if (data && data.status === 'unsupported') return data;
         if (data && data.status === 'success') return data;
-        return null; // 🌟 status==='error'也視為不確定,見上面呼叫端的註解
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null; // 🌟 其餘status==='error'(寫入途中失敗,不確定)也視為不確定,見上面呼叫端的註解
       } catch (e) {
         return null;
       }
