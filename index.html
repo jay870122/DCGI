@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.52</div>
+    <div class="version-tag">系統版本：v5.4.53</div>
   </div>
 
   <script>
@@ -1846,6 +1846,17 @@
           if (workerResult && workerResult.status === 'unsupported') { runBuyBingoNumberViaGasAndPoll_(); return; }
           if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
           finishError_('⚠️ 買號碼請求的結果不確定,請重新整理頁面,確認賓果卡狀態(已標記數字/餘額)有沒有變化,不確定的話再重新操作一次,避免重複購買。');
+        })
+        // 🌟🔧 debug:原本這個.then()沒有接.catch(),一旦callback內部(例如finishSuccessFromGas_)
+        // 丟出例外,整條promise鏈就會變成unhandled rejection靜默卡住——畫面上完全沒有alert、按鈕也
+        // 卡在「處理中」不會恢復,而且不一定每個瀏覽器都會把這種unhandled rejection印成看得到的紅字。
+        // 這裡補上.catch(),把真正的錯誤內容直接跳出來(同時也在console.error留一份,方便之後排查),
+        // 不要讓按鈕卡死。
+        .catch(err => {
+          if (settled) return; settled = true;
+          bingoActionInFlight = false; resetButtons_();
+          console.error('[buyBingoNumberAction] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認賓果卡狀態。');
         });
     }
 
