@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.58</div>
+    <div class="version-tag">系統版本：v5.4.59</div>
   </div>
 
   <script>
@@ -5284,32 +5284,68 @@ function fetchScoresAndShop(discordId, callback = null) {
       document.getElementById('loading-text').innerText = "⏳ 正在處理訂單...";
       startLoadingProgress_(9000); // 🌟 預期時間抓9秒(實測GAS執行時間可能落在8-10秒),超過的話進度條停在95%不會滿
 
-
-      // 🌟🔧 修正重要缺口:購買是全站最常用的功能,但這裡原本完全沒有套用賽跑架構,只是單純的fetch()
-      // 乾等GAS原始回應——沒有逾時保護、沒有輪詢備援。GAS本身回應延遲是這整個系統從頭到尾都在處理的
-      // 已知問題(其他功能都有套用賽跑架構繞過這個問題),偏偏最重要的購買功能漏掉了,導致「明明已經
-      // 處理完成,畫面卻一直卡在處理中」——現在補上跟其他功能完全一致的賽跑架構。
-      let settled = false, gasDone = false, pollDone = false;
-      const requestStartMs = Date.now();
-      function checkBothGaveUp_() {
-        if (settled) return;
-        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
-      }
       function finishError_(msg) {
-        if (settled) return; settled = true;
         stopLoadingProgress_();
         alert(msg);
         document.getElementById('loading').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
       }
       function finishWithResult_(data) {
-        if (settled) return; settled = true;
         handleBuyResult_(data, itemId, itemName, safeId, maxQty, currencyName);
+      }
+
+      // 🌟🆕 一般交易(盲盒)搬到Worker版——賭博/抽獎/BINGO一次性道具/選項購買/終極密碼走法都跟這個函式
+      // 無關(賭博/抽獎有自己的下注UI不會走buyItem;BINGO道具/選項購買/一般固定獎勵/盲盒都可能走這裡,
+      // Worker端會自己判斷能不能接,接不了就回unsupported)。先試著直接打Worker,略過GAS冷啟動/排隊,
+      // 不符合條件(抽獎/賭博/BINGO道具/設有里程碑獎勵的商品)才fallback回原本GAS+輪詢的賽跑架構。
+      tryProcessPurchaseViaWorker_(itemId, qty, altMode, altAmountsObj, unlockPassword, altSelectedNames, optionIndex)
+        .then(workerResult => {
+          if (workerResult && workerResult.status === 'success') { finishWithResult_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runBuyItemViaGas_(itemId, itemName, qty, altMode, altSelectedNames, altAmountsObj, unlockPassword, gamblingOption, expectedGamblingOdds, optionIndex, finishError_, finishWithResult_); return; }
+          // 🌟 status==='error'且safeNoWrite===true:Worker保證這次請求完全沒有寫入任何資料就失敗了
+          // (例如餘額不足、密碼錯誤、超過限購、需要輸入密碼needUnlock)。交給跟GAS完全共用的handleBuyResult_
+          // 處理(密碼錯誤會自動重新prompt密碼並retry同一筆購買,其餘失敗會alert訊息,行為跟原本GAS路徑一致)。
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishWithResult_(workerResult); return; }
+          // 🌟 workerResult是null(連線失敗/逾時)或status==='error'但沒有safeNoWrite標記:狀態不明確,
+          // 不自動fallback回GAS重試一次(避免兩條路線都寫入、玩家被扣兩次錢或拿到兩倍獎勵的風險),
+          // 請玩家自己確認歷史紀錄/餘額後再決定要不要重試。
+          finishError_('⚠️ 購買請求的結果不確定,請重新整理頁面,確認「' + displayItemName + '」有沒有真的購買成功(看餘額/背包/歷史紀錄),不確定的話再重新操作一次,避免重複購買。');
+        });
+    }
+
+    // 🌟🆕 呼叫一般交易(盲盒)Worker試行版端點。回傳{status:'success',...}成功、{status:'unsupported',...}
+    // 代表這個商品不符合Worker版的條件(保證完全沒有寫入,目前已知:抽獎/賭博/BINGO一次性道具/設有累積
+    // 里程碑獎勵的商品)、{status:'error',safeNoWrite:true,...}代表請求本身乾淨地失敗了(同樣保證完全沒有
+    // 寫入,例如餘額不足/密碼錯誤/超過限購/身分組不符),這三種都直接把Worker回應原樣傳回去給呼叫端。
+    // 其餘情況(連線失敗/逾時/status==='error'但沒有safeNoWrite標記)才回傳null,讓呼叫端把它當成
+    // 「結果不確定」處理,不能直接當成「沒成功所以可以放心fallback回GAS」。
+    async function tryProcessPurchaseViaWorker_(itemId, qty, altMode, altAmountsObj, unlockPassword, altSelectedNames, optionIndex) {
+      try {
+        const url = `${DASHBOARD_WORKER_URL}?action=processPurchaseWorker&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`;
+        const res = await fetchWithTimeout_(url, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null; // 🌟 其餘status==='error'(寫入途中失敗,不確定)也視為不確定,見上面呼叫端的註解
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 🌟 原本GAS+輪詢的賽跑架構,搬出來成獨立函式,給Worker試行版判定「unsupported」之後fallback呼叫。
+    // 涵蓋範圍跟搬到Worker前的buyItem()完全一樣(抽獎/賭博/BINGO道具/里程碑商品本來就只能走這條路)。
+    function runBuyItemViaGas_(itemId, itemName, qty, altMode, altSelectedNames, altAmountsObj, unlockPassword, gamblingOption, expectedGamblingOdds, optionIndex, finishError_, finishWithResult_) {
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) { settled = true; finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。'); }
       }
 
       fetchWithTimeout_(`${GAS_API_URL}?action=buy&discordId=${currentUser.id}&itemId=${itemId}&itemName=${encodeURIComponent(itemName)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&gamblingOption=${encodeURIComponent(gamblingOption)}&expectedGamblingOdds=${encodeURIComponent(expectedGamblingOdds)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
       .then(res => res.json())
-      .then(data => { if (!settled) finishWithResult_(data); })
+      .then(data => { if (!settled) { settled = true; finishWithResult_(data); } })
       .catch(err => {
         if (settled) return;
         // 🌟🔧 不管是逾時(AbortError)還是其他連線錯誤,都要交給輪詢確認,不能直接判定失敗——
@@ -5320,7 +5356,7 @@ function fetchScoresAndShop(discordId, callback = null) {
 
       pollInstrumentedActionResult_('BUY', requestStartMs, () => settled).then(polled => {
         if (settled) return;
-        if (polled) { finishWithResult_(polled); return; }
+        if (polled) { settled = true; finishWithResult_(polled); return; }
         pollDone = true;
         checkBothGaveUp_();
       });
