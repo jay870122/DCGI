@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.54</div>
+    <div class="version-tag">系統版本：v5.4.56</div>
   </div>
 
   <script>
@@ -1605,6 +1605,7 @@
       function finishSuccessFromGas_(data) {
         if (settled) return; settled = true;
         bingoActionInFlight = false;
+        btn.disabled = false; btn.textContent = originalText;
         alert(data.wasFree ? '🔄 已免費重抽連線獎勵！' : `🔄 已花費 ${data.cost} ${data.currencyDisplayName} 重抽連線獎勵！`);
         loadBingoStatus();
         fetchScoresAndShop(currentUser.id);
@@ -1614,25 +1615,62 @@
         finishSuccessFromGas_(data);
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => {
-        if (settled) return;
-        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-        finishSuccessFromGas_(data);
-      })
-      .catch(err => {
-        if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else { gasDone = true; checkBothGaveUp_(); }
-      });
+      function runRerollBingoLineRewardsViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=rerollBingoLineRewards&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccessFromGas_(data);
+        })
+        .catch(err => {
+          if (settled) return;
+          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+          else { gasDone = true; checkBothGaveUp_(); }
+        });
 
-      pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccessFromPoll_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('rerollBingoLineRewards', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccessFromPoll_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 BINGO重抽連線獎勵Worker試行版:先試著直接打Worker,略過GAS冷啟動/排隊。這個動作本身
+      // 不涉及[背包:]/[道具:]/[序號]這些標籤的即時發放,所以理論上任何活動都會走success,不會回
+      // unsupported——留著unsupported分支只是為了跟其他Worker試行版端點同一套防呆模式,保留未來
+      // 彈性(例如之後這張分頁本身還沒建立的情況)。
+      tryRerollBingoLineRewardsViaWorker_()
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccessFromGas_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runRerollBingoLineRewardsViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 重抽連線獎勵請求的結果不確定,請重新整理頁面,確認連線獎勵/餘額有沒有變化,不確定的話再重新操作一次,避免重複扣款。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          bingoActionInFlight = false;
+          btn.disabled = false; btn.textContent = originalText;
+          console.error('[rerollBingoLineRewardsAction] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    // 🌟🆕 呼叫BINGO重抽連線獎勵Worker試行版端點,回應格式跟其他Worker試行版端點同一個精神:
+    // status==='success'/'unsupported'/('error'且safeNoWrite===true)直接原樣傳回,其餘情況回傳null。
+    async function tryRerollBingoLineRewardsViaWorker_() {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=rerollBingoLineRewardsWorker&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
 
     function resetOwnBingoCardAction() {
@@ -1661,6 +1699,7 @@
       function finishSuccessFromGas_(data) {
         if (settled) return; settled = true;
         bingoActionInFlight = false;
+        btn.disabled = false; btn.textContent = originalText;
         alert(data.wasFree ? '🆕 已免費重開新盤！' : `🆕 已花費 ${data.cost} ${data.currencyDisplayName} 重開新盤！`);
         lastDrawnNumbers = []; // 🌟 卡片已經換新的了,舊的金色標示沒有意義,清空
         loadBingoStatus();
@@ -1671,25 +1710,58 @@
         finishSuccessFromGas_(data);
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-      .then(res => res.json())
-      .then(data => {
-        if (settled) return;
-        if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-        finishSuccessFromGas_(data);
-      })
-      .catch(err => {
-        if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else { gasDone = true; checkBothGaveUp_(); }
-      });
+      function runResetOwnBingoCardViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=resetOwnBingoCard&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+          finishSuccessFromGas_(data);
+        })
+        .catch(err => {
+          if (settled) return;
+          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+          else { gasDone = true; checkBothGaveUp_(); }
+        });
 
-      pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccessFromPoll_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('resetOwnBingoCard', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccessFromPoll_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 BINGO重開新盤Worker試行版:先試著直接打Worker,略過GAS冷啟動/排隊,同一套模式。
+      tryResetOwnBingoCardViaWorker_()
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccessFromGas_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runResetOwnBingoCardViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 重開新盤請求的結果不確定,請重新整理頁面,確認卡片狀態/餘額有沒有變化,不確定的話再重新操作一次,避免重複扣款。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          bingoActionInFlight = false;
+          btn.disabled = false; btn.textContent = originalText;
+          console.error('[resetOwnBingoCardAction] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    // 🌟🆕 呼叫BINGO重開新盤Worker試行版端點,回應格式同上。
+    async function tryResetOwnBingoCardViaWorker_() {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=resetOwnBingoCardWorker&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&payWith=${getBingoPayWith()}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
 
     // 🌟 帶逾時的fetch:GAS Web App沒有真正的請求佇列,同一分類的動作靠應用層輪詢式鎖互相等待,
@@ -1938,30 +2010,70 @@
         return msg;
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          lastDrawnNumbers = (data.hit && !data.alreadyMarked) ? [data.number] : [];
-          finishSuccess_(buildResultMsg_(data));
-        })
-        .catch((err) => {
-          if (settled) return;
-          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else { gasDone = true; checkBothGaveUp_(); }
-        });
+      function runUseBingoItemViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=useBingoBackpackItem&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${num}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            lastDrawnNumbers = (data.hit && !data.alreadyMarked) ? [data.number] : [];
+            finishSuccess_(buildResultMsg_(data));
+          })
+          .catch((err) => {
+            if (settled) return;
+            if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+            else { gasDone = true; checkBothGaveUp_(); }
+          });
 
-      pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) {
-          lastDrawnNumbers = (polled.hit && !polled.alreadyMarked) ? [polled.number] : [];
-          finishSuccess_(`✅ 查到了！這次操作其實有成功執行：\n\n${buildResultMsg_(polled)}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
-          return;
-        }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('useBingoBackpackItem', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) {
+            lastDrawnNumbers = (polled.hit && !polled.alreadyMarked) ? [polled.number] : [];
+            finishSuccess_(`✅ 查到了！這次操作其實有成功執行：\n\n${buildResultMsg_(polled)}\n\n(賓果卡狀態已經套用,畫面即將重新整理)`);
+            return;
+          }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 使用BINGO背包道具Worker試行版:先試著直接打Worker,略過GAS冷啟動/排隊,同一套安全模式
+      // (只有unsupported才自動fallback回GAS,其他任何不確定的結果一律請玩家自行確認,不自動重試)。
+      tryUseBingoBackpackItemViaWorker_(instanceId, num)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') {
+            lastDrawnNumbers = (workerResult.hit && !workerResult.alreadyMarked) ? [workerResult.number] : [];
+            finishSuccess_(buildResultMsg_(workerResult));
+            return;
+          }
+          if (workerResult && workerResult.status === 'unsupported') { runUseBingoItemViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 使用道具請求的結果不確定,請重新整理頁面,確認賓果卡狀態有沒有變化,不確定的話再重新操作一次,避免重複使用道具。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          bingoActionInFlight = false;
+          btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
+          document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = false; });
+          updateBingoItemSelectedCount();
+          console.error('[useBingoItemPrompt] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    // 🌟🆕 呼叫BINGO背包道具單張使用Worker試行版端點,回應格式同其他BINGO Worker端點。
+    async function tryUseBingoBackpackItemViaWorker_(instanceId, targetNumber) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=useBingoBackpackItemWorker&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${targetNumber}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
 
     // 🌟 批次使用已勾選的道具:隨機類型不用問數字,直接送出;指定類型逐一詢問數字(取消/沒填的話,
@@ -2062,25 +2174,60 @@
         finishSuccessFromGas_(data);
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=useBingoBackpackItemsBatch&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&items=${encodeURIComponent(JSON.stringify(tasks))}&accessToken=${encodeURIComponent(getAccessToken())}`, batchTimeoutMs)
-        .then(res => res.json())
-        .then(data => {
+      function runUseBingoItemsBatchViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=useBingoBackpackItemsBatch&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&items=${encodeURIComponent(JSON.stringify(tasks))}&accessToken=${encodeURIComponent(getAccessToken())}`, batchTimeoutMs)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccessFromGas_(data);
+          })
+          .catch(err => {
           if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccessFromGas_(data);
+          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+          else { gasDone = true; checkBothGaveUp_(); }
+        });
+
+        pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccessFromPoll_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 批次使用BINGO背包道具Worker試行版:同上同一套安全模式。
+      tryUseBingoBackpackItemsBatchViaWorker_(tasks)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccessFromGas_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runUseBingoItemsBatchViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 批次使用道具請求的結果不確定,請重新整理頁面,確認賓果卡狀態有沒有變化,不確定的話再重新操作一次,避免重複使用道具。');
         })
         .catch(err => {
-        if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else { gasDone = true; checkBothGaveUp_(); }
-      });
+          if (settled) return; settled = true;
+          bingoActionInFlight = false;
+          btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
+          document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = false; });
+          updateBingoItemSelectedCount();
+          console.error('[useBingoItemsBatch] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
 
-      pollInstrumentedActionResult_('useBingoBackpackItemsBatch', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccessFromPoll_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+    // 🌟🆕 呼叫BINGO背包道具批次使用Worker試行版端點,回應格式同其他BINGO Worker端點。
+    async function tryUseBingoBackpackItemsBatchViaWorker_(tasks) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=useBingoBackpackItemsBatchWorker&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&items=${encodeURIComponent(JSON.stringify(tasks))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + tasks.length * 500);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
 
     // 🌟 更新「批次使用」按鈕上顯示的已勾選數量,並依有沒有勾任何東西決定按鈕能不能按
@@ -2170,25 +2317,57 @@
         finishSuccessFromGas_(data);
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=clearExpiredBingoBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-        .then(res => res.json())
-        .then(data => {
+      function runClearExpiredBingoItemsViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=clearExpiredBingoBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccessFromGas_(data);
+          })
+          .catch(err => {
           if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccessFromGas_(data);
+          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+          else { gasDone = true; checkBothGaveUp_(); }
+        });
+
+        pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccessFromPoll_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 清除過期BINGO背包道具Worker試行版:同上同一套安全模式。
+      tryClearExpiredBingoBackpackItemsViaWorker_(instanceIds)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccessFromGas_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runClearExpiredBingoItemsViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 清除過期道具請求的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
         })
         .catch(err => {
-        if (settled) return;
-        if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-        else { gasDone = true; checkBothGaveUp_(); }
-      });
+          if (settled) return; settled = true;
+          resetUi_();
+          console.error('[clearExpiredBingoItems] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
 
-      pollInstrumentedActionResult_('clearExpiredBingoBackpackItems', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccessFromPoll_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+    // 🌟🆕 呼叫清除過期BINGO背包道具Worker試行版端點,回應格式同其他BINGO Worker端點。
+    async function tryClearExpiredBingoBackpackItemsViaWorker_(instanceIds) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=clearExpiredBingoBackpackItemsWorker&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
     // ── BINGO 賓果卡結束 ──
 
@@ -2533,25 +2712,58 @@
         loadGeneralItems(true);
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=clearUnusableGeneralBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-        .then(res => res.json())
-        .then(data => {
+      function runClearUnusableGeneralItemsViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=clearUnusableGeneralBackpackItems&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(err => {
+            if (settled) return;
+            if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+            else { gasDone = true; checkBothGaveUp_(); }
+          });
+
+        pollInstrumentedActionResult_('clearUnusableGeneralBackpackItems', requestStartMs, () => settled).then(polled => {
           if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 清除已用完/過期通用道具Worker試行版:同上同一套安全模式。
+      tryClearUnusableGeneralBackpackItemsViaWorker_(instanceIds)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runClearUnusableGeneralItemsViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 清除道具請求的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
         })
         .catch(err => {
-          if (settled) return;
-          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else { gasDone = true; checkBothGaveUp_(); }
+          if (settled) return; settled = true;
+          generalItemActionInFlight = false;
+          console.error('[clearUnusableGeneralItems] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+          loadGeneralItems(true);
         });
+    }
 
-      pollInstrumentedActionResult_('clearUnusableGeneralBackpackItems', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+    // 🌟🆕 呼叫清除已用完/過期通用道具Worker試行版端點,回應格式同其他Worker端點。
+    async function tryClearUnusableGeneralBackpackItemsViaWorker_(instanceIds) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=clearUnusableGeneralBackpackItemsWorker&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
 
     // 🌟 過期倒數計時,邏輯跟BINGO背包道具那套完全一樣
@@ -2656,25 +2868,57 @@
 
       // 🌟🔧 合併「序號兌換」:這個輸入框現在同時接受管理員發的兌換碼跟玩家互傳的道具序號,改呼叫
       // 後端統一入口redeemAnyCode(會自己先查兌換碼表、找不到再查道具序號表),玩家不用自己分辨是哪一種。
-      fetchWithTimeout_(`${GAS_API_URL}?action=redeemAnyCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
-        .then(res => res.json())
-        .then(data => {
+      function runRedeemAnyCodeViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=redeemAnyCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_(data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(err => {
+            if (settled) return;
+            if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
+            else { gasDone = true; checkBothGaveUp_(); }
+          });
+
+        pollInstrumentedActionResult_('redeemAnyCode', requestStartMs, () => settled).then(polled => {
           if (settled) return;
-          if (data.status !== 'success') { finishError_(data.message); return; }
-          finishSuccess_(data);
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 兌換碼/序號兌換Worker試行版:同上同一套安全模式。
+      tryRedeemAnyCodeViaWorker_(code)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runRedeemAnyCodeViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_(workerResult.message); return; }
+          finishError_('兌換請求的結果不確定,請重新整理頁面確認分數/背包有沒有變化,不確定的話再重新操作一次,避免重複兌換。');
         })
         .catch(err => {
-          if (settled) return;
-          if (err && err.name === 'AbortError') { gasDone = true; checkBothGaveUp_(); }
-          else { gasDone = true; checkBothGaveUp_(); }
+          if (settled) return; settled = true;
+          resetUi_();
+          console.error('[submitRedeemCode] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
         });
+    }
 
-      pollInstrumentedActionResult_('redeemAnyCode', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+    // 🌟🆕 呼叫兌換碼/序號兌換Worker試行版端點,回應格式同其他Worker端點。
+    async function tryRedeemAnyCodeViaWorker_(code) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=redeemAnyCodeWorker&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
     }
 
     // 🌟🌟🌟 ===== 道具交易系統(楓之谷式雙方交易視窗,V2,純道具不含貨幣) ===== 🌟🌟🌟
