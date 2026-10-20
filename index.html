@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.67</div>
+    <div class="version-tag">系統版本：v5.4.69</div>
   </div>
 
   <script>
@@ -1231,12 +1231,22 @@
         return amount === 0 ? '免費' : `花費 ${amount} ${currencyName}`;
     }
 
+    // 🌟🔧 連線/滿版機率顯示改成跟商店盲盒一樣:直接顯示原始機率%/剩餘庫存份數,沒設定機率也沒設定
+    // 庫存的保底/無限項目顯示「保底/無限」,不虛構一個預估百分比出來(跟buildGachaContentBoxHtml_同一套邏輯)。
+    function formatGachaItemDetailText_(p) {
+      const detail = [];
+      if (p.prob !== null && p.prob !== undefined) detail.push(`${p.prob}%`);
+      if (p.stock !== null && p.stock !== undefined) detail.push(p.stock <= 0 ? '已抽完' : `${p.stock}份`);
+      if (detail.length === 0) detail.push('保底/無限');
+      return detail.join('/');
+    }
+
     function formatBingoPoolSummary_(label, pool) {
       if (pool.guaranteed) {
         return { hasContent: true, html: `<div>${label}：必定獲得 <b style="color:#F0B232">${pool.guaranteed.dispName}</b></div>` };
       }
       if (pool.items && pool.items.length > 0) {
-        const text = pool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、');
+        const text = pool.items.map(p => `${p.dispName}@${formatGachaItemDetailText_(p)}`).join('、');
         return { hasContent: true, html: `<div>${label}：可能拿到 ${text}</div>` };
       }
       return { hasContent: false, html: '' };
@@ -1366,7 +1376,7 @@
           🎁 連線獎池：每條線連成必定獲得 <b style="color:#F0B232">${lineRewardPool.guaranteed.dispName}</b>
         </div>`;
       } else if (lineRewardPool.items.length > 0) {
-        const detailHtml = lineRewardPool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、');
+        const detailHtml = lineRewardPool.items.map(p => `${p.dispName}@${formatGachaItemDetailText_(p)}`).join('、');
         lineRewardPoolHtml = `<div style="text-align:center;font-size:12px;background:#2F3136;border-radius:6px;padding:6px 10px;margin-bottom:10px;color:#B9BBBE">
           <span>🎁 連線獎池共有 ${lineRewardPool.items.length} 種可能獎項</span>
           <button onclick="toggleLineRewardPoolDetail()" style="background:none;border:none;color:#7289DA;font-size:12px;cursor:pointer;padding:0 0 0 6px;text-decoration:underline">${lineRewardPoolExpanded ? '▲ 收合' : '▼ 展開查看'}</button>
@@ -1426,22 +1436,22 @@
           : `<div style="text-align:center;background:linear-gradient(90deg,#F0B232,#EB459E);border-radius:8px;padding:8px;margin-bottom:12px;font-size:13px">
               🏆 <b>集滿25個數字可以抽獎！可能拿到：</b>
               <div style="font-size:12px;margin-top:4px;color:#1e1e1e">
-                ${fullPool.items.map(p => `${p.dispName}${p.prob !== null ? ` @${p.prob}%` : ''}`).join('、')}
+                ${fullPool.items.map(p => `${p.dispName}@${formatGachaItemDetailText_(p)}`).join('、')}
               </div>
             </div>`
       ) : '';
 
       const progressHtml = `
-        <div style="text-align:center;margin-bottom:12px;color:#B9BBBE;font-size:14px">
+        <div style="text-align:center;margin-bottom:6px;color:#B9BBBE;font-size:12px">
           已標記 ${data.marked.length} / 25　｜　已連線 ${data.linesCount} 條${data.full ? '　｜　🏆 已完成整卡！' : ''}
         </div>`;
 
-      const balanceHtml = `<div style="text-align:center;margin-bottom:8px;color:#FEE75C">💰 我的餘額：${data.myBalance} ${data.currencyDisplayName}${data.pickIsDifferentCurrency ? `　｜　🎯 ${data.pickBalance} ${data.pickCurrencyDisplayName}` : ''}${data.hasAltCurrency ? `　｜　${data.altBalance} ${data.altCurrencyDisplayName}` : ''}</div>`;
+      const balanceHtml = `<div style="text-align:center;margin-bottom:6px;color:#FEE75C;font-size:12px">💰 我的餘額：${data.myBalance} ${data.currencyDisplayName}${data.pickIsDifferentCurrency ? `　｜　🎯 ${data.pickBalance} ${data.pickCurrencyDisplayName}` : ''}${data.hasAltCurrency ? `　｜　${data.altBalance} ${data.altCurrencyDisplayName}` : ''}</div>`;
 
       // 🌟 替代貨幣選擇器:活動有開放才會顯示,選好之後底下所有付費按鈕(隨機抽/指定抽/重抽/重開)都會用這個貨幣支付
       const payWithHtml = data.hasAltCurrency ? `
-        <div style="text-align:center;margin-bottom:12px">
-          <select id="bingo-paywith" class="qty-input" style="width:auto">
+        <div style="text-align:center;margin-bottom:6px">
+          <select id="bingo-paywith" class="qty-input" style="width:auto;font-size:12px;padding:5px">
             <option value="PRIMARY">用 ${data.currencyDisplayName} 支付</option>
             <option value="ALT">用 ${data.altCurrencyDisplayName} 支付(匯率 1:${data.altCurrencyRate})</option>
           </select>
@@ -1450,31 +1460,33 @@
       // 🌟 指定抽號:給一個下拉建議清單(datalist),列出自己卡上「還沒中」的號碼,不用自己一格一格找;
       // 管理員如果關掉這個功能,這一整塊就不會顯示出來
       const unmarkedOptions = (data.unmarkedNumbers || []).map(n => `<option value="${n}">`).join('');
+      // 🌟🔧 抽號區塊整體縮小(字體/padding/間距都比預設.btn-action/.qty-input小一號):這塊要搬到
+      // 緊接賓果盤下面顯示,縮小才能讓盤面+抽號按鈕同時出現在手機一個畫面裡,不用抽號就把盤滑出畫面外。
       const pickHtml = data.pickEnabled ? `
-          <div style="display:flex;gap:8px">
-            <input id="bingo-pick-input" type="number" list="bingo-unmarked-list" min="${data.numberMin}" max="${data.numberMax}" placeholder="還沒中的號碼可以參考建議清單" class="qty-input" style="flex:1">
+          <div style="display:flex;gap:6px">
+            <input id="bingo-pick-input" type="number" list="bingo-unmarked-list" min="${data.numberMin}" max="${data.numberMax}" placeholder="還沒中的號碼" class="qty-input" style="flex:1;font-size:12px;padding:5px">
             <datalist id="bingo-unmarked-list">${unmarkedOptions}</datalist>
-            <button class="btn-action" id="bingo-pick-btn" style="background-color:#F0B232;flex:1" onclick="buyBingoNumberAction('PICK')">
+            <button class="btn-action" id="bingo-pick-btn" style="background-color:#F0B232;flex:1;font-size:12px;padding:5px 8px" onclick="buyBingoNumberAction('PICK')">
               🎯 指定抽號(${data.pickCost} ${data.pickCurrencyDisplayName || data.currencyDisplayName})
             </button>
           </div>
-          <div style="font-size:11px;color:#72767D;text-align:center">💡 點擊「指定抽號」輸入框可以看到自己卡上還沒中的號碼建議</div>` : '';
+          <div style="font-size:10px;color:#72767D;text-align:center">💡 點擊「指定抽號」輸入框可以看到自己卡上還沒中的號碼建議</div>` : '';
 
       // 🌟 已經滿版(25格全部標記完)的話,再抽號碼完全沒有意義(反正卡上不會再有空格可以中),
       // 直接把整個抽號區塊換成提示文字,不讓玩家繼續花錢抽
       const buyHtml = data.full ? `
-        <div style="text-align:center;padding:12px;background:#2F3136;border-radius:8px;color:#F0B232;font-size:13px">
+        <div style="text-align:center;padding:8px;background:#2F3136;border-radius:8px;color:#F0B232;font-size:12px;margin-bottom:8px">
           🏆 這張卡已經完成整卡了,不需要再抽號碼囉！
         </div>` : `
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <div style="display:flex;gap:8px;align-items:center">
-            <select id="bingo-random-qty" class="qty-input" style="width:auto;flex:1">
+        <div style="display:flex;flex-direction:column;gap:6px;background:#2F3136;border-radius:8px;padding:8px;margin-bottom:8px">
+          <div style="display:flex;gap:6px;align-items:center">
+            <select id="bingo-random-qty" class="qty-input" style="width:auto;flex:1;font-size:12px;padding:5px">
               <option value="1">連抽 x1</option>
               <option value="5">連抽 x5</option>
               <option value="10">連抽 x10</option>
               <option value="20">連抽 x20</option>
             </select>
-            <button class="btn-action" id="bingo-random-btn" style="background-color:#5865F2;flex:2" onclick="buyBingoNumberAction('RANDOM')">
+            <button class="btn-action" id="bingo-random-btn" style="background-color:#5865F2;flex:2;font-size:12px;padding:5px 8px" onclick="buyBingoNumberAction('RANDOM')">
               🎲 隨機抽號(單抽 ${data.randomCost} ${data.currencyDisplayName})
             </button>
           </div>
@@ -1533,7 +1545,10 @@
           }).join('')}
         </div>` : '';
 
-      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + backpackHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml + progressHtml + balanceHtml + payWithHtml + buyHtml;
+      // 🌟🔧 調整版面順序:抽號區塊(progress/balance/payWith/buy)搬到緊接賓果盤下面,不再被連線獎池
+      // 說明/重抽/重開/集滿獎勵這些「看一次就好」的資訊卡擠到畫面下方——手機上盤面+抽號鈕才能同時
+      // 看到,不用抽完號碼還要往上滑才看得到盤面變化。
+      document.getElementById('bingo-body-container').innerHTML = backHtml + gridHtml + progressHtml + balanceHtml + payWithHtml + buyHtml + backpackHtml + lineNoteHtml + lineRewardPoolHtml + rerollHtml + resetNewBoardHtml + fullRewardHtml;
       startBingoItemCountdowns_();
     }
 
