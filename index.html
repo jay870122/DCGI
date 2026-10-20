@@ -559,7 +559,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.56</div>
+    <div class="version-tag">系統版本：v5.4.58</div>
   </div>
 
   <script>
@@ -3048,21 +3048,49 @@
         loadTradeData();
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=createItemTradeSession&discordId=${currentUser.id}&targetDiscordId=${encodeURIComponent(matched.discordId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      function runCreateTradeInviteViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=createItemTradeSession&discordId=${currentUser.id}&targetDiscordId=${encodeURIComponent(matched.discordId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
 
-      pollInstrumentedActionResult_('createItemTradeSession', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('createItemTradeSession', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 道具交易邀請Worker試行版:同其他Worker端點一樣的安全模式(只有unsupported才自動fallback
+      // 回GAS,其他任何不確定的結果一律請玩家自行確認,不自動重試避免洗兩筆邀請)。
+      tryCreateItemTradeSessionViaWorker_(matched.discordId)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runCreateTradeInviteViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 發起交易請求的結果不確定,請重新整理頁面確認有沒有成立,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          tradeActionInFlight = false; restoreBtn();
+          console.error('[submitCreateTradeInvite_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    async function tryCreateItemTradeSessionViaWorker_(targetDiscordId) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createItemTradeSessionWorker&discordId=${currentUser.id}&targetDiscordId=${encodeURIComponent(targetDiscordId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     function renderTradeLists(data) {
@@ -3130,21 +3158,47 @@
         loadTradeData();
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=respondItemTradeSessionInvite&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accept=${accept}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      function runRespondTradeInviteViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=respondItemTradeSessionInvite&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accept=${accept}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
 
-      pollInstrumentedActionResult_('respondItemTradeSessionInvite', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('respondItemTradeSessionInvite', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryRespondItemTradeSessionInviteViaWorker_(tradeId, accept)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runRespondTradeInviteViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 回應交易邀請的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          tradeActionInFlight = false; restoreBtn();
+          console.error('[respondTradeInvite_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    async function tryRespondItemTradeSessionInviteViaWorker_(tradeId, accept) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=respondItemTradeSessionInviteWorker&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accept=${accept}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     function cancelTradeFromList_(btn, tradeId) {
@@ -3171,21 +3225,49 @@
         loadTradeData(); loadGeneralItems();
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      function runCancelTradeViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
 
-      pollInstrumentedActionResult_('cancelTradeSession', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('cancelTradeSession', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryCancelTradeSessionViaWorker_(tradeId)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runCancelTradeViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 取消交易的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          tradeActionInFlight = false; restoreBtn();
+          console.error('[cancelTradeFromList_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    // 🌟🆕 取消交易Worker試行版端點——cancelTradeFromList_(邀請/進行中清單)跟cancelTradeSessionWindow_
+    // (交易視窗內)共用同一個呼叫函式。
+    async function tryCancelTradeSessionViaWorker_(tradeId) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=cancelTradeSessionWorker&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     // ── 以下是進行中交易的雙方交易視窗 ──
@@ -3290,22 +3372,48 @@
         pollTradeSession_(true);
       }
 
-      const params = new URLSearchParams({ action: 'updateTradeSessionItems', discordId: currentUser.id, tradeId: tradeSessionId_, items: JSON.stringify(items), accessToken: getAccessToken() });
-      fetchWithTimeout_(`${GAS_API_URL}?${params.toString()}`, 15000)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      function runUpdateTradeItemsViaGasAndPoll_() {
+        const params = new URLSearchParams({ action: 'updateTradeSessionItems', discordId: currentUser.id, tradeId: tradeSessionId_, items: JSON.stringify(items), accessToken: getAccessToken() });
+        fetchWithTimeout_(`${GAS_API_URL}?${params.toString()}`, 15000)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
 
-      pollInstrumentedActionResult_('updateTradeSessionItems', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('updateTradeSessionItems', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryUpdateTradeSessionItemsViaWorker_(tradeSessionId_, items)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runUpdateTradeItemsViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 更新交易內容的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          tradeActionInFlight = false; restoreBtn();
+          console.error('[updateMyTradeItems_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    async function tryUpdateTradeSessionItemsViaWorker_(tradeId, items) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=updateTradeSessionItemsWorker&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&items=${encodeURIComponent(JSON.stringify(items))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     function addTradeSessionItem_(btn) {
@@ -3351,21 +3459,49 @@
         loadGeneralItems();
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=lockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      function runLockTradeSessionViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=lockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
 
-      pollInstrumentedActionResult_('lockTradeSession', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('lockTradeSession', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      // 🌟🆕 鎖定是雙向過戶真正會發生的動作,Worker結果不確定時絕對不能自動retry回GAS(可能已經
+      // 真的過戶成功了),一律請玩家自行重新整理確認背包/交易狀態。
+      tryLockTradeSessionViaWorker_(tradeSessionId_)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runLockTradeSessionViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 鎖定交易的結果不確定,請重新整理頁面確認交易狀態跟背包有沒有變化,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          tradeActionInFlight = false; restoreBtn();
+          console.error('[lockTradeSessionMySide_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    async function tryLockTradeSessionViaWorker_(tradeId) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=lockTradeSessionWorker&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     function unlockTradeSessionMySide_(btn) {
@@ -3391,21 +3527,47 @@
         pollTradeSession_(true); loadGeneralItems();
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=unlockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      function runUnlockTradeSessionViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=unlockTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
 
-      pollInstrumentedActionResult_('unlockTradeSession', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('unlockTradeSession', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryUnlockTradeSessionViaWorker_(tradeSessionId_)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runUnlockTradeSessionViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 取消鎖定的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          tradeActionInFlight = false; restoreBtn();
+          console.error('[unlockTradeSessionMySide_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    async function tryUnlockTradeSessionViaWorker_(tradeId) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=unlockTradeSessionWorker&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     function cancelTradeSessionWindow_(btn) {
@@ -3434,21 +3596,38 @@
         loadGeneralItems();
       }
 
-      fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
-        .then(res => res.json())
-        .then(data => {
-          if (settled) return;
-          if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
-          finishSuccess_(data);
-        })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      function runCancelTradeSessionWindowViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=cancelTradeSession&discordId=${currentUser.id}&tradeId=${encodeURIComponent(tradeSessionId_)}&accessToken=${encodeURIComponent(getAccessToken())}`, 15000)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
 
-      pollInstrumentedActionResult_('cancelTradeSession', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        pollInstrumentedActionResult_('cancelTradeSession', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryCancelTradeSessionViaWorker_(tradeSessionId_)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runCancelTradeSessionWindowViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 取消交易的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          tradeActionInFlight = false; restoreBtn();
+          console.error('[cancelTradeSessionWindow_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
     }
     // ── 道具交易系統結束 ──
 
@@ -3556,16 +3735,42 @@
         loadGiftCodeData();
         loadGeneralItems(true); // 🌟🔧 道具轉成序號後會從背包暫時消失(TRADE_LOCKED),外層背包清單也要跟著即時刷新,不然玩家會看到數量沒變
       }
-      fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCode&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
-        .then(res => res.json())
-        .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
-      pollInstrumentedActionResult_('createGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+      function runCreateGiftCodeViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCode&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+          .then(res => res.json())
+          .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+        pollInstrumentedActionResult_('createGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runCreateGiftCodeViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 轉換序號的結果不確定,請重新整理頁面確認背包/序號清單有沒有變化,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          giftCodeActionInFlight = false; restoreBtn();
+          console.error('[submitCreateGiftCode_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    async function tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createGeneralItemGiftCodeWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
 
     function submitCancelGiftCode_(code, btn) {
@@ -3583,16 +3788,42 @@
         loadGiftCodeData();
         loadGeneralItems(true); // 🌟🔧 取消序號後道具解鎖退回背包,外層背包清單也要跟著即時刷新
       }
-      fetchWithTimeout_(`${GAS_API_URL}?action=cancelGeneralItemGiftCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
-        .then(res => res.json())
-        .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
-      pollInstrumentedActionResult_('cancelGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+      function runCancelGiftCodeViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=cancelGeneralItemGiftCode&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+          .then(res => res.json())
+          .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+        pollInstrumentedActionResult_('cancelGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryCancelGeneralItemGiftCodeViaWorker_(code)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runCancelGiftCodeViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 取消序號的結果不確定,請重新整理頁面確認背包/序號清單有沒有變化,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          giftCodeActionInFlight = false; restoreBtn();
+          console.error('[submitCancelGiftCode_] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    async function tryCancelGeneralItemGiftCodeViaWorker_(code) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=cancelGeneralItemGiftCodeWorker&discordId=${currentUser.id}&code=${encodeURIComponent(code)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
     }
     // ── 道具序號贈禮系統結束 ──
 
