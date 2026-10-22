@@ -237,6 +237,43 @@
 
     .version-tag { font-size: 12px; color: #72767D; margin-top: 20px; text-align: center; }
     #dashboard, #loading { display: none; }
+
+    /* 🌟🆕 賭廳「鴨鴨賽跑」視覺化賭博介面:下注選項=賽道,下注當下鴨鴨在起點待機,公布結果後跑一次 */
+    .duck-race-wrap { margin: 8px 0; }
+    .duck-race-mode-line { font-size: 12px; color: #B9BBBE; margin-bottom: 6px; }
+    .duck-race-track { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .duck-lane {
+      position: relative; background: #292B2F; border: 1px solid #40444B; border-radius: 6px;
+      padding: 6px 8px 6px 8px; cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .duck-lane:hover { border-color: #5865F2; }
+    .duck-lane.duck-lane-selected { border-color: #FEE75C; background: #33353b; }
+    .duck-lane.duck-winner { border-color: #58FF9C; }
+    .duck-lane.duck-loser { opacity: .72; }
+    .duck-lane-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; gap: 6px; flex-wrap: wrap; }
+    .duck-lane-name { font-weight: bold; }
+    .duck-lane-odds { color: #FEE75C; font-size: 12px; }
+    .duck-lane-mybet { color: #58FF9C; font-size: 11px; }
+    .duck-lane-track-bg {
+      position: relative; height: 26px; background: linear-gradient(90deg, #3a3e45 0%, #3a3e45 85%, rgba(237,66,69,.35) 85%, rgba(237,66,69,.35) 100%);
+      border-radius: 4px; margin-top: 4px; overflow: hidden;
+    }
+    .duck-lane-pool-fill {
+      position: absolute; left: 0; top: 0; bottom: 0; background: rgba(88,101,242,.28); z-index: 1;
+    }
+    .duck-sprite {
+      position: absolute; top: 50%; left: 2%; transform: translateY(-50%); font-size: 18px; z-index: 2;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+    }
+    .duck-sprite.duck-idle { animation: duckBob 1.1s ease-in-out infinite; }
+    .duck-trophy-tag { position: absolute; right: 4px; top: 2px; font-size: 14px; z-index: 3; }
+    .duck-race-finish-label { position: absolute; right: 4px; bottom: 1px; font-size: 9px; color: #ED4245; z-index: 1; }
+    .duck-race-footer { font-size: 12px; color: #B9BBBE; margin-top: 2px; }
+    .duck-race-result-line { font-size: 13px; margin-top: 4px; }
+    @keyframes duckBob {
+      0%, 100% { transform: translateY(-50%); }
+      50% { transform: translateY(-62%); }
+    }
   </style>
 </head>
 <body>
@@ -559,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.69</div>
+    <div class="version-tag">系統版本：v5.4.71</div>
   </div>
 
   <script>
@@ -4891,15 +4928,17 @@ function fetchScoresAndShop(discordId, callback = null) {
           `;
         } else if (isAvail) {
           let maxQty = item.limits.effectiveStock !== "無限" ? item.limits.effectiveStock : 999;
+          // 🌟🔧 鴨鴨賽跑視覺化上線後,這個<select>改成純邏輯用(隱藏不顯示)——玩家改成直接點item-info
+          // 裡的鴨鴨賽道來選下注選項(見selectDuckOption),這裡的onchange/既有下注送出邏輯完全不用改。
           const gamblingSelectHtml = item.isGambling ? `
-            <select id="gopt-${safeId}" class="qty-input" style="width:100%;margin-bottom:4px" onchange="updateGamblingPreview('${safeId}')">
+            <select id="gopt-${safeId}" class="qty-input" style="display:none" onchange="updateGamblingPreview('${safeId}')">
               <option value="">請選擇下注選項...</option>
               ${item.gamblingOptions.map(o => {
                 const oddsLabel = item.gamblingOddsMode === 'FIXED' ? ` (x${fmtOdds(o.odds)})` : (o.impliedOdds !== null ? ` (目前x${fmtOdds(o.impliedOdds)}${item.gamblingPoolLockMode === 'BETTIME' ? '，此時下注就是這個倍率，不受金額影響' : '，僅供參考'})` : ' (尚無人下注)');
                 return `<option value="${o.name}">${o.name}${oddsLabel} — ${o.poolPercent}%</option>`;
               }).join('')}
             </select>
-            ${item.isGambling && item.gamblingOddsMode === 'POOL' && item.gamblingPoolLockMode === 'BETTIME' ? `<div id="gpreview-${safeId}" style="font-size:12px;color:#FEE75C;margin-bottom:8px;min-height:16px"></div>` : ''}
+            ${item.isGambling && item.gamblingOddsMode === 'POOL' && item.gamblingPoolLockMode === 'BETTIME' ? `<div id="gpreview-${safeId}" style="font-size:12px;color:#FEE75C;margin-bottom:8px;min-height:16px">👆 請先在上面點選一隻鴨鴨下注</div>` : ''}
           ` : '';
           actionHtml = `
             ${lockHtml}
@@ -4956,17 +4995,8 @@ function fetchScoresAndShop(discordId, callback = null) {
                 }</span>` : ''}<br>
                 ${item.raffleWinners ? `🏆 得獎名單：${item.raffleWinners.map(w => w.prize).join('、')}<br>` : ''}
               ` : item.isGambling ? `
-                🎲 <b>賭博模式</b>：${item.gamblingOddsMode === 'POOL' ? `集資池分配(${item.gamblingPoolLockMode === 'BETTIME' ? '以下注當下賠率為主，下注就鎖定' : '依最終結算總額計算'})` : '固定賠率'}<br>
-                ${item.isGambling && item.gamblingOddsMode === 'POOL' && item.gamblingPoolLockMode === 'BETTIME' ? `<span style="color:#B9BBBE;font-size:12px">ℹ️ 下面每個選項的賠率就是「此時此刻下注」會鎖定的倍率，跟你填的金額/數量無關(下注100跟下注1000倍率一樣，差別只在拿到的錢等比例變多)；只有在你送出的瞬間剛好有別人插隊下注，賠率才會變動</span><br>` : ''}
-                ${item.gamblingOptions.map(o => {
-                  const myBetLine = o.myBet > 0 ? `　我已下注 ${o.myBet}` : '';
-                  const oddsLine = item.gamblingOddsMode === 'FIXED' ? `x${fmtOdds(o.odds)}` : (o.impliedOdds !== null ? `x${fmtOdds(o.impliedOdds)}（目前下注 ${o.pool}）` : `目前 ${o.pool}`);
-                  const winnerMark = o.isWinner === true ? ' 🏆獲勝' : (o.isWinner === false ? ' (未中)' : '');
-                  const barHtml = `<div style="background:#40444B;border-radius:3px;height:6px;margin:2px 0 4px;overflow:hidden;"><div style="background:${o.isWinner === true ? '#58FF9C' : '#5865F2'};height:100%;width:${o.poolPercent}%;"></div></div>`;
-                  return `　${o.name}：${oddsLine}${myBetLine}${winnerMark}　<b>${o.poolPercent}%</b>${barHtml}`;
-                }).join('')}
-                💰 全場總下注：${item.gamblingTotalPool}${item.gamblingLoserRefundPercent > 0 ? `　輸家可退還 ${item.gamblingLoserRefundPercent}%` : ''}<br>
-                ${item.gamblingResult ? (item.gamblingResult.isSweep ? `🔪 結果：通殺(全員未中獎)` : `🎉 獲勝選項：「${item.gamblingResult.winningOption}」`) : ''}
+                ${item.isGambling && item.gamblingOddsMode === 'POOL' && item.gamblingPoolLockMode === 'BETTIME' ? `<span style="color:#B9BBBE;font-size:12px">ℹ️ 鴨鴨旁邊的賠率就是「此時此刻下注」會鎖定的倍率，跟你填的金額/數量無關(下注100跟下注1000倍率一樣，差別只在拿到的錢等比例變多)；只有在你送出的瞬間剛好有別人插隊下注，賠率才會變動</span><br>` : ''}
+                ${renderDuckRaceBlock_(item, safeId)}
               ` : item.ultimatePassword && item.ultimatePassword.enabled ? (() => {
                 const upLo = item.ultimatePassword.narrowLow !== null && item.ultimatePassword.narrowLow !== undefined ? item.ultimatePassword.narrowLow : item.ultimatePassword.min;
                 const upHi = item.ultimatePassword.narrowHigh !== null && item.ultimatePassword.narrowHigh !== undefined ? item.ultimatePassword.narrowHigh : item.ultimatePassword.max;
@@ -5023,6 +5053,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       }
 
       startCountdowns();
+      playPendingDuckRaces_(); // 🌟 鴨鴨賽跑:這次重繪裡剛好第一次看到結果的賭博商品,DOM畫好之後才真的播放跑步動畫
     }
 
     // 🌟 替代貨幣折抵:勾選後顯示模式選項,並更新預覽
@@ -5106,6 +5137,124 @@ function fetchScoresAndShop(discordId, callback = null) {
     // 🌟 賠率統一格式化成兩位小數顯示(例如 x1 顯示成 x1.00),純粹是排版一致,不影響實際計算數字
     function fmtOdds(x) {
       return Number(x).toFixed(2);
+    }
+
+    // 🌟🆕 賭廳「鴨鴨賽跑」視覺化——每個下注選項=一條賽道/一隻鴨鴨,純粹是isGambling既有資料
+    // (選項/賠率/集資池%/輸家退還/封頂倍率/開獎結果)的另一種呈現方式,後端完全不用改。
+    const DUCK_EMOJIS_ = ['🦆', '🐥', '🦢', '🐤', '🦩', '🐧', '🦉', '🐓'];
+    // 🌟 用字串算出一個穩定的0~1值(同一個itemId+選項名稱每次算出來都一樣,不會每次重繪就亂跳),
+    // 拿來決定「沒中獎的鴨鴨」停在賽道的哪個位置,製造出跑步有快有慢的視覺效果,不是真的用這個算誰贏。
+    function duckSeedFraction_(str) {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+      return (h % 1000) / 1000;
+    }
+    window._duckRacePlayed = window._duckRacePlayed || {}; // {itemId: resultKey已經跑過動畫}
+    window._pendingDuckRaces_ = [];
+
+    // 🌟 下注時點鴨鴨選牌(視覺用),真正送出下注仍然是靠隱藏的<select id="gopt-...">,
+    // 這裡只是同步設定它的值+觸發原本的onchange(updateGamblingPreview),所有既有下注邏輯不用改。
+    function selectDuckOption(safeId, optName) {
+      const sel = document.getElementById(`gopt-${safeId}`);
+      if (!sel) return;
+      sel.value = optName;
+      sel.dispatchEvent(new Event('change'));
+      document.querySelectorAll(`.duck-lane[data-safeid="${safeId}"]`).forEach(el => {
+        el.classList.toggle('duck-lane-selected', el.dataset.opt === optName);
+      });
+    }
+
+    // 🌟 建立賭廳鴨鴨賽跑的HTML區塊(取代原本純文字清單的呈現),回傳的htmlString會直接拼進賭博商品卡片。
+    // 公布結果後的賽跑動畫:只會在「這一場結果第一次被看到」時真的播放一次(靠window._duckRacePlayed記住),
+    // 之後重繪(例如玩家又做了其他操作觸發renderShop重跑)就直接畫定格的終點狀態,不會每次重繪就重播一次。
+    function renderDuckRaceBlock_(item, safeId) {
+      const ducks = item.gamblingOptions;
+      const isSettled = !!item.gamblingResult;
+      const isSweep = isSettled && item.gamblingResult.isSweep;
+      const winnerName = isSettled && !isSweep ? item.gamblingResult.winningOption : null;
+      const resultKey = isSettled ? (isSweep ? '__SWEEP__' : winnerName) : '';
+      const alreadyPlayed = isSettled && window._duckRacePlayed[item.id] === resultKey;
+      const shouldAnimateNow = isSettled && !alreadyPlayed;
+      if (shouldAnimateNow) window._duckRacePlayed[item.id] = resultKey; // 標記成「這個結果已經播過了」,下次重繪不再重播
+
+      const selectedOpt = (document.getElementById(`gopt-${safeId}`) || {}).value || '';
+
+      const laneHtml = ducks.map((o, idx) => {
+        const emoji = DUCK_EMOJIS_[idx % DUCK_EMOJIS_.length];
+        const isWinnerLane = isSettled && !isSweep && o.name === winnerName;
+        const laneClass = isWinnerLane ? 'duck-winner' : (isSettled && !isSweep ? 'duck-loser' : '');
+        const selectedClass = (!isSettled && selectedOpt === o.name) ? 'duck-lane-selected' : '';
+        const oddsText = item.gamblingOddsMode === 'FIXED'
+          ? `x${fmtOdds(o.odds)}`
+          : (o.impliedOdds !== null ? `x${fmtOdds(o.impliedOdds)}` : '尚無人下注');
+        // 🌟 終點位置(百分比):中獎鴨鴨固定衝到85%(賽道右側紅色終點線前),其他鴨鴨用穩定的種子值
+        // 算出一個30~70%之間的隨落後距離(通殺的話全部鴨鴨都用這個「沒到終點」的算法,沒有誰特別突出)。
+        const finishPct = isWinnerLane ? 85 : (30 + Math.round(duckSeedFraction_(item.id + '|' + o.name) * 40));
+        // 🌟 剛公布結果、還沒播過動畫的那一幀:先畫在起點(2%),等DOM真的插入後由playPendingDuckRaces_
+        // 用Element.animate()跑到finishPct;已經播過一次的話,直接畫在終點位置(定格,不用再動畫)。
+        const spriteStyle = (isSettled && !shouldAnimateNow) ? `left:${finishPct}%;` : 'left:2%;';
+        const spriteClass = !isSettled ? 'duck-idle' : '';
+        if (shouldAnimateNow) {
+          window._pendingDuckRaces_.push({ itemId: item.id, optName: o.name, finishPct });
+        }
+        return `
+          <div class="duck-lane ${laneClass} ${selectedClass}" data-safeid="${safeId}" data-opt="${o.name}" data-itemid="${item.id}"
+               onclick="${isSettled ? '' : `selectDuckOption('${safeId}','${o.name.replace(/'/g, "\\'")}')`}">
+            <div class="duck-lane-top">
+              <span class="duck-lane-name">${emoji} ${o.name}</span>
+              <span class="duck-lane-odds">${oddsText}${o.poolPercent !== undefined ? `　${o.poolPercent}%` : ''}</span>
+              ${o.myBet > 0 ? `<span class="duck-lane-mybet">我已下注 ${o.myBet}</span>` : ''}
+            </div>
+            <div class="duck-lane-track-bg">
+              <div class="duck-lane-pool-fill" style="width:${o.poolPercent || 0}%"></div>
+              <span class="duck-race-finish-label">🏁</span>
+              <span class="duck-sprite ${spriteClass}" data-duck-sprite data-itemid="${item.id}" data-opt="${o.name.replace(/"/g, '&quot;')}" style="${spriteStyle}">${emoji}</span>
+              ${isWinnerLane ? '<span class="duck-trophy-tag">🏆</span>' : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      const modeLine = `${item.gamblingOddsMode === 'POOL' ? `集資池分配(${item.gamblingPoolLockMode === 'BETTIME' ? '下注即鎖定賠率' : '依最終結算總額計算'})` : '固定賠率'}`
+        + (item.gamblingMaxOdds > 0 ? `　封頂倍率：x${fmtOdds(item.gamblingMaxOdds)}` : '');
+
+      const resultLine = isSettled
+        ? (isSweep ? `<div class="duck-race-result-line">🔪 結果：通殺(全員未中獎)</div>` : `<div class="duck-race-result-line">🎉 獲勝：${DUCK_EMOJIS_[ducks.findIndex(o => o.name === winnerName) % DUCK_EMOJIS_.length] || '🏆'} 「${winnerName}」</div>`)
+        : '';
+
+      // 🌟🆕 隨機自動開獎:還沒公布結果、且管理員設了自動開獎時間時,顯示提示——純文字顯示用,
+      // 不是真的倒數計時器(避免多開一套countdown機制),時間到了之後系統會自動開獎,畫面重新整理就會看到結果。
+      const autoDrawLine = (!isSettled && item.gamblingAutoDraw && item.gamblingDrawTime)
+        ? `<div class="duck-race-mode-line">⏰ 將於 <b>${item.gamblingDrawTime.replace('T', ' ')}</b> 自動隨機開獎(每個選項機率均等,跟賠率/下注金額無關)</div>`
+        : '';
+
+      return `
+        <div class="duck-race-wrap">
+          <div class="duck-race-mode-line">🏁 <b>賭廳・鴨鴨賽跑</b>：${modeLine}</div>
+          ${autoDrawLine}
+          <div class="duck-race-track">${laneHtml}</div>
+          <div class="duck-race-footer">💰 全場總下注：${item.gamblingTotalPool}${item.gamblingLoserRefundPercent > 0 ? `　輸家可退還 ${item.gamblingLoserRefundPercent}%` : ''}</div>
+          ${resultLine}
+        </div>`;
+    }
+
+    // 🌟 renderShop()把整批賭博商品卡片的HTML塞進DOM之後才呼叫這個:把「這次重繪裡剛好第一次看到
+    // 結果」的鴨鴨,用Web Animations API真的跑一次動畫(從起點2%跑到各自的終點%),其他(還在下注中、
+    // 或結果已經播過一次的)就不處理,直接維持HTML字串裡已經畫好的靜態位置。
+    function playPendingDuckRaces_() {
+      const pending = window._pendingDuckRaces_;
+      window._pendingDuckRaces_ = [];
+      pending.forEach(p => {
+        const sel = `.duck-sprite[data-itemid="${p.itemId}"][data-opt="${p.optName.replace(/"/g, '\\"')}"]`;
+        let el;
+        try { el = document.querySelector(sel); } catch (e) { el = null; }
+        if (!el) return;
+        try {
+          el.animate(
+            [{ left: '2%' }, { left: p.finishPct + '%' }],
+            { duration: 2400, easing: 'cubic-bezier(.17,.67,.3,1)', fill: 'forwards' }
+          );
+        } catch (e) { el.style.left = p.finishPct + '%'; } // 🌟 極舊瀏覽器沒有Element.animate()就直接跳到終點,至少畫面是對的
+      });
     }
 
     function computeGamblingLockOdds(item, optionName) {
