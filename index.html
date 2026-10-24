@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.71</div>
+    <div class="version-tag">系統版本：v5.4.72</div>
   </div>
 
   <script>
@@ -3970,7 +3970,7 @@
     // ============================================================
     // 🎫 抽獎名單:點「查看名單」時彈窗顯示這個抽獎商品目前所有人投了幾張、機率多少
     // ============================================================
-    function showRaffleParticipants(itemId, itemName) {
+    async function showRaffleParticipants(itemId, itemName) {
       document.getElementById('raffle-participants-title').textContent = '🎫 投票名單：' + itemName;
       document.getElementById('raffle-participants-modal').style.display = 'flex';
       document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
@@ -3978,35 +3978,47 @@
       // 🌟🔧 改走DASHBOARD_WORKER_URL(跟history/bingoActivities/auctions同一套),不再直接打GAS——
       // GAS Web App冷啟動/排隊等鎖偶爾會拖到快10秒甚至逾時,這個彈窗之前常常卡在「讀取中...」轉圈圈,
       // Worker這邊讀取快、沒有那種冷啟動開銷,而且邏輯跟GAS端的getRaffleParticipants完全一致。
-      fetch(`${DASHBOARD_WORKER_URL}?action=raffleParticipants&discordId=${currentUser.id}&itemId=${itemId}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
-      .then(data => {
-        const container = document.getElementById('raffle-participants-container');
-        if (data.status !== 'success') { container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message||'') + '</p>'; return; }
-        if (!data.list || data.list.length === 0) { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前還沒有人投票</p>'; return; }
-        container.innerHTML = `
-          <table style="width:100%; border-collapse:collapse; font-size:14px;">
-            <thead><tr style="border-bottom:1px solid #4F545C; color:#B9BBBE;">
-              <th style="text-align:left; padding:6px 4px;">名次</th>
-              <th style="text-align:left; padding:6px 4px;">玩家</th>
-              <th style="text-align:right; padding:6px 4px;">票數(加權)</th>
-              <th style="text-align:right; padding:6px 4px;">機率</th>
-            </tr></thead>
-            <tbody>
-              ${data.list.map((p, idx) => `
-                <tr style="border-bottom:1px solid #40444B;">
-                  <td style="padding:6px 4px;">#${idx + 1}</td>
-                  <td style="padding:6px 4px;">${p.name}</td>
-                  <td style="padding:6px 4px; text-align:right;">${p.raw}(${p.weighted})</td>
-                  <td style="padding:6px 4px; text-align:right;"><b>${p.odds}%</b></td>
-                </tr>`).join('')}
-            </tbody>
-          </table>`;
-      })
-      .catch(err => {
-        console.error('讀取抽獎名單失敗:', err);
-        document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
-      });
+      // 🌟🆕 Worker偶爾會丟出平台層級的例外(Cloudflare原生的「Error 1101」錯誤頁,不是JSON,連
+      // Worker自己最外層的try/catch都攔不到——目前觀察像是短暫的CPU/網路瞬斷,不是程式邏輯bug),
+      // 這時res.json()會直接丟例外、原本只會顯示一次性的「讀取失敗」要玩家自己手動重開彈窗重試。
+      // 改成失敗時自動重試一次(間隔800ms)再放棄,大部分這種瞬斷重試一次就會成功,不用麻煩玩家。
+      const fetchOnce_ = () => fetch(`${DASHBOARD_WORKER_URL}?action=raffleParticipants&discordId=${currentUser.id}&itemId=${itemId}&accessToken=${encodeURIComponent(getAccessToken())}`).then(res => res.json());
+      let data;
+      try {
+        data = await fetchOnce_();
+      } catch (err1) {
+        console.error('讀取抽獎名單失敗(第1次),800ms後自動重試一次:', err1);
+        await new Promise(r => setTimeout(r, 800));
+        try {
+          data = await fetchOnce_();
+        } catch (err2) {
+          console.error('讀取抽獎名單失敗(重試後仍失敗):', err2);
+          document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+          return;
+        }
+      }
+
+      const container = document.getElementById('raffle-participants-container');
+      if (data.status !== 'success') { container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message||'') + '</p>'; return; }
+      if (!data.list || data.list.length === 0) { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前還沒有人投票</p>'; return; }
+      container.innerHTML = `
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+          <thead><tr style="border-bottom:1px solid #4F545C; color:#B9BBBE;">
+            <th style="text-align:left; padding:6px 4px;">名次</th>
+            <th style="text-align:left; padding:6px 4px;">玩家</th>
+            <th style="text-align:right; padding:6px 4px;">票數(加權)</th>
+            <th style="text-align:right; padding:6px 4px;">機率</th>
+          </tr></thead>
+          <tbody>
+            ${data.list.map((p, idx) => `
+              <tr style="border-bottom:1px solid #40444B;">
+                <td style="padding:6px 4px;">#${idx + 1}</td>
+                <td style="padding:6px 4px;">${p.name}</td>
+                <td style="padding:6px 4px; text-align:right;">${p.raw}(${p.weighted})</td>
+                <td style="padding:6px 4px; text-align:right;"><b>${p.odds}%</b></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
     }
 
     function closeRaffleParticipants() {
