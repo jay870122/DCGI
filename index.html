@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.75</div>
+    <div class="version-tag">系統版本：v5.4.76</div>
   </div>
 
   <script>
@@ -3981,15 +3981,17 @@
       document.getElementById('raffle-participants-modal').style.display = 'flex';
       const container = document.getElementById('raffle-participants-container');
 
-      // 🌟🆕 修正bug:這個抽獎已經開獎過的話,玩家想看的是「誰中了什麼獎」,不是開獎前的投票/機率名單——
-      // 之前不管有沒有開獎,點進來一律打raffleParticipants(抽獎票數紀錄表),開獎後這張表的意義
-      // 已經不大(玩家反應「得獎名單看不到」),改成:item.raffleWinners有資料的話(代表已經開獎),
-      // 直接用這份現成的資料(已經包含name,見getShopItems那邊的修正)畫得獎名單,不用再打API。
+      // 🌟🔧 修正bug:玩家反應前台「查看名單」開獎後看不到投票總名單——之前item.raffleWinners有資料
+      // (代表已經開獎)就直接畫得獎名單然後return,下面抓投票總名單的API都沒打到。改成:開獎的話先把
+      // 得獎名單(用現成資料,不用打API)組成html前半段,然後照樣繼續往下打raffleParticipants抓投票
+      // 總名單接在後面,兩段一起顯示;沒開獎的話維持原本只顯示投票總名單。
       const itemForRaffle = currentShopItems.find(it => it.id === itemId);
-      if (itemForRaffle && itemForRaffle.raffleWinners && itemForRaffle.raffleWinners.length > 0) {
+      const isDrawn = itemForRaffle && itemForRaffle.raffleWinners && itemForRaffle.raffleWinners.length > 0;
+      let winnerHtml = '';
+      if (isDrawn) {
         document.getElementById('raffle-participants-title').textContent = '🏆 得獎名單：' + itemName;
-        container.innerHTML = `
-          <table style="width:100%; border-collapse:collapse; font-size:14px;">
+        winnerHtml = `
+          <table style="width:100%; border-collapse:collapse; font-size:14px; margin-bottom:18px;">
             <thead><tr style="border-bottom:1px solid #4F545C; color:#B9BBBE;">
               <th style="text-align:left; padding:6px 4px;">名次</th>
               <th style="text-align:left; padding:6px 4px;">玩家</th>
@@ -4003,12 +4005,12 @@
                   <td style="padding:6px 4px; text-align:right;">${w.prize}</td>
                 </tr>`).join('')}
             </tbody>
-          </table>`;
-        return;
+          </table>
+          <div style="font-size:13px; color:#B9BBBE; margin-bottom:6px;">🎫 投票總名單</div>`;
+      } else {
+        document.getElementById('raffle-participants-title').textContent = '🎫 投票名單：' + itemName;
       }
-
-      document.getElementById('raffle-participants-title').textContent = '🎫 投票名單：' + itemName;
-      document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
+      container.innerHTML = winnerHtml + '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
 
       // 🌟🔧 改走DASHBOARD_WORKER_URL(跟history/bingoActivities/auctions同一套),不再直接打GAS——
       // GAS Web App冷啟動/排隊等鎖偶爾會拖到快10秒甚至逾時,這個彈窗之前常常卡在「讀取中...」轉圈圈,
@@ -4028,14 +4030,14 @@
           data = await fetchOnce_();
         } catch (err2) {
           console.error('讀取抽獎名單失敗(重試後仍失敗):', err2);
-          document.getElementById('raffle-participants-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+          container.innerHTML = winnerHtml + '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
           return;
         }
       }
 
-      if (data.status !== 'success') { container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message||'') + '</p>'; return; }
-      if (!data.list || data.list.length === 0) { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前還沒有人投票</p>'; return; }
-      container.innerHTML = `
+      if (data.status !== 'success') { container.innerHTML = winnerHtml + '<p style="text-align:center; color:#ED4245;">讀取失敗：' + (data.message||'') + '</p>'; return; }
+      if (!data.list || data.list.length === 0) { container.innerHTML = winnerHtml + '<p style="text-align:center; color:#B9BBBE;">目前還沒有人投票</p>'; return; }
+      container.innerHTML = winnerHtml + `
         <table style="width:100%; border-collapse:collapse; font-size:14px;">
           <thead><tr style="border-bottom:1px solid #4F545C; color:#B9BBBE;">
             <th style="text-align:left; padding:6px 4px;">名次</th>
