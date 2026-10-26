@@ -245,7 +245,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.16</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.17</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3162,52 +3162,61 @@ async function showRaffleParticipants(itemId, name) {
   box.innerHTML = '讀取中...';
   const d = await api({action:'getRaffleParticipants', itemId});
   if (d.status !== 'success') { box.innerHTML = `<span style="color:var(--red)">讀取失敗:${d.message}</span>`; return; }
-  // 🌟🆕 修正bug:已經開獎過的話,回傳的是得獎名單(d.drawn=true/d.winners),不是投票名單——
-  // 理由同Code_real.gs的getRaffleParticipants/dashboard-worker.js的raffleParticipants action註解。
+  // 🌟🔧 修正bug:跟Code_real.gs的getRaffleParticipants同步修正——已經開獎的話,除了得獎名單,後台
+  // 還要看得到完整投票總名單(管理員反應「後臺沒總名單」,之前開獎後直接return,投票名單就看不到了)。
+  // 這裡改成兩段都組,開獎過的話得獎名單在上面、投票總名單接在下面,沒開獎就只顯示投票總名單。
+  let html = '';
   if (d.drawn) {
     document.getElementById('raffle-participants-title').textContent = '🏆 得獎名單：' + name;
-    if (!d.winners || d.winners.length === 0) { box.innerHTML = d.noWinnerNote || '這場抽獎已經開獎,但沒有得獎者'; return; }
-    box.innerHTML = `
+    if (!d.winners || d.winners.length === 0) {
+      html += `<p style="margin:0 0 14px">${d.noWinnerNote || '這場抽獎已經開獎,但沒有得獎者'}</p>`;
+    } else {
+      html += `
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px">
+          <thead><tr style="border-bottom:1px solid var(--bd);color:var(--mu)">
+            <th style="text-align:left;padding:6px 4px">名次</th>
+            <th style="text-align:left;padding:6px 4px">玩家</th>
+            <th style="text-align:left;padding:6px 4px">DiscordID</th>
+            <th style="text-align:right;padding:6px 4px">得獎內容</th>
+          </tr></thead>
+          <tbody>
+            ${d.winners.map((w, idx) => `
+              <tr style="border-bottom:1px solid var(--bd)">
+                <td style="padding:6px 4px">#${idx+1}</td>
+                <td style="padding:6px 4px">${w.name}</td>
+                <td class="cell-id" style="padding:6px 4px">${w.discordId}</td>
+                <td style="padding:6px 4px;text-align:right">${w.prize}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+    html += `<div style="font-size:13px;color:var(--mu);margin-bottom:6px">🎫 投票總名單</div>`;
+  }
+  if (!d.list || d.list.length === 0) {
+    html += `<p style="margin:0">目前還沒有人投票</p>`;
+  } else {
+    html += `
       <table style="width:100%;border-collapse:collapse;font-size:14px">
         <thead><tr style="border-bottom:1px solid var(--bd);color:var(--mu)">
           <th style="text-align:left;padding:6px 4px">名次</th>
           <th style="text-align:left;padding:6px 4px">玩家</th>
           <th style="text-align:left;padding:6px 4px">DiscordID</th>
-          <th style="text-align:right;padding:6px 4px">得獎內容</th>
+          <th style="text-align:right;padding:6px 4px">票數(加權)</th>
+          <th style="text-align:right;padding:6px 4px">機率</th>
         </tr></thead>
         <tbody>
-          ${d.winners.map((w, idx) => `
+          ${d.list.map((p, idx) => `
             <tr style="border-bottom:1px solid var(--bd)">
               <td style="padding:6px 4px">#${idx+1}</td>
-              <td style="padding:6px 4px">${w.name}</td>
-              <td class="cell-id" style="padding:6px 4px">${w.discordId}</td>
-              <td style="padding:6px 4px;text-align:right">${w.prize}</td>
+              <td style="padding:6px 4px">${p.name}</td>
+              <td class="cell-id" style="padding:6px 4px">${p.discordId}</td>
+              <td style="padding:6px 4px;text-align:right">${p.raw}(${p.weighted})</td>
+              <td style="padding:6px 4px;text-align:right"><b>${p.odds}%</b></td>
             </tr>`).join('')}
         </tbody>
       </table>`;
-    return;
   }
-  if (!d.list || d.list.length === 0) { box.innerHTML = '目前還沒有人投票'; return; }
-  box.innerHTML = `
-    <table style="width:100%;border-collapse:collapse;font-size:14px">
-      <thead><tr style="border-bottom:1px solid var(--bd);color:var(--mu)">
-        <th style="text-align:left;padding:6px 4px">名次</th>
-        <th style="text-align:left;padding:6px 4px">玩家</th>
-        <th style="text-align:left;padding:6px 4px">DiscordID</th>
-        <th style="text-align:right;padding:6px 4px">票數(加權)</th>
-        <th style="text-align:right;padding:6px 4px">機率</th>
-      </tr></thead>
-      <tbody>
-        ${d.list.map((p, idx) => `
-          <tr style="border-bottom:1px solid var(--bd)">
-            <td style="padding:6px 4px">#${idx+1}</td>
-            <td style="padding:6px 4px">${p.name}</td>
-            <td class="cell-id" style="padding:6px 4px">${p.discordId}</td>
-            <td style="padding:6px 4px;text-align:right">${p.raw}(${p.weighted})</td>
-            <td style="padding:6px 4px;text-align:right"><b>${p.odds}%</b></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
+  box.innerHTML = html;
 }
 
 // 🌟 抽獎商品:管理員手動立即開獎(不用等時間到,方便測試或臨時提前開獎)
