@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.78</div>
+    <div class="version-tag">系統版本：v5.4.79</div>
   </div>
 
   <script>
@@ -2573,7 +2573,7 @@
               ${tradableHintHtml}
             </span>
             <span style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${effectiveMaxOpen}" value="1" style="width:60px;padding:4px;text-align:center" ${openLimitExhausted ? 'disabled' : ''}>
+              <input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${g.totalCount}" value="1" style="width:60px;padding:4px;text-align:center">
               <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="openGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx})" ${openLimitExhausted ? 'disabled' : ''}>🎁 開啟</button>
               <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#ED4245;flex-shrink:0" onclick="discardGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx}, ${g.totalCount})">🗑️ 丟棄</button>
             </span>
