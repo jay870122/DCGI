@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.76</div>
+    <div class="version-tag">系統版本：v5.4.77</div>
   </div>
 
   <script>
@@ -2556,6 +2556,12 @@
         const tradableHintHtml = g.tradable
           ? `<span style="color:#43B581;font-size:11px;display:block">🤝 可交易</span>`
           : `<span style="color:#72767D;font-size:11px;display:block">🚫 不可交易</span>`;
+        // 🌟🆕 道具模板備註:後台填寫的純文字說明,自動把網址轉成超連結(跟商城備註一樣的處理方式)
+        let formattedGeneralItemRemark_ = g.remark;
+        if (formattedGeneralItemRemark_) {
+          formattedGeneralItemRemark_ = formattedGeneralItemRemark_.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>');
+        }
+        const generalItemRemarkHtml_ = formattedGeneralItemRemark_ ? `<div class="item-remark">📝 ${formattedGeneralItemRemark_}</div>` : '';
         return `
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -2571,6 +2577,7 @@
               <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="openGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx})" ${openLimitExhausted ? 'disabled' : ''}>🎁 開啟</button>
             </span>
           </div>
+          ${generalItemRemarkHtml_}
           ${breakdownHtml}
           ${contentBoxHtml}
         </div>`;
