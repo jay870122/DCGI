@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.77</div>
+    <div class="version-tag">系統版本：v5.4.78</div>
   </div>
 
   <script>
@@ -2575,6 +2575,7 @@
             <span style="display:flex;align-items:center;gap:6px">
               <input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${effectiveMaxOpen}" value="1" style="width:60px;padding:4px;text-align:center" ${openLimitExhausted ? 'disabled' : ''}>
               <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#43B581;flex-shrink:0" onclick="openGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx})" ${openLimitExhausted ? 'disabled' : ''}>🎁 開啟</button>
+              <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#ED4245;flex-shrink:0" onclick="discardGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx}, ${g.totalCount})">🗑️ 丟棄</button>
             </span>
           </div>
           ${generalItemRemarkHtml_}
@@ -2723,6 +2724,84 @@
         });
 
       pollInstrumentedActionResult_('useGeneralBackpackItemsByName', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { settled = true; finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
+    }
+
+    // 🌟🆕 玩家自行丟棄「還能用」的道具(不開啟、不拿獎勵,單純丟掉清空間),跟開啟同一套
+    // 「先打Worker、unsupported/不確定才fallback回GAS+輪詢」的安全模式。
+    function discardGeneralItemStack(btnEl, itemName, idx, totalCount) {
+      if (generalItemActionInFlight) return;
+      const qtyInput = document.getElementById(`gi-qty-${idx}`);
+      let quantity = parseInt(qtyInput.value, 10) || 1;
+      if (quantity < 1) { alert('請輸入至少1個'); return; }
+      if (totalCount && quantity > totalCount) quantity = totalCount;
+      if (!confirm(`確定要丟棄「${itemName}」x${quantity} 嗎？丟棄後無法復原,也不會有任何獎勵。`)) return;
+
+      generalItemActionInFlight = true;
+      document.querySelectorAll('#general-items-container button, #general-items-container input').forEach(el => { el.disabled = true; });
+      const originalText = btnEl.textContent;
+      btnEl.textContent = '⏳ 丟棄中...';
+
+      function finishError_(msg) {
+        generalItemActionInFlight = false;
+        loadGeneralItems(true);
+        alert(msg);
+      }
+      function finishSuccess_(data) {
+        generalItemActionInFlight = false;
+        alert('🗑️ ' + (data.message || `已丟棄「${itemName}」x${quantity}`));
+        loadGeneralItems(true);
+      }
+
+      tryDiscardGeneralBackpackItemsByNameViaWorker_(itemName, quantity)
+        .then(workerResult => {
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runGeneralItemDiscardViaGas_(itemName, quantity, finishError_, finishSuccess_); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 丟棄請求的結果不確定,請重新整理頁面確認「' + itemName + '」的數量,不確定的話再重新操作一次。');
+        });
+    }
+
+    // 🌟🆕 呼叫丟棄道具Worker試行版端點,回應格式同其他Worker端點。
+    async function tryDiscardGeneralBackpackItemsByNameViaWorker_(itemName, quantity) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=discardGeneralBackpackItemsByNameWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 🌟 原本GAS+輪詢的賽跑架構,搬出來成獨立函式,給Worker試行版判定「unsupported」之後fallback呼叫。
+    function runGeneralItemDiscardViaGas_(itemName, quantity, finishError_, finishSuccess_) {
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) { settled = true; finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。'); }
+      }
+
+      fetchWithTimeout_(`${GAS_API_URL}?action=discardGeneralBackpackItemsByName&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          if (data.status !== 'success') { settled = true; finishError_('❌ ' + data.message); return; }
+          settled = true; finishSuccess_(data);
+        })
+        .catch(err => {
+          if (settled) return;
+          gasDone = true; checkBothGaveUp_();
+        });
+
+      pollInstrumentedActionResult_('discardGeneralBackpackItemsByName', requestStartMs, () => settled).then(polled => {
         if (settled) return;
         if (polled) { settled = true; finishSuccess_(polled); return; }
         pollDone = true;
