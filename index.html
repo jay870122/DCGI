@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.81</div>
+    <div class="version-tag">系統版本：v5.4.82</div>
   </div>
 
   <script>
@@ -1142,16 +1142,29 @@
     }
 
 
-    function checkBingoAvailability() {
+    // 🌟🆕 修正bug:「側邊欄BINGO入口一下消失一下出現」——這個函式原本只打一次,網路/Worker/Sheets API
+    // 剛好不穩(人多的時候特別容易遇到,例如暫時逾時、Cloudflare偶發錯誤)就直接整個放棄(catch裡什麼都不做),
+    // bingoAvailable永遠停在初始值false,整個頁面生命週期BINGO入口都不會出現,玩家必須重新整理網頁
+    // 賭一次下次會不會成功。改成:失敗(不管是fetch本身失敗還是回應status不是success)的話,帶一點延遲
+    // 自動重試幾次,大幅降低「剛好這一次沒打成功=整次都看不到入口」的機率。
+    function checkBingoAvailability(attempt) {
+      attempt = attempt || 1;
       fetch(`${DASHBOARD_WORKER_URL}?action=bingoActivities&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success' && data.activities && data.activities.length > 0) {
           bingoAvailable = true;
           renderSidebar(); // 🌟 分類清單這時候可能已經渲染過一次了(沒有BINGO入口),重新渲染一次把入口補上
+          return;
         }
+        if (data.status !== 'success' && attempt < 5) {
+          setTimeout(() => checkBingoAvailability(attempt + 1), 1500 * attempt);
+        }
+        // 🌟 data.status==='success'但activities是空陣列:代表真的目前沒有開放中的活動,不用重試。
       })
-      .catch(() => {});
+      .catch(() => {
+        if (attempt < 5) setTimeout(() => checkBingoAvailability(attempt + 1), 1500 * attempt);
+      });
     }
 
     function showBingo() {
