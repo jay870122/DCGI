@@ -65,6 +65,10 @@ tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,0.02)}
 .cell-name{font-weight:600;color:var(--t);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cell-id{font-family:monospace;font-size:12px;color:var(--mu)}
+/* 🌟🔧 批次使用道具(例如一次300張)的「抽獎結果」會把每一張的結果都串成一整串文字塞進同一格,
+不限高的話整列會被撐成好幾百行,表格整個歪掉、很難看也很難用。限制這格最多顯示150px高度,
+超過的部分格子內自己上下捲動看,不會再撐爆整張表格。 */
+.drawn-result-cell{max-width:320px;max-height:150px;overflow-y:auto;white-space:normal;word-break:break-all;line-height:1.6}
 /* badge/status */
 .status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
 .status-open{background:rgba(67,181,129,0.15);color:var(--green)}
@@ -245,7 +249,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.19</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.21</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1844,8 +1848,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <button class="btn-cancel" onclick="addAdjustCurrencyColumn()" style="grid-column:span 2">➕ 新增一種貨幣</button>
 
       <div class="fsep">每位玩家的調整金額 <span class="hint">留空 = 這位玩家這項不調整</span></div>
-      <div class="tbl-wrap" style="max-height:320px;overflow-y:auto;grid-column:span 2">
-        <table id="adjust-player-table"><thead><tr id="adjust-player-thead"><th>玩家</th></tr></thead><tbody id="adjust-player-tbody"></tbody></table>
+      <!-- 🌟🔧 修正手機版看不到輸入欄位的bug:這個表格欄位數會隨著「新增一種貨幣/序號/道具」動態增加,
+      手機版螢幕寬度塞不下全部欄位時,原本繼承自.tbl-wrap的overflow:hidden會直接把超出範圍的欄位(通常
+      就是最後面幾欄的金額輸入框)整個裁掉、完全看不到也滑不出來。這裡明確覆寫成overflow-x:auto,讓
+      欄位數一多就能左右滑動看到完整表格,不會再被裁掉。 -->
+      <div class="tbl-wrap" style="max-height:320px;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;grid-column:span 2">
+        <table id="adjust-player-table" style="min-width:max-content"><thead><tr id="adjust-player-thead"><th>玩家</th></tr></thead><tbody id="adjust-player-tbody"></tbody></table>
       </div>
 
       <div class="fsep">同時發放序號(選填) <span class="hint">這次勾選的每位玩家,每種序號都各發一組;不管下面「私訊通知」有沒有勾,序號一定會私訊給玩家</span></div>
@@ -4716,7 +4724,7 @@ async function loadHistory() {
       <td data-label="玩家">${r.playerName}<br><span class="cell-id" style="font-size:11px">${r.discordId}</span></td>
       <td class="cell-name" data-label="商品名稱" title="${r.itemName}">${r.itemName}</td>
       <td data-label="數量">${r.qty}</td>
-      <td data-label="抽獎結果">${r.drawnResult ? `🎁 ${r.drawnResult}` : '—'}</td>
+      <td data-label="抽獎結果">${r.drawnResult ? `<div class="drawn-result-cell">🎁 ${r.drawnResult}</div>` : '—'}</td>
       <td data-label="序號">${r.keys || '—'}</td>
       <td data-label="扣款前→後">${r.balanceBefore} → ${r.balanceAfter}</td>
       <td data-label="其他異動明細" style="font-size:12px">${extraParts.length ? extraParts.join('<br>') : '—'}</td>
