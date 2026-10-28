@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.82</div>
+    <div class="version-tag">系統版本：v5.4.83</div>
   </div>
 
   <script>
@@ -4793,6 +4793,14 @@ function fetchScoresAndShop(discordId, callback = null) {
 
           document.querySelectorAll('.dynamic-score-item').forEach(e => e.remove());
           latestCustomVars = data.customVars || []; // 🌟 背包彈窗要用完整清單(不篩選)
+          // 🌟🆕 修正bug:「背包裡的貨幣清單沒有因為開道具而即時更新」——開道具成功後會呼叫
+          // fetchScoresAndShop()刷新latestCustomVars(資料本身是新的),但如果背包彈窗當下正開著,
+          // 畫面上已經畫出來的那份backpack-list-container是舊的DOM,不會自己跟著重新渲染,玩家
+          // 得關掉背包再打開一次才看得到最新數字。這裡只要偵測到背包彈窗目前是開著的,每次分數/
+          // 背包資料刷新完就順便重繪一次,不用每個「開道具/用道具」的成功callback都各自記得補這一步。
+          if (document.getElementById('backpack-modal') && document.getElementById('backpack-modal').style.display === 'flex') {
+            renderBackpackItems();
+          }
           if(data.customVars && data.customVars.length > 0) {
             const container = document.getElementById('score-box-container');
             data.customVars.forEach(v => {
