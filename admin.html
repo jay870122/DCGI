@@ -249,7 +249,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.22</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.23</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2014,7 +2014,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 <!-- BINGO賓果盤檢視彈窗 -->
 <div class="overlay" id="bingo-cards-modal">
   <div class="modal" style="max-width:720px">
-    <div class="modal-header"><h3 id="bingo-cards-modal-title">📋 賓果盤總覽</h3><button class="modal-close" onclick="closeModal('bingo-cards-modal')">×</button></div>
+    <div class="modal-header">
+      <h3 id="bingo-cards-modal-title">📋 賓果盤總覽</h3>
+      <div style="display:flex;align-items:center;gap:10px">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mu);font-weight:normal;cursor:pointer">
+          <input type="checkbox" id="bingo-cards-autorefresh-toggle" checked onchange="toggleBingoCardsAutoRefresh(this.checked)"> 自動更新(8秒)
+        </label>
+        <button class="btn btn-edit" onclick="refreshBingoCardsModal()">🔄 重新整理</button>
+        <button class="modal-close" onclick="closeBingoCardsModal()">×</button>
+      </div>
+    </div>
     <div class="modal-body" style="max-height:65vh;overflow-y:auto;display:block">
       <div class="gacha-guide" id="bingo-cards-summary" style="margin-bottom:12px"></div>
       <div class="tbl-wrap tbl-wrap-table">
@@ -5568,6 +5577,15 @@ function updateBingoActivityCheckboxValue(containerId, hiddenInputId) {
 }
 
 let bingoCardsData = []; // 🌟 記住目前彈窗顯示的賓果盤資料,給單一玩家卡片檢視用
+// 🌟🆕 賓果盤總覽彈窗的自動更新:活動進行中管理員常常開著這個彈窗盯著玩家即時狀態,原本要看到最新
+// 進度得自己關掉重開才會重打一次API,很不方便。這幾個變數記住「目前開著的是哪個活動」「自動更新有沒有
+// 開」「目前正在看的是哪個玩家的卡片明細(bingo-card-detail-modal)」,讓重整/自動更新能正確運作,
+// 而且明細彈窗如果也開著,一起同步更新內容(不用額外再打一次API)。
+let bingoCardsCurrentActivityId = null;
+let bingoCardsCurrentActivityName = '';
+let bingoCardsAutoRefreshTimer = null;
+let bingoCardsAutoRefreshOn = true;
+let bingoCardDetailCurrentIdx = null;
 
 function openGrantBingoItemModal() {
   document.getElementById('gbi-selected-count').textContent = pcSelectedIds.size;
@@ -5683,6 +5701,9 @@ function renderBingoCardsTable() {
 }
 
 async function openBingoCardsModal(activityId, activityName) {
+  bingoCardsCurrentActivityId = activityId;
+  bingoCardsCurrentActivityName = activityName;
+  bingoCardDetailCurrentIdx = null; // 🌟 換一個新活動的總覽,之前記的「正在看哪位玩家明細」不該沿用
   document.getElementById('bingo-cards-modal-title').textContent = `📋 賓果盤總覽：${activityName}`;
   bingoCardsSortKey = null;
   bingoCardsSortDir = 1;
@@ -5690,15 +5711,25 @@ async function openBingoCardsModal(activityId, activityName) {
   document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">讀取中...</td></tr>';
   document.getElementById('bingo-cards-summary').textContent = '';
   document.getElementById('bingo-cards-modal').classList.add('open');
+  await loadBingoCardsData_(true);
+  startBingoCardsAutoRefresh_();
+}
 
-  const d = await apiWorkerRead('adminBingoCards', { activityId }, { action: 'adminGetBingoCardsForActivity', activityId });
+// 🌟🆕 把「真正打API+重繪畫面」抽出來,重整按鈕/自動更新計時器/第一次開啟共用同一套,不用寫三份。
+// showLoadingState:只有第一次開啟彈窗時true(整個表格先顯示「讀取中...」),重整/自動更新時false
+// (保留原本畫面,資料回來才整個換新,不會每8秒閃一次「讀取中...」讓管理員看了心累)。
+async function loadBingoCardsData_(showLoadingState) {
+  if (!bingoCardsCurrentActivityId) return;
+  if (showLoadingState) document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">讀取中...</td></tr>';
+  const d = await apiWorkerRead('adminBingoCards', { activityId: bingoCardsCurrentActivityId }, { action: 'adminGetBingoCardsForActivity', activityId: bingoCardsCurrentActivityId });
   if (d.status !== 'success') {
-    document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="8" class="empty">載入失敗：${d.message}</td></tr>`;
-    return;
+    if (showLoadingState) document.getElementById('bingo-cards-tbody').innerHTML = `<tr><td colspan="8" class="empty">載入失敗：${d.message}</td></tr>`;
+    return; // 🌟 自動更新失敗的話靜默跳過就好,保留畫面上原本的資料,下一輪再試,不要用錯誤訊息打斷管理員正在看的東西
   }
   bingoCardsData = d.cards;
   if (bingoCardsData.length === 0) {
     document.getElementById('bingo-cards-tbody').innerHTML = '<tr><td colspan="8" class="empty">目前還沒有任何玩家拿到這個活動的賓果盤</td></tr>';
+    document.getElementById('bingo-cards-summary').textContent = '';
     return;
   }
   // 🌟🔧 修正bug:原本摘要統計用「目前這張卡是不是完成中(full)」,玩家完成後選擇重開新盤,
@@ -5710,12 +5741,41 @@ async function openBingoCardsModal(activityId, activityName) {
   const totalCompletions = completedCounts.reduce((a, b) => a + b, 0);
   document.getElementById('bingo-cards-summary').textContent = `共 ${bingoCardsData.length} 位玩家已拿到賓果盤，其中 ${everCompletedCount} 位曾經完成過整卡(累計完成 ${totalCompletions} 次)`;
   renderBingoCardsTable();
+  // 🌟 單一玩家明細彈窗如果也還開著,用這次重新抓到的資料同步刷新內容(同一個idx位置的玩家可能
+  // 卡片狀態已經變了),不用管理員自己關掉重開才看得到最新進度。
+  if (bingoCardDetailCurrentIdx !== null && document.getElementById('bingo-card-detail-modal').classList.contains('open')) {
+    showBingoCardDetail(bingoCardDetailCurrentIdx, true);
+  }
+}
+
+function refreshBingoCardsModal() { loadBingoCardsData_(false); }
+
+function startBingoCardsAutoRefresh_() {
+  if (bingoCardsAutoRefreshTimer) clearInterval(bingoCardsAutoRefreshTimer);
+  if (!bingoCardsAutoRefreshOn) return;
+  bingoCardsAutoRefreshTimer = setInterval(() => loadBingoCardsData_(false), 8000);
+}
+
+function toggleBingoCardsAutoRefresh(checked) {
+  bingoCardsAutoRefreshOn = checked;
+  startBingoCardsAutoRefresh_();
+}
+
+// 🌟 關掉賓果盤總覽彈窗時,一定要清掉自動更新的計時器,不然背景會一直每8秒打API打到天長地久
+// (就算畫面已經看不到了),離開這頁也不會停。
+function closeBingoCardsModal() {
+  if (bingoCardsAutoRefreshTimer) { clearInterval(bingoCardsAutoRefreshTimer); bingoCardsAutoRefreshTimer = null; }
+  bingoCardsCurrentActivityId = null;
+  closeModal('bingo-cards-modal');
 }
 
 // 🌟 顯示單一玩家的賓果盤具體內容:5x5格子,已標記的用綠色底標示,方便管理員肉眼核對有沒有異常
-function showBingoCardDetail(idx) {
+// fromAutoRefresh:true代表是總覽自動更新順便同步進來的(見loadBingoCardsData_),不用重新把彈窗
+// 設成open(本來就已經開著),單純更新內容就好。
+function showBingoCardDetail(idx, fromAutoRefresh) {
   const c = bingoCardsData[idx];
   if (!c) return;
+  bingoCardDetailCurrentIdx = idx;
   document.getElementById('bingo-card-detail-title').textContent = `🎰 ${c.nickname} 的賓果盤`;
   document.getElementById('bingo-card-detail-grid').innerHTML = c.card.map(num => {
     const isMarked = c.marked.includes(num);
