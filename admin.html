@@ -68,7 +68,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 /* 🌟🔧 批次使用道具(例如一次300張)的「抽獎結果」會把每一張的結果都串成一整串文字塞進同一格,
 不限高的話整列會被撐成好幾百行,表格整個歪掉、很難看也很難用。限制這格最多顯示150px高度,
 超過的部分格子內自己上下捲動看,不會再撐爆整張表格。 */
-.drawn-result-cell{max-width:320px;max-height:150px;overflow-y:auto;white-space:normal;word-break:break-all;line-height:1.6}
+.drawn-result-cell{width:260px;max-height:150px;overflow-y:auto;white-space:normal;word-break:break-word;line-height:1.6}
 /* badge/status */
 .status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
 .status-open{background:rgba(67,181,129,0.15);color:var(--green)}
@@ -249,7 +249,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.21</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.22</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4726,7 +4726,7 @@ async function loadHistory() {
       <td data-label="數量">${r.qty}</td>
       <td data-label="抽獎結果">${r.drawnResult ? `<div class="drawn-result-cell">🎁 ${r.drawnResult}</div>` : '—'}</td>
       <td data-label="序號">${r.keys || '—'}</td>
-      <td data-label="扣款前→後">${r.balanceBefore} → ${r.balanceAfter}</td>
+      <td data-label="扣款前→後">${(r.balanceBefore === undefined || r.balanceBefore === null || r.balanceBefore === '') && (r.balanceAfter === undefined || r.balanceAfter === null || r.balanceAfter === '') ? '—' : `${r.balanceBefore} → ${r.balanceAfter}`}</td>
       <td data-label="其他異動明細" style="font-size:12px">${extraParts.length ? extraParts.join('<br>') : '—'}</td>
     </tr>`;
   }).join('');
