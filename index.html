@@ -596,7 +596,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.79</div>
+    <div class="version-tag">系統版本：v5.4.81</div>
   </div>
 
   <script>
@@ -1316,11 +1316,20 @@
     // 人數把配額吃光。
     // 如果Worker回報needsCreate(玩家第一次玩這個活動、還沒有卡),Worker不負責建卡(建卡可能要扣開盤費用,
     // 需要走Apps Script那邊有鎖定機制的寫入流程),這時才改打Apps Script的getBingoStatus。
+    // 🌟🆕 修正bug:「卡片一下消失一下出現」——玩家操作頻繁(買號/用道具/倒數計時自動刷新)時,
+    // loadBingoStatus()常常還沒等上一次fetch回來就被下一次呼叫覆蓋過去。兩個請求的回應順序不保證跟
+    // 發送順序一樣(網路延遲不固定),如果「比較舊的那一次」反而比較晚回來,它的.then()還是會照樣執行、
+    // 把畫面蓋回舊的/讀取中/錯誤狀態,蓋掉已經顯示出來的最新卡片,玩家看起來就像卡片突然消失、
+    // 過一下子(下一次刷新成功)又出現。修法:每次呼叫loadBingoStatus()發一個遞增的序號,回應回來時
+    // 如果序號已經不是「目前最新的那一次」就直接忽略,不去動畫面——只有最新一次的回應才有資格更新UI。
+    let bingoStatusReqSeq_ = 0;
     function loadBingoStatus() {
+      const mySeq = ++bingoStatusReqSeq_;
       document.getElementById('bingo-body-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
       fetch(`${DASHBOARD_WORKER_URL}?action=bingoStatus&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
+        if (mySeq !== bingoStatusReqSeq_) return; // 🌟 已經有更新的請求發出去了,這次回應過期,不處理
         if (data.status !== 'success') {
           document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ ${data.message || '讀取失敗'}</p>`;
           return;
@@ -1330,20 +1339,23 @@
           return;
         }
         if (data.needsCreate) {
-          loadBingoStatusViaGas_();
+          loadBingoStatusViaGas_(mySeq);
           return;
         }
         renderBingoModal(data);
       })
       .catch(() => {
-        loadBingoStatusViaGas_();
+        if (mySeq !== bingoStatusReqSeq_) return;
+        loadBingoStatusViaGas_(mySeq);
       });
     }
 
-    function loadBingoStatusViaGas_() {
+    function loadBingoStatusViaGas_(mySeq) {
+      if (mySeq === undefined) mySeq = ++bingoStatusReqSeq_; // 🌟 單獨被呼叫(不是從loadBingoStatus()接手)時,自己領一個新序號
       fetch(`${GAS_API_URL}?action=getBingoStatus&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
+        if (mySeq !== bingoStatusReqSeq_) return; // 🌟 同上:這次回應已經過期,忽略
         if (data.status !== 'success') {
           document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ ${data.message || '讀取失敗'}</p>`;
           return;
@@ -1355,6 +1367,7 @@
         renderBingoModal(data);
       })
       .catch(() => {
+        if (mySeq !== bingoStatusReqSeq_) return;
         document.getElementById('bingo-body-container').innerHTML = `<p style="text-align:center; color:#ED4245;">❌ 讀取失敗，請稍後再試</p>`;
       });
     }
@@ -1576,6 +1589,7 @@
               <span style="display:flex;align-items:center;gap:8px">
                 ${statusLabel[it.status] || ''}
                 ${it.status === 'UNUSED' ? `<button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#43B581" onclick="useBingoItemPrompt(this, '${it.instanceId}', ${itMin}, ${itMax}, '${it.effectType}')">使用</button>` : ''}
+                ${it.status === 'UNUSED' ? `<button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#ED4245" onclick="discardBingoItem(this, '${it.instanceId}', '${it.itemName.replace(/'/g,"\\'")}')">丟棄</button>` : ''}
               </span>
             </div>
           `;
@@ -2122,6 +2136,94 @@
     async function tryUseBingoBackpackItemViaWorker_(instanceId, targetNumber) {
       try {
         const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=useBingoBackpackItemWorker&discordId=${currentUser.id}&activityId=${currentBingoActivityId}&instanceId=${encodeURIComponent(instanceId)}&targetNumber=${targetNumber}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const data = await res.json();
+        if (data && data.status === 'unsupported') return data;
+        if (data && data.status === 'success') return data;
+        if (data && data.status === 'error' && data.safeNoWrite) return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 🌟🆕 玩家自行丟棄一個「還能用」的BINGO道具(單張、不拿回任何東西),跟使用道具同一套
+    // 「先打Worker、unsupported/不確定才fallback回GAS+輪詢」的安全模式。
+    function discardBingoItem(btnEl, instanceId, itemName) {
+      if (bingoActionInFlight) return;
+      if (!confirm(`確定要丟棄「${itemName}」嗎？丟棄後無法復原。`)) return;
+
+      bingoActionInFlight = true;
+      const allItemBtns = document.querySelectorAll('button[onclick*="useBingoItemPrompt"], button[onclick*="discardBingoItem"]');
+      const btnStates = [];
+      allItemBtns.forEach(btn => { btnStates.push({ btn, originalText: btn.textContent }); btn.disabled = true; });
+      btnEl.textContent = '⏳ 丟棄中...';
+      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn').forEach(el => { el.disabled = true; });
+
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次操作很可能真的沒有成功,可以放心重試。');
+      }
+      function finishSuccess_(msg) {
+        if (settled) return; settled = true;
+        bingoActionInFlight = false;
+        alert('🗑️ ' + msg);
+        loadBingoStatus();
+      }
+      function finishError_(msg) {
+        if (settled) return; settled = true;
+        bingoActionInFlight = false;
+        btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
+        document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = false; });
+        updateBingoItemSelectedCount();
+        alert(msg);
+      }
+
+      function runDiscardBingoItemViaGasAndPoll_() {
+        fetchWithTimeout_(`${GAS_API_URL}?action=discardBingoBackpackItem&discordId=${currentUser.id}&instanceId=${encodeURIComponent(instanceId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            if (data.status !== 'success') { finishError_('❌ ' + data.message); return; }
+            finishSuccess_(data.message);
+          })
+          .catch((err) => {
+            if (settled) return;
+            gasDone = true; checkBothGaveUp_();
+          });
+
+        pollInstrumentedActionResult_('discardBingoBackpackItem', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { finishSuccess_(polled.message || `已丟棄「${itemName}」`); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
+      }
+
+      tryDiscardBingoBackpackItemViaWorker_(instanceId)
+        .then(workerResult => {
+          if (settled) return;
+          if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult.message); return; }
+          if (workerResult && workerResult.status === 'unsupported') { runDiscardBingoItemViaGasAndPoll_(); return; }
+          if (workerResult && workerResult.status === 'error' && workerResult.safeNoWrite) { finishError_('❌ ' + workerResult.message); return; }
+          finishError_('⚠️ 丟棄道具請求的結果不確定,請重新整理頁面確認狀態,不確定的話再重新操作一次。');
+        })
+        .catch(err => {
+          if (settled) return; settled = true;
+          bingoActionInFlight = false;
+          btnStates.forEach(({ btn, originalText }) => { btn.disabled = false; btn.textContent = originalText; });
+          document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = false; });
+          updateBingoItemSelectedCount();
+          console.error('[discardBingoItem] Worker流程發生例外:', err);
+          alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
+        });
+    }
+
+    // 🌟🆕 呼叫BINGO背包道具單張丟棄Worker試行版端點,回應格式同其他BINGO Worker端點。
+    async function tryDiscardBingoBackpackItemViaWorker_(instanceId) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=discardBingoBackpackItemWorker&discordId=${currentUser.id}&instanceId=${encodeURIComponent(instanceId)}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
         const data = await res.json();
         if (data && data.status === 'unsupported') return data;
         if (data && data.status === 'success') return data;
