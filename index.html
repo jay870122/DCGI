@@ -442,6 +442,10 @@
           <div style="display:flex;flex-direction:column;gap:6px">
             <select id="giftcode-item-select" style="width:100%;padding:6px;"></select>
             <input type="number" id="giftcode-qty-input" min="1" value="1" style="width:100%;padding:6px;" placeholder="數量">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#B9BBBE;cursor:pointer">
+              <input type="checkbox" id="giftcode-notify-input" checked style="width:auto">
+              被兌換時私訊通知我
+            </label>
             <button class="btn-action" style="padding:6px;font-size:13px;background-color:#5865F2" onclick="submitCreateGiftCode_(this)">產生序號</button>
           </div>
         </div>
@@ -596,7 +600,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.83</div>
+    <div class="version-tag">系統版本：v5.4.84</div>
   </div>
 
   <script>
@@ -3981,6 +3985,7 @@
       if (!itemName) { alert('請選擇要轉換的道具'); return; }
       const quantity = parseInt(document.getElementById('giftcode-qty-input').value, 10) || 1;
       if (quantity < 1) { alert('數量至少要1個'); return; }
+      const notifyOnRedeem = document.getElementById('giftcode-notify-input').checked;
       if (!confirm(`確定要把「${itemName}」x${quantity} 轉成一組一次性序號嗎？轉換後這份道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
 
       giftCodeActionInFlight = true;
@@ -3996,7 +4001,7 @@
         loadGeneralItems(true); // 🌟🔧 道具轉成序號後會從背包暫時消失(TRADE_LOCKED),外層背包清單也要跟著即時刷新,不然玩家會看到數量沒變
       }
       function runCreateGiftCodeViaGasAndPoll_() {
-        fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCode&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+        fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCode&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
           .then(res => res.json())
           .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
           .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
@@ -4008,7 +4013,7 @@
         });
       }
 
-      tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity)
+      tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity, notifyOnRedeem)
         .then(workerResult => {
           if (settled) return;
           if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
@@ -4024,9 +4029,9 @@
         });
     }
 
-    async function tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity) {
+    async function tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity, notifyOnRedeem) {
       try {
-        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createGeneralItemGiftCodeWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createGeneralItemGiftCodeWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
         return await res.json();
       } catch (e) {
         return null;
