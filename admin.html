@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.24</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.25</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3066,6 +3066,10 @@ function renderShopTable() {
       if (va > vb) return 1 * dir;
       return 0;
     });
+  } else {
+    // 🌟 沒有手動點欄位排序時,預設列表順序要跟「排序模式」(shopReorderList)的邏輯一致,
+    // 都照 sortOrder 排(沒設定的排最後),不然商品管理列表跟排序模式看到的順序會對不起來。
+    items = items.slice().sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
   }
   updateSortArrows('shop', shopSort);
 
@@ -3677,6 +3681,10 @@ function renderAuctionTable() {
       if (va > vb) return 1 * dir;
       return 0;
     });
+  } else {
+    // 🌟 沒有手動點欄位排序時,預設列表順序要跟「排序模式」(auctionReorderList)的邏輯一致,
+    // 都照 sortOrder 排(沒設定的排最後),不然拍賣管理列表跟排序模式看到的順序會對不起來。
+    items = items.slice().sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
   }
   updateSortArrows('auction', auctionSort);
 
