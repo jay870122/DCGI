@@ -2667,6 +2667,25 @@
             ⚠️ 這批裡面混了不同過期時間(開啟時會自動優先使用最快過期的)：<br>
             ${g.expiryBreakdown.map(b => `・${b.count}個${b.expiresAt ? new Date(b.expiresAt).toLocaleString() + '過期' : '永不過期'}`).join('<br>')}
           </div>` : '';
+        // 🌟🆕 列出這一疊裡「每一份」各自剩多少次可以開——像萬聖節糖果盒這種每份開啟次數不同的道具
+        // (友愛接力道具,每份有自己的「使用次數上限」剩餘量),玩家才能知道要留哪一份、送出哪一份。
+        // 只有1份或所有份數都一樣的話沒必要特別列出來,避免洗版。
+        const instancesListInline_ = Array.isArray(g.instances) ? g.instances : [];
+        const instancesVaryHtml_ = (() => {
+          if (instancesListInline_.length <= 1) return '';
+          const allSame = instancesListInline_.every(inst => inst.remainUses === instancesListInline_[0].remainUses);
+          if (allSame) return '';
+          const sorted = instancesListInline_.slice().sort((a, b) => (b.remainUses || 0) - (a.remainUses || 0));
+          const linesInner = sorted.map((inst, iIdx) => `・第${iIdx + 1}份　剩${inst.remainUses}次`).join('<br>');
+          if (sorted.length <= 5) {
+            return `<div style="font-size:11px;color:#B9BBBE;margin-top:4px">📋 各份剩餘次數：<br>${linesInner}</div>`;
+          }
+          const iBoxId = `gi-instances-${idx}`;
+          return `
+            <button onclick="toggleGeneralItemInstancesBox_('${iBoxId}')" id="${iBoxId}-toggle" data-count="${sorted.length}" style="background:none;border:none;color:#7289DA;font-size:11px;cursor:pointer;padding:2px 0;text-decoration:underline">▼ 展開查看各份剩餘次數(共${sorted.length}份)</button>
+            <div id="${iBoxId}" style="display:none;font-size:11px;color:#B9BBBE;margin-top:2px">${linesInner}</div>
+          `;
+        })();
         // 🌟 單次最多開啟數量:後端可能因為這個道具的模板有自訂上限、或全站預設值,限制不能一次開太多個。
         // 輸入框的max直接取「手上有幾個」跟「這個道具的上限」兩者較小值,超過上限的部分乾脆不給填,
         // 比等玩家按下去才被後端擋掉(還要多等一次來回)更直覺。
@@ -2718,6 +2737,7 @@
           </div>
           ${generalItemRemarkHtml_}
           ${breakdownHtml}
+          ${instancesVaryHtml_}
           ${contentBoxHtml}
         </div>`;
       }).join('');
@@ -2772,6 +2792,17 @@
       box.style.display = isOpen ? 'none' : 'block';
       const countSuffix = `(共${toggleBtn.dataset.count}項)`;
       toggleBtn.textContent = isOpen ? `▼ 展開查看內容物一覽${countSuffix}` : '▲ 收合';
+    }
+
+    // 🌟🆕 跟toggleGeneralItemPoolBox_同一套做法,只是文字換成「各份剩餘次數」——給疊加卡片展開看
+    // 每一份(每個實體)各自還剩幾次用,方便玩家確認要留哪一份、送出哪一份。
+    function toggleGeneralItemInstancesBox_(boxId) {
+      const box = document.getElementById(boxId);
+      const toggleBtn = document.getElementById(`${boxId}-toggle`);
+      const isOpen = box.style.display !== 'none';
+      box.style.display = isOpen ? 'none' : 'block';
+      const countSuffix = `(共${toggleBtn.dataset.count}份)`;
+      toggleBtn.textContent = isOpen ? `▼ 展開查看各份剩餘次數${countSuffix}` : '▲ 收合';
     }
 
     // 🌟 開啟這個疊加卡片裡的N個:數量從輸入框讀取,系統會自動優先消耗最快過期的實例(不用玩家自己選)
