@@ -2669,14 +2669,30 @@
           </div>` : '';
         // 🌟🆕 列出這一疊裡「每一份」各自剩多少次可以開——像萬聖節糖果盒這種每份開啟次數不同的道具
         // (友愛接力道具,每份有自己的「使用次數上限」剩餘量),玩家才能知道要留哪一份、送出哪一份。
-        // 只有1份或所有份數都一樣的話沒必要特別列出來,避免洗版。
+        // 🌟🆕 開了「每個實體各自計次」的道具,額外附上「個人次數」:後端的g.instances[].openLimitStatusList
+        // 是這個玩家自己對「這一份(這個血統ID)」的開啟上限狀態——同一份道具可能上一手已經開過(個人額度用完),
+        // 到自己手上才重新計次,這個數字才是「我這份現在實際能不能開」的真正依據,跟remainUses(盒子裡還剩
+        // 多少充能)是兩回事,兩個都要給玩家看才不會搞混。
+        // perInstanceOpenLimit道具一律列出每一份明細(個人次數本來就會因為血統不同而不一樣,不能只看
+        // remainUses是否相同來決定要不要顯示);其他道具維持原本只在remainUses不一樣時才列出。
         const instancesListInline_ = Array.isArray(g.instances) ? g.instances : [];
         const instancesVaryHtml_ = (() => {
           if (instancesListInline_.length <= 1) return '';
-          const allSame = instancesListInline_.every(inst => inst.remainUses === instancesListInline_[0].remainUses);
-          if (allSame) return '';
+          const isPerInstance_ = !!g.perInstanceOpenLimit;
+          if (!isPerInstance_) {
+            const allSame = instancesListInline_.every(inst => inst.remainUses === instancesListInline_[0].remainUses);
+            if (allSame) return '';
+          }
+          const periodLabelMapInline_ = { HOURLY: '這小時', DAILY: '今日', WEEKLY: '本週', MONTHLY: '本月', LIFETIME: '總共' };
           const sorted = instancesListInline_.slice().sort((a, b) => (b.remainUses || 0) - (a.remainUses || 0));
-          const linesInner = sorted.map((inst, iIdx) => `・第${iIdx + 1}份　剩${inst.remainUses}次`).join('<br>');
+          const describeInstance_ = (inst, iIdx) => {
+            let personalText = '';
+            if (isPerInstance_ && Array.isArray(inst.openLimitStatusList) && inst.openLimitStatusList.length > 0) {
+              personalText = '　' + inst.openLimitStatusList.map(s => `<span style="color:${s.remaining > 0 ? '#43B581' : '#ED4245'}">個人${periodLabelMapInline_[s.mode] || ''}剩${s.remaining}/${s.limit}次</span>`).join('、');
+            }
+            return `・第${iIdx + 1}份　剩${inst.remainUses}次${personalText}`;
+          };
+          const linesInner = sorted.map(describeInstance_).join('<br>');
           if (sorted.length <= 5) {
             return `<div style="font-size:11px;color:#B9BBBE;margin-top:4px">📋 各份剩餘次數：<br>${linesInner}</div>`;
           }
@@ -3619,6 +3635,15 @@
 
     // 🌟🆕 跟renderGiftCodeInstanceCheckboxes_同一套做法:盒子不能拆開放入,改成直接列出目前選到的道具
     // 每一份的明細讓玩家勾選要放入哪幾份。
+    // 🌟🆕 跟背包卡片的instancesVaryHtml_同一套做法:「每個實體各自計次」的道具,把每份自己的「個人
+    // 開啟次數上限」狀態(小時/日/週/月/終身)附加在後面——同一份道具換過手之後個人額度會重新計次,
+    // 這個數字才是「這份現在實際能不能開」的依據,勾選要送出哪一份時才看得出該留哪份、送哪份。
+    const OPEN_LIMIT_PERIOD_LABEL_MAP_ = { HOURLY: '這小時', DAILY: '今日', WEEKLY: '本週', MONTHLY: '本月', LIFETIME: '總共' };
+    function describeInstancePersonalLimit_(inst) {
+      if (!Array.isArray(inst.openLimitStatusList) || !inst.openLimitStatusList.length) return '';
+      return '　' + inst.openLimitStatusList.map(s => `<span style="color:${s.remaining > 0 ? '#43B581' : '#ED4245'}">個人${OPEN_LIMIT_PERIOD_LABEL_MAP_[s.mode] || ''}剩${s.remaining}/${s.limit}次</span>`).join('、');
+    }
+
     function renderTradeSessionInstanceCheckboxes_() {
       const container = document.getElementById('trade-session-instance-list');
       if (!container) return;
@@ -3631,7 +3656,7 @@
         return `
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#DCDDDE;cursor:pointer;padding:3px 2px;">
           <input type="checkbox" class="trade-session-instance-checkbox" value="${(inst.instanceId||'').toString().replace(/"/g,'&quot;')}" data-amount="${inst.remainUses}" style="width:auto">
-          第${idx+1}份　剩${inst.remainUses}次${expText}
+          第${idx+1}份　剩${inst.remainUses}次${expText}${describeInstancePersonalLimit_(inst)}
         </label>`;
       }).join('');
     }
@@ -4061,7 +4086,7 @@
         return `
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#DCDDDE;cursor:pointer;padding:3px 2px;">
           <input type="checkbox" class="giftcode-instance-checkbox" value="${(inst.instanceId||'').toString().replace(/"/g,'&quot;')}" data-amount="${inst.remainUses}" style="width:auto">
-          第${idx+1}份　剩${inst.remainUses}次${expText}
+          第${idx+1}份　剩${inst.remainUses}次${expText}${describeInstancePersonalLimit_(inst)}
         </label>`;
       }).join('');
     }
