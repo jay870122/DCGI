@@ -391,10 +391,19 @@
               <div id="trade-session-other-items" style="display:flex;flex-direction:column;gap:4px;min-height:60px;"></div>
             </div>
           </div>
-          <div id="trade-session-add-row" style="display:flex;gap:6px;margin-top:10px;">
-            <select id="trade-session-item-select" style="flex:1;padding:6px;"></select>
-            <input type="number" id="trade-session-item-qty" min="1" value="1" style="width:70px;padding:6px;">
-            <button class="btn-action" style="padding:6px 10px;font-size:12px;background-color:#43B581" onclick="addTradeSessionItem_(this)">放入</button>
+          <div id="trade-session-add-row" style="display:flex;flex-direction:column;gap:6px;margin-top:10px;">
+            <select id="trade-session-item-select" style="width:100%;padding:6px;" onchange="renderTradeSessionInstanceCheckboxes_()"></select>
+            <!-- 🌟🆕 盒子不能拆開贈送,改成直接勾選要放入哪幾份(每份顯示剩餘次數),跟道具序號贈禮同一套做法 -->
+            <div id="trade-session-instance-list" style="display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;background:#36393F;border-radius:4px;padding:6px;"></div>
+            <div style="display:flex;gap:6px;">
+              <input type="number" id="trade-session-auto-qty-input" min="1" placeholder="輸入數字自動勾選" style="flex:1;padding:6px;">
+              <select id="trade-session-auto-qty-mode" style="padding:6px;">
+                <option value="uses">依總次數</option>
+                <option value="count">依份數</option>
+              </select>
+              <button class="btn-action" style="padding:6px 10px;font-size:12px;background-color:#4F545C;white-space:nowrap" onclick="autoCheckTradeSessionInstances_()">自動勾選</button>
+            </div>
+            <button class="btn-action" style="padding:6px;font-size:13px;background-color:#43B581" onclick="addTradeSessionItem_(this)">放入</button>
           </div>
           <div style="display:flex;gap:8px;margin-top:12px;">
             <button id="trade-session-lock-btn" class="btn-action" style="flex:1;padding:8px;font-size:13px;background-color:#43B581" onclick="lockTradeSessionMySide_(this)">🔒 鎖定</button>
@@ -3568,8 +3577,68 @@
 
     function renderTradeSessionItemSelect_() {
       const select = document.getElementById('trade-session-item-select');
-      if (!tradeSessionMyTradableItems_.length) { select.innerHTML = '<option value="">（沒有開放交易的道具）</option>'; return; }
+      if (!tradeSessionMyTradableItems_.length) {
+        select.innerHTML = '<option value="">（沒有開放交易的道具）</option>';
+        renderTradeSessionInstanceCheckboxes_();
+        return;
+      }
       select.innerHTML = tradeSessionMyTradableItems_.map(it => `<option value="${it.itemName.replace(/"/g,'&quot;')}">${it.itemName}（持有${it.totalCount}${it.tradeCountLimit ? `，限交易${it.tradeCountLimit}次` : ''}）</option>`).join('');
+      renderTradeSessionInstanceCheckboxes_();
+    }
+
+    // 🌟🆕 跟renderGiftCodeInstanceCheckboxes_同一套做法:盒子不能拆開放入,改成直接列出目前選到的道具
+    // 每一份的明細讓玩家勾選要放入哪幾份。
+    function renderTradeSessionInstanceCheckboxes_() {
+      const container = document.getElementById('trade-session-instance-list');
+      if (!container) return;
+      const itemName = document.getElementById('trade-session-item-select').value;
+      const item = tradeSessionMyTradableItems_.find(it => it.itemName === itemName);
+      const instances = (item && item.instances) || [];
+      if (!instances.length) { container.innerHTML = '<div style="color:#72767D;font-size:12px;padding:4px;">（沒有可選的份數）</div>'; return; }
+      container.innerHTML = instances.map((inst, idx) => {
+        const expText = inst.expiresAt ? `，效期至${formatDateShort_(inst.expiresAt)}` : '';
+        return `
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#DCDDDE;cursor:pointer;padding:3px 2px;">
+          <input type="checkbox" class="trade-session-instance-checkbox" value="${(inst.instanceId||'').toString().replace(/"/g,'&quot;')}" data-amount="${inst.remainUses}" style="width:auto">
+          第${idx+1}份　剩${inst.remainUses}次${expText}
+        </label>`;
+      }).join('');
+    }
+
+    function getCheckedTradeSessionInstanceIds_() {
+      return Array.from(document.querySelectorAll('.trade-session-instance-checkbox:checked')).map(cb => cb.value);
+    }
+
+    // 🌟🆕 跟autoCheckGiftCodeInstances_同一套做法,份數很多時幫忙自動勾選。
+    function autoCheckTradeSessionInstances_() {
+      const input = document.getElementById('trade-session-auto-qty-input');
+      const target = parseInt(input.value, 10) || 0;
+      if (target < 1) { alert('請輸入至少1的數字'); return; }
+      const checkboxes = Array.from(document.querySelectorAll('.trade-session-instance-checkbox'));
+      if (!checkboxes.length) { alert('目前沒有可勾選的份數'); return; }
+      const mode = document.getElementById('trade-session-auto-qty-mode').value;
+
+      if (mode === 'count') {
+        checkboxes.forEach(cb => { cb.checked = false; });
+        const n = Math.min(target, checkboxes.length);
+        for (let i = 0; i < n; i++) checkboxes[i].checked = true;
+        if (target > checkboxes.length) alert(`目前只有${checkboxes.length}份,已經幫你全部勾選。`);
+        return;
+      }
+
+      const candidates = checkboxes.map((cb, idx) => ({ idx, amount: parseInt(cb.dataset.amount, 10) || 0 }));
+      const combo = findExactWholeComboClient_(candidates, target);
+      checkboxes.forEach(cb => { cb.checked = false; });
+      if (combo) {
+        combo.forEach(c => { checkboxes[c.idx].checked = true; });
+        return;
+      }
+      const sorted = candidates.slice().sort((a, b) => b.amount - a.amount);
+      let sum = 0; const picked = [];
+      sorted.forEach(c => { if (sum + c.amount <= target) { sum += c.amount; picked.push(c); } });
+      picked.forEach(c => { checkboxes[c.idx].checked = true; });
+      const allAmounts = candidates.map(c => c.amount).join('、');
+      alert(`目前持有的各份次數湊不出剛好${target}次(各份分別是:${allAmounts}),已經先幫你勾選到最接近且不超過的${sum}次,你可以自己再調整勾選。`);
     }
 
     // 🌟🔧 forceFresh:Worker那邊「道具交易」表現在走4秒共用快取(避免很多人同時開交易視窗時
@@ -3693,16 +3762,25 @@
     function addTradeSessionItem_(btn) {
       const select = document.getElementById('trade-session-item-select');
       const itemName = select.value;
-      const qty = parseInt(document.getElementById('trade-session-item-qty').value, 10) || 1;
       if (!itemName) { alert('請選擇要放入的道具'); return; }
-      const items = tradeSessionMyItems_.map(it => ({ itemName: it.itemName, quantity: it.quantity }));
+      // 🌟🆕 盒子不能拆開放入,改成直接勾選要放入哪幾份,不再用數量輸入框
+      const instanceIds = getCheckedTradeSessionInstanceIds_();
+      if (!instanceIds.length) { alert('請至少勾選一份道具'); return; }
+      const items = tradeSessionMyItems_.map(it => ({ itemName: it.itemName, instanceIds: it.instanceIds || [] }));
       const existing = items.find(it => it.itemName === itemName);
-      if (existing) existing.quantity += qty; else items.push({ itemName, quantity: qty });
+      if (existing) {
+        // 🌟 聯集去重,避免同一份被重複勾選加入兩次
+        const merged = new Set(existing.instanceIds);
+        instanceIds.forEach(id => merged.add(id));
+        existing.instanceIds = Array.from(merged);
+      } else {
+        items.push({ itemName, instanceIds });
+      }
       updateMyTradeItems_(items, btn, '放入中...');
     }
 
     function removeTradeSessionItem_(el, itemName) {
-      const items = tradeSessionMyItems_.filter(it => it.itemName !== itemName).map(it => ({ itemName: it.itemName, quantity: it.quantity }));
+      const items = tradeSessionMyItems_.filter(it => it.itemName !== itemName).map(it => ({ itemName: it.itemName, instanceIds: it.instanceIds || [] }));
       updateMyTradeItems_(items, el, '移除中...');
     }
 
