@@ -440,8 +440,14 @@
         <div style="margin-bottom:16px;">
           <div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:6px">➕ 把道具轉成序號</div>
           <div style="display:flex;flex-direction:column;gap:6px">
-            <select id="giftcode-item-select" style="width:100%;padding:6px;"></select>
-            <input type="number" id="giftcode-qty-input" min="1" value="1" style="width:100%;padding:6px;" placeholder="數量">
+            <select id="giftcode-item-select" style="width:100%;padding:6px;" onchange="renderGiftCodeInstanceCheckboxes_()"></select>
+            <!-- 🌟🆕 盒子不能拆開贈送,改成直接勾選要送出哪幾份(每份顯示剩餘次數),不用再猜數字湊組合 -->
+            <div id="giftcode-instance-list" style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;background:#2F3136;border-radius:4px;padding:6px;"></div>
+            <!-- 🌟🆕 份數很多時一個個勾很累,改成可以輸入總次數請系統自動幫忙勾選湊得出來的份數組合 -->
+            <div style="display:flex;gap:6px;">
+              <input type="number" id="giftcode-auto-qty-input" min="1" placeholder="輸入總次數自動勾選" style="flex:1;padding:6px;">
+              <button class="btn-action" style="padding:6px 10px;font-size:12px;background-color:#4F545C;white-space:nowrap" onclick="autoCheckGiftCodeInstances_()">自動勾選</button>
+            </div>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#B9BBBE;cursor:pointer">
               <input type="checkbox" id="giftcode-notify-input" checked style="width:auto">
               被兌換時私訊通知我
@@ -3919,8 +3925,93 @@
     function renderGiftCodeItemSelect_() {
       const select = document.getElementById('giftcode-item-select');
       if (!select) return;
-      if (!giftCodeMyTradableItems_.length) { select.innerHTML = '<option value="">（沒有開放交易的道具）</option>'; return; }
+      if (!giftCodeMyTradableItems_.length) {
+        select.innerHTML = '<option value="">（沒有開放交易的道具）</option>';
+        renderGiftCodeInstanceCheckboxes_();
+        return;
+      }
       select.innerHTML = giftCodeMyTradableItems_.map(it => `<option value="${it.itemName.replace(/"/g,'&quot;')}">${it.itemName}（持有${it.totalCount}${it.tradeCountLimit ? `，限交易${it.tradeCountLimit}次` : ''}）</option>`).join('');
+      renderGiftCodeInstanceCheckboxes_();
+    }
+
+    // 🌟🆕 盒子不能拆開贈送,改成直接列出目前選到的道具每一份的明細讓玩家勾選要送出哪幾份——
+    // 不用再猜「湊得出剛好多少份」的數字,勾哪幾份就送哪幾份,最直覺。
+    function renderGiftCodeInstanceCheckboxes_() {
+      const container = document.getElementById('giftcode-instance-list');
+      if (!container) return;
+      const itemName = document.getElementById('giftcode-item-select').value;
+      const item = giftCodeMyTradableItems_.find(it => it.itemName === itemName);
+      const instances = (item && item.instances) || [];
+      if (!instances.length) { container.innerHTML = '<div style="color:#72767D;font-size:12px;padding:4px;">（沒有可選的份數）</div>'; return; }
+      container.innerHTML = instances.map((inst, idx) => {
+        const expText = inst.expiresAt ? `，效期至${formatDateShort_(inst.expiresAt)}` : '';
+        return `
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#DCDDDE;cursor:pointer;padding:3px 2px;">
+          <input type="checkbox" class="giftcode-instance-checkbox" value="${(inst.instanceId||'').toString().replace(/"/g,'&quot;')}" data-amount="${inst.remainUses}" style="width:auto">
+          第${idx+1}份　剩${inst.remainUses}次${expText}
+        </label>`;
+      }).join('');
+    }
+
+    // 🌟 簡單的日期顯示工具,其他地方若已有同名函式會沿用既有的,這裡只是防呆(避免formatDateShort_沒定義時整段壞掉)
+    function formatDateShort_(v) {
+      try {
+        const d = new Date(v);
+        if (isNaN(d.getTime())) return (v || '').toString();
+        return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+      } catch (e) { return (v || '').toString(); }
+    }
+
+    function getCheckedGiftCodeInstanceIds_() {
+      return Array.from(document.querySelectorAll('.giftcode-instance-checkbox:checked')).map(cb => cb.value);
+    }
+
+    // 🌟🆕 份數很多(例如上千份、好幾百個checkbox)時一個個勾太累,輸入想湊出的總次數,自動找出
+    // 「剛好幾份整份加起來等於這個數字」的組合並勾選——跟後端lockGeneralBackpackInstancesForTrade_
+    // 同一套子集合加總(subset sum)邏輯,只是這裡是前端先幫忙勾,送出時後端還是認實際勾選到的instanceId。
+    function autoCheckGiftCodeInstances_() {
+      const input = document.getElementById('giftcode-auto-qty-input');
+      const target = parseInt(input.value, 10) || 0;
+      if (target < 1) { alert('請輸入至少1的總次數'); return; }
+      const checkboxes = Array.from(document.querySelectorAll('.giftcode-instance-checkbox'));
+      if (!checkboxes.length) { alert('目前沒有可勾選的份數'); return; }
+      const candidates = checkboxes.map((cb, idx) => ({ idx, amount: parseInt(cb.dataset.amount, 10) || 0 }));
+      const combo = findExactWholeComboClient_(candidates, target);
+      checkboxes.forEach(cb => { cb.checked = false; });
+      if (combo) {
+        combo.forEach(c => { checkboxes[c.idx].checked = true; });
+        return;
+      }
+      // 🌟 湊不出剛好的總數:改用「由大到小疊加,疊到剛好不超過」的方式盡量湊近,並告知實際湊到多少、
+      // 跟後端exact match的錯誤訊息風格呼應,讓玩家自己決定要不要調整數字或手動微調勾選。
+      const sorted = candidates.slice().sort((a, b) => b.amount - a.amount);
+      let sum = 0; const picked = [];
+      sorted.forEach(c => { if (sum + c.amount <= target) { sum += c.amount; picked.push(c); } });
+      picked.forEach(c => { checkboxes[c.idx].checked = true; });
+      const allAmounts = candidates.map(c => c.amount).join('、');
+      alert(`目前持有的各份次數湊不出剛好${target}次(各份分別是:${allAmounts}),已經先幫你勾選到最接近且不超過的${sum}次,你可以自己再調整勾選。`);
+    }
+
+    // 🌟 跟GAS的findExactWholeInstanceCombo_/Worker的findExactWholeInstanceComboWorker_同一套動態規劃,
+    // 純前端版本,只是用來幫玩家「自動勾選」,不是正式的驗證(正式驗證還是後端做)。
+    function findExactWholeComboClient_(candidates, target) {
+      let dp = { 0: [] };
+      for (let i = 0; i < candidates.length; i++) {
+        const amt = candidates[i].amount;
+        if (amt <= 0) continue;
+        const next = {};
+        for (const sumKey in dp) {
+          const sumNum = parseInt(sumKey, 10);
+          if (!(sumKey in next)) next[sumKey] = dp[sumKey];
+          const newSum = sumNum + amt;
+          if (newSum <= target && !(newSum in dp) && !(newSum in next)) {
+            next[newSum] = dp[sumKey].concat([candidates[i]]);
+          }
+        }
+        dp = next;
+        if (target in dp) break;
+      }
+      return (target in dp) ? dp[target] : null;
     }
 
     function loadMyGiftCodesList_() {
@@ -3983,10 +4074,13 @@
       if (giftCodeActionInFlight) return;
       const itemName = document.getElementById('giftcode-item-select').value;
       if (!itemName) { alert('請選擇要轉換的道具'); return; }
-      const quantity = parseInt(document.getElementById('giftcode-qty-input').value, 10) || 1;
-      if (quantity < 1) { alert('數量至少要1個'); return; }
+      // 🌟🆕 盒子不能拆開贈送,改成直接勾選要送出哪幾份,不再用數量輸入框
+      const instanceIds = getCheckedGiftCodeInstanceIds_();
+      if (!instanceIds.length) { alert('請至少勾選一份道具'); return; }
+      const checkedAmounts = Array.from(document.querySelectorAll('.giftcode-instance-checkbox:checked')).map(cb => parseInt(cb.dataset.amount, 10) || 0);
+      const quantity = checkedAmounts.reduce((a, b) => a + b, 0);
       const notifyOnRedeem = document.getElementById('giftcode-notify-input').checked;
-      if (!confirm(`確定要把「${itemName}」x${quantity} 轉成一組一次性序號嗎？轉換後這份道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
+      if (!confirm(`確定要把勾選的${instanceIds.length}份「${itemName}」(共${quantity}次)轉成一組一次性序號嗎？轉換後這些道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
 
       giftCodeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, '產生中...');
@@ -4001,11 +4095,11 @@
         loadGeneralItems(true); // 🌟🔧 道具轉成序號後會從背包暫時消失(TRADE_LOCKED),外層背包清單也要跟著即時刷新,不然玩家會看到數量沒變
       }
       function runCreateGiftCodeViaGasAndPoll_() {
-        fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCode&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+        fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCodeByInstances&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
           .then(res => res.json())
           .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
           .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
-        pollInstrumentedActionResult_('createGeneralItemGiftCode', requestStartMs, () => settled).then(polled => {
+        pollInstrumentedActionResult_('createGeneralItemGiftCodeByInstances', requestStartMs, () => settled).then(polled => {
           if (settled) return;
           if (polled) { finishSuccess_(polled); return; }
           pollDone = true;
@@ -4013,7 +4107,7 @@
         });
       }
 
-      tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity, notifyOnRedeem)
+      tryCreateGeneralItemGiftCodeViaWorker_(itemName, instanceIds, notifyOnRedeem)
         .then(workerResult => {
           if (settled) return;
           if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
@@ -4029,9 +4123,9 @@
         });
     }
 
-    async function tryCreateGeneralItemGiftCodeViaWorker_(itemName, quantity, notifyOnRedeem) {
+    async function tryCreateGeneralItemGiftCodeViaWorker_(itemName, instanceIds, notifyOnRedeem) {
       try {
-        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createGeneralItemGiftCodeWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&quantity=${quantity}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createGeneralItemGiftCodeByInstancesWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
         return await res.json();
       } catch (e) {
         return null;
