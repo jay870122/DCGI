@@ -4188,7 +4188,7 @@
       container.innerHTML = codes.map(c => `
         <div style="background:#2F3136;border-radius:8px;padding:8px;font-size:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-            <div><b style="font-family:monospace;letter-spacing:1px">${c.code}</b>　${c.itemName}×${c.amount}</div>
+            <div><b style="font-family:monospace;letter-spacing:1px">${c.code}</b>　${c.itemName}×${c.instanceCount || 1}份${c.amount ? `(共${c.amount}次)` : ''}</div>
             <div style="white-space:nowrap">${GIFT_CODE_STATUS_LABEL_[c.status] || c.status}</div>
           </div>
           ${c.status === 'REDEEMED' && c.redeemedByName ? `<div style="color:#72767D;margin-top:2px;">兌換者：${c.redeemedByName.replace(/</g,'&lt;')}</div>` : ''}
