@@ -461,6 +461,9 @@
               </select>
               <button class="btn-action" style="padding:6px 10px;font-size:12px;background-color:#4F545C;white-space:nowrap" onclick="autoCheckGiftCodeInstances_()">自動勾選</button>
             </div>
+            <!-- 🌟🆕 一組序號可以放多種道具:勾好這一種的份數後按「加入清單」,再換下一種道具,最後一次產生序號 -->
+            <button class="btn-action" style="padding:6px;font-size:13px;background-color:#4F545C" onclick="addGiftCodeStagedItem_()">➕ 把勾選的份數加入清單(可再選其他道具)</button>
+            <div id="giftcode-staged-list" style="display:flex;flex-direction:column;gap:4px;"></div>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#B9BBBE;cursor:pointer">
               <input type="checkbox" id="giftcode-notify-input" checked style="width:auto">
               被兌換時私訊通知我
@@ -619,7 +622,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.84</div>
+    <div class="version-tag">系統版本：v5.4.87</div>
   </div>
 
   <script>
@@ -3649,9 +3652,13 @@
       if (!container) return;
       const itemName = document.getElementById('trade-session-item-select').value;
       const item = tradeSessionMyTradableItems_.find(it => it.itemName === itemName);
-      const instances = (item && item.instances) || [];
+      const stagedForItem = giftCodeStaged_.find(g => g.itemName === itemName);
+      const stagedIdSet = new Set((stagedForItem && stagedForItem.instanceIds) || []);
+      // 🌟🆕 已經加入清單的份數不再出現在勾選清單裡(避免重複加入),剩下的份數編號沿用原本的第N份
+      const instances = ((item && item.instances) || []).map((inst, idx) => ({ inst, idx })).filter(x => !stagedIdSet.has(x.inst.instanceId)).map(x => Object.assign({ _n: x.idx + 1 }, x.inst));
       if (!instances.length) { container.innerHTML = '<div style="color:#72767D;font-size:12px;padding:4px;">（沒有可選的份數）</div>'; return; }
-      container.innerHTML = instances.map((inst, idx) => {
+      container.innerHTML = instances.map((inst) => {
+        const idx = inst._n - 1;
         const expText = inst.expiresAt ? `，效期至${formatDateShort_(inst.expiresAt)}` : '';
         return `
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#DCDDDE;cursor:pointer;padding:3px 2px;">
@@ -4046,8 +4053,11 @@
     // 操作一致的賽跑架構(GAS回應+Worker輪詢兩條路線同時進行)。
     let giftCodeActionInFlight = false;
     let giftCodeMyTradableItems_ = [];
+    // 🌟🆕 已經「加入清單」、準備一起轉成同一組序號的多種道具:[{itemName, instanceIds, count, uses}]
+    let giftCodeStaged_ = [];
 
     function openGiftCode() {
+      giftCodeStaged_ = [];
       document.getElementById('gift-code-modal').style.display = 'flex';
       loadGiftCodeData();
     }
@@ -4098,6 +4108,37 @@
         if (isNaN(d.getTime())) return (v || '').toString();
         return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
       } catch (e) { return (v || '').toString(); }
+    }
+
+    // 🌟🆕 把目前勾選的份數加入「準備一起轉成序號」的清單;同一種道具再加會合併。
+    function addGiftCodeStagedItem_() {
+      const itemName = document.getElementById('giftcode-item-select').value;
+      if (!itemName) { alert('請選擇道具'); return; }
+      const boxes = Array.from(document.querySelectorAll('.giftcode-instance-checkbox:checked'));
+      if (!boxes.length) { alert('請先勾選至少一份道具'); return; }
+      const ids = boxes.map(cb => cb.value);
+      const uses = boxes.reduce((sum, cb) => sum + (parseInt(cb.dataset.amount, 10) || 0), 0);
+      const existing = giftCodeStaged_.find(g => g.itemName === itemName);
+      if (existing) { existing.instanceIds = existing.instanceIds.concat(ids); existing.count = existing.instanceIds.length; existing.uses += uses; }
+      else giftCodeStaged_.push({ itemName, instanceIds: ids, count: ids.length, uses });
+      renderGiftCodeStagedList_();
+      renderGiftCodeInstanceCheckboxes_();
+    }
+    function removeGiftCodeStagedItem_(itemName) {
+      giftCodeStaged_ = giftCodeStaged_.filter(g => g.itemName !== itemName);
+      renderGiftCodeStagedList_();
+      renderGiftCodeInstanceCheckboxes_();
+    }
+    function renderGiftCodeStagedList_() {
+      const box = document.getElementById('giftcode-staged-list');
+      if (!box) return;
+      if (!giftCodeStaged_.length) { box.innerHTML = ''; return; }
+      const esc = v => (v || '').toString().replace(/</g, '&lt;').replace(/'/g, '&#39;');
+      box.innerHTML = '<div style="font-size:12px;color:#B9BBBE;">📦 這組序號目前包含:</div>' + giftCodeStaged_.map(g => `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#2F3136;border-radius:4px;padding:4px 8px;font-size:12px;">
+          <span>${esc(g.itemName)}　${g.count}份(共${g.uses}次)</span>
+          <button class="btn-action" style="padding:1px 8px;font-size:11px;background-color:#ED4245" data-item="${esc(g.itemName)}" onclick="removeGiftCodeStagedItem_(this.dataset.item)">移除</button>
+        </div>`).join('');
     }
 
     function getCheckedGiftCodeInstanceIds_() {
@@ -4188,13 +4229,14 @@
       container.innerHTML = codes.map(c => `
         <div style="background:#2F3136;border-radius:8px;padding:8px;font-size:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-            <div><b style="font-family:monospace;letter-spacing:1px">${c.code}</b>　${c.itemName}×${c.instanceCount || 1}份${c.amount ? `(共${c.amount}次)` : ''}</div>
+            <div><b style="font-family:monospace;letter-spacing:1px">${c.code}</b>　${c.multi ? `${c.itemName}(共${c.instanceCount}份)` : `${c.itemName}×${c.instanceCount || 1}份${c.amount ? `(共${c.amount}次)` : ''}`}</div>
             <div style="white-space:nowrap">${GIFT_CODE_STATUS_LABEL_[c.status] || c.status}</div>
           </div>
           ${c.status === 'REDEEMED' && c.redeemedByName ? `<div style="color:#72767D;margin-top:2px;">兌換者：${c.redeemedByName.replace(/</g,'&lt;')}</div>` : ''}
           ${c.status === 'ACTIVE' ? `<div style="margin-top:6px;display:flex;gap:6px;">
             <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#4F545C" onclick="copyGiftCode_('${c.code}')">📋 複製序號</button>
-            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#5865F2" onclick="copyGiftCodeLink_('${c.code}')">🔗 複製連結</button>
+            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#5865F2" onclick="copyGiftCodeLink_('${c.code}')" title="貼到Discord會顯示這組序號裡有哪些道具">🔗 複製連結(Discord預覽)</button>
+            <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#4F545C" onclick="copyGiftCodeDirectLink_('${c.code}')" title="直接連到商店網址,貼到Discord不會有預覽卡片">🔗 複製直連(舊版)</button>
             <button class="btn-action" style="padding:2px 8px;font-size:11px;background-color:#ED4245" onclick="submitCancelGiftCode_('${c.code}', this)">取消</button>
           </div>` : ''}
         </div>
@@ -4209,10 +4251,22 @@
       }
     }
 
+    // 🌟 舊版直連:直接指向商店網址 ?redeem=序號(貼到Discord沒有預覽卡片,但網址最短、不經過Worker),跟上面的預覽連結兩種任選。
+    function copyGiftCodeDirectLink_(code) {
+      const link = `${window.location.origin}${window.location.pathname}?redeem=${encodeURIComponent(code)}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => alert('已複製直連(沒有Discord預覽卡片),對方點開連結登入後會自動帶出序號兌換！\n' + link)).catch(() => alert('連結：' + link));
+      } else {
+        alert('連結：' + link);
+      }
+    }
+
     // 🌟🆕 複製序號連結:帶?redeem=序號的分享連結,跟分享「兌換碼」連結共用同一套機制(maybeShowSharedRedeemCode)——
     // 對方點進連結、登入後會自動打開「序號兌換」彈窗、把序號預先填好(不會自動送出,對方自己按兌換確認)。
     function copyGiftCodeLink_(code) {
-      const link = `${window.location.origin}${window.location.pathname}?redeem=${encodeURIComponent(code)}`;
+      // 🌟🆕 改走Worker的/share端點:貼到Discord會顯示預覽卡片(這組序號裡有哪些道具、各幾份、是否已兌換),
+      // 點進去仍然會自動轉址到商店並帶出序號。加隨機亂碼(&r=)避免Discord快取住舊的狀態。
+      const link = `${DASHBOARD_WORKER_URL.replace(/\/$/, '')}/share?redeem=${encodeURIComponent(code)}&r=${Math.random().toString(36).slice(2, 8)}`;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(link).then(() => alert('已複製連結,傳給對方,對方點開連結登入後會自動帶出序號兌換！\n' + link)).catch(() => alert('連結：' + link));
       } else {
@@ -4222,15 +4276,20 @@
 
     function submitCreateGiftCode_(btn) {
       if (giftCodeActionInFlight) return;
-      const itemName = document.getElementById('giftcode-item-select').value;
-      if (!itemName) { alert('請選擇要轉換的道具'); return; }
-      // 🌟🆕 盒子不能拆開贈送,改成直接勾選要送出哪幾份,不再用數量輸入框
-      const instanceIds = getCheckedGiftCodeInstanceIds_();
-      if (!instanceIds.length) { alert('請至少勾選一份道具'); return; }
-      const checkedAmounts = Array.from(document.querySelectorAll('.giftcode-instance-checkbox:checked')).map(cb => parseInt(cb.dataset.amount, 10) || 0);
-      const quantity = checkedAmounts.reduce((a, b) => a + b, 0);
+      // 🌟🆕 一組序號可以放多種道具:已加入清單的 + 目前還勾著、沒按「加入清單」的份數,一起送出
+      const items = giftCodeStaged_.map(g => ({ itemName: g.itemName, instanceIds: g.instanceIds.slice() }));
+      const currentName = document.getElementById('giftcode-item-select').value;
+      const checkedBoxes = Array.from(document.querySelectorAll('.giftcode-instance-checkbox:checked'));
+      if (currentName && checkedBoxes.length) {
+        const ids = checkedBoxes.map(cb => cb.value);
+        const same = items.find(it => it.itemName === currentName);
+        if (same) same.instanceIds = same.instanceIds.concat(ids); else items.push({ itemName: currentName, instanceIds: ids });
+      }
+      if (!items.length) { alert('請至少勾選一份道具'); return; }
+      const totalCount = items.reduce((sum, it) => sum + it.instanceIds.length, 0);
+      const summaryText = items.map(it => `「${it.itemName}」${it.instanceIds.length}份`).join('、');
       const notifyOnRedeem = document.getElementById('giftcode-notify-input').checked;
-      if (!confirm(`確定要把勾選的${instanceIds.length}份「${itemName}」(共${quantity}次)轉成一組一次性序號嗎？轉換後這些道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
+      if (!confirm(`確定要把 ${summaryText}(共${totalCount}份)轉成一組一次性序號嗎？轉換後這些道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
 
       giftCodeActionInFlight = true;
       const restoreBtn = setBtnBusy_(btn, '產生中...');
@@ -4241,15 +4300,16 @@
       function finishSuccess_(data) {
         if (settled) return; settled = true; giftCodeActionInFlight = false; restoreBtn();
         alert(data.message);
+        giftCodeStaged_ = []; renderGiftCodeStagedList_();
         loadGiftCodeData();
         loadGeneralItems(true); // 🌟🔧 道具轉成序號後會從背包暫時消失(TRADE_LOCKED),外層背包清單也要跟著即時刷新,不然玩家會看到數量沒變
       }
       function runCreateGiftCodeViaGasAndPoll_() {
-        fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCodeByInstances&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
+        fetchWithTimeout_(`${GAS_API_URL}?action=createGeneralItemGiftCodeMulti&discordId=${currentUser.id}&items=${encodeURIComponent(JSON.stringify(items))}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, 20000)
           .then(res => res.json())
           .then(data => { if (settled) return; if (data.status !== 'success') { finishError_('❌ ' + data.message); return; } finishSuccess_(data); })
           .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
-        pollInstrumentedActionResult_('createGeneralItemGiftCodeByInstances', requestStartMs, () => settled).then(polled => {
+        pollInstrumentedActionResult_('createGeneralItemGiftCodeMulti', requestStartMs, () => settled).then(polled => {
           if (settled) return;
           if (polled) { finishSuccess_(polled); return; }
           pollDone = true;
@@ -4257,7 +4317,7 @@
         });
       }
 
-      tryCreateGeneralItemGiftCodeViaWorker_(itemName, instanceIds, notifyOnRedeem)
+      tryCreateGeneralItemGiftCodeViaWorker_(items, notifyOnRedeem)
         .then(workerResult => {
           if (settled) return;
           if (workerResult && workerResult.status === 'success') { finishSuccess_(workerResult); return; }
@@ -4273,9 +4333,9 @@
         });
     }
 
-    async function tryCreateGeneralItemGiftCodeViaWorker_(itemName, instanceIds, notifyOnRedeem) {
+    async function tryCreateGeneralItemGiftCodeViaWorker_(items, notifyOnRedeem) {
       try {
-        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createGeneralItemGiftCodeByInstancesWorker&discordId=${currentUser.id}&itemName=${encodeURIComponent(itemName)}&instanceIds=${encodeURIComponent(JSON.stringify(instanceIds))}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=createGeneralItemGiftCodeMultiWorker&discordId=${currentUser.id}&items=${encodeURIComponent(JSON.stringify(items))}&notifyOnRedeem=${notifyOnRedeem}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
         return await res.json();
       } catch (e) {
         return null;
