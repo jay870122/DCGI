@@ -274,7 +274,11 @@
       0%, 100% { transform: translateY(-50%); }
       50% { transform: translateY(-62%); }
     }
-  </style>
+  
+    /* 🌟🆕 道具清單精簡模式:隱藏每張卡片的詳細資訊,點名稱可單獨展開 */
+    .gi-compact .gi-card:not(.gi-open) .gi-extra { display: none; }
+    .gi-compact .gi-card .gi-name { cursor: pointer; text-decoration: underline dotted #72767D; }
+</style>
 </head>
 <body>
 
@@ -622,7 +626,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.87</div>
+    <div class="version-tag">系統版本：v5.4.88</div>
   </div>
 
   <script>
@@ -2738,11 +2742,13 @@
           formattedGeneralItemRemark_ = formattedGeneralItemRemark_.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>');
         }
         const generalItemRemarkHtml_ = formattedGeneralItemRemark_ ? `<div class="item-remark">📝 ${formattedGeneralItemRemark_}</div>` : '';
+        const giNameAttr_ = String(g.itemName || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const giExpireMs_ = g.nearestExpiresAt ? new Date(g.nearestExpiresAt).getTime() : 0;
         return `
-        <div style="background:#2F3136;border-radius:8px;padding:10px 12px">
+        <div class="gi-card" data-idx="${idx}" data-name="${giNameAttr_}" data-count="${g.totalCount}" data-expire="${giExpireMs_ || ''}" data-tradable="${g.tradable ? 1 : 0}" style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <span>
-              <b>${g.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（共 ${g.totalCount} 個）</span>
+              <b class="gi-name" onclick="toggleGiCardOpen_(this)">${g.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（共 ${g.totalCount} 個）</span>
               ${countdownHtml}
               ${maxOpenHintHtml}
               ${openLimitHintHtml}
@@ -2754,10 +2760,12 @@
               <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#ED4245;flex-shrink:0" onclick="discardGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx}, ${g.totalCount})">🗑️ 丟棄</button>
             </span>
           </div>
+          <div class="gi-extra">
           ${generalItemRemarkHtml_}
           ${breakdownHtml}
           ${instancesVaryHtml_}
           ${contentBoxHtml}
+          </div>
         </div>`;
       }).join('');
 
@@ -2800,8 +2808,76 @@
         </div>`;
       }).join('');
 
-      container.innerHTML = groupsHtml + deleteControlsHtml + unusableHtml;
+      // 🌟🆕 道具很多時的整理工具列:搜尋、排序、只看可交易、精簡模式(只有5種以上才顯示,道具少時維持原樣不佔版面)
+      const giP_ = giViewPrefs_;
+      const giToolbarHtml = groups.length >= 5 ? `
+        <div id="gi-toolbar" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#2F3136;border-radius:8px;padding:8px 10px;position:sticky;top:0;z-index:2">
+          <input type="search" id="gi-search" placeholder="🔍 搜尋道具名稱" value="${String(giP_.q || '').replace(/"/g, '&quot;')}" oninput="giViewPrefs_.q=this.value;giApplyView_()" style="flex:1 1 130px;min-width:110px;padding:5px 8px;font-size:12px">
+          <select id="gi-sort" onchange="giViewPrefs_.sort=this.value;giSavePrefs_();giApplyView_()" style="padding:5px;font-size:12px">
+            <option value="default"${giP_.sort === 'default' ? ' selected' : ''}>預設排序</option>
+            <option value="expire"${giP_.sort === 'expire' ? ' selected' : ''}>⏳ 即將過期優先</option>
+            <option value="count"${giP_.sort === 'count' ? ' selected' : ''}>📦 數量多→少</option>
+            <option value="name"${giP_.sort === 'name' ? ' selected' : ''}>🔤 名稱</option>
+          </select>
+          <label style="font-size:12px;color:#B9BBBE;cursor:pointer;white-space:nowrap"><input type="checkbox" id="gi-tradable-only" ${giP_.tradable ? 'checked' : ''} onchange="giViewPrefs_.tradable=this.checked;giSavePrefs_();giApplyView_()"> 只看可交易</label>
+          <label style="font-size:12px;color:#B9BBBE;cursor:pointer;white-space:nowrap"><input type="checkbox" id="gi-compact" ${giP_.compact ? 'checked' : ''} onchange="giViewPrefs_.compact=this.checked;giSavePrefs_();giApplyView_()"> 精簡模式</label>
+          <span id="gi-count-label" style="font-size:11px;color:#72767D;margin-left:auto"></span>
+        </div>` : '';
+      container.innerHTML = giToolbarHtml + `<div id="gi-groups-wrap" style="display:flex;flex-direction:column;gap:8px">${groupsHtml}</div>` + deleteControlsHtml + unusableHtml;
+      giApplyView_();
       startGeneralItemCountdowns_();
+    }
+
+    // 🌟🆕 道具清單檢視偏好(排序/只看可交易/精簡模式會記在這個瀏覽器,搜尋字不記)
+    let giViewPrefs_ = (() => {
+      const d = { q: '', sort: 'default', tradable: false, compact: false };
+      try { Object.assign(d, JSON.parse(localStorage.getItem('giViewPrefs') || '{}'), { q: '' }); } catch (e) {}
+      return d;
+    })();
+    function giSavePrefs_() {
+      try { localStorage.setItem('giViewPrefs', JSON.stringify({ sort: giViewPrefs_.sort, tradable: giViewPrefs_.tradable, compact: giViewPrefs_.compact })); } catch (e) {}
+    }
+    // 在已經畫好的卡片上直接套用搜尋/篩選/排序(不重新讀取資料,也不會動到卡片裡的輸入框數量)
+    function giApplyView_() {
+      const wrap = document.getElementById('gi-groups-wrap');
+      if (!wrap) return;
+      const hasToolbar = !!document.getElementById('gi-toolbar');
+      const p = hasToolbar ? giViewPrefs_ : { q: '', sort: 'default', tradable: false, compact: false };
+      const q = (p.q || '').trim().toLowerCase();
+      const cards = Array.from(wrap.querySelectorAll('.gi-card'));
+      const key = (c) => c.dataset;
+      cards.sort((a, b) => {
+        if (p.sort === 'expire') {
+          const ea = Number(key(a).expire) || Infinity, eb = Number(key(b).expire) || Infinity;
+          if (ea !== eb) return ea - eb;
+        } else if (p.sort === 'count') {
+          const d = Number(key(b).count) - Number(key(a).count);
+          if (d) return d;
+        } else if (p.sort === 'name') {
+          const d = key(a).name.localeCompare(key(b).name, 'zh-Hant');
+          if (d) return d;
+        }
+        return Number(key(a).idx) - Number(key(b).idx);
+      });
+      let shown = 0;
+      cards.forEach(c => {
+        wrap.appendChild(c);
+        const ok = (!q || key(c).name.toLowerCase().includes(q)) && (!p.tradable || key(c).tradable === '1');
+        c.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      wrap.classList.toggle('gi-compact', !!p.compact);
+      const lbl = document.getElementById('gi-count-label');
+      if (lbl) lbl.textContent = `顯示 ${shown} / ${cards.length} 種`;
+      let emptyEl = document.getElementById('gi-empty-hint');
+      if (shown === 0 && cards.length > 0) {
+        if (!emptyEl) { emptyEl = document.createElement('p'); emptyEl.id = 'gi-empty-hint'; emptyEl.style.cssText = 'text-align:center;color:#B9BBBE;font-size:13px'; emptyEl.textContent = '沒有符合條件的道具'; wrap.appendChild(emptyEl); }
+      } else if (emptyEl) emptyEl.remove();
+    }
+    // 精簡模式下,點道具名稱可以單獨展開/收起那一張的詳細資訊(備註、內容物一覽、各份剩餘次數…)
+    function toggleGiCardOpen_(el) {
+      const card = el.closest('.gi-card');
+      if (card && card.parentElement && card.parentElement.classList.contains('gi-compact')) card.classList.toggle('gi-open');
     }
 
     function toggleGeneralItemPoolBox_(boxId) {
