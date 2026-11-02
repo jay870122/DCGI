@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.25</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.27</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1863,9 +1863,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <table id="adjust-player-table" style="min-width:max-content"><thead><tr id="adjust-player-thead"><th>玩家</th></tr></thead><tbody id="adjust-player-tbody"></tbody></table>
       </div>
 
-      <div class="fsep">同時發放序號(選填) <span class="hint">這次勾選的每位玩家,每種序號都各發一組;不管下面「私訊通知」有沒有勾,序號一定會私訊給玩家</span></div>
+      <div class="fsep">同時發放序號(選填) <span class="hint">這次勾選的每位玩家,每種序號都各發一組;私訊通知獨立於下面的「調整完成後私訊通知」,自己有自己的勾選</span></div>
       <div id="adjust-serial-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;grid-column:span 2"></div>
       <button class="btn-cancel" onclick="addAdjustSerialRow()" style="grid-column:span 2">➕ 新增一種序號</button>
+      <div class="field full" style="margin-top:-2px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal">
+          <input type="checkbox" id="adjust-serial-notify" checked style="width:auto">
+          發放序號時私訊通知玩家(取消勾選=只發序號、不私訊,玩家要自己到背包/紀錄裡看)
+        </label>
+      </div>
 
       <div class="fsep">同時發放道具禮包(選填) <span class="hint">先加要發放的道具種類,底下每個玩家表格會多一欄,各自填自己要拿到的數量(可以都不一樣,留空=這位玩家這項不發)</span></div>
       <div id="adjust-itemgrant-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;grid-column:span 2"></div>
@@ -4838,6 +4844,7 @@ async function addRewardKeys() {
 let adminUsersCanManage = false;
 // ── 玩家貨幣管理 ──
 let pcPlayers = [], pcCurrencyFields = [], pcTableColumns = [], pcRoleMap = {};
+let pcSort = { key: null, dir: -1 }; // 🌟 表頭點擊排序:dir -1=大到小、1=小到大;同一欄再點一次切換,第三次取消排序
 let pcKeyPools = []; // 🌟 序號庫摘要(名稱+剩餘可用數),開批次調整面板時才去抓,不用每次載入頁面都抓
 let pcSelectedIds = new Set();
 let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動用哪幾種貨幣
@@ -4854,8 +4861,10 @@ async function loadPlayerCurrency() {
 
   // 🌟 依表格欄位清單動態組表頭
   const thead = document.getElementById('pc-thead-row');
-  thead.innerHTML = '<th style="width:36px"><input type="checkbox" id="pc-select-all" onchange="toggleAllPlayerCurrency(this.checked)"></th><th>玩家</th>'
-    + pcTableColumns.map(f => `<th>${f.display}</th>`).join('');
+  pcSort = { key: null, dir: -1 };
+  thead.innerHTML = '<th style="width:36px"><input type="checkbox" id="pc-select-all" onchange="toggleAllPlayerCurrency(this.checked)"></th>'
+    + '<th class="pc-sortable" data-key="__name" onclick="sortPlayerCurrency(\'__name\')" style="cursor:pointer;user-select:none">玩家<span class="pc-sort-arrow"></span></th>'
+    + pcTableColumns.map(f => `<th class="pc-sortable" data-key="${f.internal}" onclick="sortPlayerCurrency(this.dataset.key)" style="cursor:pointer;user-select:none" title="點擊排序">${f.display}<span class="pc-sort-arrow"></span></th>`).join('');
 
   // 🌟 依身分組對照表組出篩選下拉選單
   const roleSel = document.getElementById('pc-role-filter');
@@ -4874,6 +4883,18 @@ function renderPlayerCurrencyTable() {
     if (q && !p.nickname.toLowerCase().includes(q) && !p.discordId.includes(q)) return false;
     return true;
   });
+  if (pcSort.key) {
+    const k = pcSort.key, d = pcSort.dir;
+    items.sort((a, b) => {
+      if (k === '__name') return d * (-1) * a.nickname.localeCompare(b.nickname, 'zh-Hant') || 0;
+      const va = Number(a.balances[k]) || 0, vb = Number(b.balances[k]) || 0;
+      return d * (va - vb) || a.nickname.localeCompare(b.nickname, 'zh-Hant');
+    });
+  }
+  document.querySelectorAll('#pc-thead-row .pc-sortable').forEach(th => {
+    const arrow = th.querySelector('.pc-sort-arrow');
+    if (arrow) arrow.textContent = (pcSort.key === th.dataset.key) ? (pcSort.dir === -1 ? ' ▼' : ' ▲') : '';
+  });
   document.getElementById('pc-count').textContent = `${items.length} / ${pcPlayers.length} 人`;
   document.getElementById('pc-tbody').innerHTML = items.length === 0
     ? `<tr><td colspan="${pcTableColumns.length+2}" class="empty">沒有符合條件的玩家</td></tr>`
@@ -4882,6 +4903,14 @@ function renderPlayerCurrencyTable() {
         <td>${p.nickname}<br><span class="cell-id" style="font-size:11px">${p.discordId}</span></td>
         ${pcTableColumns.map(f => `<td>${p.balances[f.internal]}</td>`).join('')}
       </tr>`).join('');
+}
+
+// 🌟 點表頭排序:第一次大到小(名稱欄是A→Z)、第二次小到大、第三次取消排序回到原本順序
+function sortPlayerCurrency(key) {
+  if (pcSort.key !== key) pcSort = { key, dir: -1 };
+  else if (pcSort.dir === -1) pcSort.dir = 1;
+  else pcSort = { key: null, dir: -1 };
+  renderPlayerCurrencyTable();
 }
 
 function toggleAllPlayerCurrency(checked) {
@@ -4902,6 +4931,7 @@ async function openAdjustPanel() {
   document.getElementById('adjust-reason').value = '';
   document.getElementById('adjust-notify').checked = false;
   document.getElementById('adjust-broadcast').checked = false;
+  document.getElementById('adjust-serial-notify').checked = true;
   document.getElementById('adjust-warning').textContent = '';
   adjustColumns = [];
   adjustItemColumns = [];
@@ -5113,6 +5143,7 @@ async function confirmAdjustCurrency() {
     reason: document.getElementById('adjust-reason').value,
     serialKeyNames: JSON.stringify(serialKeyNames),
     serialTargetIds: JSON.stringify(Array.from(pcSelectedIds)),
+    serialNotify: document.getElementById('adjust-serial-notify').checked,
   });
   btn.disabled = false; btn.textContent = '✅ 確認套用';
 
