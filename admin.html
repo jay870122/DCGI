@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.34</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.35</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1782,16 +1782,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>單次最多開啟數量 <span class="hint">選填,留空=使用全站預設上限(目前500)。玩家在前台一次要開這個道具幾個,不能超過這裡設定的數字</span></label>
         <input id="it-maxopen" type="number" min="1" placeholder="留空=預設值">
       </div>
-      <div class="field full" style="display:flex;align-items:center;gap:8px">
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="it-tradable" style="width:auto"><label for="it-tradable" style="margin:0">🤝 開放玩家互相交易 <span class="hint">勾選後,持有這個模板道具的玩家可以在網頁上發起跟其他玩家交換/贈送</span></label>
       </div>
-      <div class="field full" style="display:flex;align-items:center;gap:8px">
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="it-autoopen" style="width:auto"><label for="it-autoopen" style="margin:0">⏰ 過期自動開啟 <span class="hint">勾選後,玩家沒在期限內打開的這個道具,過期後系統會自動代開並發放獎勵(約每幾分鐘檢查一次,需要機器人在線);沒勾選的過期就失效。需要設定過期時間才有意義</span></label>
       </div>
-      <div class="field full" style="display:flex;align-items:center;gap:8px">
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="it-allowdiscard" style="width:auto" checked><label for="it-allowdiscard" style="margin:0">🗑️ 允許玩家丟棄 <span class="hint">取消勾選後,玩家背包不會顯示「丟棄」按鈕,後端也會擋下丟棄請求</span></label>
       </div>
-      <div class="field full" style="display:flex;align-items:center;gap:8px">
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="it-requiretrade" style="width:auto"><label for="it-requiretrade" style="margin:0">⚠️ 強迫交易(需交易後才能使用) <span class="hint">勾選後,玩家拿到的這個道具一定要先透過一次已完成的交易轉手過(交易出去或交易回來都算),才能打開使用——需要同時勾選「開放玩家互相交易」,不然道具會卡死</span></label>
       </div>
       <div class="field">
@@ -1895,7 +1895,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field" style="display:flex;align-items:center;gap:8px;padding-top:24px">
         <input type="checkbox" id="ggi-notify" style="width:auto"><label for="ggi-notify" style="margin:0">私訊通知玩家</label>
       </div>
-      <div class="field" style="display:flex;align-items:center;gap:8px">
+      <div class="field" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="ggi-broadcast" style="width:auto"><label for="ggi-broadcast" style="margin:0">公開公告到大獎頻道</label>
       </div>
       <div class="field full" style="text-align:right">
