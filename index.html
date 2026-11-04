@@ -656,7 +656,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.93</div>
+    <div class="version-tag">系統版本：v5.4.96</div>
   </div>
 
   <script>
@@ -3229,6 +3229,8 @@
     // 🌟 開啟(使用)一個通用道具:套用跟BINGO道具一樣的賽跑架構(GAS回應 vs Worker輪詢兩條路線同時進行)
     // 🌟 背包:顯示完整的自訂變數清單(不管主頁面有沒有顯示,這裡一律列出來)
     let latestCustomVars = [];
+    let latestBalances_ = { s1: 0, s2: 0, s3: 0 };
+    let cartBalanceStale_ = false; // 結帳成功後餘額還沒重新讀取(獎勵可能也會改變餘額),關閉購物車時才會更新
     let latestRoleDetails = []; // 🌟 玩家目前持有的身分組(含分類),給背包彈窗分類顯示用
     // 🌟 序號兌換:輸入兌換碼領取獎勵,跟BINGO/通用道具用同一套賽跑架構
     let redeemCodeActionInFlight = false;
@@ -5208,6 +5210,8 @@ function fetchScoresAndShop(discordId, callback = null) {
 
           document.querySelectorAll('.dynamic-score-item').forEach(e => e.remove());
           latestCustomVars = data.customVars || []; // 🌟 背包彈窗要用完整清單(不篩選)
+          latestBalances_ = { s1: data.s1, s2: data.s2, s3: data.s3 }; // 🌟 購物車顯示目前餘額/扣完後餘額用
+          cartBalanceStale_ = false;
           // 🌟🆕 修正bug:「背包裡的貨幣清單沒有因為開道具而即時更新」——開道具成功後會呼叫
           // fetchScoresAndShop()刷新latestCustomVars(資料本身是新的),但如果背包彈窗當下正開著,
           // 畫面上已經畫出來的那份backpack-list-container是舊的DOM,不會自己跟著重新渲染,玩家
@@ -6036,9 +6040,40 @@ function fetchScoresAndShop(discordId, callback = null) {
     // 的檢查跟單獨購買完全一樣,後端沒有新增任何東西。抽獎、賭博、終極密碼、有選項的、需要密碼的、
     // 條件福利([持有])這些特殊商品不能加入;結帳時如果Worker回「unsupported」也會直接跳過,不會fallback到GAS。
     // ============================================================
+    // 依商品上的貨幣名稱找出玩家目前持有量;找不到回傳null(不亂猜)
+    // 把{貨幣:花費}整理成確認視窗用的多行文字:「幻彩水晶：目前 500 → 扣完 350」(查不到餘額的貨幣略過)
+    function balanceLinesText_(totals) {
+      const lines = [];
+      Object.keys(totals).forEach(k => {
+        const bal = cartBalanceOf_(k);
+        if (bal === null || !(totals[k] > 0)) return;
+        const after = bal - totals[k];
+        lines.push(`・${k}：目前 ${bal} → 扣完 ${after}${after < 0 ? '(⚠️餘額不足)' : ''}`);
+      });
+      return lines.length ? '\n\n💼 餘額預估：\n' + lines.join('\n') : '';
+    }
+    function cartBalanceOf_(currencyName) {
+      const n = (currencyName || '').toString().trim();
+      const num = (v) => { const x = Number(String(v).replace(/,/g, '')); return isNaN(x) ? null : x; };
+      if (n === '幻彩水晶' || n === '升階2') return num(latestBalances_.s2);
+      if (n === '升階1') return num(latestBalances_.s1);
+      if (n === '升階3') return num(latestBalances_.s3);
+      const v = (latestCustomVars || []).find(x => (x.display || '').toString().trim() === n);
+      return v ? num(v.value) : null;
+    }
     let cartLines_ = []; // [{itemId, optionIndex, optionName, qty}]
     let cartBusy_ = false;
     let cartDirty_ = false; // 結帳過(有成功購買)的話,關閉購物車時要重新整理商店資料
+
+    // 結帳中離開頁面(關分頁/重新整理)會讓還沒送出的項目中斷,跳出瀏覽器的離開確認。
+    // 注意:現代瀏覽器出於安全考量,會顯示它自己的通用文字,不一定會顯示下面這句自訂訊息。
+    window.addEventListener('beforeunload', (e) => {
+      if (cartBusy_) {
+        e.preventDefault();
+        e.returnValue = '請等購買完成再離開';
+        return e.returnValue;
+      }
+    });
 
     function isCartEligible_(item) {
       if (!item || item.state !== 'available') return false;
@@ -6144,7 +6179,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       renderCart_();
     }
     function closeCart_() {
-      if (cartBusy_) { alert('正在結帳中,請等結果出來再關閉。'); return; }
+      if (cartBusy_) { alert('正在結帳中,請等購買完成再關閉。'); return; }
       document.getElementById('cart-modal').style.display = 'none';
       if (cartDirty_) { cartDirty_ = false; fetchScoresAndShop(currentUser.id); }
     }
@@ -6205,8 +6240,22 @@ function fetchScoresAndShop(discordId, callback = null) {
         </div>`;
       }).join('');
       const totals = cartTotals_();
-      const totalText = Object.keys(totals).map(k => formatCost_(totals[k], k)).join(' + ') || '免費';
-      sumEl.innerHTML = `<div style="background:#202225;border-radius:8px;padding:10px 12px;font-size:14px">🧾 目前花費：<b style="color:#FEE75C">${totalText}</b><br><span style="font-size:11px;color:#72767D">共 ${cartLines_.reduce((n, l) => n + l.qty, 0)} 件;實際扣款以結帳當下的價格、折扣與限購為準</span></div>`;
+      const keys = Object.keys(totals);
+      let insufficient = false;
+      const rowsHtml = keys.map(k => {
+        const cost = totals[k];
+        const bal = cartBalanceOf_(k);
+        if (bal === null) return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${k}</span><span>花費 <b style="color:#FEE75C">${cost}</b>　<span style="color:#72767D">(查不到目前餘額)</span></span></div>`;
+        const after = bal - cost;
+        if (after < 0) insufficient = true;
+        return `<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>${k}</span><span>目前 <b>${bal}</b> → 花費 <b style="color:#FEE75C">${cost}</b> → 扣完 <b style="color:${after < 0 ? '#ED4245' : '#43B581'}">${after}</b></span></div>`;
+      }).join('');
+      sumEl.innerHTML = `<div style="background:#202225;border-radius:8px;padding:10px 12px;font-size:14px">
+        🧾 目前花費${keys.length === 0 ? '：<b style="color:#FEE75C">免費</b>' : ''}
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${rowsHtml}</div>
+        ${insufficient ? '<div style="color:#ED4245;font-size:12px;margin-top:6px">⚠️ 有貨幣餘額不足,結帳時可能有項目會失敗(依序購買,先買的先扣)</div>' : ''}
+        <div style="font-size:11px;color:#72767D;margin-top:6px">共 ${cartLines_.reduce((n, l) => n + l.qty, 0)} 件;「扣完」只是預估,實際以結帳當下的價格、折扣與限購為準,開出的獎勵也可能增加餘額${cartBalanceStale_ ? '<br>⚠️ 剛結帳過,目前餘額尚未更新,關閉購物車後會自動重新整理' : ''}</div>
+      </div>`;
       checkoutBtn.disabled = false;
     }
 
@@ -6252,12 +6301,13 @@ function fetchScoresAndShop(discordId, callback = null) {
       });
       const totalText = Object.keys(totals).map(k => formatCost_(totals[k], k)).join(' + ') || '免費';
       const listText = plan.map(({ name, qty }) => `・${name} x${qty}`).join('\n');
-      if (!confirm(`確定要一次購買以下 ${plan.length} 項商品嗎？\n\n${listText}\n\n🧾 預計花費：${totalText}\n\n⚠️ 會依序一個一個購買,購買成功後無法取消。`)) return;
+      if (!confirm(`確定要一次購買以下 ${plan.length} 項商品嗎？\n\n${listText}\n\n🧾 預計花費：${totalText}${balanceLinesText_(totals)}\n\n⚠️ 會依序一個一個購買,購買成功後無法取消。`)) return;
 
       cartBusy_ = true;
       const btn = document.getElementById('cart-checkout-btn');
       const resultEl = document.getElementById('cart-result');
       btn.disabled = true; document.getElementById('cart-clear-btn').disabled = true;
+      resultEl.textContent = '⏳ 購買進行中,請等購買完成再離開頁面或關閉視窗…';
       const doneLines = [], failLines = skipped.slice();
       let aborted = false;
       for (let i = 0; i < plan.length; i++) {
@@ -6280,7 +6330,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       // 成功的從購物車移除,失敗的留著讓玩家調整後再試
       const doneKeys = new Set(doneLines.map(d => d.key));
       cartLines_ = cartLines_.filter(l => !doneKeys.has(cartKey_(l)));
-      if (doneLines.length > 0) cartDirty_ = true;
+      if (doneLines.length > 0) { cartDirty_ = true; cartBalanceStale_ = true; }
       cartBusy_ = false;
       btn.textContent = '💳 一次購買';
       document.getElementById('cart-clear-btn').disabled = false;
@@ -6367,6 +6417,16 @@ function fetchScoresAndShop(discordId, callback = null) {
         }
       }
 
+      // 🌟 確認視窗附上「目前餘額 → 扣完餘額」預估(條件福利/賭博不實際扣款或有自己的說明,不加)
+      let balanceNote = '';
+      if (!isHold && !gOptSelect && itemForExtraCost) {
+        const unitPrice = selectedOptionInfo ? (Number(selectedOptionInfo.price) || 0) : (Number(itemForExtraCost.price) || 0);
+        const tt = {};
+        tt[itemForExtraCost.displayCurrency] = unitPrice * qty;
+        (itemForExtraCost.extraCost || []).forEach(e => { tt[e.displayName] = (tt[e.displayName] || 0) + (Number(e.amount) || 0) * qty; });
+        balanceNote = balanceLinesText_(tt);
+      }
+
       let confirmMsg = isHold 
         ? `🎁 此為條件福利！\n\n系統僅會驗證您是否持有足夠的【${currencyName}】作為領取條件，實際扣款為 0。\n確定要領取 ${qty} 個 ${displayItemName} 嗎？` 
         : gOptSelect
@@ -6374,7 +6434,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         : selectedOptionInfo
         ? `確定要${formatCostPhrase_(selectedOptionInfo.price * qty, currencyName)}兌換「${selectedOptionInfo.name}」x${qty} 嗎？${altConfirmNote}`
         : `確定要${formatCostPhrase_((itemForExtraCost ? itemForExtraCost.price : 0) * qty, currencyName)}兌換 ${qty} 個 ${displayItemName} 嗎？${extraCostNote}${altConfirmNote}`;
-      if (!confirm(confirmMsg)) return;
+      if (!confirm(confirmMsg + balanceNote)) return;
 
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
