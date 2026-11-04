@@ -278,6 +278,14 @@
     /* 🌟🆕 道具清單精簡模式:隱藏每張卡片的詳細資訊,點名稱可單獨展開 */
     .gi-compact .gi-card:not(.gi-open) .gi-extra { display: none; }
     .gi-compact .gi-card .gi-name { cursor: pointer; text-decoration: underline dotted #72767D; }
+
+    /* 🌟🆕 購物車:浮動按鈕 + 彈窗 */
+    #cart-fab { display: none; position: fixed; right: 16px; bottom: 18px; z-index: 900; background: #5865F2; color: #fff; border: none; border-radius: 28px; padding: 12px 18px; font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+    #cart-fab:hover { background: #4752C4; }
+    .cart-line { background: #202225; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid #40444B; }
+    .cart-line .cart-qty { width: 64px; padding: 4px; text-align: center; }
+    .btn-cart { background-color: #5865F2; padding: 8px 12px; width: auto; flex-grow: 0; white-space: nowrap; }
+    .btn-cart:hover { background-color: #4752C4; }
 </style>
 </head>
 <body>
@@ -342,6 +350,26 @@
           <div id="general-items-container" style="display:flex;flex-direction:column;gap:8px;"></div>
         </div>
         <div id="backpack-roles-container" style="margin-top:16px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🌟🆕 購物車:只收一般兌換商品(含盲盒);抽獎/賭博/終極密碼/密碼鎖定等特殊商品不能加入(BINGO道具、有選項的商品可以) -->
+  <button id="cart-fab" onclick="openCart_()">🛒 購物車 <span id="cart-fab-count">0</span></button>
+  <div id="cart-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeCart_()">×</span>
+        <h2 style="margin:0;">🛒 購物車</h2>
+      </div>
+      <div class="modal-body">
+        <div id="cart-lines"></div>
+        <div id="cart-summary" style="margin-top:10px"></div>
+        <div id="cart-result" style="margin-top:10px;font-size:13px;white-space:pre-wrap"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn-action" id="cart-clear-btn" style="background-color:#4F545C" onclick="clearCart_()">🗑️ 清空</button>
+          <button class="btn-action" id="cart-checkout-btn" style="background-color:#43B581;flex:1" onclick="checkoutCart_()">💳 一次購買</button>
+        </div>
       </div>
     </div>
   </div>
@@ -626,7 +654,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.88</div>
+    <div class="version-tag">系統版本：v5.4.91</div>
   </div>
 
   <script>
@@ -5589,6 +5617,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             <div class="item-actions">
               <input type="number" id="qty-${safeId}" class="qty-input" value="1" min="1" max="${maxQty}" oninput="updateAltPreview('${safeId}'); updateGamblingPreview('${safeId}');">
               <button id="btn-${safeId}" class="btn btn-buy" onclick="buyItem('${item.id}', '${displayName}', '${safeId}', ${maxQty}, '${item.displayCurrency}')">${isLocked ? '🔒 兌換' : (item.isGambling ? '下注' : '兌換')}</button>
+              ${isCartEligible_(item) ? `<button class="btn btn-cart" onclick="addToCart_('${item.id}', '${safeId}')" title="加入購物車">🛒 加入</button>` : ''}
             </div>
           `;
         } else {
@@ -5997,6 +6026,266 @@ function fetchScoresAndShop(discordId, callback = null) {
         pollDone = true;
         checkBothGaveUp_();
       });
+    }
+
+    // ============================================================
+    // 🛒 購物車(只給一般兌換商品/盲盒用,一次結帳)
+    // 結帳其實就是「依序」對每個商品呼叫原本的Worker購買(processPurchaseWorker),所以庫存/限購/身分組/獎勵發放
+    // 的檢查跟單獨購買完全一樣,後端沒有新增任何東西。抽獎、賭博、終極密碼、有選項的、需要密碼的、
+    // 條件福利([持有])這些特殊商品不能加入;結帳時如果Worker回「unsupported」也會直接跳過,不會fallback到GAS。
+    // ============================================================
+    let cartLines_ = []; // [{itemId, optionIndex, optionName, qty}]
+    let cartBusy_ = false;
+    let cartDirty_ = false; // 結帳過(有成功購買)的話,關閉購物車時要重新整理商店資料
+
+    function isCartEligible_(item) {
+      if (!item || item.state !== 'available') return false;
+      if (item.isRaffle || item.isGambling) return false;
+      if (item.ultimatePassword && item.ultimatePassword.enabled) return false;
+      if ((item.name || '').includes('[持有]')) return false;
+      if ((item.categoryLocked && !item.categoryUnlocked) || (item.itemLocked && !item.itemUnlocked)) return false;
+      if (item.hasRolePermission === false) return false;
+      return true;
+    }
+    function cartItemMax_(item, optIdx) {
+      let max = item.limits && item.limits.effectiveStock !== '無限' ? Number(item.limits.effectiveStock) || 0 : 999;
+      // 有選項的商品:選項自己也可能有庫存上限
+      if (optIdx !== undefined && optIdx !== '' && item.itemOptions && item.itemOptions[optIdx]) {
+        const st = item.itemOptions[optIdx].stock;
+        if (st !== null && st !== undefined) max = Math.min(max, Number(st) || 0);
+      }
+      return max;
+    }
+    // 購物車每一行的唯一key:同一個商品選不同選項視為不同行
+    function cartKey_(l) { return l.itemId + '#' + (l.optionIndex === undefined || l.optionIndex === '' ? '' : l.optionIndex); }
+    function cartOption_(item, l) {
+      if (!(item.itemOptions && item.itemOptions.length > 0)) return null;
+      const o = item.itemOptions[l.optionIndex];
+      // 選項順序可能被管理員改過:名稱對不上就當成選項已變更
+      return (o && o.name === l.optionName) ? o : undefined; // null=沒選項;undefined=選項已變更/不存在
+    }
+    function cartLinePrice_(item, l) {
+      const o = cartOption_(item, l);
+      return o ? (Number(o.price) || 0) : (Number(item.price) || 0);
+    }
+    function cartLineName_(item, l) {
+      const o = cartOption_(item, l);
+      return cartItemName_(item) + (o ? `「${o.name}」` : (l.optionName ? `「${l.optionName}」` : ''));
+    }
+    function cartItemName_(item) {
+      return (item.name || '').replace('[持有]', '').replace('[連結限定]', '').trim();
+    }
+
+    function addToCart_(itemId, safeId) {
+      const item = currentShopItems.find(it => it.id === itemId);
+      if (!isCartEligible_(item)) { alert('這個商品不能加入購物車,請直接在商店頁購買。'); return; }
+      const qtyInput = document.getElementById(`qty-${safeId}`);
+      const qty = parseInt(qtyInput && qtyInput.value, 10);
+      if (!(qty >= 1)) { alert('數量必須大於 0！'); return; }
+      // 有選項的商品:一定要先在卡片上選好選項才能加入
+      let optionIndex = '', optionName = '';
+      if (item.itemOptions && item.itemOptions.length > 0) {
+        const sel = document.getElementById(`opt-${safeId}`);
+        if (!sel || sel.value === '') { alert('請先選擇一個選項！'); return; }
+        optionIndex = parseInt(sel.value, 10);
+        const o = item.itemOptions[optionIndex];
+        if (!o) { alert('選項不存在,請重新整理頁面再試一次'); return; }
+        if (o.stock !== null && o.stock !== undefined && o.stock <= 0) { alert('這個選項已售罄。'); return; }
+        optionName = o.name;
+      }
+      const max = cartItemMax_(item, optionIndex);
+      const probe = { itemId, optionIndex, optionName };
+      const line = cartLines_.find(l => cartKey_(l) === cartKey_(probe));
+      const newQty = (line ? line.qty : 0) + qty;
+      if (newQty > max) { alert(`超過可購買數量:「${cartLineName_(item, probe)}」目前最多只能買 ${max} 個(購物車已有 ${line ? line.qty : 0} 個)。`); return; }
+      if (line) line.qty = newQty; else cartLines_.push({ itemId, optionIndex, optionName, qty });
+      updateCartFab_();
+      cartFlash_(`🛒 已加入購物車:${cartLineName_(item, probe)} x${qty}`);
+    }
+
+    // 加入購物車的輕量提示(不用alert,不打斷連續加入多個商品)
+    function cartFlash_(msg) {
+      let el = document.getElementById('cart-flash');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'cart-flash';
+        el.style.cssText = 'position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:#202225;color:#fff;border:1px solid #5865F2;border-radius:8px;padding:8px 14px;font-size:13px;z-index:1100;display:none;max-width:90vw;text-align:center';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg; el.style.display = 'block';
+      clearTimeout(el._t); el._t = setTimeout(() => { el.style.display = 'none'; }, 1600);
+    }
+
+    function updateCartFab_() {
+      const fab = document.getElementById('cart-fab');
+      if (!fab) return;
+      const total = cartLines_.reduce((n, l) => n + l.qty, 0);
+      document.getElementById('cart-fab-count').textContent = total;
+      fab.style.display = cartLines_.length > 0 ? 'block' : 'none';
+    }
+
+    // 算出購物車目前總花費:{貨幣名稱: 金額},含每個商品的額外花費(extraCost),都乘上數量
+    function cartTotals_() {
+      const totals = {};
+      cartLines_.forEach(l => {
+        const it = currentShopItems.find(x => x.id === l.itemId);
+        if (!it) return;
+        totals[it.displayCurrency] = (totals[it.displayCurrency] || 0) + cartLinePrice_(it, l) * l.qty;
+        (it.extraCost || []).forEach(e => { totals[e.displayName] = (totals[e.displayName] || 0) + (Number(e.amount) || 0) * l.qty; });
+      });
+      return totals;
+    }
+
+    function openCart_() {
+      document.getElementById('cart-result').textContent = '';
+      document.getElementById('cart-modal').style.display = 'flex';
+      renderCart_();
+    }
+    function closeCart_() {
+      if (cartBusy_) { alert('正在結帳中,請等結果出來再關閉。'); return; }
+      document.getElementById('cart-modal').style.display = 'none';
+      if (cartDirty_) { cartDirty_ = false; fetchScoresAndShop(currentUser.id); }
+    }
+    function clearCart_() {
+      if (cartBusy_) return;
+      cartLines_ = [];
+      renderCart_(); updateCartFab_();
+    }
+    function removeCartLine_(key) {
+      if (cartBusy_) return;
+      cartLines_ = cartLines_.filter(l => cartKey_(l) !== key);
+      renderCart_(); updateCartFab_();
+    }
+    function setCartQty_(key, val) {
+      if (cartBusy_) return;
+      const line = cartLines_.find(l => cartKey_(l) === key);
+      const item = line && currentShopItems.find(it => it.id === line.itemId);
+      if (!line || !item) return;
+      let q = parseInt(val, 10);
+      if (!(q >= 1)) q = 1;
+      const max = cartItemMax_(item, line.optionIndex);
+      if (q > max) q = Math.max(1, max);
+      line.qty = q;
+      renderCart_(); updateCartFab_();
+    }
+
+    function renderCart_() {
+      const linesEl = document.getElementById('cart-lines');
+      const sumEl = document.getElementById('cart-summary');
+      const checkoutBtn = document.getElementById('cart-checkout-btn');
+      // 商店資料重新整理後商品可能已下架/售完/不能買了,把這些行標出來(結帳時會跳過)
+      if (cartLines_.length === 0) {
+        linesEl.innerHTML = '<p style="text-align:center;color:#B9BBBE;font-size:13px">購物車是空的,到商店挑選商品後按「🛒 加入」。</p>';
+        sumEl.innerHTML = '';
+        checkoutBtn.disabled = true;
+        return;
+      }
+      linesEl.innerHTML = cartLines_.map(l => {
+        const it = currentShopItems.find(x => x.id === l.itemId);
+        const key = cartKey_(l).replace(/'/g, "\\'");
+        if (!it) return `<div class="cart-line" style="opacity:.6"><b>(商品已下架)</b> <button class="btn-action" style="float:right;padding:2px 8px;background:#ED4245" onclick="removeCartLine_('${key}')">✕</button></div>`;
+        const optChanged = cartOption_(it, l) === undefined;
+        const ok = isCartEligible_(it) && !optChanged;
+        const extra = (it.extraCost && it.extraCost.length > 0) ? ' + ' + it.extraCost.map(e => formatCost_(e.amount, e.displayName)).join(' + ') : '';
+        const unit = cartLinePrice_(it, l);
+        const sub = unit * l.qty;
+        return `<div class="cart-line" ${ok ? '' : 'style="opacity:.6"'}>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <b>${cartLineName_(it, l)}</b>
+            <button class="btn-action" style="padding:2px 8px;background:#ED4245" onclick="removeCartLine_('${key}')">✕</button>
+          </div>
+          <div style="font-size:12px;color:#B9BBBE;margin-top:4px">單價 ${formatCost_(unit, it.displayCurrency)}${extra}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            數量 <input type="number" class="cart-qty" min="1" max="${cartItemMax_(it, l.optionIndex)}" value="${l.qty}" onchange="setCartQty_('${key}', this.value)">
+            <span style="margin-left:auto;color:#FEE75C">小計 ${formatCost_(sub, it.displayCurrency)}</span>
+          </div>
+          ${ok ? '' : `<div style="color:#ED4245;font-size:12px;margin-top:4px">⚠️ ${optChanged ? '這個選項已變更或下架' : '這個商品目前無法購買'},結帳時會跳過</div>`}
+        </div>`;
+      }).join('');
+      const totals = cartTotals_();
+      const totalText = Object.keys(totals).map(k => formatCost_(totals[k], k)).join(' + ') || '免費';
+      sumEl.innerHTML = `<div style="background:#202225;border-radius:8px;padding:10px 12px;font-size:14px">🧾 目前花費：<b style="color:#FEE75C">${totalText}</b><br><span style="font-size:11px;color:#72767D">共 ${cartLines_.reduce((n, l) => n + l.qty, 0)} 件;實際扣款以結帳當下的價格、折扣與限購為準</span></div>`;
+      checkoutBtn.disabled = false;
+    }
+
+    // 把單筆購買成功的回應整理成一行摘要(跟handleBuyResult_顯示的內容一致,只是精簡成一行)
+    function cartResultSummary_(data) {
+      const parts = [];
+      if (data.cost !== undefined && data.cost > 0) parts.push(`花費 ${data.cost} ${data.costCurrencyName || ''}`.trim());
+      if (data.extraCostUsed && data.extraCostUsed.length > 0) parts.push('另收 ' + data.extraCostUsed.map(e => `${e.amount} ${e.displayName || e.name}`).join('、'));
+      if (data.revealedItemName) parts.push(`實際是【${data.revealedItemName}】`);
+      if (data.displayExt) parts.push(`開出【${data.displayExt}】`);
+      else if (data.rewardVar && data.totalReward > 0) parts.push(`獲得 ${data.totalReward} 點 ${data.rewardVar}`);
+      if (data.totalRewards && data.totalRewards.length > 0) parts.push('總共獲得 ' + data.totalRewards.join('、'));
+      if (data.milestoneRewards && data.milestoneRewards.length > 0) parts.push('🏆里程碑 ' + data.milestoneRewards.map(m => `第${m.count}次:${m.rewardText}`).join('、'));
+      if (data.milestoneErrors && data.milestoneErrors.length > 0) parts.push('⚠️里程碑發放異常:' + data.milestoneErrors.join(' '));
+      if (data.keys && data.keys.length > 0) parts.push('🎁序號 ' + data.keys.join('、'));
+      // BINGO道具這類沒有開獎內容的購買,後端只回一句message(例如「放進你的BINGO背包了」),直接拿來顯示
+      if (data.itemInstanceIds && data.message) parts.push(data.message);
+      return parts.join('；');
+    }
+
+    async function checkoutCart_() {
+      if (cartBusy_ || !currentUser) return;
+      if (cartLines_.length === 0) return;
+      // 結帳前再檢查一次每一行(商品資料可能在加入後又更新過)
+      const plan = [];
+      const skipped = [];
+      cartLines_.forEach(l => {
+        const it = currentShopItems.find(x => x.id === l.itemId);
+        if (!it) { skipped.push(`(商品已下架)：跳過`); return; }
+        const nm = cartLineName_(it, l);
+        if (!isCartEligible_(it)) { skipped.push(`${nm}：目前無法購買,跳過`); return; }
+        if (cartOption_(it, l) === undefined) { skipped.push(`${nm}：選項已變更或下架,跳過`); return; }
+        const max = cartItemMax_(it, l.optionIndex);
+        const qty = Math.min(l.qty, max);
+        if (qty < 1) { skipped.push(`${nm}：已無可購買數量,跳過`); return; }
+        plan.push({ item: it, line: l, qty, name: nm });
+      });
+      if (plan.length === 0) { alert('購物車裡沒有可以購買的商品。'); return; }
+      const totals = {};
+      plan.forEach(({ item, line, qty }) => {
+        totals[item.displayCurrency] = (totals[item.displayCurrency] || 0) + cartLinePrice_(item, line) * qty;
+        (item.extraCost || []).forEach(e => { totals[e.displayName] = (totals[e.displayName] || 0) + (Number(e.amount) || 0) * qty; });
+      });
+      const totalText = Object.keys(totals).map(k => formatCost_(totals[k], k)).join(' + ') || '免費';
+      const listText = plan.map(({ name, qty }) => `・${name} x${qty}`).join('\n');
+      if (!confirm(`確定要一次購買以下 ${plan.length} 項商品嗎？\n\n${listText}\n\n🧾 預計花費：${totalText}\n\n⚠️ 會依序一個一個購買,購買成功後無法取消。`)) return;
+
+      cartBusy_ = true;
+      const btn = document.getElementById('cart-checkout-btn');
+      const resultEl = document.getElementById('cart-result');
+      btn.disabled = true; document.getElementById('cart-clear-btn').disabled = true;
+      const doneLines = [], failLines = skipped.slice();
+      let aborted = false;
+      for (let i = 0; i < plan.length; i++) {
+        const { item, line, qty, name } = plan[i];
+        btn.textContent = `⏳ 購買中 ${i + 1}/${plan.length}…`;
+        const r = await tryProcessPurchaseViaWorker_(item.id, qty, 'none', {}, '', [], line.optionIndex === undefined ? '' : line.optionIndex);
+        if (r && r.status === 'success') {
+          doneLines.push({ key: cartKey_(line), text: `✅ ${name} x${qty}${cartResultSummary_(r) ? '　' + cartResultSummary_(r) : ''}` });
+        } else if (r && r.status === 'unsupported') {
+          failLines.push(`❌ ${name}：這個商品不能用購物車,請到商店頁單獨購買`);
+        } else if (r && r.status === 'error' && r.safeNoWrite) {
+          failLines.push(`❌ ${name} x${qty}：${r.message || '購買失敗'}`);
+        } else {
+          // 結果不確定:不繼續往下買(避免狀況不明時又扣更多),也不從購物車移除,請玩家先確認
+          failLines.push(`⚠️ ${name} x${qty}：結果不確定,請先看餘額/背包/紀錄確認有沒有買成功`);
+          aborted = true;
+          break;
+        }
+      }
+      // 成功的從購物車移除,失敗的留著讓玩家調整後再試
+      const doneKeys = new Set(doneLines.map(d => d.key));
+      cartLines_ = cartLines_.filter(l => !doneKeys.has(cartKey_(l)));
+      if (doneLines.length > 0) cartDirty_ = true;
+      cartBusy_ = false;
+      btn.textContent = '💳 一次購買';
+      document.getElementById('cart-clear-btn').disabled = false;
+      resultEl.innerHTML = '';
+      resultEl.textContent = `📋 結帳結果：成功 ${doneLines.length} 項、失敗/跳過 ${failLines.length} 項${aborted ? '(因結果不確定,後面的商品沒有繼續購買)' : ''}\n\n` +
+        doneLines.map(d => d.text).concat(failLines).join('\n');
+      renderCart_(); updateCartFab_();
     }
 
     function buyItem(itemId, itemName, safeId, maxQty, currencyName, unlockPasswordOverride) {
