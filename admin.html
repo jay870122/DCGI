@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.30</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.31</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1701,6 +1701,22 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <label>獎勵內容(盲盒規則格式)<span style="color:var(--red)">*</span> <span class="hint">每次合成抽一次;例如「幻彩水晶:100, 60%」「稀有道具, [道具:模板名稱]稀有道具:1, 10%, 5份」</span></label>
         <textarea id="cr-pool" rows="5" placeholder="幻彩水晶:50, 70%&#10;稀有道具, [道具:稀有模板]稀有道具:1, 30%, 10份" oninput="renderGachaPreview('cr-pool','cr-pool-preview')"></textarea>
         <div class="gacha-preview" id="cr-pool-preview" style="display:none;margin-top:6px"></div>
+        <details class="gacha-guide" open style="margin-top:6px">
+          <summary style="cursor:pointer">📖 <b>獎勵內容寫法說明</b>（點這裡收合/展開）</summary>
+          <b>一行 = 一個獎項</b>,每次合成會從所有行裡抽一個(玩家合成 N 次就抽 N 次)。一行用逗號分隔,順序不限,系統自動辨識：<br>
+          　・第一個一定是<code>獎項顯示名稱</code>(玩家看得到)<br>
+          　・帶 <code>%</code> = <b>中獎機率</b>,例如 <code>30%</code>　・帶 <code>份</code> 或 <code>個</code> = <b>該獎項總庫存</b>,例如 <code>10份</code>(抽完就不會再中,庫存會跨玩家共用)<br>
+          　・純數字 = <b>單次獲得數量</b>,可填範圍 <code>1~100</code> 隨機　・其他文字 = 對應的貨幣/道具名稱(跟顯示名稱不同時才需要)<br>
+          <b>常用格式：</b><br>
+          　<code>幻彩水晶:100, 60%</code>　<span class="hint">← 60% 機率給 100 幻彩水晶</span><br>
+          　<code>稀有道具, [道具:稀有模板]稀有道具:1, 10%, 5份</code>　<span class="hint">← 10% 機率給 1 個「稀有模板」道具實例,全服限量 5 份</span><br>
+          　<code>[序號]傳說道具:1</code>　<span class="hint">← 發一組序號(從「序號庫」找名稱=傳說道具、還沒被領的)</span><br>
+          　<code>禮包, 幻彩水晶:50+[道具:稀有模板]稀有道具:1, 5%</code>　<span class="hint">← 用 + 串起來,一個獎項同時發多種</span><br>
+          　<code>安慰獎, 幻彩水晶:10</code>　<span class="hint">← 沒寫機率也沒寫份數 = <b>保底獎</b>,其他都沒中/抽完才會開出,建議放最後一行</span><br>
+          💡 <b>「100% 必得」的合成</b>:只寫一行並且不寫機率(保底行),就會每次必得。<br>
+          💡 材料會在合成成功時一次扣除;如果獎池抽不出東西(機率沒中又沒保底、份數用完),合成會被擋下,<b>不會扣材料</b>。<br>
+          💡 下方預覽會即時顯示解析結果與機率加總;有紅字的行代表格式有問題。更多進階標籤([背包]、[非即時]、[隱藏名稱]等)寫法跟商店盲盒完全相同,可參考「商店管理」裡的盲盒規則格式指南。
+        </details>
       </div>
       <div class="field"><label>個人總次數上限 <span class="hint">0/空白=不限</span></label><input id="cr-ptotal" type="number" min="0"></div>
       <div class="field"><label>個人每日上限 <span class="hint">0/空白=不限(台北時間每天重置)</span></label><input id="cr-pdaily" type="number" min="0"></div>
