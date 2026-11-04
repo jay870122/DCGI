@@ -350,6 +350,7 @@
             <button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#9B59B6;margin-left:6px" onclick="openGiftCode()">🎫 序號贈禮</button>
           </div>
           <div id="general-items-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+          <div id="craft-section" style="margin-top:12px"></div>
         </div>
         <div id="backpack-roles-container" style="margin-top:16px;"></div>
       </div>
@@ -656,7 +657,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.96</div>
+    <div class="version-tag">系統版本：v5.4.97</div>
   </div>
 
   <script>
@@ -2790,6 +2791,7 @@
               <button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#ED4245;flex-shrink:0" onclick="discardGeneralItemStack(this, '${g.itemName.replace(/'/g,"\\'")}', ${idx}, ${g.totalCount})">🗑️ 丟棄</button>
             </span>
           </div>
+          <div class="gi-craft" data-craft-name="${giNameAttr_}"></div>
           <div class="gi-extra">
           ${generalItemRemarkHtml_}
           ${breakdownHtml}
@@ -2856,6 +2858,115 @@
       container.innerHTML = giToolbarHtml + `<div id="gi-groups-wrap" style="display:flex;flex-direction:column;gap:8px">${groupsHtml}</div>` + deleteControlsHtml + unusableHtml;
       giApplyView_();
       startGeneralItemCountdowns_();
+      loadCraftRecipes_();
+    }
+
+    // ============================================================
+    // 🔨 道具合成(材料:道具/貨幣自由組合;獎勵沿用盲盒格式)
+    // 配方由管理員在後台設定;這裡負責顯示「全部配方」(我的道具下方)以及「這個道具可以合成什麼」(每張道具卡片下方)。
+    // ============================================================
+    let craftRecipes_ = null;
+    function craftEsc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function loadCraftRecipes_() {
+      fetchWithTimeout_(`${GAS_API_URL}?action=getCraftRecipes&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}&_t=${Date.now()}`, 20000)
+        .then(res => res.json())
+        .then(data => { craftRecipes_ = data.status === 'success' ? (data.recipes || []) : []; renderCraftUi_(); })
+        .catch(() => { if (craftRecipes_ === null) craftRecipes_ = []; renderCraftUi_(); });
+    }
+    function craftCanDo_(rc) {
+      if (rc.status !== 'open') return false;
+      if (rc.personalLeft === 0 || rc.dailyLeft === 0 || rc.globalLeft === 0) return false;
+      return rc.materials.every(m => m.have >= m.q);
+    }
+    function craftRecipeHtml_(rc, scope) {
+      const fmt = (ms) => new Date(ms).toLocaleString();
+      const mats = rc.materials.map(m => {
+        const ok = m.have >= m.q;
+        const haveText = m.t === 'cur' ? Math.floor(m.have * 100) / 100 : m.have;
+        return `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:10px;font-size:12px;background:${ok ? '#2E4A3A' : '#4A2E2E'};color:${ok ? '#9CE5B4' : '#F5A3A3'}">${m.t === 'cur' ? '💰' : '📦'} ${craftEsc_(m.d)} ${haveText}/${m.q}</span>`;
+      }).join('');
+      const limits = [];
+      if (rc.personalTotalLimit > 0) limits.push(`個人限${rc.personalTotalLimit}次(剩${rc.personalLeft})`);
+      if (rc.personalDailyLimit > 0) limits.push(`每日限${rc.personalDailyLimit}次(今日剩${rc.dailyLeft})`);
+      if (rc.globalLimit > 0) limits.push(`全服限${rc.globalLimit}次(剩${rc.globalLeft})`);
+      if (rc.endAt) limits.push(`⏰ ${fmt(rc.endAt)} 結束`);
+      const statusNote = rc.status === 'upcoming' ? `<span style="color:#F0B232;font-size:12px">🕒 ${fmt(rc.startAt)} 開放</span>`
+        : rc.status === 'soldout' ? `<span style="color:#ED4245;font-size:12px">全服次數已用完</span>` : '';
+      const can = craftCanDo_(rc);
+      const qtyId = `craft-qty-${scope}-${rc.id}`;
+      const poolBox = rc.pool && rc.pool.length ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:#7289DA;font-size:12px">🎁 查看合成獎勵(共${rc.pool.length}項)</summary>${buildGachaContentBoxHtml_(rc.pool, '🎁 合成獎勵：')}</details>` : '';
+      return `
+        <div style="background:#202225;border-radius:8px;padding:8px 10px;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <b>🔨 ${craftEsc_(rc.name)}</b>
+            <span style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="${qtyId}" min="1" max="20" value="1" style="width:54px;padding:3px;text-align:center">
+              <button class="btn-action" style="padding:4px 12px;font-size:12px;background-color:${can ? '#F0B232' : '#4F545C'};color:${can ? '#1E1F22' : '#B9BBBE'}" ${can ? '' : 'disabled'} onclick="craftRecipe_(this, '${rc.id}', '${scope}')">合成</button>
+            </span>
+          </div>
+          <div style="margin-top:4px">${mats}</div>
+          ${statusNote}
+          ${limits.length ? `<div style="font-size:11px;color:#B9BBBE;margin-top:2px">${limits.join(' ｜ ')}</div>` : ''}
+          ${rc.note ? `<div style="font-size:12px;color:#B9BBBE;margin-top:2px">📝 ${craftEsc_(rc.note)}</div>` : ''}
+          ${poolBox}
+        </div>`;
+    }
+    function renderCraftUi_() {
+      const sec = document.getElementById('craft-section');
+      if (!sec) return;
+      const recipes = craftRecipes_ || [];
+      // 每張道具卡片下方:這個道具可以拿去合成什麼
+      document.querySelectorAll('.gi-craft').forEach(el => {
+        const name = el.dataset.craftName;
+        const mine = recipes.filter(rc => rc.materials.some(m => m.t === 'item' && m.n === name));
+        el.innerHTML = mine.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:#F0B232;font-size:12px">🔨 可合成表(${mine.length})</summary>${mine.map(rc => craftRecipeHtml_(rc, 'c')).join('')}</details>` : '';
+      });
+      // 我的道具下方:全部配方
+      sec.innerHTML = recipes.length ? `
+        <details>
+          <summary style="cursor:pointer;font-weight:bold;color:#F0B232;font-size:13px">🔨 合成配方(${recipes.length})</summary>
+          ${recipes.map(rc => craftRecipeHtml_(rc, 's')).join('')}
+        </details>` : '';
+    }
+    function craftRecipe_(btnEl, recipeId, scope) {
+      if (generalItemActionInFlight) return;
+      const rc = (craftRecipes_ || []).find(r => r.id === recipeId);
+      if (!rc) return;
+      const times = parseInt((document.getElementById(`craft-qty-${scope}-${recipeId}`) || {}).value, 10) || 1;
+      if (times < 1 || times > 20) { alert('合成次數請填 1~20'); return; }
+      const costText = rc.materials.map(m => `${m.d} x${m.q * times}`).join('、');
+      if (!confirm(`確定要合成「${rc.name}」x${times} 嗎？\n\n將消耗：${costText}\n\n合成後會立刻隨機抽取獎勵,無法反悔。`)) return;
+
+      generalItemActionInFlight = true;
+      document.querySelectorAll('#general-items-container button, #general-items-container input, #craft-section button, #craft-section input, .gi-craft button, .gi-craft input').forEach(el => { el.disabled = true; });
+      btnEl.textContent = '⏳ 合成中...';
+      let settled = false, gasDone = false, pollDone = false;
+      const requestStartMs = Date.now();
+      function finishError_(msg) { generalItemActionInFlight = false; loadGeneralItems(true); alert(msg); }
+      function finishSuccess_(data) {
+        generalItemActionInFlight = false;
+        alert(data.message || `🔨 合成「${rc.name}」成功!`);
+        loadGeneralItems(true);
+        fetchScoresAndShop(currentUser.id);
+      }
+      function checkBothGaveUp_() {
+        if (settled) return;
+        if (gasDone && pollDone) { settled = true; finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次合成很可能沒有成功,請重新整理確認材料數量後再重試。'); }
+      }
+      fetchWithTimeout_(`${GAS_API_URL}?action=craftItem&discordId=${currentUser.id}&recipeId=${encodeURIComponent(recipeId)}&times=${times}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + times * 500)
+        .then(res => res.json())
+        .then(data => {
+          if (settled) return;
+          settled = true;
+          if (data.status !== 'success') finishError_('❌ ' + data.message); else finishSuccess_(data);
+        })
+        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+      pollInstrumentedActionResult_('craftItem', requestStartMs, () => settled).then(polled => {
+        if (settled) return;
+        if (polled) { settled = true; finishSuccess_(polled); return; }
+        pollDone = true;
+        checkBothGaveUp_();
+      });
     }
 
     // 🌟🆕 道具清單檢視偏好(排序/只看可交易/精簡模式會記在這個瀏覽器,搜尋字不記)

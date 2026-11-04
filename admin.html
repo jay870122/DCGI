@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.27</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.28</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -278,6 +278,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
       <div class="nav-item" onclick="navTo('bingo')">🎰 BINGO 賓果卡</div>
       <div class="nav-item" onclick="navTo('item-templates')">🎁 道具模板管理</div>
+      <div class="nav-item" onclick="navTo('craft-recipes')">🔨 合成配方管理</div>
       <div class="nav-item" onclick="navTo('redeem-codes')">🎫 兌換碼管理</div>
       <div class="nav-item" onclick="navTo('push')">🔔 推播通知</div>
       <hr class="nav-sep">
@@ -1040,6 +1041,27 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
       </div>
 
+      <!-- 合成配方管理 -->
+      <div id="page-craft-recipes" style="display:none">
+        <div class="page-header">
+          <div class="page-title">🔨 合成配方管理</div>
+          <div class="toolbar">
+            <button class="fab" onclick="openCraftForm(-1)">➕ 新增配方</button>
+          </div>
+        </div>
+        <p class="hint" style="margin-bottom:12px">
+          玩家在網頁商店「我的道具」下方會看到這裡設定的配方。材料可以自由組合<b>道具</b>(用顯示名稱比對,每份消耗1個完整道具)與<b>貨幣</b>;
+          獎勵內容格式跟商品的盲盒規則完全一樣(機率/份數/多變數/[序號]/[道具:模板]/[背包:...]都能用)。
+          可設定個人總次數、每日次數、全服總次數與開放期間(台北時間);次數留空或填0代表不限。
+        </p>
+        <div class="tbl-wrap tbl-wrap-table">
+          <table>
+            <thead><tr><th>配方</th><th>材料</th><th>獎勵</th><th>限制</th><th>狀態</th><th>操作</th></tr></thead>
+            <tbody id="craft-tbody"><tr><td colspan="6" class="empty">讀取中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 序號兌換碼管理:一組兌換碼可以讓多位玩家各自兌換一次,跟序號庫(每組序號只能被一個人領走)是不同機制 -->
       <div id="page-redeem-codes" style="display:none">
         <div class="page-header">
@@ -1660,6 +1682,41 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 </div>
 
 <!-- 道具模板新增/編輯彈窗 -->
+<div class="overlay" id="craft-modal">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header"><h3 id="craft-modal-title">🔨 新增合成配方</h3><button class="modal-close" onclick="closeModal('craft-modal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="cr-id">
+      <div class="field full"><label>配方名稱<span style="color:var(--red)">*</span></label><input id="cr-name" type="text" placeholder="例：高級寶箱合成"></div>
+      <div class="field full">
+        <label>材料<span style="color:var(--red)">*</span> <span class="hint">全部湊齊才能合成;道具材料用「顯示名稱」比對(可直接選模板名稱,也可自己輸入),貨幣用玩家表欄位</span></label>
+        <div id="cr-mats"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button type="button" class="btn btn-edit" onclick="addCraftMatRow('item')">＋ 道具材料</button>
+          <button type="button" class="btn btn-edit" onclick="addCraftMatRow('cur')">＋ 貨幣材料</button>
+        </div>
+        <datalist id="cr-item-names"></datalist>
+      </div>
+      <div class="field full">
+        <label>獎勵內容(盲盒規則格式)<span style="color:var(--red)">*</span> <span class="hint">每次合成抽一次;例如「幻彩水晶:100, 60%」「稀有道具, [道具:模板名稱]稀有道具:1, 10%, 5份」</span></label>
+        <textarea id="cr-pool" rows="5" placeholder="幻彩水晶:50, 70%&#10;稀有道具, [道具:稀有模板]稀有道具:1, 30%, 10份"></textarea>
+      </div>
+      <div class="field"><label>個人總次數上限 <span class="hint">0/空白=不限</span></label><input id="cr-ptotal" type="number" min="0"></div>
+      <div class="field"><label>個人每日上限 <span class="hint">0/空白=不限(台北時間每天重置)</span></label><input id="cr-pdaily" type="number" min="0"></div>
+      <div class="field"><label>全服總次數上限 <span class="hint">0/空白=不限</span></label><input id="cr-global" type="number" min="0"></div>
+      <div class="field" id="cr-global-used-box" style="display:none"><label>全服已合成</label><div id="cr-global-used" style="padding:6px 0"></div><label style="font-size:12px"><input type="checkbox" id="cr-reset-global"> 儲存時把全服已合成數歸零</label></div>
+      <div class="field"><label>開始時間 <span class="hint">空白=馬上開放(台北時間)</span></label><input id="cr-start" type="datetime-local"></div>
+      <div class="field"><label>結束時間 <span class="hint">空白=不結束(台北時間)</span></label><input id="cr-end" type="datetime-local"></div>
+      <div class="field full"><label>備註(玩家看得到)</label><input id="cr-note" type="text"></div>
+      <div class="field full"><label style="cursor:pointer"><input type="checkbox" id="cr-enabled" checked> 啟用這個配方</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('craft-modal')">取消</button>
+      <button class="btn btn-primary" id="cr-save-btn" onclick="saveCraftRecipe()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="item-template-modal">
   <div class="modal" style="max-width:640px">
     <div class="modal-header"><h3 id="item-template-title">🎁 新增道具模板</h3><button class="modal-close" onclick="closeModal('item-template-modal')">×</button></div>
@@ -2277,6 +2334,7 @@ const WRITE_ADMIN_ACTIONS_ = new Set([
   'adminSaveItemTemplate', 'adminDeleteItemTemplate', 'adminDuplicateItemTemplate',
   'adminGrantGeneralItem', 'adminSaveRedeemCode', 'adminDeleteRedeemCode',
   'adminDuplicateRedeemCode', 'adminResetPlayerRedemption',
+  'adminSaveCraftRecipe', 'adminDeleteCraftRecipe',
 ]);
 const ADMIN_ACTION_TIMEOUT_MS = 25000;
 function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -2926,7 +2984,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','item-templates','redeem-codes','push','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','item-templates','craft-recipes','redeem-codes','push','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -2942,6 +3000,7 @@ function navTo(p) {
   if (p==='push') { loadPushSchedules(); loadPushSubscribers(); loadPushHistory(); loadPushFirstReward(); }
   if (p==='bingo') loadBingoConfig();
   if (p==='item-templates') loadItemTemplates();
+  if (p==='craft-recipes') loadCraftAdmin();
   if (p==='redeem-codes') loadRedeemCodes();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
@@ -2961,6 +3020,146 @@ function toast(msg, ok=true) {
 
 // ── Modal ──
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ============================================================
+// 🔨 合成配方管理
+// ============================================================
+let craftAdmin_ = { recipes: [], currencyFields: [], templateNames: [] };
+function crEsc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+async function loadCraftAdmin() {
+  const d = await api({ action: 'adminGetCraftRecipes' });
+  if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
+  craftAdmin_ = { recipes: d.recipes || [], currencyFields: d.currencyFields || [], templateNames: d.templateNames || [] };
+  renderCraftAdmin();
+}
+function renderCraftAdmin() {
+  const tbody = document.getElementById('craft-tbody');
+  const list = craftAdmin_.recipes;
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">目前沒有任何合成配方</td></tr>'; return; }
+  const stateLabel = { open: '🟢 開放中', upcoming: '🕒 尚未開始', ended: '⏹️ 已結束', soldout: '🈵 全服已用完', disabled: '⏸️ 已停用' };
+  tbody.innerHTML = list.map((r, idx) => {
+    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}`).join('<br>');
+    const poolLines = (r.poolRaw || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const lim = [];
+    if (r.personalTotalLimit) lim.push(`個人${r.personalTotalLimit}次`);
+    if (r.personalDailyLimit) lim.push(`每日${r.personalDailyLimit}次`);
+    if (r.globalLimit) lim.push(`全服${r.globalUsed}/${r.globalLimit}`); else lim.push(`全服已合成${r.globalUsed}`);
+    if (r.startAt) lim.push('起 ' + r.startAt.replace('T', ' '));
+    if (r.endAt) lim.push('迄 ' + r.endAt.replace('T', ' '));
+    return `<tr>
+      <td><b>${crEsc_(r.name)}</b>${r.note ? `<div class="hint">${crEsc_(r.note)}</div>` : ''}<div class="hint">${crEsc_(r.id)}</div></td>
+      <td style="font-size:12px">${mats}</td>
+      <td style="font-size:12px;color:var(--muted);white-space:pre-wrap;max-width:240px">${crEsc_(poolLines.slice(0, 3).join('\n'))}${poolLines.length > 3 ? `\n…(共${poolLines.length}項)` : ''}</td>
+      <td style="font-size:12px">${lim.join('<br>')}</td>
+      <td>${stateLabel[r.state] || r.state}</td>
+      <td>
+        <button class="btn btn-edit" onclick="openCraftForm(${idx})">✏️ 編輯</button>
+        <button class="btn" onclick="toggleCraftEnabled(${idx})">${r.enabled ? '⏸️ 停用' : '▶️ 啟用'}</button>
+        <button class="btn btn-del" onclick="deleteCraftRecipe(${idx})">🗑️ 刪除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function addCraftMatRow(type, data) {
+  const wrap = document.getElementById('cr-mats');
+  const row = document.createElement('div');
+  row.className = 'cr-mat-row';
+  row.dataset.type = type;
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
+  let nameHtml;
+  if (type === 'cur') {
+    nameHtml = `<select class="cr-mat-name" style="flex:1">${craftAdmin_.currencyFields.map(f => `<option value="${crEsc_(f.internal)}" data-display="${crEsc_(f.display)}"${data && data.n === f.internal ? ' selected' : ''}>${crEsc_(f.display)}</option>`).join('')}</select>`;
+  } else {
+    nameHtml = `<input class="cr-mat-name" list="cr-item-names" style="flex:1" placeholder="道具顯示名稱" value="${crEsc_(data ? data.n : '')}">`;
+  }
+  row.innerHTML = `<span style="width:52px;font-size:12px">${type === 'cur' ? '💰貨幣' : '📦道具'}</span>${nameHtml}
+    <input class="cr-mat-qty" type="number" min="1" value="${data ? data.q : 1}" style="width:80px" title="數量">
+    <button type="button" class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(row);
+}
+function openCraftForm(idx) {
+  const r = idx >= 0 ? craftAdmin_.recipes[idx] : null;
+  document.getElementById('craft-modal-title').textContent = r ? '✏️ 編輯合成配方' : '🔨 新增合成配方';
+  document.getElementById('cr-id').value = r ? r.id : '';
+  document.getElementById('cr-name').value = r ? r.name : '';
+  document.getElementById('cr-pool').value = r ? r.poolRaw : '';
+  document.getElementById('cr-ptotal').value = r && r.personalTotalLimit ? r.personalTotalLimit : '';
+  document.getElementById('cr-pdaily').value = r && r.personalDailyLimit ? r.personalDailyLimit : '';
+  document.getElementById('cr-global').value = r && r.globalLimit ? r.globalLimit : '';
+  document.getElementById('cr-start').value = r ? r.startAt : '';
+  document.getElementById('cr-end').value = r ? r.endAt : '';
+  document.getElementById('cr-note').value = r ? r.note : '';
+  document.getElementById('cr-enabled').checked = r ? r.enabled : true;
+  document.getElementById('cr-global-used-box').style.display = r ? '' : 'none';
+  document.getElementById('cr-global-used').textContent = r ? r.globalUsed + ' 次' : '';
+  document.getElementById('cr-reset-global').checked = false;
+  document.getElementById('cr-item-names').innerHTML = craftAdmin_.templateNames.map(n => `<option value="${crEsc_(n)}">`).join('');
+  document.getElementById('cr-mats').innerHTML = '';
+  if (r) r.materials.forEach(m => addCraftMatRow(m.t, m)); else addCraftMatRow('item');
+  document.getElementById('craft-modal').classList.add('open');
+}
+function collectCraftMaterials_() {
+  const out = [];
+  document.querySelectorAll('#cr-mats .cr-mat-row').forEach(row => {
+    const type = row.dataset.type;
+    const nameEl = row.querySelector('.cr-mat-name');
+    const n = (nameEl.value || '').trim();
+    const q = parseInt(row.querySelector('.cr-mat-qty').value, 10) || 0;
+    if (!n || q < 1) return;
+    const m = { t: type, n, q };
+    if (type === 'cur') m.d = nameEl.selectedOptions[0] ? nameEl.selectedOptions[0].dataset.display : n;
+    out.push(m);
+  });
+  return out;
+}
+async function saveCraftRecipe() {
+  const mats = collectCraftMaterials_();
+  if (!document.getElementById('cr-name').value.trim()) { toast('請填寫配方名稱', false); return; }
+  if (mats.length === 0) { toast('請至少設定一項材料', false); return; }
+  if (!document.getElementById('cr-pool').value.trim()) { toast('請填寫獎勵內容', false); return; }
+  const btn = document.getElementById('cr-save-btn');
+  btn.disabled = true;
+  try {
+    const d = await api({
+      action: 'adminSaveCraftRecipe',
+      id: document.getElementById('cr-id').value,
+      name: document.getElementById('cr-name').value.trim(),
+      materials: JSON.stringify(mats),
+      poolRaw: document.getElementById('cr-pool').value.trim(),
+      personalTotalLimit: document.getElementById('cr-ptotal').value,
+      personalDailyLimit: document.getElementById('cr-pdaily').value,
+      globalLimit: document.getElementById('cr-global').value,
+      startAt: document.getElementById('cr-start').value,
+      endAt: document.getElementById('cr-end').value,
+      note: document.getElementById('cr-note').value,
+      enabled: document.getElementById('cr-enabled').checked ? 'TRUE' : 'FALSE',
+      resetGlobalUsed: document.getElementById('cr-reset-global').checked ? 'true' : 'false',
+    });
+    if (d.status !== 'success') { toast(d.message || '儲存失敗', false); return; }
+    toast(d.message);
+    closeModal('craft-modal');
+    loadCraftAdmin();
+  } finally { btn.disabled = false; }
+}
+async function toggleCraftEnabled(idx) {
+  const r = craftAdmin_.recipes[idx];
+  const d = await api({
+    action: 'adminSaveCraftRecipe', id: r.id, name: r.name, materials: JSON.stringify(r.materials), poolRaw: r.poolRaw,
+    personalTotalLimit: r.personalTotalLimit, personalDailyLimit: r.personalDailyLimit, globalLimit: r.globalLimit,
+    startAt: r.startAt, endAt: r.endAt, note: r.note, enabled: r.enabled ? 'FALSE' : 'TRUE', resetGlobalUsed: 'false',
+  });
+  if (d.status !== 'success') { toast(d.message || '失敗', false); return; }
+  loadCraftAdmin();
+}
+async function deleteCraftRecipe(idx) {
+  const r = craftAdmin_.recipes[idx];
+  if (!confirm(`確定要刪除配方「${r.name}」嗎？`)) return;
+  const d = await api({ action: 'adminDeleteCraftRecipe', id: r.id });
+  if (d.status !== 'success') { toast(d.message || '刪除失敗', false); return; }
+  toast(d.message);
+  loadCraftAdmin();
+}
+
 
 // ── Shop ──
 async function loadShopItems() {
