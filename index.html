@@ -657,7 +657,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.97</div>
+    <div class="version-tag">系統版本：v5.4.98</div>
   </div>
 
   <script>
@@ -2868,10 +2868,18 @@
     let craftRecipes_ = null;
     function craftEsc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function loadCraftRecipes_() {
-      fetchWithTimeout_(`${GAS_API_URL}?action=getCraftRecipes&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}&_t=${Date.now()}`, 20000)
+      const tok = encodeURIComponent(getAccessToken());
+      const applyData_ = (data) => { craftRecipes_ = data.status === 'success' ? (data.recipes || []) : []; renderCraftUi_(); };
+      // Worker優先(8秒內沒回或失敗就退回GAS)
+      fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=getCraftRecipesWorker&discordId=${currentUser.id}&accessToken=${tok}&fresh=true&_t=${Date.now()}`, 8000)
         .then(res => res.json())
-        .then(data => { craftRecipes_ = data.status === 'success' ? (data.recipes || []) : []; renderCraftUi_(); })
-        .catch(() => { if (craftRecipes_ === null) craftRecipes_ = []; renderCraftUi_(); });
+        .then(data => { if (data.status !== 'success') throw new Error('worker'); applyData_(data); })
+        .catch(() => {
+          fetchWithTimeout_(`${GAS_API_URL}?action=getCraftRecipes&discordId=${currentUser.id}&accessToken=${tok}&_t=${Date.now()}`, 20000)
+            .then(res => res.json())
+            .then(applyData_)
+            .catch(() => { if (craftRecipes_ === null) craftRecipes_ = []; renderCraftUi_(); });
+        });
     }
     function craftCanDo_(rc) {
       if (rc.status !== 'open') return false;
@@ -2940,8 +2948,6 @@
       generalItemActionInFlight = true;
       document.querySelectorAll('#general-items-container button, #general-items-container input, #craft-section button, #craft-section input, .gi-craft button, .gi-craft input').forEach(el => { el.disabled = true; });
       btnEl.textContent = '⏳ 合成中...';
-      let settled = false, gasDone = false, pollDone = false;
-      const requestStartMs = Date.now();
       function finishError_(msg) { generalItemActionInFlight = false; loadGeneralItems(true); alert(msg); }
       function finishSuccess_(data) {
         generalItemActionInFlight = false;
@@ -2949,24 +2955,38 @@
         loadGeneralItems(true);
         fetchScoresAndShop(currentUser.id);
       }
-      function checkBothGaveUp_() {
-        if (settled) return;
-        if (gasDone && pollDone) { settled = true; finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次合成很可能沒有成功,請重新整理確認材料數量後再重試。'); }
+      // GAS備援路線(Worker回unsupported時才走)
+      function craftViaGas_() {
+        let settled = false, gasDone = false, pollDone = false;
+        const requestStartMs = Date.now();
+        function checkBothGaveUp_() {
+          if (settled) return;
+          if (gasDone && pollDone) { settled = true; finishError_('⚠️ 請求逾時,而且沒有查到最近的成功紀錄——這次合成很可能沒有成功,請重新整理確認材料數量後再重試。'); }
+        }
+        fetchWithTimeout_(`${GAS_API_URL}?action=craftItem&discordId=${currentUser.id}&recipeId=${encodeURIComponent(recipeId)}&times=${times}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + times * 500)
+          .then(res => res.json())
+          .then(data => {
+            if (settled) return;
+            settled = true;
+            if (data.status !== 'success') finishError_('❌ ' + data.message); else finishSuccess_(data);
+          })
+          .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
+        pollInstrumentedActionResult_('craftItem', requestStartMs, () => settled).then(polled => {
+          if (settled) return;
+          if (polled) { settled = true; finishSuccess_(polled); return; }
+          pollDone = true;
+          checkBothGaveUp_();
+        });
       }
-      fetchWithTimeout_(`${GAS_API_URL}?action=craftItem&discordId=${currentUser.id}&recipeId=${encodeURIComponent(recipeId)}&times=${times}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + times * 500)
+      // Worker優先:明確成功/失敗直接採用;unsupported才退回GAS;網路逾時結果不確定,不重送(避免重複扣材料)
+      fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=craftItemWorker&discordId=${currentUser.id}&recipeId=${encodeURIComponent(recipeId)}&times=${times}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + times * 500)
         .then(res => res.json())
         .then(data => {
-          if (settled) return;
-          settled = true;
-          if (data.status !== 'success') finishError_('❌ ' + data.message); else finishSuccess_(data);
+          if (data.status === 'success') finishSuccess_(data);
+          else if (data.status === 'unsupported') craftViaGas_();
+          else finishError_('❌ ' + data.message);
         })
-        .catch(() => { if (settled) return; gasDone = true; checkBothGaveUp_(); });
-      pollInstrumentedActionResult_('craftItem', requestStartMs, () => settled).then(polled => {
-        if (settled) return;
-        if (polled) { settled = true; finishSuccess_(polled); return; }
-        pollDone = true;
-        checkBothGaveUp_();
-      });
+        .catch(() => finishError_('⚠️ 請求逾時,無法確認合成是否成功——請看一下材料數量/背包有沒有變化,確認沒有再重試。'));
     }
 
     // 🌟🆕 道具清單檢視偏好(排序/只看可交易/精簡模式會記在這個瀏覽器,搜尋字不記)

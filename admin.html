@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.28</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.29</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2488,6 +2488,25 @@ async function apiWorkerRead(workerAction, extraParams, gasParams) {
 }
 
 
+// 🔨 合成配方寫入:Worker優先;Worker回unsupported(分頁尚未建立)才退回GAS;網路逾時結果不確定,不重送
+async function apiCraftWrite_(gasAction, params) {
+  const tok = localStorage.getItem('admin_dc_access_token') || '';
+  const discordId = (ME && ME.id) || '';
+  try {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 20000);
+    let res;
+    try {
+      res = await fetch(`${DASHBOARD_WORKER_URL}?${new URLSearchParams({ action: gasAction + 'Worker', discordId, accessToken: tok })}`, { method: 'POST', body: JSON.stringify(params), signal: ac.signal });
+    } finally { clearTimeout(tid); }
+    const data = await res.json();
+    if (data.status !== 'unsupported') return data;
+  } catch (e) {
+    return { status: 'error', message: '請求逾時或失敗,無法確認是否已儲存,請重新整理確認後再試' };
+  }
+  return api({ action: gasAction, ...params });
+}
+
 async function loadMeta() {
   const d = await apiWorkerRead('adminMeta', {}, {action:'adminGetMeta'});
   if (d.status !== 'success') return;
@@ -3027,7 +3046,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 let craftAdmin_ = { recipes: [], currencyFields: [], templateNames: [] };
 function crEsc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 async function loadCraftAdmin() {
-  const d = await api({ action: 'adminGetCraftRecipes' });
+  const d = await apiWorkerRead('adminGetCraftRecipesWorker', {}, { action: 'adminGetCraftRecipes' });
   if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
   craftAdmin_ = { recipes: d.recipes || [], currencyFields: d.currencyFields || [], templateNames: d.templateNames || [] };
   renderCraftAdmin();
@@ -3120,8 +3139,7 @@ async function saveCraftRecipe() {
   const btn = document.getElementById('cr-save-btn');
   btn.disabled = true;
   try {
-    const d = await api({
-      action: 'adminSaveCraftRecipe',
+    const d = await apiCraftWrite_('adminSaveCraftRecipe', {
       id: document.getElementById('cr-id').value,
       name: document.getElementById('cr-name').value.trim(),
       materials: JSON.stringify(mats),
@@ -3143,8 +3161,8 @@ async function saveCraftRecipe() {
 }
 async function toggleCraftEnabled(idx) {
   const r = craftAdmin_.recipes[idx];
-  const d = await api({
-    action: 'adminSaveCraftRecipe', id: r.id, name: r.name, materials: JSON.stringify(r.materials), poolRaw: r.poolRaw,
+  const d = await apiCraftWrite_('adminSaveCraftRecipe', {
+    id: r.id, name: r.name, materials: JSON.stringify(r.materials), poolRaw: r.poolRaw,
     personalTotalLimit: r.personalTotalLimit, personalDailyLimit: r.personalDailyLimit, globalLimit: r.globalLimit,
     startAt: r.startAt, endAt: r.endAt, note: r.note, enabled: r.enabled ? 'FALSE' : 'TRUE', resetGlobalUsed: 'false',
   });
@@ -3154,7 +3172,7 @@ async function toggleCraftEnabled(idx) {
 async function deleteCraftRecipe(idx) {
   const r = craftAdmin_.recipes[idx];
   if (!confirm(`確定要刪除配方「${r.name}」嗎？`)) return;
-  const d = await api({ action: 'adminDeleteCraftRecipe', id: r.id });
+  const d = await apiCraftWrite_('adminDeleteCraftRecipe', { id: r.id });
   if (d.status !== 'success') { toast(d.message || '刪除失敗', false); return; }
   toast(d.message);
   loadCraftAdmin();
