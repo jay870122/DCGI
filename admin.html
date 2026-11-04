@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.29</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.30</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1699,7 +1699,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full">
         <label>獎勵內容(盲盒規則格式)<span style="color:var(--red)">*</span> <span class="hint">每次合成抽一次;例如「幻彩水晶:100, 60%」「稀有道具, [道具:模板名稱]稀有道具:1, 10%, 5份」</span></label>
-        <textarea id="cr-pool" rows="5" placeholder="幻彩水晶:50, 70%&#10;稀有道具, [道具:稀有模板]稀有道具:1, 30%, 10份"></textarea>
+        <textarea id="cr-pool" rows="5" placeholder="幻彩水晶:50, 70%&#10;稀有道具, [道具:稀有模板]稀有道具:1, 30%, 10份" oninput="renderGachaPreview('cr-pool','cr-pool-preview')"></textarea>
+        <div class="gacha-preview" id="cr-pool-preview" style="display:none;margin-top:6px"></div>
       </div>
       <div class="field"><label>個人總次數上限 <span class="hint">0/空白=不限</span></label><input id="cr-ptotal" type="number" min="0"></div>
       <div class="field"><label>個人每日上限 <span class="hint">0/空白=不限(台北時間每天重置)</span></label><input id="cr-pdaily" type="number" min="0"></div>
@@ -3102,6 +3103,7 @@ function openCraftForm(idx) {
   document.getElementById('cr-id').value = r ? r.id : '';
   document.getElementById('cr-name').value = r ? r.name : '';
   document.getElementById('cr-pool').value = r ? r.poolRaw : '';
+  renderGachaPreview('cr-pool', 'cr-pool-preview');
   document.getElementById('cr-ptotal').value = r && r.personalTotalLimit ? r.personalTotalLimit : '';
   document.getElementById('cr-pdaily').value = r && r.personalDailyLimit ? r.personalDailyLimit : '';
   document.getElementById('cr-global').value = r && r.globalLimit ? r.globalLimit : '';
