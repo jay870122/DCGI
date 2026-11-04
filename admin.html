@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.31</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.32</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3090,6 +3090,7 @@ function renderCraftAdmin() {
       <td>${stateLabel[r.state] || r.state}</td>
       <td>
         <button class="btn btn-edit" onclick="openCraftForm(${idx})">✏️ 編輯</button>
+        <button class="btn btn-edit" onclick="openCraftForm(${idx}, true)">📋 複製</button>
         <button class="btn" onclick="toggleCraftEnabled(${idx})">${r.enabled ? '⏸️ 停用' : '▶️ 啟用'}</button>
         <button class="btn btn-del" onclick="deleteCraftRecipe(${idx})">🗑️ 刪除</button>
       </td>
@@ -3113,11 +3114,11 @@ function addCraftMatRow(type, data) {
     <button type="button" class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
   wrap.appendChild(row);
 }
-function openCraftForm(idx) {
+function openCraftForm(idx, asCopy) {
   const r = idx >= 0 ? craftAdmin_.recipes[idx] : null;
-  document.getElementById('craft-modal-title').textContent = r ? '✏️ 編輯合成配方' : '🔨 新增合成配方';
-  document.getElementById('cr-id').value = r ? r.id : '';
-  document.getElementById('cr-name').value = r ? r.name : '';
+  document.getElementById('craft-modal-title').textContent = asCopy ? '📋 複製合成配方(儲存後成為新配方)' : (r ? '✏️ 編輯合成配方' : '🔨 新增合成配方');
+  document.getElementById('cr-id').value = (r && !asCopy) ? r.id : '';
+  document.getElementById('cr-name').value = r ? (asCopy ? r.name + '(複製)' : r.name) : '';
   document.getElementById('cr-pool').value = r ? r.poolRaw : '';
   renderGachaPreview('cr-pool', 'cr-pool-preview');
   document.getElementById('cr-ptotal').value = r && r.personalTotalLimit ? r.personalTotalLimit : '';
@@ -3127,7 +3128,7 @@ function openCraftForm(idx) {
   document.getElementById('cr-end').value = r ? r.endAt : '';
   document.getElementById('cr-note').value = r ? r.note : '';
   document.getElementById('cr-enabled').checked = r ? r.enabled : true;
-  document.getElementById('cr-global-used-box').style.display = r ? '' : 'none';
+  document.getElementById('cr-global-used-box').style.display = (r && !asCopy) ? '' : 'none';
   document.getElementById('cr-global-used').textContent = r ? r.globalUsed + ' 次' : '';
   document.getElementById('cr-reset-global').checked = false;
   document.getElementById('cr-item-names').innerHTML = craftAdmin_.templateNames.map(n => `<option value="${crEsc_(n)}">`).join('');
