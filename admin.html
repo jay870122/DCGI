@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.40</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.41</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1697,13 +1697,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <!-- 道具模板新增/編輯彈窗 -->
 <div class="overlay" id="player-items-modal">
-  <div class="modal" style="max-width:860px">
+  <div class="modal" style="max-width:900px">
     <div class="modal-header"><h3>🔍 玩家道具 / 開啟室查詢</h3><button class="modal-close" onclick="closeModal('player-items-modal')">×</button></div>
-    <div style="display:flex;flex-direction:row;gap:8px;margin-bottom:10px">
-      <input id="pi-target" placeholder="輸入玩家 DiscordID 或名稱" style="flex:1" onkeydown="if(event.key==='Enter')searchPlayerItems()">
-      <button class="btn btn-primary" id="pi-btn" onclick="searchPlayerItems()">查詢</button>
+    <div id="pi-listview">
+      <div style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <input id="pi-filter" placeholder="篩選:玩家名稱或 DiscordID" style="flex:1;min-width:180px" oninput="renderPlayerList_()">
+        <label style="margin:0;display:flex;flex-direction:row;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" id="pi-onlychamber" style="width:auto" onchange="renderPlayerList_()">只看開啟室使用中</label>
+        <button class="btn" onclick="loadPlayerList_(true)">🔄 重新整理</button>
+      </div>
+      <div id="pi-list" style="max-height:62vh;overflow:auto"></div>
     </div>
-    <div id="pi-result" style="max-height:62vh;overflow:auto"></div>
+    <div id="pi-detailview" style="display:none">
+      <button class="btn" onclick="backToPlayerList_()" style="margin-bottom:8px">← 返回列表</button>
+      <div id="pi-result" style="max-height:62vh;overflow:auto"></div>
+    </div>
   </div>
 </div>
 <div class="overlay" id="chamber-cfg-modal">
@@ -3179,9 +3186,13 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // ============================================================
 // 🧊 道具開啟室設定(Worker專屬,沒有GAS備援;玩家介面在index.html「道具開啟室」)
 // ============================================================
+let piPlayers_ = null;
 function openPlayerItems() {
   document.getElementById('player-items-modal').classList.add('open');
-  setTimeout(() => { const el = document.getElementById('pi-target'); if (el) el.focus(); }, 50);
+  backToPlayerList_();
+  if (!piPlayers_) loadPlayerList_(false);
+  else renderPlayerList_();
+  setTimeout(() => { const el = document.getElementById('pi-filter'); if (el) el.focus(); }, 50);
 }
 function piEsc_(x) { return String(x == null ? '' : x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function piFmtSec_(sec) {
@@ -3189,26 +3200,46 @@ function piFmtSec_(sec) {
   return (h ? h + '小時' : '') + (h || m ? m + '分' : '') + x + '秒';
 }
 function piFmtTs_(t) { return t ? new Date(t).toLocaleString('zh-TW', { hour12: false }) : '-'; }
-async function searchPlayerItems() {
-  const target = document.getElementById('pi-target').value.trim();
-  const box = document.getElementById('pi-result');
-  if (!target) { toast('請輸入玩家 DiscordID 或名稱', false); return; }
-  const btn = document.getElementById('pi-btn'); btn.disabled = true; box.innerHTML = '<div class="hint">⏳ 查詢中...</div>';
-  try {
-    const d = await apiWorkerRead('adminGetPlayerItemsWorker', { target }, { action: 'adminGetPlayerItemsWorker', target });
-    if (!d || d.status !== 'success') { box.innerHTML = '<div style="color:var(--red,#d9534f)">❌ ' + piEsc_((d && d.message) || '查詢失敗(Worker 需先部署新版)') + '</div>'; return; }
-    const stTxt = it => it.inChamber ? '🧊 開啟室中' : it.expired ? '⌛ 已過期' : it.status === 'ACTIVE' ? '✅ 可用' : it.status === 'USED' ? '已用完' : piEsc_(it.status);
-    let html = `<div style="margin-bottom:8px"><b>${piEsc_(d.playerName || '(玩家表無名稱)')}</b> <span class="hint">${piEsc_(d.discordId)}</span></div>`;
-    html += `<h4 style="margin:8px 0 4px">🧊 開啟室(${d.chamber.length} 個進行中)</h4>`;
-    if (!d.chamber.length) html += '<div class="hint">開啟室目前是空的</div>';
-    else html += '<div class="tbl-wrap"><table style="width:100%"><thead><tr><th>格</th><th>道具</th><th>放入時間</th><th>預計完成</th><th>剩餘</th><th>總等待</th><th>已加速</th></tr></thead><tbody>' +
-      d.chamber.map(c => `<tr><td>${c.slot}</td><td>${piEsc_(c.itemName)}</td><td>${piFmtTs_(c.startedAt)}</td><td>${piFmtTs_(c.finishAt)}</td><td>${c.ready ? '✅ 可開啟' : piFmtSec_(c.remainSec)}</td><td>${piFmtSec_(c.totalSec)}</td><td>${piFmtSec_(c.speededSec)}</td></tr>`).join('') + '</tbody></table></div>';
-    html += `<h4 style="margin:12px 0 4px">🎒 背包道具(${d.items.length} 筆實例)</h4>`;
-    if (!d.items.length) html += '<div class="hint">背包是空的</div>';
-    else html += '<div class="tbl-wrap"><table style="width:100%"><thead><tr><th>道具</th><th>狀態</th><th>剩餘次數</th><th>取得</th><th>過期</th><th>實例ID</th></tr></thead><tbody>' +
-      d.items.map(it => `<tr><td>${piEsc_(it.itemName)}</td><td>${stTxt(it)}</td><td>${it.remaining}</td><td>${piFmtTs_(it.acquiredAt)}</td><td>${piFmtTs_(it.expiresAt)}</td><td class="hint" style="font-size:10px">${piEsc_(it.instanceId)}</td></tr>`).join('') + '</tbody></table></div>';
-    box.innerHTML = html;
-  } finally { btn.disabled = false; }
+function backToPlayerList_() {
+  document.getElementById('pi-listview').style.display = '';
+  document.getElementById('pi-detailview').style.display = 'none';
+}
+async function loadPlayerList_(force) {
+  const box = document.getElementById('pi-list');
+  box.innerHTML = '<div class="hint">⏳ 載入玩家清單中...</div>';
+  const d = await apiWorkerRead('adminListPlayerItemSummaryWorker', {}, { action: 'adminListPlayerItemSummaryWorker' });
+  if (!d || d.status !== 'success') { box.innerHTML = '<div style="color:var(--red,#d9534f)">❌ ' + piEsc_((d && d.message) || '載入失敗') + '(這個功能需要先部署新版 Worker)</div>'; return; }
+  piPlayers_ = d.players || [];
+  renderPlayerList_();
+}
+function renderPlayerList_() {
+  const box = document.getElementById('pi-list'); if (!box || !piPlayers_) return;
+  const q = document.getElementById('pi-filter').value.trim().toLowerCase();
+  const onlyCh = document.getElementById('pi-onlychamber').checked;
+  let list = piPlayers_.filter(p => (!q || p.name.toLowerCase().includes(q) || p.id.includes(q)) && (!onlyCh || p.chamber > 0));
+  list.sort((a, b) => (b.chamber - a.chamber) || (b.items - a.items) || a.name.localeCompare(b.name));
+  const total = list.length; list = list.slice(0, 300);
+  if (!total) { box.innerHTML = '<div class="hint">沒有符合的玩家</div>'; return; }
+  box.innerHTML = `<div class="hint" style="margin-bottom:4px">共 ${total} 位${total > 300 ? '(只顯示前 300 位,請用上面的篩選縮小範圍)' : ''},點一列查看詳細</div><div class="tbl-wrap"><table style="width:100%"><thead><tr><th>玩家</th><th>DiscordID</th><th>背包實例</th><th>開啟室</th></tr></thead><tbody>` +
+    list.map(p => `<tr style="cursor:pointer" onclick="showPlayerDetail_('${piEsc_(p.id)}')"><td>${piEsc_(p.name || '-')}</td><td class="hint">${piEsc_(p.id)}</td><td>${p.items}</td><td>${p.chamber ? '🧊 ' + p.chamber : '-'}</td></tr>`).join('') + '</tbody></table></div>';
+}
+async function showPlayerDetail_(id) {
+  document.getElementById('pi-listview').style.display = 'none';
+  document.getElementById('pi-detailview').style.display = '';
+  const box = document.getElementById('pi-result'); box.innerHTML = '<div class="hint">⏳ 查詢中...</div>';
+  const d = await apiWorkerRead('adminGetPlayerItemsWorker', { target: id }, { action: 'adminGetPlayerItemsWorker', target: id });
+  if (!d || d.status !== 'success') { box.innerHTML = '<div style="color:var(--red,#d9534f)">❌ ' + piEsc_((d && d.message) || '查詢失敗') + '</div>'; return; }
+  const stTxt = it => it.inChamber ? '🧊 開啟室中' : it.expired ? '⌛ 已過期' : it.status === 'ACTIVE' ? '✅ 可用' : it.status === 'USED' ? '已用完' : piEsc_(it.status);
+  let html = `<div style="margin-bottom:8px"><b>${piEsc_(d.playerName || '(玩家表無名稱)')}</b> <span class="hint">${piEsc_(d.discordId)}</span></div>`;
+  html += `<h4 style="margin:8px 0 4px">🧊 開啟室(${d.chamber.length} 個進行中)</h4>`;
+  if (!d.chamber.length) html += '<div class="hint">開啟室目前是空的</div>';
+  else html += '<div class="tbl-wrap"><table style="width:100%"><thead><tr><th>格</th><th>道具</th><th>放入時間</th><th>預計完成</th><th>剩餘</th><th>總等待</th><th>已加速</th></tr></thead><tbody>' +
+    d.chamber.map(c => `<tr><td>${c.slot}</td><td>${piEsc_(c.itemName)}</td><td>${piFmtTs_(c.startedAt)}</td><td>${piFmtTs_(c.finishAt)}</td><td>${c.ready ? '✅ 可開啟' : piFmtSec_(c.remainSec)}</td><td>${piFmtSec_(c.totalSec)}</td><td>${piFmtSec_(c.speededSec)}</td></tr>`).join('') + '</tbody></table></div>';
+  html += `<h4 style="margin:12px 0 4px">🎒 背包道具(${d.items.length} 筆實例)</h4>`;
+  if (!d.items.length) html += '<div class="hint">背包是空的</div>';
+  else html += '<div class="tbl-wrap"><table style="width:100%"><thead><tr><th>道具</th><th>狀態</th><th>剩餘次數</th><th>取得</th><th>過期</th><th>實例ID</th></tr></thead><tbody>' +
+    d.items.map(it => `<tr><td>${piEsc_(it.itemName)}</td><td>${stTxt(it)}</td><td>${it.remaining}</td><td>${piFmtTs_(it.acquiredAt)}</td><td>${piFmtTs_(it.expiresAt)}</td><td class="hint" style="font-size:10px">${piEsc_(it.instanceId)}</td></tr>`).join('') + '</tbody></table></div>';
+  box.innerHTML = html;
 }
 async function openChamberConfig() {
   const d = await apiWorkerRead('adminGetChamberConfigWorker', {}, { action: 'adminGetChamberConfigWorker' });
@@ -6776,7 +6807,7 @@ async function loadAuctionBids() {
 // 🌟 點擊彈窗背景關閉(但編輯商品/拍賣這兩個表單欄位很多,很容易滑鼠稍微點歪就整個關掉、資料等於白填,
 // 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉)
 document.querySelectorAll('.overlay').forEach(el => {
-  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal' || el.id === 'item-template-modal' || el.id === 'redeem-code-modal' || el.id === 'craft-modal' || el.id === 'chamber-cfg-modal') return;
+  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal' || el.id === 'item-template-modal' || el.id === 'redeem-code-modal' || el.id === 'craft-modal' || el.id === 'chamber-cfg-modal' || el.id === 'player-items-modal') return;
   el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
 });
 
