@@ -663,7 +663,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.100</div>
+    <div class="version-tag">系統版本：v5.4.101</div>
   </div>
 
   <script>
@@ -1638,6 +1638,7 @@
           <button class="btn-action" id="bingo-batch-use-btn" style="padding:3px 10px;font-size:12px;background-color:#5865F2;margin-left:auto" onclick="useBingoItemsBatch()" disabled>
             ✅ 批次使用已勾選(<span id="bingo-item-selected-count">0</span>)
           </button>
+          <button class="btn-action" id="bingo-batch-discard-btn" style="padding:3px 10px;font-size:12px;background-color:#ED4245" onclick="discardBingoItemsBatch()" disabled>🗑️ 批次丟棄</button>
         </div>` : '';
       // 🌟 有過期道具才顯示「清除已過期」的控制列
       const expiredControlsHtml = expiredCount > 0 ? `
@@ -2121,7 +2122,7 @@
       const allItemBtns = document.querySelectorAll('button[onclick*="useBingoItemPrompt"]');
       const btnStates = [];
       allItemBtns.forEach(btn => { btnStates.push({ btn, originalText: btn.textContent }); btn.disabled = true; btn.textContent = '⏳ 使用中...'; });
-      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn').forEach(el => { el.disabled = true; });
+      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn, #bingo-batch-discard-btn').forEach(el => { el.disabled = true; });
 
       let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
@@ -2237,7 +2238,7 @@
       const btnStates = [];
       allItemBtns.forEach(btn => { btnStates.push({ btn, originalText: btn.textContent }); btn.disabled = true; });
       btnEl.textContent = '⏳ 丟棄中...';
-      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn').forEach(el => { el.disabled = true; });
+      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn, #bingo-batch-discard-btn').forEach(el => { el.disabled = true; });
 
       let settled = false, gasDone = false, pollDone = false;
       const requestStartMs = Date.now();
@@ -2312,6 +2313,32 @@
       } catch (e) {
         return null;
       }
+    }
+
+    // 🌟🆕 批次丟棄已勾選的BINGO道具(只打Worker,一次鎖一次刪;結果不確定時請玩家重新整理確認)
+    async function discardBingoItemsBatch() {
+      if (bingoActionInFlight) return;
+      const ids = Array.from(document.querySelectorAll('.bingo-item-checkbox:checked')).map(cb => cb.dataset.instance);
+      if (!ids.length) return;
+      if (ids.length > 300) { alert('一次最多丟棄300張'); return; }
+      if (!confirm(`確定要丟棄已勾選的 ${ids.length} 張道具嗎？丟棄後無法復原。`)) return;
+      bingoActionInFlight = true;
+      const btn = document.getElementById('bingo-batch-discard-btn');
+      const orig = btn ? btn.textContent : '';
+      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox, #bingo-batch-use-btn, #bingo-batch-discard-btn').forEach(el => { el.disabled = true; });
+      if (btn) btn.textContent = '⏳ 丟棄中...';
+      let data = null;
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=discardBingoBackpackItemsBatchWorker&discordId=${currentUser.id}&instanceIds=${encodeURIComponent(JSON.stringify(ids))}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS);
+        data = await res.json();
+      } catch (e) { data = null; }
+      bingoActionInFlight = false;
+      if (data && data.status === 'success') { alert('🗑️ ' + data.message); loadBingoStatus(); return; }
+      if (btn) btn.textContent = orig;
+      document.querySelectorAll('.bingo-item-checkbox, #bingo-select-all-checkbox').forEach(el => { el.disabled = false; });
+      updateBingoItemSelectedCount();
+      if (data && data.status === 'error' && data.safeNoWrite) alert('❌ ' + data.message);
+      else { alert('⚠️ 丟棄結果不確定,請重新整理頁面確認背包,不確定的話再重新操作一次。'); loadBingoStatus(); }
     }
 
     // 🌟 批次使用已勾選的道具:隨機類型不用問數字,直接送出;指定類型逐一詢問數字(取消/沒填的話,
@@ -2477,6 +2504,8 @@
       if (countEl) countEl.textContent = checked.length;
       const batchBtn = document.getElementById('bingo-batch-use-btn');
       if (batchBtn) batchBtn.disabled = checked.length === 0;
+      const batchDiscardBtn = document.getElementById('bingo-batch-discard-btn');
+      if (batchDiscardBtn) batchDiscardBtn.disabled = checked.length === 0;
       const allCbs = document.querySelectorAll('.bingo-item-checkbox');
       const selectAllCb = document.getElementById('bingo-select-all-checkbox');
       if (selectAllCb) selectAllCb.checked = allCbs.length > 0 && checked.length === allCbs.length;
