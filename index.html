@@ -663,7 +663,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.101</div>
+    <div class="version-tag">系統版本：v5.4.102</div>
   </div>
 
   <script>
@@ -5844,6 +5844,7 @@ function fetchScoresAndShop(discordId, callback = null) {
                 (item.itemOptions && item.itemOptions.length > 0)
                 ? `💰 價格：<span class="item-price" style="color:#B9BBBE">依選項而定,請往下選擇</span><br>`
                 : `💰 ${item.isRaffle ? '投1花費' : item.isGambling ? '每單位下注' : '價格'}：<span class="item-price">${formatCost_(item.price, item.displayCurrency)}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => formatCost_(e.amount, e.displayName)).join(' + ') : ''}</span><br>`}
+              ${(item.requiredItems && item.requiredItems.length > 0) ? `<div style="margin:2px 0;font-size:12px;color:#F0B232">🎒 需要持有：${item.requiredItems.map(r => `${r.n} x${r.q}${r.c ? '（兌換時扣除）' : '（只檢查，不扣除）'}`).join('、')}</div>` : ''}
               ${item.itemOptions && item.itemOptions.length > 0 ? `
                 <select id="opt-${safeId}" style="width:100%;margin:6px 0" onchange="updateItemOptionPreview('${safeId}', ${JSON.stringify(item.itemOptions).replace(/"/g,'&quot;')})">
                   <option value="">請選擇選項...</option>
@@ -6594,9 +6595,12 @@ function fetchScoresAndShop(discordId, callback = null) {
       }
 
       const itemForExtraCost = currentShopItems.find(it => it.id === itemId);
-      const extraCostNote = (itemForExtraCost && itemForExtraCost.extraCost && itemForExtraCost.extraCost.length > 0)
+      const extraCostNote = ((itemForExtraCost && itemForExtraCost.extraCost && itemForExtraCost.extraCost.length > 0)
         ? `\n➕ 另外還需要：${itemForExtraCost.extraCost.map(e => formatCost_(e.amount * qty, e.displayName)).join('、')}`
-        : '';
+        : '')
+        + ((itemForExtraCost && itemForExtraCost.requiredItems && itemForExtraCost.requiredItems.length > 0)
+        ? `\n🎒 需要道具：${itemForExtraCost.requiredItems.map(r => r.c ? `${r.n} x${r.q * qty}（會扣除）` : `${r.n} x${r.q}（只檢查，不扣除）`).join('、')}`
+        : '');
 
       // 🌟 賭博模式:讀取玩家在卡片上選的下注選項
       let gamblingOption = '';

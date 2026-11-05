@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.35</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.36</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -400,6 +400,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             </div>
             <input type="hidden" id="ns-extracost">
             <input type="hidden" id="ns-extracostamount">
+            <div class="field full">
+              <label>購買需持有道具 <span class="hint">留空=不用;每項可選「購買時扣除」(數量×購買份數)或「只檢查持有」(有就能買,不消耗)。只算未過期、未交易鎖定的道具,依道具顯示名稱比對</span></label>
+              <div id="ns-reqitems-list"></div>
+              <button type="button" class="btn btn-edit" onclick="addReqItemRow('ns')" style="margin-top:6px">➕ 新增一項需求道具</button>
+            </div>
+            <input type="hidden" id="ns-reqitems">
             <div class="field"><label>分類 <span class="hint">可用「父分類＞子分類」建立子分類,例：活動＞夏日活動2026(不要用/,容易跟日期撞名)</span></label><input id="ns-category" placeholder="例：[常態]商城物品" list="sc-list"><datalist id="sc-list"></datalist></div>
             <div class="field"><label>庫存 <span class="hint">留空=無限</span></label><input id="ns-stock" placeholder="無限"></div>
             <div class="field"><label>連結序號庫存 <span class="hint">填「序號庫」A欄的名稱,設定後庫存自動等於該序號剩餘量(忽略上面的庫存欄位),序號發完就自動無法購買,留空=不掛勾</span></label><input id="ns-linkedserialpool" placeholder="例：steam虛擬禮物卡NT150(留空=不掛勾)"></div>
@@ -1256,6 +1262,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <input type="hidden" id="em-extracost">
       <input type="hidden" id="em-extracostamount">
+      <div class="full field">
+              <label>購買需持有道具 <span class="hint">留空=不用;每項可選「購買時扣除」(數量×購買份數)或「只檢查持有」(有就能買,不消耗)。只算未過期、未交易鎖定的道具,依道具顯示名稱比對</span></label>
+              <div id="em-reqitems-list"></div>
+              <button type="button" class="btn btn-edit" onclick="addReqItemRow('em')" style="margin-top:6px">➕ 新增一項需求道具</button>
+            </div>
+            <input type="hidden" id="em-reqitems">
       <div class="field"><label>分類</label><input id="em-category" list="sc-list"></div>
       <div class="field"><label>庫存</label><input id="em-stock"></div>
       <div class="field"><label>連結序號庫存 <span class="hint">填「序號庫」A欄的名稱,設定後庫存自動等於該序號剩餘量(忽略上面的庫存欄位),序號發完就自動無法購買,留空=不掛勾</span></label><input id="em-linkedserialpool" placeholder="例：steam虛擬禮物卡NT150(留空=不掛勾)"></div>
@@ -2803,6 +2815,63 @@ function validateExtraCostRows(prefix) {
   }
   return null;
 }
+// 🌟🆕 商品「購買需持有道具」編輯列:道具名稱 + 數量 + 扣除/只檢查,序列化成JSON放進隱藏欄位 {prefix}-reqitems
+function addReqItemRow(prefix, n, q, c) {
+  const list = document.getElementById(prefix + '-reqitems-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'req-item-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+  row.innerHTML = `
+    <input class="search req-name-input" list="cr-item-names" placeholder="道具顯示名稱" style="flex:2;min-width:140px">
+    <input class="search req-qty-input" type="number" min="1" step="1" placeholder="數量" style="flex:0 0 80px">
+    <select class="req-mode-input" style="flex:0 0 130px"><option value="1">購買時扣除</option><option value="0">只檢查持有</option></select>
+    <button type="button" class="btn btn-del" onclick="this.closest('.req-item-row').remove(); syncReqItemsHidden('${prefix}')">✕</button>
+  `;
+  list.appendChild(row);
+  if (n !== undefined) row.querySelector('.req-name-input').value = n;
+  row.querySelector('.req-qty-input').value = q || 1;
+  row.querySelector('.req-mode-input').value = c ? '1' : '0';
+  row.querySelectorAll('input,select').forEach(el => { el.addEventListener('input', () => syncReqItemsHidden(prefix)); el.addEventListener('change', () => syncReqItemsHidden(prefix)); });
+  if (n === undefined) row.querySelector('.req-mode-input').value = '1';
+  ensureReqItemNames_();
+  syncReqItemsHidden(prefix);
+}
+function collectReqItems(prefix) {
+  const out = [];
+  document.querySelectorAll(`#${prefix}-reqitems-list .req-item-row`).forEach(row => {
+    const n = row.querySelector('.req-name-input').value.trim();
+    const q = parseInt(row.querySelector('.req-qty-input').value, 10) || 0;
+    if (n && q >= 1) out.push({ n, q, c: row.querySelector('.req-mode-input').value === '1' ? 1 : 0 });
+  });
+  return out;
+}
+function syncReqItemsHidden(prefix) {
+  const el = document.getElementById(prefix + '-reqitems');
+  if (el) el.value = JSON.stringify(collectReqItems(prefix));
+}
+function setReqItemRows(prefix, arr) {
+  const list = document.getElementById(prefix + '-reqitems-list');
+  if (list) list.innerHTML = '';
+  (Array.isArray(arr) ? arr : []).forEach(it => addReqItemRow(prefix, it.n, it.q, it.c));
+  syncReqItemsHidden(prefix);
+}
+// 道具名稱建議清單沿用合成配方頁的 cr-item-names(來源是道具模板名稱),還沒載入過就背景載入一次
+let reqItemNamesLoading_ = false;
+async function ensureReqItemNames_() {
+  const dl = document.getElementById('cr-item-names');
+  if (!dl || dl.children.length > 0 || reqItemNamesLoading_) return;
+  reqItemNamesLoading_ = true;
+  try {
+    let names = (typeof craftAdmin_ !== 'undefined' && craftAdmin_.templateNames) || [];
+    if (!names.length) {
+      const d = await apiWorkerRead('adminGetCraftRecipesWorker', {}, { action: 'adminGetCraftRecipes' });
+      if (d && d.status === 'success') names = d.templateNames || [];
+    }
+    dl.innerHTML = names.map(n => `<option value="${crEsc_(n)}">`).join('');
+  } catch (e) { /* 只是輸入建議,失敗不影響手動輸入 */ }
+  reqItemNamesLoading_ = false;
+}
 function setExtraCostRows(prefix, extraCostStr, extraAmountStr) {
   const list = document.getElementById(prefix + '-extracost-list');
   if (list) list.innerHTML = '';
@@ -3645,6 +3714,7 @@ function openEditShop(itemId) {
   f('em-excl').value=i.exclusiveGroup||'';
   setAltCurrencyRows('em', i.altCurrency||'', i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'');
   setExtraCostRows('em', i.extraCost||'', i.extraCostAmount||'');
+  setReqItemRows('em', i.requiredItems || []);
   f('em-milestone').value = i.milestoneRules || '';
   f('em-milestone-share').value = i.milestoneShareWithItemId || '';
   loadItemOptions('em', i.itemOptionsRaw || '');
@@ -3713,7 +3783,7 @@ async function saveShopItem() {
     rewardVar:f('em-rvar'),rewardQty:f('em-rqty'),imageUrl:f('em-img'),
     remark:f('em-remark'),requiredRole:buildRoleRequirement('em-role'),exclusiveGroup:f('em-excl'),
     altCurrency:f('em-altcurrency'),altCurrencyRate:f('em-altrate'),
-    extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),milestoneRules:f('em-milestone'),milestoneShareWithItemId:f('em-milestone-share'),
+    extraCost:f('em-extracost'),extraCostAmount:f('em-extracostamount'),requiredItems:f('em-reqitems'),milestoneRules:f('em-milestone'),milestoneShareWithItemId:f('em-milestone-share'),
     itemOptions:serializeItemOptions('em'),
     ...collectBingoItemParams('em'),
     lockFixedPassword:f('em-lockpw'),lockCodeName:f('em-lockcode'),lockPersistent:f('em-lockpersist'),lockVisibility:f('em-lockvis'),lockHintText:f('em-lockhint'),
@@ -3747,7 +3817,7 @@ async function publishShopItem(itemId) {
     rewardVar:i.rewardVar,rewardQty:i.rewardQty,imageUrl:i.imageUrl,
     remark:i.remark,requiredRole:i.requiredRole,exclusiveGroup:i.exclusiveGroup,
     altCurrency:i.altCurrency,altCurrencyRate:i.altCurrencyRate,
-    extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,milestoneRules:i.milestoneRules,milestoneShareWithItemId:i.milestoneShareWithItemId,
+    extraCost:i.extraCost,extraCostAmount:i.extraCostAmount,requiredItems:JSON.stringify(i.requiredItems||[]),milestoneRules:i.milestoneRules,milestoneShareWithItemId:i.milestoneShareWithItemId,
     itemOptions:i.itemOptionsRaw,
     lockFixedPassword:i.lockFixedPassword,lockCodeName:i.lockCodeName,lockPersistent:i.lockPersistent,lockVisibility:i.lockVisibility,lockHintText:i.lockHintText,
     lockPasswordMode:i.lockPasswordMode,lockPasswordSeed:i.lockPasswordSeed,lockPasswordSchedule:i.lockPasswordSchedule,
@@ -4073,6 +4143,7 @@ function resetAddShop() {
   toggleUpFields('ns');
   setAltCurrencyRows('ns', '', '');
   setExtraCostRows('ns', '', '');
+  setReqItemRows('ns', []);
   document.getElementById('ns-currency').value='幻彩水晶';
   document.getElementById('ns-status').value='';
   document.getElementById('ns-lockpersist').value='';
@@ -4124,7 +4195,7 @@ async function submitAddShop(forceStatus) {
     rewardVar:f('ns-rvar'),rewardQty:f('ns-rqty'),imageUrl:f('ns-img'),
     remark:f('ns-remark'),requiredRole:buildRoleRequirement('ns-role'),exclusiveGroup:f('ns-excl'),
     altCurrency:f('ns-altcurrency'),altCurrencyRate:f('ns-altrate'),
-    extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),milestoneRules:f('ns-milestone'),milestoneShareWithItemId:f('ns-milestone-share'),
+    extraCost:f('ns-extracost'),extraCostAmount:f('ns-extracostamount'),requiredItems:f('ns-reqitems'),milestoneRules:f('ns-milestone'),milestoneShareWithItemId:f('ns-milestone-share'),
     itemOptions:serializeItemOptions('ns'),
     ...collectBingoItemParams('ns'),
     lockFixedPassword:f('ns-lockpw'),lockCodeName:f('ns-lockcode'),lockPersistent:f('ns-lockpersist'),lockVisibility:f('ns-lockvis'),lockHintText:f('ns-lockhint'),
