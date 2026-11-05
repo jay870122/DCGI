@@ -680,7 +680,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.105</div>
+    <div class="version-tag">系統版本：v5.4.106</div>
   </div>
 
   <script>
@@ -4397,7 +4397,7 @@
         return `<div class="score-box" style="padding:10px" data-slot="${sl.slot}">
           <div style="font-weight:bold">第 ${sl.slot} 格:${escapeHtml_(sl.itemName)}</div>
           <div class="chamber-remain" style="margin:4px 0;font-size:13px"></div>
-          <div style="height:6px;background:#2F3136;border-radius:3px;overflow:hidden"><div class="chamber-bar" style="height:100%;width:0;background:#1ABC9C"></div></div>
+          <div style="display:block;flex:0 0 auto;height:8px;min-height:8px;width:100%;background:#4F545C;border-radius:4px;overflow:hidden"><div class="chamber-bar" style="height:8px;width:0;background:#1ABC9C;transition:width .5s linear"></div></div>
           ${sl.expiryAt ? `<div style="font-size:11px;color:#72767D;margin-top:3px">道具有效期限至 ${new Date(sl.expiryAt).toLocaleString('zh-TW')}(過期會消失)</div>` : ''}
           <div class="chamber-btns" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
             <button class="btn-action chamber-open-btn" style="background-color:#57F287;color:#000" onclick="chamberOpen_(${sl.slot}, this)" disabled>🎁 開啟</button>
