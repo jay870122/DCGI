@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.37</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.38</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1822,15 +1822,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <input type="checkbox" id="it-allowdiscard" style="width:auto" checked><label for="it-allowdiscard" style="margin:0">🗑️ 允許玩家丟棄 <span class="hint">取消勾選後,玩家背包不會顯示「丟棄」按鈕,後端也會擋下丟棄請求</span></label>
       </div>
       <div class="field full">
-        <label>🧊 道具開啟室 <span class="hint">玩家可以把這個道具放進「開啟室」,等指定時間到才能點開啟。最小、最大分鐘都留空=不能放入。最小&lt;最大=每次放入在範圍內隨機;只填最大或兩者相同=固定時間</span></label>
+        <label>🧊 道具開啟室 <span class="hint">玩家可以把這個道具放進「開啟室」,等指定時間到才能點開啟。最小、最大秒數都留空=不能放入。最小&lt;最大=每次放入在範圍內隨機;只填最大或兩者相同=固定時間。單位是「秒」(例:90=1分30秒、3600=1小時)</span></label>
         <div style="display:flex;flex-direction:row;gap:8px;flex-wrap:wrap;align-items:center">
-          <input id="it-chamber-min" type="number" min="0" step="any" placeholder="最小分鐘" style="flex:1;min-width:100px">
+          <input id="it-chamber-min" type="number" min="0" step="any" placeholder="最小秒數" style="flex:1;min-width:100px">
           <span>~</span>
-          <input id="it-chamber-max" type="number" min="0" step="any" placeholder="最大分鐘" style="flex:1;min-width:100px">
+          <input id="it-chamber-max" type="number" min="0" step="any" placeholder="最大秒數" style="flex:1;min-width:100px">
         </div>
         <div style="display:flex;flex-direction:row;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
           <input id="it-chamber-speedcur" list="dc-list" placeholder="加速貨幣(留空=不能加速)" style="flex:2;min-width:140px">
-          <input id="it-chamber-speedprice" type="number" min="0" step="any" placeholder="每分鐘價格" style="flex:1;min-width:100px">
+          <input id="it-chamber-speedprice" type="number" min="0" step="any" placeholder="每分鐘價格(按秒比例扣)" style="flex:1;min-width:100px">
         </div>
       </div>
       <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
@@ -5655,8 +5655,8 @@ function editItemTemplate(name) {
   document.getElementById('it-tradable').checked = !!t.tradable;
   document.getElementById('it-autoopen').checked = !!t.autoOpenOnExpire;
   document.getElementById('it-allowdiscard').checked = !t.discardDisabled;
-  document.getElementById('it-chamber-min').value = t.chamberMinMin !== undefined && t.chamberMinMin !== null ? t.chamberMinMin : '';
-  document.getElementById('it-chamber-max').value = t.chamberMaxMin !== undefined && t.chamberMaxMin !== null ? t.chamberMaxMin : '';
+  document.getElementById('it-chamber-min').value = t.chamberMinSec !== undefined && t.chamberMinSec !== null ? t.chamberMinSec : '';
+  document.getElementById('it-chamber-max').value = t.chamberMaxSec !== undefined && t.chamberMaxSec !== null ? t.chamberMaxSec : '';
   document.getElementById('it-chamber-speedcur').value = t.chamberSpeedCurrency || '';
   document.getElementById('it-chamber-speedprice').value = t.chamberSpeedPrice !== undefined && t.chamberSpeedPrice !== null ? t.chamberSpeedPrice : '';
   document.getElementById('it-requiretrade').checked = !!t.requireTradeBeforeUse;
@@ -5728,7 +5728,7 @@ async function submitItemTemplate() {
     if (originalName && originalName !== name) {
       await api({ action: 'adminDeleteItemTemplate', name: originalName });
     }
-    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, requireTradeCount, tradeCountLimit, openLimitRules: JSON.stringify(openLimitRules), perInstanceOpenLimit, remark, autoOpenOnExpire: document.getElementById('it-autoopen').checked, discardDisabled: !document.getElementById('it-allowdiscard').checked, chamberMinMin: document.getElementById('it-chamber-min').value, chamberMaxMin: document.getElementById('it-chamber-max').value, chamberSpeedCurrency: document.getElementById('it-chamber-speedcur').value.trim(), chamberSpeedPrice: document.getElementById('it-chamber-speedprice').value });
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, requireTradeCount, tradeCountLimit, openLimitRules: JSON.stringify(openLimitRules), perInstanceOpenLimit, remark, autoOpenOnExpire: document.getElementById('it-autoopen').checked, discardDisabled: !document.getElementById('it-allowdiscard').checked, chamberMinSec: document.getElementById('it-chamber-min').value, chamberMaxSec: document.getElementById('it-chamber-max').value, chamberSpeedCurrency: document.getElementById('it-chamber-speedcur').value.trim(), chamberSpeedPrice: document.getElementById('it-chamber-speedprice').value });
     if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
     toast(d.message);
     closeModal('item-template-modal');

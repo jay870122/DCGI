@@ -680,7 +680,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.103</div>
+    <div class="version-tag">系統版本：v5.4.104</div>
   </div>
 
   <script>
@@ -4388,7 +4388,7 @@
       const box = document.getElementById('chamber-slots');
       if (!d.enabled) { box.innerHTML = '<div style="color:#ED4245">開啟室目前沒有開放。</div>'; document.getElementById('chamber-summary').textContent = ''; document.getElementById('chamber-unlock').innerHTML = ''; return; }
       document.getElementById('chamber-summary').textContent = `格數:${d.slotCount} 格(預設 ${d.defaultSlots}${d.purchased ? ' + 解鎖 ' + d.purchased : ''}${d.roleExtra ? ' + 身分組 ' + d.roleExtra : ''},上限 ${d.maxSlots})`;
-      const options = d.eligible.map(g => `<option value="${escapeHtml_(g.itemName)}">${escapeHtml_(g.itemName)} ×${g.count}(等待 ${g.minMin === g.maxMin ? g.maxMin : g.minMin + '~' + g.maxMin} 分鐘)</option>`).join('');
+      const options = d.eligible.map(g => `<option value="${escapeHtml_(g.itemName)}">${escapeHtml_(g.itemName)} ×${g.count}(等待 ${g.minSec === g.maxSec ? chamberFmtRemain_(g.maxSec * 1000) : chamberFmtRemain_(g.minSec * 1000) + ' ~ ' + chamberFmtRemain_(g.maxSec * 1000)})</option>`).join('');
       box.innerHTML = d.slots.map(sl => {
         if (sl.empty) {
           return `<div class="score-box" style="padding:10px"><div style="font-weight:bold;margin-bottom:6px">第 ${sl.slot} 格:空的</div>${d.eligible.length ? `<div style="display:flex;gap:6px"><select id="chamber-pick-${sl.slot}" style="flex:1">${options}</select><button class="btn-action" style="background-color:#1ABC9C" onclick="chamberPlace_(${sl.slot}, this)">放入</button></div>` : '<div style="color:#72767D;font-size:12px">背包裡沒有可以放入的道具</div>'}</div>`;
@@ -4451,12 +4451,12 @@
     }
     async function chamberSpeed_(slot, btn) {
       const sl = chamberState_ && chamberState_.slots.find(x => x.slot === slot); if (!sl) return;
-      const remainMin = Math.ceil(Math.max(0, sl.finishAt - (Date.now() + chamberOffsetMs_)) / 60000);
-      const input = prompt(`要加速幾分鐘？(剩餘約 ${remainMin} 分鐘,每分鐘 ${sl.speedPrice} ${sl.speedCurrencyDisplay};輸入 all=一次加速到完成,預估花費約 ${Math.ceil(remainMin * sl.speedPrice)})`, 'all');
+      const remainSec = Math.ceil(Math.max(0, sl.finishAt - (Date.now() + chamberOffsetMs_)) / 1000);
+      const input = prompt(`要加速幾秒？(剩餘約 ${remainSec} 秒,每分鐘 ${sl.speedPrice} ${sl.speedCurrencyDisplay}、按秒數比例計算;輸入 all=一次加速到完成,預估花費約 ${Math.ceil(remainSec / 60 * sl.speedPrice)})`, 'all');
       if (input === null) return;
-      const minutes = input.trim().toLowerCase() === 'all' ? 'all' : String(parseInt(input, 10) || 0);
-      if (minutes !== 'all' && parseInt(minutes, 10) < 1) { alert('請輸入至少 1 分鐘,或輸入 all'); return; }
-      const r = await chamberAct_(btn, '⏳ 加速中...', () => chamberCall_('chamberSpeedUpWorker', { slot, minutes }));
+      const seconds = input.trim().toLowerCase() === 'all' ? 'all' : String(parseInt(input, 10) || 0);
+      if (seconds !== 'all' && parseInt(seconds, 10) < 1) { alert('請輸入至少 1 秒,或輸入 all'); return; }
+      const r = await chamberAct_(btn, '⏳ 加速中...', () => chamberCall_('chamberSpeedUpWorker', { slot, seconds }));
       if (!r) alert('⚠️ 結果不確定,已重新整理開啟室,請確認貨幣有沒有被扣、時間有沒有縮短。');
       else alert(r.status === 'success' ? r.message : '❌ ' + r.message);
       fetchScoresAndShop(currentUser.id);
