@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.41</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.42</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3196,8 +3196,8 @@ function openPlayerItems() {
 }
 function piEsc_(x) { return String(x == null ? '' : x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function piFmtSec_(sec) {
-  sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60;
-  return (h ? h + '小時' : '') + (h || m ? m + '分' : '') + x + '秒';
+  sec = Math.max(0, Math.round(sec)); const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60;
+  return (d ? d + '天' : '') + (d || h ? h + '小時' : '') + (d || h || m ? m + '分' : '') + x + '秒';
 }
 function piFmtTs_(t) { return t ? new Date(t).toLocaleString('zh-TW', { hour12: false }) : '-'; }
 function backToPlayerList_() {

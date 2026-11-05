@@ -680,7 +680,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.106</div>
+    <div class="version-tag">系統版本：v5.4.107</div>
   </div>
 
   <script>
@@ -4362,8 +4362,8 @@
     }
     function chamberFmtRemain_(ms) {
       if (ms <= 0) return '可以開啟了!';
-      const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
-      return (h > 0 ? h + '小時' : '') + (h > 0 || m > 0 ? m + '分' : '') + sec + '秒';
+      const t = Math.ceil(ms / 1000), d = Math.floor(t / 86400), h = Math.floor((t % 86400) / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+      return (d > 0 ? d + '天' : '') + (d > 0 || h > 0 ? h + '小時' : '') + (d > 0 || h > 0 || m > 0 ? m + '分' : '') + sec + '秒';
     }
     function openChamber() {
       document.getElementById('chamber-modal').style.display = 'flex';
