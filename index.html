@@ -499,6 +499,12 @@
             <!-- 🌟🆕 一組序號可以放多種道具:勾好這一種的份數後按「加入清單」,再換下一種道具,最後一次產生序號 -->
             <button class="btn-action" style="padding:6px;font-size:13px;background-color:#4F545C" onclick="addGiftCodeStagedItem_()">➕ 把勾選的份數加入清單(可再選其他道具)</button>
             <div id="giftcode-staged-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+            <!-- 🌟🆕 一次產生多組序號:每組放幾份,空白=全部放同一組 -->
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#B9BBBE">
+              <span style="white-space:nowrap">拆成多組:每組</span>
+              <input type="number" id="giftcode-split-input" min="1" placeholder="空白=全放一組" style="width:110px;padding:6px;">
+              <span style="white-space:nowrap">份(同種道具各自拆)</span>
+            </div>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#B9BBBE;cursor:pointer">
               <input type="checkbox" id="giftcode-notify-input" checked style="width:auto">
               被兌換時私訊通知我
@@ -657,7 +663,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.99</div>
+    <div class="version-tag">系統版本：v5.4.100</div>
   </div>
 
   <script>
@@ -4529,6 +4535,8 @@
       const totalCount = items.reduce((sum, it) => sum + it.instanceIds.length, 0);
       const summaryText = items.map(it => `「${it.itemName}」${it.instanceIds.length}份`).join('、');
       const notifyOnRedeem = document.getElementById('giftcode-notify-input').checked;
+      const splitN = parseInt(document.getElementById('giftcode-split-input').value, 10) || 0;
+      if (splitN > 0 && totalCount > splitN) { submitSplitGiftCodes_(items, splitN, notifyOnRedeem, btn, summaryText, totalCount); return; }
       if (!confirm(`確定要把 ${summaryText}(共${totalCount}份)轉成一組一次性序號嗎？轉換後這些道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
 
       giftCodeActionInFlight = true;
@@ -4571,6 +4579,34 @@
           console.error('[submitCreateGiftCode_] Worker流程發生例外:', err);
           alert('⚠️ 處理結果時發生內部錯誤(' + (err && err.message ? err.message : String(err)) + '),請重新整理頁面確認狀態。');
         });
+    }
+
+    // 🌟🆕 一次產生多組序號:每種道具的份數依「每組N份」切開,每一塊各產生一組序號(逐組送出,避免互相搶鎖)。
+    async function submitSplitGiftCodes_(items, splitN, notifyOnRedeem, btn, summaryText, totalCount) {
+      const chunks = [];
+      items.forEach(it => { for (let i = 0; i < it.instanceIds.length; i += splitN) chunks.push([{ itemName: it.itemName, instanceIds: it.instanceIds.slice(i, i + splitN) }]); });
+      if (chunks.length > 30) { alert(`一次最多產生 30 組序號(你現在會產生 ${chunks.length} 組),請調大「每組份數」或分批進行。`); return; }
+      if (!confirm(`確定要把 ${summaryText}(共${totalCount}份)拆成 ${chunks.length} 組序號嗎？每組最多 ${splitN} 份。轉換後這些道具會暫時從背包移除,直到序號被兌換或你自己取消為止。`)) return;
+      giftCodeActionInFlight = true;
+      const restoreBtn = setBtnBusy_(btn, '產生中 0/' + chunks.length);
+      const codes = []; let failMsg = '';
+      for (let i = 0; i < chunks.length; i++) {
+        if (btn) btn.textContent = `產生中 ${i}/${chunks.length}`;
+        const r = await tryCreateGeneralItemGiftCodeViaWorker_(chunks[i], notifyOnRedeem);
+        if (r && r.status === 'success') {
+          codes.push(`${chunks[i][0].itemName}×${chunks[i][0].instanceIds.length}份:${r.code || ''}`);
+        } else {
+          failMsg = !r ? '連線逾時,結果不確定' : (r.status === 'unsupported' ? '伺服器不支援,請稍後再試' : (r.message || '失敗'));
+          break;
+        }
+      }
+      giftCodeActionInFlight = false; restoreBtn();
+      let msg = codes.length ? `🎁 已產生 ${codes.length} 組序號:\n` + codes.join('\n') : '';
+      if (failMsg) msg += (msg ? '\n\n' : '') + `⚠️ 第 ${codes.length + 1} 組開始沒有成功(${failMsg}),請重新整理確認「我產生過的序號」清單再決定要不要繼續。`;
+      alert(msg || '沒有產生任何序號');
+      if (codes.length) { giftCodeStaged_ = []; renderGiftCodeStagedList_(); }
+      loadGiftCodeData();
+      loadGeneralItems(true);
     }
 
     async function tryCreateGeneralItemGiftCodeViaWorker_(items, notifyOnRedeem) {
