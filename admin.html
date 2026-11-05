@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.38</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.39</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1820,6 +1820,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="it-allowdiscard" style="width:auto" checked><label for="it-allowdiscard" style="margin:0">🗑️ 允許玩家丟棄 <span class="hint">取消勾選後,玩家背包不會顯示「丟棄」按鈕,後端也會擋下丟棄請求</span></label>
+      </div>
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="it-chamberonly" style="width:auto"><label for="it-chamberonly" style="margin:0">🧊 必須經過開啟室才能開啟 <span class="hint">勾選後背包不能直接開,只能放進開啟室等時間到(需先填下面的開啟室秒數)</span></label>
       </div>
       <div class="field full">
         <label>🧊 道具開啟室 <span class="hint">玩家可以把這個道具放進「開啟室」,等指定時間到才能點開啟。最小、最大秒數都留空=不能放入。最小&lt;最大=每次放入在範圍內隨機;只填最大或兩者相同=固定時間。單位是「秒」(例:90=1分30秒、3600=1小時)</span></label>
@@ -5576,7 +5579,7 @@ function renderItemTemplates() {
     const moreCount = poolLines.length - 1;
     return `
     <tr>
-      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.autoOpenOnExpire ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">⏰過期自動開</span>' : ''}${t.discardDisabled ? ' <span class="hint" style="color:var(--red,#d9534f)">🚫禁丟棄</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.tradeCountLimit ? ` <span class="hint" style="color:var(--green)">🤝限交易${t.tradeCountLimit}次</span>` : ''}${(t.openLimitRules || []).map(r => ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(r.mode)}限${r.limit}次</span>`).join('')}${(t.openLimitRules && t.openLimitRules.length > 0 && t.perInstanceOpenLimit) ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">(每個實體各自計次)</span>' : ''}</td>
+      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.autoOpenOnExpire ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">⏰過期自動開</span>' : ''}${t.discardDisabled ? ' <span class="hint" style="color:var(--red,#d9534f)">🚫禁丟棄</span>' : ''}${t.chamberOnly ? ' <span class="hint" style="color:var(--green)">🧊限開啟室</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.tradeCountLimit ? ` <span class="hint" style="color:var(--green)">🤝限交易${t.tradeCountLimit}次</span>` : ''}${(t.openLimitRules || []).map(r => ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(r.mode)}限${r.limit}次</span>`).join('')}${(t.openLimitRules && t.openLimitRules.length > 0 && t.perInstanceOpenLimit) ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">(每個實體各自計次)</span>' : ''}</td>
       <td style="max-width:280px;font-size:12px;color:var(--muted)">
         <div>${firstLineShort}${moreCount > 0 ? `<span class="hint">　(共${poolLines.length}個獎項)</span>` : ''}</div>
         ${moreCount > 0 ? `
@@ -5626,6 +5629,7 @@ function openItemTemplateForm() {
   document.getElementById('it-tradable').checked = false;
   document.getElementById('it-autoopen').checked = false;
   document.getElementById('it-allowdiscard').checked = true;
+  document.getElementById('it-chamberonly').checked = false;
   ['it-chamber-min','it-chamber-max','it-chamber-speedcur','it-chamber-speedprice'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('it-requiretrade').checked = false;
   document.getElementById('it-requiretradecount').value = '';
@@ -5655,6 +5659,7 @@ function editItemTemplate(name) {
   document.getElementById('it-tradable').checked = !!t.tradable;
   document.getElementById('it-autoopen').checked = !!t.autoOpenOnExpire;
   document.getElementById('it-allowdiscard').checked = !t.discardDisabled;
+  document.getElementById('it-chamberonly').checked = !!t.chamberOnly;
   document.getElementById('it-chamber-min').value = t.chamberMinSec !== undefined && t.chamberMinSec !== null ? t.chamberMinSec : '';
   document.getElementById('it-chamber-max').value = t.chamberMaxSec !== undefined && t.chamberMaxSec !== null ? t.chamberMaxSec : '';
   document.getElementById('it-chamber-speedcur').value = t.chamberSpeedCurrency || '';
@@ -5728,7 +5733,7 @@ async function submitItemTemplate() {
     if (originalName && originalName !== name) {
       await api({ action: 'adminDeleteItemTemplate', name: originalName });
     }
-    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, requireTradeCount, tradeCountLimit, openLimitRules: JSON.stringify(openLimitRules), perInstanceOpenLimit, remark, autoOpenOnExpire: document.getElementById('it-autoopen').checked, discardDisabled: !document.getElementById('it-allowdiscard').checked, chamberMinSec: document.getElementById('it-chamber-min').value, chamberMaxSec: document.getElementById('it-chamber-max').value, chamberSpeedCurrency: document.getElementById('it-chamber-speedcur').value.trim(), chamberSpeedPrice: document.getElementById('it-chamber-speedprice').value });
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, requireTradeCount, tradeCountLimit, openLimitRules: JSON.stringify(openLimitRules), perInstanceOpenLimit, remark, autoOpenOnExpire: document.getElementById('it-autoopen').checked, discardDisabled: !document.getElementById('it-allowdiscard').checked, chamberOnly: document.getElementById('it-chamberonly').checked, chamberMinSec: document.getElementById('it-chamber-min').value, chamberMaxSec: document.getElementById('it-chamber-max').value, chamberSpeedCurrency: document.getElementById('it-chamber-speedcur').value.trim(), chamberSpeedPrice: document.getElementById('it-chamber-speedprice').value });
     if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
     toast(d.message);
     closeModal('item-template-modal');
