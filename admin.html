@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.36</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.37</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1031,6 +1031,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="page-title">🎁 道具模板管理</div>
           <div class="toolbar">
             <button class="btn btn-edit" onclick="openGrantGeneralItemModal()">🎁 手動發放道具</button>
+            <button class="btn btn-edit" onclick="openChamberConfig()">🧊 開啟室設定</button>
             <button class="fab" onclick="openItemTemplateForm()">➕ 新增道具模板</button>
           </div>
         </div>
@@ -1694,6 +1695,23 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 </div>
 
 <!-- 道具模板新增/編輯彈窗 -->
+<div class="overlay" id="chamber-cfg-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3>🧊 道具開啟室設定</h3><button class="modal-close" onclick="closeModal('chamber-cfg-modal')">×</button></div>
+    <div class="form-grid">
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="cc-enabled" style="width:auto" checked><label for="cc-enabled" style="margin:0">啟用開啟室</label></div>
+      <div class="field"><label>預設格數 <span class="hint">每位玩家一開始有幾格</span></label><input id="cc-default" type="number" min="0" value="2"></div>
+      <div class="field"><label>最大格數 <span class="hint">付費解鎖+身分組加成合計的總上限</span></label><input id="cc-max" type="number" min="0" value="6"></div>
+      <div class="field"><label>解鎖貨幣 <span class="hint">留空=不開放付費解鎖</span></label><input id="cc-cur" list="dc-list" placeholder="例:幻彩水晶"></div>
+      <div class="field"><label>解鎖價格 <span class="hint">逗號分隔,依序是第1、第2、第3…次解鎖的價格,不夠用就沿用最後一個</span></label><input id="cc-prices" placeholder="100,200,300"></div>
+      <div class="field full"><label>身分組加格 <span class="hint">格式「身分組ID:加幾格」,多個用逗號,例:123456789012345678:1,987654321098765432:2(玩家有這個身分組就多幾格,可疊加,仍受最大格數限制)</span></label><input id="cc-roles" placeholder="身分組ID:格數,身分組ID:格數"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('chamber-cfg-modal')">取消</button>
+      <button class="btn btn-primary" id="cc-save-btn" onclick="saveChamberConfig()">💾 儲存</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="craft-modal">
   <div class="modal" style="max-width:680px">
     <div class="modal-header"><h3 id="craft-modal-title">🔨 新增合成配方</h3><button class="modal-close" onclick="closeModal('craft-modal')">×</button></div>
@@ -1802,6 +1820,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="it-allowdiscard" style="width:auto" checked><label for="it-allowdiscard" style="margin:0">🗑️ 允許玩家丟棄 <span class="hint">取消勾選後,玩家背包不會顯示「丟棄」按鈕,後端也會擋下丟棄請求</span></label>
+      </div>
+      <div class="field full">
+        <label>🧊 道具開啟室 <span class="hint">玩家可以把這個道具放進「開啟室」,等指定時間到才能點開啟。最小、最大分鐘都留空=不能放入。最小&lt;最大=每次放入在範圍內隨機;只填最大或兩者相同=固定時間</span></label>
+        <div style="display:flex;flex-direction:row;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="it-chamber-min" type="number" min="0" step="any" placeholder="最小分鐘" style="flex:1;min-width:100px">
+          <span>~</span>
+          <input id="it-chamber-max" type="number" min="0" step="any" placeholder="最大分鐘" style="flex:1;min-width:100px">
+        </div>
+        <div style="display:flex;flex-direction:row;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+          <input id="it-chamber-speedcur" list="dc-list" placeholder="加速貨幣(留空=不能加速)" style="flex:2;min-width:140px">
+          <input id="it-chamber-speedprice" type="number" min="0" step="any" placeholder="每分鐘價格" style="flex:1;min-width:100px">
+        </div>
       </div>
       <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px">
         <input type="checkbox" id="it-requiretrade" style="width:auto"><label for="it-requiretrade" style="margin:0">⚠️ 強迫交易(需交易後才能使用) <span class="hint">勾選後,玩家拿到的這個道具一定要先透過一次已完成的交易轉手過(交易出去或交易回來都算),才能打開使用——需要同時勾選「開放玩家互相交易」,不然道具會卡死</span></label>
@@ -3131,6 +3161,38 @@ function toast(msg, ok=true) {
 
 // ── Modal ──
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ============================================================
+// 🧊 道具開啟室設定(Worker專屬,沒有GAS備援;玩家介面在index.html「道具開啟室」)
+// ============================================================
+async function openChamberConfig() {
+  const d = await apiWorkerRead('adminGetChamberConfigWorker', {}, { action: 'adminGetChamberConfigWorker' });
+  if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  const c = d.config;
+  document.getElementById('cc-enabled').checked = c.enabled !== false;
+  document.getElementById('cc-default').value = c.defaultSlots;
+  document.getElementById('cc-max').value = c.maxSlots;
+  document.getElementById('cc-cur').value = c.unlockCurrency || '';
+  document.getElementById('cc-prices').value = c.unlockPrices || '';
+  document.getElementById('cc-roles').value = c.roleSlots || '';
+  document.getElementById('chamber-cfg-modal').classList.add('open');
+}
+async function saveChamberConfig() {
+  const btn = document.getElementById('cc-save-btn');
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
+  try {
+    const d = await apiCraftWrite_('adminSaveChamberConfig', {
+      enabled: document.getElementById('cc-enabled').checked,
+      defaultSlots: document.getElementById('cc-default').value,
+      maxSlots: document.getElementById('cc-max').value,
+      unlockCurrency: document.getElementById('cc-cur').value.trim(),
+      unlockPrices: document.getElementById('cc-prices').value,
+      roleSlots: document.getElementById('cc-roles').value,
+    });
+    if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+    toast(d.message); closeModal('chamber-cfg-modal');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
 
 // ============================================================
 // 🔨 合成配方管理
@@ -5564,6 +5626,7 @@ function openItemTemplateForm() {
   document.getElementById('it-tradable').checked = false;
   document.getElementById('it-autoopen').checked = false;
   document.getElementById('it-allowdiscard').checked = true;
+  ['it-chamber-min','it-chamber-max','it-chamber-speedcur','it-chamber-speedprice'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('it-requiretrade').checked = false;
   document.getElementById('it-requiretradecount').value = '';
   document.getElementById('it-tradecountlimit').value = '';
@@ -5592,6 +5655,10 @@ function editItemTemplate(name) {
   document.getElementById('it-tradable').checked = !!t.tradable;
   document.getElementById('it-autoopen').checked = !!t.autoOpenOnExpire;
   document.getElementById('it-allowdiscard').checked = !t.discardDisabled;
+  document.getElementById('it-chamber-min').value = t.chamberMinMin !== undefined && t.chamberMinMin !== null ? t.chamberMinMin : '';
+  document.getElementById('it-chamber-max').value = t.chamberMaxMin !== undefined && t.chamberMaxMin !== null ? t.chamberMaxMin : '';
+  document.getElementById('it-chamber-speedcur').value = t.chamberSpeedCurrency || '';
+  document.getElementById('it-chamber-speedprice').value = t.chamberSpeedPrice !== undefined && t.chamberSpeedPrice !== null ? t.chamberSpeedPrice : '';
   document.getElementById('it-requiretrade').checked = !!t.requireTradeBeforeUse;
   document.getElementById('it-requiretradecount').value = (t.requireTradeCount && t.requireTradeCount > 1) ? t.requireTradeCount : '';
   document.getElementById('it-tradecountlimit').value = t.tradeCountLimit || '';
@@ -5661,7 +5728,7 @@ async function submitItemTemplate() {
     if (originalName && originalName !== name) {
       await api({ action: 'adminDeleteItemTemplate', name: originalName });
     }
-    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, requireTradeCount, tradeCountLimit, openLimitRules: JSON.stringify(openLimitRules), perInstanceOpenLimit, remark, autoOpenOnExpire: document.getElementById('it-autoopen').checked, discardDisabled: !document.getElementById('it-allowdiscard').checked });
+    const d = await api({ action: 'adminSaveItemTemplate', name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpenPerRequest, tradable, requireTradeBeforeUse, requireTradeCount, tradeCountLimit, openLimitRules: JSON.stringify(openLimitRules), perInstanceOpenLimit, remark, autoOpenOnExpire: document.getElementById('it-autoopen').checked, discardDisabled: !document.getElementById('it-allowdiscard').checked, chamberMinMin: document.getElementById('it-chamber-min').value, chamberMaxMin: document.getElementById('it-chamber-max').value, chamberSpeedCurrency: document.getElementById('it-chamber-speedcur').value.trim(), chamberSpeedPrice: document.getElementById('it-chamber-speedprice').value });
     if (d.status !== 'success') { toast('儲存失敗: ' + d.message, false); return; }
     toast(d.message);
     closeModal('item-template-modal');
@@ -6662,7 +6729,7 @@ async function loadAuctionBids() {
 // 🌟 點擊彈窗背景關閉(但編輯商品/拍賣這兩個表單欄位很多,很容易滑鼠稍微點歪就整個關掉、資料等於白填,
 // 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉)
 document.querySelectorAll('.overlay').forEach(el => {
-  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal' || el.id === 'item-template-modal' || el.id === 'redeem-code-modal' || el.id === 'craft-modal') return;
+  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal' || el.id === 'item-template-modal' || el.id === 'redeem-code-modal' || el.id === 'craft-modal' || el.id === 'chamber-cfg-modal') return;
   el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
 });
 

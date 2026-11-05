@@ -348,6 +348,7 @@
             <div style="font-weight:bold;color:#B9BBBE;font-size:13px;">🎁 我的道具</div>
             <button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#5865F2" onclick="openTrade()">🤝 道具交易</button>
             <button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#9B59B6;margin-left:6px" onclick="openGiftCode()">🎫 序號贈禮</button>
+            <button class="btn-action" style="padding:3px 10px;font-size:12px;background-color:#1ABC9C;margin-left:6px" onclick="openChamber()">🧊 開啟室</button>
           </div>
           <div id="general-items-container" style="display:flex;flex-direction:column;gap:8px;"></div>
           <div id="craft-section" style="margin-top:12px"></div>
@@ -472,6 +473,22 @@
   <!-- 🌟 道具序號贈禮:跟上面「道具交易」不一樣,不需要雙方同時在線——把可交易道具轉成一組一次性序號,
   自己把序號傳給朋友(語音、私訊都行,系統不經手),對方自己找時間輸入兌換。兌換的輸入框已經合併進
   「序號兌換」(redeem-code-modal)那個彈窗,這裡只負責「產生序號」跟「查看我產生過的序號」。 -->
+  <!-- 🧊 道具開啟室:把道具丟進去,等指定時間到才能點開啟;可付費加速、解鎖更多格子 -->
+  <div id="chamber-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeChamber()">×</span>
+        <h2 style="margin:0;">🧊 道具開啟室</h2>
+      </div>
+      <div class="modal-body">
+        <p style="color:#72767D;font-size:12px;margin:0 0 10px">把道具放進開啟室,等待時間到了才能點「開啟」。可以付貨幣加速。放進去的道具不能使用、交易或丟棄,取消會取回但進度作廢;道具過期就會消失。</p>
+        <div id="chamber-summary" style="font-size:12px;color:#B9BBBE;margin-bottom:8px"></div>
+        <div id="chamber-slots" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div id="chamber-unlock" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="gift-code-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header">
@@ -663,7 +680,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.102</div>
+    <div class="version-tag">系統版本：v5.4.103</div>
   </div>
 
   <script>
@@ -4330,6 +4347,136 @@
     let giftCodeMyTradableItems_ = [];
     // 🌟🆕 已經「加入清單」、準備一起轉成同一組序號的多種道具:[{itemName, instanceIds, count, uses}]
     let giftCodeStaged_ = [];
+
+    // ============================================================
+    // 🧊 道具開啟室(只有Worker版)。狀態每次操作後重抓;倒數用伺服器時間差校正,每秒更新畫面。
+    // ============================================================
+    function escapeHtml_(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    let chamberState_ = null, chamberOffsetMs_ = 0, chamberTimer_ = null, chamberBusy_ = false;
+    async function chamberCall_(action, params) {
+      const qs = new URLSearchParams({ action, discordId: currentUser.id, accessToken: getAccessToken(), ...(params || {}) });
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 20000);
+        return await res.json();
+      } catch (e) { return null; }
+    }
+    function chamberFmtRemain_(ms) {
+      if (ms <= 0) return '可以開啟了!';
+      const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+      return (h > 0 ? h + '小時' : '') + (h > 0 || m > 0 ? m + '分' : '') + sec + '秒';
+    }
+    function openChamber() {
+      document.getElementById('chamber-modal').style.display = 'flex';
+      loadChamber_();
+      if (chamberTimer_) clearInterval(chamberTimer_);
+      chamberTimer_ = setInterval(tickChamber_, 1000);
+    }
+    function closeChamber() {
+      document.getElementById('chamber-modal').style.display = 'none';
+      if (chamberTimer_) { clearInterval(chamberTimer_); chamberTimer_ = null; }
+    }
+    async function loadChamber_() {
+      const box = document.getElementById('chamber-slots');
+      if (!chamberState_) box.innerHTML = '<div style="color:#72767D">讀取中...</div>';
+      const d = await chamberCall_('chamberStateWorker');
+      if (!d || d.status !== 'success') { box.innerHTML = `<div style="color:#ED4245">讀取失敗:${escapeHtml_((d && d.message) || '連線逾時,請稍後再試')}</div>`; return; }
+      chamberState_ = d; chamberOffsetMs_ = d.now - Date.now();
+      renderChamber_();
+    }
+    function renderChamber_() {
+      const d = chamberState_; if (!d) return;
+      const box = document.getElementById('chamber-slots');
+      if (!d.enabled) { box.innerHTML = '<div style="color:#ED4245">開啟室目前沒有開放。</div>'; document.getElementById('chamber-summary').textContent = ''; document.getElementById('chamber-unlock').innerHTML = ''; return; }
+      document.getElementById('chamber-summary').textContent = `格數:${d.slotCount} 格(預設 ${d.defaultSlots}${d.purchased ? ' + 解鎖 ' + d.purchased : ''}${d.roleExtra ? ' + 身分組 ' + d.roleExtra : ''},上限 ${d.maxSlots})`;
+      const options = d.eligible.map(g => `<option value="${escapeHtml_(g.itemName)}">${escapeHtml_(g.itemName)} ×${g.count}(等待 ${g.minMin === g.maxMin ? g.maxMin : g.minMin + '~' + g.maxMin} 分鐘)</option>`).join('');
+      box.innerHTML = d.slots.map(sl => {
+        if (sl.empty) {
+          return `<div class="score-box" style="padding:10px"><div style="font-weight:bold;margin-bottom:6px">第 ${sl.slot} 格:空的</div>${d.eligible.length ? `<div style="display:flex;gap:6px"><select id="chamber-pick-${sl.slot}" style="flex:1">${options}</select><button class="btn-action" style="background-color:#1ABC9C" onclick="chamberPlace_(${sl.slot}, this)">放入</button></div>` : '<div style="color:#72767D;font-size:12px">背包裡沒有可以放入的道具</div>'}</div>`;
+        }
+        const price = (sl.speedCurrency && sl.speedPrice > 0) ? sl.speedPrice : 0;
+        return `<div class="score-box" style="padding:10px" data-slot="${sl.slot}">
+          <div style="font-weight:bold">第 ${sl.slot} 格:${escapeHtml_(sl.itemName)}</div>
+          <div class="chamber-remain" style="margin:4px 0;font-size:13px"></div>
+          <div style="height:6px;background:#2F3136;border-radius:3px;overflow:hidden"><div class="chamber-bar" style="height:100%;width:0;background:#1ABC9C"></div></div>
+          ${sl.expiryAt ? `<div style="font-size:11px;color:#72767D;margin-top:3px">道具有效期限至 ${new Date(sl.expiryAt).toLocaleString('zh-TW')}(過期會消失)</div>` : ''}
+          <div class="chamber-btns" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn-action chamber-open-btn" style="background-color:#57F287;color:#000" onclick="chamberOpen_(${sl.slot}, this)" disabled>🎁 開啟</button>
+            ${price ? `<button class="btn-action chamber-speed-btn" style="background-color:#F0B232;color:#000" onclick="chamberSpeed_(${sl.slot}, this)">⚡ 加速</button>` : ''}
+            <button class="btn-action" style="background-color:#ED4245" onclick="chamberCancel_(${sl.slot}, this)">${sl.expired ? '🧹 清除' : '↩️ 取回'}</button>
+          </div></div>`;
+      }).join('');
+      document.getElementById('chamber-unlock').innerHTML = d.canUnlockMore
+        ? `<button class="btn-action" style="background-color:#5865F2" onclick="chamberUnlock_(this)">🔓 解鎖新格子(${d.nextUnlockPrice} ${escapeHtml_(d.unlockCurrencyDisplay)};你有 ${d.unlockBalance == null ? '?' : d.unlockBalance})</button>` : '';
+      tickChamber_();
+    }
+    function tickChamber_() {
+      const d = chamberState_; if (!d) return;
+      const nowSrv = Date.now() + chamberOffsetMs_;
+      d.slots.forEach(sl => {
+        if (sl.empty) return;
+        const card = document.querySelector(`#chamber-slots [data-slot="${sl.slot}"]`); if (!card) return;
+        const remain = sl.finishAt - nowSrv;
+        const total = Math.max(1, sl.finishAt - sl.startedAt);
+        card.querySelector('.chamber-remain').textContent = sl.expired ? '⚠️ 道具已過期,會消失' : (remain > 0 ? '⏳ 剩餘 ' + chamberFmtRemain_(remain) : '✅ ' + chamberFmtRemain_(remain));
+        card.querySelector('.chamber-bar').style.width = Math.max(0, Math.min(100, (1 - remain / total) * 100)) + '%';
+        const ready = !sl.expired && remain <= 0;
+        const ob = card.querySelector('.chamber-open-btn'); if (ob && !chamberBusy_) ob.disabled = !ready;
+        const sb = card.querySelector('.chamber-speed-btn'); if (sb) { sb.style.display = (ready || sl.expired) ? 'none' : ''; if (!ready) sb.textContent = `⚡ 加速(${sl.speedPrice}/${escapeHtml_(sl.speedCurrencyDisplay)}每分鐘)`; }
+      });
+    }
+    async function chamberAct_(btn, busyText, fn) {
+      if (chamberBusy_) return;
+      chamberBusy_ = true;
+      document.querySelectorAll('#chamber-modal button').forEach(b => { b.disabled = true; });
+      const orig = btn ? btn.textContent : ''; if (btn) btn.textContent = busyText;
+      let r = null;
+      try { r = await fn(); } finally { chamberBusy_ = false; }
+      await loadChamber_();
+      return r;
+    }
+    async function chamberPlace_(slot, btn) {
+      const sel = document.getElementById('chamber-pick-' + slot); if (!sel || !sel.value) return;
+      const r = await chamberAct_(btn, '⏳ 放入中...', () => chamberCall_('chamberPlaceWorker', { itemName: sel.value, slot }));
+      if (!r) alert('⚠️ 結果不確定,已重新整理開啟室,請確認有沒有放進去。');
+      else alert(r.status === 'success' ? '🧊 ' + r.message : '❌ ' + r.message);
+      loadGeneralItems(true);
+    }
+    async function chamberOpen_(slot, btn) {
+      if (!confirm('確定要現在開啟嗎？打開後會立刻隨機抽取內容,無法反悔。')) return;
+      const r = await chamberAct_(btn, '⏳ 開啟中...', () => chamberCall_('chamberOpenWorker', { slot }));
+      if (!r) alert('⚠️ 開啟請求的結果不確定,請重新整理頁面,確認背包/歷史紀錄有沒有真的開出來,不確定的話再操作一次。');
+      else alert(r.status === 'success' ? (r.message || '🎉 開啟成功!\n\n獲得:' + (r.resultStrs || []).join('、')) : '❌ ' + r.message);
+      loadGeneralItems(true);
+      fetchScoresAndShop(currentUser.id);
+    }
+    async function chamberSpeed_(slot, btn) {
+      const sl = chamberState_ && chamberState_.slots.find(x => x.slot === slot); if (!sl) return;
+      const remainMin = Math.ceil(Math.max(0, sl.finishAt - (Date.now() + chamberOffsetMs_)) / 60000);
+      const input = prompt(`要加速幾分鐘？(剩餘約 ${remainMin} 分鐘,每分鐘 ${sl.speedPrice} ${sl.speedCurrencyDisplay};輸入 all=一次加速到完成,預估花費約 ${Math.ceil(remainMin * sl.speedPrice)})`, 'all');
+      if (input === null) return;
+      const minutes = input.trim().toLowerCase() === 'all' ? 'all' : String(parseInt(input, 10) || 0);
+      if (minutes !== 'all' && parseInt(minutes, 10) < 1) { alert('請輸入至少 1 分鐘,或輸入 all'); return; }
+      const r = await chamberAct_(btn, '⏳ 加速中...', () => chamberCall_('chamberSpeedUpWorker', { slot, minutes }));
+      if (!r) alert('⚠️ 結果不確定,已重新整理開啟室,請確認貨幣有沒有被扣、時間有沒有縮短。');
+      else alert(r.status === 'success' ? r.message : '❌ ' + r.message);
+      fetchScoresAndShop(currentUser.id);
+    }
+    async function chamberCancel_(slot, btn) {
+      const sl = chamberState_ && chamberState_.slots.find(x => x.slot === slot);
+      if (!confirm(sl && sl.expired ? '這個道具已經過期,要清除這一格嗎？' : '確定要取回嗎？等待進度會作廢,之後再放入要重新計時。')) return;
+      const r = await chamberAct_(btn, '⏳ 處理中...', () => chamberCall_('chamberCancelWorker', { slot }));
+      if (!r) alert('⚠️ 結果不確定,已重新整理開啟室,請確認。');
+      else alert(r.status === 'success' ? r.message : '❌ ' + r.message);
+      loadGeneralItems(true);
+    }
+    async function chamberUnlock_(btn) {
+      const d = chamberState_; if (!d) return;
+      if (!confirm(`確定要花 ${d.nextUnlockPrice} ${d.unlockCurrencyDisplay} 解鎖新的一格嗎？`)) return;
+      const r = await chamberAct_(btn, '⏳ 解鎖中...', () => chamberCall_('chamberUnlockWorker'));
+      if (!r) alert('⚠️ 結果不確定,已重新整理開啟室,請確認貨幣有沒有被扣、格數有沒有增加。');
+      else alert(r.status === 'success' ? r.message : '❌ ' + r.message);
+      fetchScoresAndShop(currentUser.id);
+    }
 
     function openGiftCode() {
       giftCodeStaged_ = [];
