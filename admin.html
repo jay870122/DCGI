@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.42</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.43</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3235,10 +3235,21 @@ async function showPlayerDetail_(id) {
   if (!d.chamber.length) html += '<div class="hint">開啟室目前是空的</div>';
   else html += '<div class="tbl-wrap"><table style="width:100%"><thead><tr><th>格</th><th>道具</th><th>放入時間</th><th>預計完成</th><th>剩餘</th><th>總等待</th><th>已加速</th></tr></thead><tbody>' +
     d.chamber.map(c => `<tr><td>${c.slot}</td><td>${piEsc_(c.itemName)}</td><td>${piFmtTs_(c.startedAt)}</td><td>${piFmtTs_(c.finishAt)}</td><td>${c.ready ? '✅ 可開啟' : piFmtSec_(c.remainSec)}</td><td>${piFmtSec_(c.totalSec)}</td><td>${piFmtSec_(c.speededSec)}</td></tr>`).join('') + '</tbody></table></div>';
-  html += `<h4 style="margin:12px 0 4px">🎒 背包道具(${d.items.length} 筆實例)</h4>`;
+  // 合併:同名稱、同狀態、同剩餘次數、同過期時間的實例合成一列,顯示數量
+  const groups = {}; const order = [];
+  d.items.forEach(it => {
+    const key = [it.itemName, it.inChamber ? 'CH' : it.expired ? 'EXP' : it.status, it.remaining, it.expiresAt || ''].join('|');
+    if (!groups[key]) { groups[key] = { it, count: 0, minAt: null, maxAt: null, ids: [] }; order.push(key); }
+    const g = groups[key]; g.count++; g.ids.push(it.instanceId);
+    if (it.acquiredAt) { g.minAt = g.minAt ? Math.min(g.minAt, it.acquiredAt) : it.acquiredAt; g.maxAt = g.maxAt ? Math.max(g.maxAt, it.acquiredAt) : it.acquiredAt; }
+  });
+  html += `<h4 style="margin:12px 0 4px">🎒 背包道具(${d.items.length} 筆實例,合併後 ${order.length} 列)</h4>`;
   if (!d.items.length) html += '<div class="hint">背包是空的</div>';
-  else html += '<div class="tbl-wrap"><table style="width:100%"><thead><tr><th>道具</th><th>狀態</th><th>剩餘次數</th><th>取得</th><th>過期</th><th>實例ID</th></tr></thead><tbody>' +
-    d.items.map(it => `<tr><td>${piEsc_(it.itemName)}</td><td>${stTxt(it)}</td><td>${it.remaining}</td><td>${piFmtTs_(it.acquiredAt)}</td><td>${piFmtTs_(it.expiresAt)}</td><td class="hint" style="font-size:10px">${piEsc_(it.instanceId)}</td></tr>`).join('') + '</tbody></table></div>';
+  else html += '<div class="tbl-wrap"><table style="width:100%"><thead><tr><th>道具</th><th>數量</th><th>狀態</th><th>每個剩餘次數</th><th>取得時間</th><th>過期</th><th>實例ID</th></tr></thead><tbody>' +
+    order.map(k => { const g = groups[k], it = g.it;
+      const at = g.minAt ? (g.minAt === g.maxAt ? piFmtTs_(g.minAt) : piFmtTs_(g.minAt) + ' ~ ' + piFmtTs_(g.maxAt)) : '-';
+      const ids = g.count === 1 ? `<span class="hint" style="font-size:10px">${piEsc_(g.ids[0])}</span>` : `<details><summary class="hint" style="cursor:pointer">展開 ${g.count} 個</summary><div class="hint" style="font-size:10px;word-break:break-all">${g.ids.map(piEsc_).join('<br>')}</div></details>`;
+      return `<tr><td>${piEsc_(it.itemName)}</td><td><b>×${g.count}</b></td><td>${stTxt(it)}</td><td>${it.remaining}</td><td>${at}</td><td>${piFmtTs_(it.expiresAt)}</td><td>${ids}</td></tr>`; }).join('') + '</tbody></table></div>';
   box.innerHTML = html;
 }
 async function openChamberConfig() {
