@@ -788,7 +788,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.120</div>
+    <div class="version-tag">系統版本：v5.4.121</div>
   </div>
 
   <script>
@@ -4486,11 +4486,14 @@
       loadStock_();
       if (stockTimer_) clearInterval(stockTimer_);
       let stTick_ = 0;
+      if (stockLbTimer_) clearInterval(stockLbTimer_);
+      stockLbTimer_ = setInterval(() => { if (stockLbMode_ && !stockBusy_) loadStockLb_(stockLbMode_, true); }, 20000);
       stockTimer_ = setInterval(() => { if (!stockBusy_) { loadStock_(true); if (stockQuote_) stockLookup(true); if (++stTick_ % 6 === 0 && stockQuote_) { delete chartCache_['s:' + stockQuote_.code + ':' + stockChartRange_]; stockChart_(); } } }, 10000);
     }
     function closeStock() {
       document.getElementById('stock-modal').style.display = 'none';
       if (stockTimer_) { clearInterval(stockTimer_); stockTimer_ = null; }
+      if (stockLbTimer_) { clearInterval(stockLbTimer_); stockLbTimer_ = null; }
     }
     function stockClr_(v) { return v > 0 ? '#ED4245' : (v < 0 ? '#3BA55D' : '#B9BBBE'); }
     function stockSign_(v) { return (v > 0 ? '+' : '') + v; }
@@ -4612,10 +4615,12 @@
       drawChart_(el, d.points, chartFmt_(rg), base);
     }
     let stockLbData_ = null;
-    async function loadStockLb_(mode) {
+    let stockLbMode_ = '';
+    async function loadStockLb_(mode, silent) {
+      stockLbMode_ = mode;
       const box = document.getElementById('stock-lb');
-      box.innerHTML = '讀取中...';
-      if (!stockLbData_ || Date.now() - stockLbData_.at > 30000) {
+      if (!silent) box.innerHTML = '讀取中...';
+      if (!stockLbData_ || Date.now() - stockLbData_.at > 19000) {
         const d = await chamberCall_('stockLeaderboardWorker');
         if (!d || d.status !== 'success' || !d.enabled) { box.innerHTML = '<span style="color:#ED4245">讀取失敗</span>'; return; }
         stockLbData_ = { d, at: Date.now() };
@@ -4627,7 +4632,7 @@
       box.innerHTML = '<div style="color:#72767D;margin-bottom:4px">' + lab + ',共 ' + r.total + ' 人' + (d.delayed ? ' ⚠️部分報價延遲' : '') + '</div>'
         + r.top.map(x => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-radius:4px;${x.me ? 'background:#3C4270;' : ''}color:#DCDDDE"><span>${medal(x.rank)} ${escapeHtml_(x.name)}</span><b style="color:${mode === 'pnl' ? stockClr_(x.value) : '#fff'}">${mode === 'pnl' ? stockSign_(x.value) : x.value}</b></div>`).join('')
         + (r.me && r.me.rank > 20 ? `<div style="padding:3px 6px;margin-top:4px;border-top:1px solid #4F545C;color:#DCDDDE">我:第 ${r.me.rank} 名 <b>${mode === 'pnl' ? stockSign_(r.me.value) : r.me.value}</b></div>` : '')
-        + '<div style="color:#72767D;font-size:11px;margin-top:4px">每 1~2 分鐘更新</div>';
+        + '<div style="color:#72767D;font-size:11px;margin-top:4px">每 20 秒更新</div>';
     }
     async function stockPick(code, fillShares) {
       document.getElementById('stock-code').value = code;
@@ -4709,6 +4714,7 @@
     // ============================================================
     // ₿ 加密貨幣模擬(只有Worker版)。紅漲綠跌。
     // ============================================================
+    let cryptoLbTimer_ = null, stockLbTimer_ = null;
     let cryptoState_ = null, cryptoTimer_ = null, cryptoSel_ = '', cryptoBusy_ = false, cryptoLoading_ = false;
     async function checkCryptoAvailability_() {
       const d = await chamberCall_('cryptoStatusWorker');
@@ -4720,10 +4726,13 @@
       if (cryptoTimer_) clearInterval(cryptoTimer_);
       let tick_ = 0;
       cryptoTimer_ = setInterval(async () => { if (cryptoBusy_) return; await loadCrypto_(true); if (++tick_ % 4 === 0 && cryptoSel_) cryptoChart_(null, true); }, 15000);
+      if (cryptoLbTimer_) clearInterval(cryptoLbTimer_);
+      cryptoLbTimer_ = setInterval(() => { if (cryptoLbMode_ && !cryptoBusy_) loadCryptoLb_(cryptoLbMode_, true); }, 20000);
     }
     function closeCrypto() {
       document.getElementById('crypto-modal').style.display = 'none';
       if (cryptoTimer_) { clearInterval(cryptoTimer_); cryptoTimer_ = null; }
+      if (cryptoLbTimer_) { clearInterval(cryptoLbTimer_); cryptoLbTimer_ = null; }
     }
     function cryptoFmt_(n) { return n === null || n === undefined ? '?' : (n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(n)); }
     async function loadCrypto_(silent) {
@@ -4808,10 +4817,12 @@
       await loadCrypto_(true);
     }
     let cryptoLbData_ = null;
-    async function loadCryptoLb_(mode) {
+    let cryptoLbMode_ = '';
+    async function loadCryptoLb_(mode, silent) {
+      cryptoLbMode_ = mode;
       const box = document.getElementById('crypto-lb');
-      box.innerHTML = '讀取中...';
-      if (!cryptoLbData_ || Date.now() - cryptoLbData_.at > 30000) {
+      if (!silent) box.innerHTML = '讀取中...';
+      if (!cryptoLbData_ || Date.now() - cryptoLbData_.at > 19000) {
         const d = await chamberCall_('cryptoLeaderboardWorker');
         if (!d || d.status !== 'success' || !d.enabled) { box.innerHTML = '<span style="color:#ED4245">讀取失敗</span>'; return; }
         cryptoLbData_ = { d, at: Date.now() };
@@ -4823,7 +4834,7 @@
       box.innerHTML = '<div style="color:#72767D;margin-bottom:4px">' + lab + ',共 ' + r.total + ' 人</div>'
         + r.top.map(x => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-radius:4px;${x.me ? 'background:#3C4270;' : ''}color:#DCDDDE"><span>${medal(x.rank)} ${escapeHtml_(x.name)}</span><b style="color:${mode === 'pnl' ? stockClr_(x.value) : '#fff'}">${mode === 'pnl' ? stockSign_(x.value) : x.value}</b></div>`).join('')
         + (r.me && r.me.rank > 20 ? `<div style="padding:3px 6px;margin-top:4px;border-top:1px solid #4F545C;color:#DCDDDE">我:第 ${r.me.rank} 名 <b>${mode === 'pnl' ? stockSign_(r.me.value) : r.me.value}</b></div>` : '')
-        + '<div style="color:#72767D;font-size:11px;margin-top:4px">每 1~2 分鐘更新</div>';
+        + '<div style="color:#72767D;font-size:11px;margin-top:4px">每 20 秒更新</div>';
     }
     function cryptoPick(sym) {
       cryptoSel_ = sym;
