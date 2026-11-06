@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.49</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.50</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1736,6 +1736,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>強平虧損比例 <span class="hint">0.9=虧損達保證金90%就強平</span></label><input id="cc2-lev-liq" type="number" min="0.5" max="1" step="0.01" value="0.9"></div>
       <div class="field"><label>最低保證金(貨幣)</label><input id="cc2-lev-min" type="number" min="0" step="any" value="1"></div>
       <div class="field"><label>單人最大倉位數</label><input id="cc2-lev-pos" type="number" min="1" value="5"></div>
+      <div class="field"><label><input id="cc2-lev-dm" type="checkbox" checked> 強制平倉時私訊通知玩家(包含保證金全賠)</label></div>
       <div class="field full"><label>測試報價</label>
         <div style="display:flex;gap:6px"><input id="cc2-diag-code" value="BTC" style="width:100px"><button class="btn" onclick="cryptoDiag()">🔍 測試</button></div>
         <pre id="cc2-diag-out" style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;max-height:200px;overflow:auto"></pre></div>
@@ -3409,7 +3410,7 @@ async function openCryptoConfig() {
   document.getElementById('cc2-enabled').checked = !!c.enabled;
   set('cc2-cur', c.currency ? ((c.currency === '升階2') ? '幻彩水晶' : c.currency) : ''); set('cc2-rate', c.rate); set('cc2-fee', c.feeRate); set('cc2-max', c.maxAmount);
   set('cc2-from', c.dateFrom); set('cc2-to', c.dateTo); set('cc2-tfrom', c.tradeFrom); set('cc2-tto', c.tradeTo);
-  const L = c.lev || {}; document.getElementById('cc2-lev-on').checked = !!L.enabled; set('cc2-lev-max', L.maxLev); set('cc2-lev-liq', L.liqRatio); set('cc2-lev-min', L.minMargin); set('cc2-lev-pos', L.maxPositions);
+  const L = c.lev || {}; document.getElementById('cc2-lev-on').checked = !!L.enabled; set('cc2-lev-max', L.maxLev); set('cc2-lev-liq', L.liqRatio); set('cc2-lev-min', L.minMargin); set('cc2-lev-pos', L.maxPositions); document.getElementById('cc2-lev-dm').checked = L.liqDm !== false;
   set('cc2-days', c.days); set('cc2-windows', c.windows); set('cc2-wl', c.whitelist);
   document.getElementById('cc2-diag-out').textContent = '';
   document.getElementById('crypto-cfg-modal').classList.add('open');
@@ -3419,7 +3420,7 @@ async function saveCryptoConfig() {
   const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
   try {
     const v = (id) => document.getElementById(id).value;
-    const d = await apiCraftWrite_('adminSaveCryptoConfig', { enabled: document.getElementById('cc2-enabled').checked, currency: v('cc2-cur').trim(), rate: v('cc2-rate'), feeRate: v('cc2-fee'), maxAmount: v('cc2-max'), dateFrom: v('cc2-from'), dateTo: v('cc2-to'), tradeFrom: v('cc2-tfrom'), tradeTo: v('cc2-tto'), days: v('cc2-days'), windows: v('cc2-windows'), whitelist: v('cc2-wl'), levEnabled: document.getElementById('cc2-lev-on').checked, levMax: v('cc2-lev-max'), levLiq: v('cc2-lev-liq'), levMinMargin: v('cc2-lev-min'), levMaxPos: v('cc2-lev-pos') });
+    const d = await apiCraftWrite_('adminSaveCryptoConfig', { enabled: document.getElementById('cc2-enabled').checked, currency: v('cc2-cur').trim(), rate: v('cc2-rate'), feeRate: v('cc2-fee'), maxAmount: v('cc2-max'), dateFrom: v('cc2-from'), dateTo: v('cc2-to'), tradeFrom: v('cc2-tfrom'), tradeTo: v('cc2-tto'), days: v('cc2-days'), windows: v('cc2-windows'), whitelist: v('cc2-wl'), levEnabled: document.getElementById('cc2-lev-on').checked, levMax: v('cc2-lev-max'), levLiq: v('cc2-lev-liq'), levMinMargin: v('cc2-lev-min'), levMaxPos: v('cc2-lev-pos'), levLiqDm: document.getElementById('cc2-lev-dm').checked });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('crypto-cfg-modal');
   } finally { btn.disabled = false; btn.textContent = orig; }
