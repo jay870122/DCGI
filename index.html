@@ -179,6 +179,15 @@
     /* 🌟 彈出視窗 (歷史紀錄) */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;}
     .modal-content { background: #2F3136; border-radius: 12px; width: 100%; max-width: 500px; max-height: 80vh; text-align: left; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+    .crypto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+    @media (max-width: 600px) {
+      .crypto-grid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+      .crypto-grid .crypto-cell { padding: 6px !important; min-width: 0; overflow: hidden; }
+      .crypto-grid .crypto-cell .cc-name { display: none; }
+      .crypto-grid .crypto-cell .cc-price { font-size: 12px !important; word-break: break-all; }
+      .crypto-grid .crypto-cell .cc-price span { display: none; }
+      .crypto-grid .crypto-cell .cc-chg { font-size: 10px !important; }
+    }
     .dual-wrap { display: flex; gap: 12px; align-items: flex-start; justify-content: center; width: 100%; max-width: 900px; margin: auto; }
     .dual-wrap > .modal-content { flex: 1 1 500px; min-width: 0; }
     .lb-panel { flex: 0 0 300px; background: #2F3136; border-radius: 12px; max-height: 80vh; overflow-y: auto; padding: 15px; box-sizing: border-box; }
@@ -801,7 +810,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.124</div>
+    <div class="version-tag">系統版本：v5.4.125</div>
   </div>
 
   <script>
@@ -4781,12 +4790,12 @@
       const cur = escapeHtml_(d.currencyDisplay);
       document.getElementById('crypto-balance').innerHTML = '我的' + cur + ':<b style="color:#fff">' + (d.balance === null ? '?' : d.balance) + '</b>　持幣市值:<b style="color:#fff">' + d.totalValue + '</b>　總損益:<b style="color:' + stockClr_(d.totalPnl) + '">' + stockSign_(d.totalPnl) + '</b>'
         + '<br><span style="font-size:11px;color:#72767D">1 USD = ' + d.rate + ' ' + cur + '　手續費 ' + (d.feeRate * 100) + '%</span>';
-      document.getElementById('crypto-board').innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">' + d.board.map(b => {
+      document.getElementById('crypto-board').innerHTML = '<div class="crypto-grid">' + d.board.map(b => {
         const c = stockClr_(b.changePct || 0);
         return `<div class="crypto-cell" data-sym="${escapeHtml_(b.symbol)}" style="background:${cryptoSel_ === b.symbol ? '#3C4270' : '#2F3136'};border-radius:8px;padding:8px;cursor:pointer" onclick="cryptoPick('${escapeHtml_(b.symbol)}')">
-          <div><b>${escapeHtml_(b.symbol)}</b> <span style="color:#72767D;font-size:11px">${escapeHtml_(b.name)}</span></div>
-          <div style="font-size:15px;font-weight:bold;color:${c}">${cryptoFmt_(b.price)} <span style="font-size:11px">USD</span></div>
-          <div style="font-size:11px;color:${c}">${b.changePct === null ? '' : stockSign_(b.changePct) + '% (24h)'}</div></div>`;
+          <div><b>${escapeHtml_(b.symbol)}</b> <span class="cc-name" style="color:#72767D;font-size:11px">${escapeHtml_(b.name)}</span></div>
+          <div class="cc-price" style="font-size:15px;font-weight:bold;color:${c}">${cryptoFmt_(b.price)} <span style="font-size:11px">USD</span></div>
+          <div class="cc-chg" style="font-size:11px;color:${c}">${b.changePct === null ? '' : stockSign_(b.changePct) + '% (24h)'}</div></div>`;
       }).join('') + '</div>';
       const hb = document.getElementById('crypto-holdings');
       hb.innerHTML = d.holdings.length ? d.holdings.map(h => `<div style="background:#2F3136;border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer" onclick="cryptoPick('${escapeHtml_(h.symbol)}');cryptoFill_('sell',1)" title="點一下自動填入賣出全部">
