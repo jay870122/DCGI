@@ -788,7 +788,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.117</div>
+    <div class="version-tag">系統版本：v5.4.118</div>
   </div>
 
   <script>
@@ -4485,7 +4485,8 @@
       document.getElementById('stock-modal').style.display = 'flex';
       loadStock_();
       if (stockTimer_) clearInterval(stockTimer_);
-      stockTimer_ = setInterval(() => { if (!stockBusy_) { loadStock_(true); if (stockQuote_) stockLookup(true); } }, 10000);
+      let stTick_ = 0;
+      stockTimer_ = setInterval(() => { if (!stockBusy_) { loadStock_(true); if (stockQuote_) stockLookup(true); if (++stTick_ % 6 === 0 && stockQuote_) { delete chartCache_['s:' + stockQuote_.code + ':' + stockChartRange_]; stockChart_(); } } }, 10000);
     }
     function closeStock() {
       document.getElementById('stock-modal').style.display = 'none';
@@ -4548,19 +4549,25 @@
       return t => { const d = new Date(t), p2 = n => String(n).padStart(2, '0'); const hm = p2(d.getHours()) + ':' + p2(d.getMinutes()); return ['1h', '1d', '5d'].indexOf(range) !== -1 ? (range === '5d' ? (d.getMonth() + 1) + '/' + d.getDate() + ' ' : '') + hm : (d.getMonth() + 1) + '/' + d.getDate() + (range === '7d' ? ' ' + hm : ''); };
     }
     let cryptoChartRange_ = '1d', stockChartRange_ = '1d', stockChartCode_ = '';
-    async function cryptoChart_(range) {
+    // 把目前即時價補成圖的最後一個點,讓圖尾端跟上方報價一致
+    function cryptoLivePts_(pts) {
+      const b = cryptoState_ && cryptoState_.board.find(x => x.symbol === cryptoSel_);
+      if (!b || b.price === null || !pts.length) return pts;
+      return pts.concat([{ t: Date.now(), c: b.price }]);
+    }
+    async function cryptoChart_(range, force) {
       if (!cryptoSel_) return;
       if (range) cryptoChartRange_ = range;
       document.querySelectorAll('#crypto-chart-tabs button').forEach(b => { b.style.background = b.dataset.r === cryptoChartRange_ ? '#5865F2' : '#4F545C'; });
       const el = document.getElementById('crypto-chart'), key = 'c:' + cryptoSel_ + ':' + cryptoChartRange_, sym = cryptoSel_, rg = cryptoChartRange_;
       const c = chartCache_[key];
-      if (c && Date.now() - c.at < 60000) { drawChart_(el, c.pts, chartFmt_(rg)); return; }
-      el.innerHTML = '<div style="color:#72767D;font-size:12px">讀取走勢中...</div>';
+      if (!force && c && Date.now() - c.at < 60000) { drawChart_(el, cryptoLivePts_(c.pts), chartFmt_(rg)); return; }
+      if (!force || !c) el.innerHTML = '<div style="color:#72767D;font-size:12px">讀取走勢中...</div>';
       const d = await chamberCall_('cryptoChartWorker', { symbol: sym, range: rg });
       if (sym !== cryptoSel_ || rg !== cryptoChartRange_) return;
       if (!d || d.status !== 'success') { el.innerHTML = '<div style="color:#ED4245;font-size:12px">' + escapeHtml_((d && d.message) || '讀取失敗') + '</div>'; return; }
       chartCache_[key] = { at: Date.now(), pts: d.points };
-      drawChart_(el, d.points, chartFmt_(rg));
+      drawChart_(el, cryptoLivePts_(d.points), chartFmt_(rg));
     }
     async function stockChart_(range) {
       if (!stockQuote_) return;
@@ -4685,7 +4692,8 @@
       document.getElementById('crypto-modal').style.display = 'flex';
       loadCrypto_();
       if (cryptoTimer_) clearInterval(cryptoTimer_);
-      cryptoTimer_ = setInterval(() => { if (!cryptoBusy_) loadCrypto_(true); }, 15000);
+      let tick_ = 0;
+      cryptoTimer_ = setInterval(async () => { if (cryptoBusy_) return; await loadCrypto_(true); if (++tick_ % 4 === 0 && cryptoSel_) cryptoChart_(null, true); }, 15000);
     }
     function closeCrypto() {
       document.getElementById('crypto-modal').style.display = 'none';
