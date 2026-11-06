@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.44</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.45</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1725,8 +1725,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>手續費最低(TWD)</label><input id="sc-feemin" type="number" min="0" step="any" value="1"></div>
       <div class="field"><label>證交稅率(賣出) <span class="hint">0.003 = 0.3%</span></label><input id="sc-tax" type="number" min="0" step="any" value="0.003"></div>
       <div class="field"><label>ETF證交稅率 <span class="hint">代號00開頭視為ETF</span></label><input id="sc-etftax" type="number" min="0" step="any" value="0.001"></div>
-      <div class="field"><label>開放日期起 <span class="hint">留空=不限</span></label><input id="sc-from" type="date"></div>
-      <div class="field"><label>開放日期迄 <span class="hint">留空=不限</span></label><input id="sc-to" type="date"></div>
+      <div class="field"><label>入口顯示日期起 <span class="hint">留空=不限;期間外玩家看不到入口</span></label><input id="sc-from" type="date"></div>
+      <div class="field"><label>入口顯示日期迄 <span class="hint">留空=不限</span></label><input id="sc-to" type="date"></div>
+      <div class="field"><label>可下單日期起 <span class="hint">留空=沿用入口顯示日期</span></label><input id="sc-tfrom" type="date"></div>
+      <div class="field"><label>可下單日期迄 <span class="hint">留空=沿用入口顯示日期</span></label><input id="sc-tto" type="date"></div>
       <div class="field"><label>開放星期 <span class="hint">1=週一…7=週日,逗號分隔</span></label><input id="sc-days" placeholder="1,2,3,4,5"></div>
       <div class="field"><label>開放時段 <span class="hint">台灣時間,多段用逗號,例:09:00-12:00,13:00-13:30</span></label><input id="sc-windows" placeholder="09:00-13:30"></div>
       <div class="field"><label>標的白名單 <span class="hint">留空=全部可交易;否則只開放這些代號(逗號分隔)</span></label><input id="sc-wl" placeholder="2330,0050"></div>
@@ -3333,6 +3335,8 @@ async function openStockConfig() {
   document.getElementById('sc-etftax').value = c.etfTaxRate;
   document.getElementById('sc-from').value = c.dateFrom || '';
   document.getElementById('sc-to').value = c.dateTo || '';
+  document.getElementById('sc-tfrom').value = c.tradeFrom || '';
+  document.getElementById('sc-tto').value = c.tradeTo || '';
   document.getElementById('sc-days').value = c.days;
   document.getElementById('sc-windows').value = c.windows;
   document.getElementById('sc-wl').value = c.whitelist;
@@ -3347,7 +3351,7 @@ async function saveStockConfig() {
     const v = (id) => document.getElementById(id).value;
     const d = await apiCraftWrite_('adminSaveStockConfig', {
       enabled: document.getElementById('sc-enabled').checked, currency: v('sc-cur').trim(), rate: v('sc-rate'), feeRate: v('sc-fee'), feeMin: v('sc-feemin'),
-      taxRate: v('sc-tax'), etfTaxRate: v('sc-etftax'), dateFrom: v('sc-from'), dateTo: v('sc-to'), days: v('sc-days'), windows: v('sc-windows'), whitelist: v('sc-wl'), maxShares: v('sc-max'),
+      taxRate: v('sc-tax'), etfTaxRate: v('sc-etftax'), dateFrom: v('sc-from'), dateTo: v('sc-to'), tradeFrom: v('sc-tfrom'), tradeTo: v('sc-tto'), days: v('sc-days'), windows: v('sc-windows'), whitelist: v('sc-wl'), maxShares: v('sc-max'),
     });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('stock-cfg-modal');
