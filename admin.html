@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.48</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.49</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1732,7 +1732,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>開放時段 <span class="hint">台灣時間,例:00:00-24:00</span></label><input id="cc2-windows" placeholder="00:00-24:00"></div>
       <div class="field full"><label>開放幣種 <span class="hint">代號用逗號分隔(要是 Coinbase 有 USD 交易對的幣),留空=預設清單</span></label><input id="cc2-wl" placeholder="BTC,ETH,SOL"></div>
       <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="cc2-lev-on" style="width:auto"><label for="cc2-lev-on" style="margin:0">⚡ 啟用槓桿合約(做多/做空,關閉後玩家不能新開倉,已開的仍可平倉)</label></div>
-      <div class="field"><label>最大倍數 <span class="hint">玩家最高可開幾倍</span></label><input id="cc2-lev-max" type="number" min="1" max="125" value="10"></div>
+      <div class="field"><label>最大倍數 <span class="hint">玩家最高可開幾倍</span></label><input id="cc2-lev-max" type="number" min="1" max="1000" value="10"></div>
       <div class="field"><label>強平虧損比例 <span class="hint">0.9=虧損達保證金90%就強平</span></label><input id="cc2-lev-liq" type="number" min="0.5" max="1" step="0.01" value="0.9"></div>
       <div class="field"><label>最低保證金(貨幣)</label><input id="cc2-lev-min" type="number" min="0" step="any" value="1"></div>
       <div class="field"><label>單人最大倉位數</label><input id="cc2-lev-pos" type="number" min="1" value="5"></div>
