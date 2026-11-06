@@ -489,6 +489,39 @@
     </div>
   </div>
 
+  <!-- 📈 台股模擬(虛擬貨幣買賣台股,Worker專屬) -->
+  <div id="stock-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 560px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeStock()">×</span>
+        <h2 style="margin:0;">📈 台股模擬</h2>
+      </div>
+      <div class="modal-body">
+        <div id="stock-status" style="font-size:13px;margin-bottom:8px"></div>
+        <div id="stock-balance" style="font-size:13px;color:#B9BBBE;margin-bottom:10px"></div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input id="stock-code" placeholder="代號或名稱(例:2330、台積電)" style="flex:1;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff" onkeydown="if(event.key==='Enter')stockLookup()">
+          <button class="btn" onclick="stockLookup()">查價</button>
+        </div>
+        <div id="stock-suggest" style="font-size:12px;margin-bottom:6px"></div>
+        <div id="stock-quote" style="background:#2F3136;border-radius:8px;padding:10px;margin-bottom:10px;display:none"></div>
+        <div id="stock-trade" style="display:none;margin-bottom:12px">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input id="stock-shares" type="number" min="1" step="1" value="1" oninput="stockEstimate()" style="width:110px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"> 股
+            <button class="btn" id="stock-buy-btn" style="background:#ED4245" onclick="stockTrade('buy')">買進</button>
+            <button class="btn" id="stock-sell-btn" style="background:#3BA55D" onclick="stockTrade('sell')">賣出</button>
+          </div>
+          <div id="stock-est" style="font-size:12px;color:#B9BBBE;margin-top:6px"></div>
+        </div>
+        <h3 style="margin:10px 0 6px;font-size:14px">我的持股</h3>
+        <div id="stock-holdings" style="font-size:13px"></div>
+        <h3 style="margin:12px 0 6px;font-size:14px">最近交易</h3>
+        <div id="stock-history" style="font-size:12px;color:#B9BBBE"></div>
+        <p style="color:#72767D;font-size:11px;margin:10px 0 0">報價來自證交所即時行情(約5秒更新,可能有延遲),以市價成交。這是虛擬遊戲,與真實金錢無關。顏色採台股慣例:紅漲綠跌。</p>
+      </div>
+    </div>
+  </div>
+
   <div id="gift-code-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header">
@@ -680,7 +713,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.107</div>
+    <div class="version-tag">系統版本：v5.4.108</div>
   </div>
 
   <script>
@@ -786,6 +819,7 @@
           document.getElementById('user-name').innerText = user.global_name || user.username;
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
+          checkStockAvailability_();
           checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
           maybeShowPushPrompt(); // 🌟 網址如果帶 ?subscribe=1(用來分享邀請大家訂閱推播的連結),自動跳出引導視窗
@@ -898,6 +932,7 @@
       renderShop();
     }
 
+    let stockAvailable = false; // 📈 台股模擬有沒有開放
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
     function renderSidebar() {
@@ -914,6 +949,12 @@
       if (bingoAvailable) {
         bingoEntryHtml = `<div class="cat-item" style="background:linear-gradient(90deg,#EB459E,#F0B232)" onclick="showBingo()">
                    <span>🎰 BINGO 賓果</span>
+                 </div>`;
+      }
+
+      if (stockAvailable) {
+        bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#ED4245,#F0B232)" onclick="openStock()">
+                   <span>📈 台股模擬</span>
                  </div>`;
       }
 
@@ -4347,6 +4388,110 @@
     let giftCodeMyTradableItems_ = [];
     // 🌟🆕 已經「加入清單」、準備一起轉成同一組序號的多種道具:[{itemName, instanceIds, count, uses}]
     let giftCodeStaged_ = [];
+
+
+    // ============================================================
+    // 📈 台股模擬(只有Worker版)。紅漲綠跌(台股慣例)。
+    // ============================================================
+    let stockState_ = null, stockTimer_ = null, stockQuote_ = null, stockBusy_ = false, stockLoading_ = false;
+    async function checkStockAvailability_() {
+      const d = await chamberCall_('stockStatusWorker');
+      if (d && d.status === 'success' && d.enabled) { stockAvailable = true; renderSidebar(); }
+    }
+    function openStock() {
+      document.getElementById('stock-modal').style.display = 'flex';
+      loadStock_();
+      if (stockTimer_) clearInterval(stockTimer_);
+      stockTimer_ = setInterval(() => { if (!stockBusy_) { loadStock_(true); if (stockQuote_) stockLookup(true); } }, 10000);
+    }
+    function closeStock() {
+      document.getElementById('stock-modal').style.display = 'none';
+      if (stockTimer_) { clearInterval(stockTimer_); stockTimer_ = null; }
+    }
+    function stockClr_(v) { return v > 0 ? '#ED4245' : (v < 0 ? '#3BA55D' : '#B9BBBE'); }
+    function stockSign_(v) { return (v > 0 ? '+' : '') + v; }
+    async function loadStock_(silent) {
+      if (stockLoading_) return;
+      stockLoading_ = true;
+      if (!silent) document.getElementById('stock-holdings').innerHTML = '<div style="color:#72767D">讀取中...</div>';
+      const d = await chamberCall_('stockStateWorker');
+      stockLoading_ = false;
+      if (!d || d.status !== 'success') { if (!silent) document.getElementById('stock-holdings').innerHTML = '<div style="color:#ED4245">讀取失敗,請稍後再試</div>'; return; }
+      stockState_ = d;
+      if (!d.enabled) { document.getElementById('stock-status').innerHTML = '<span style="color:#ED4245">' + escapeHtml_(d.message || '台股模擬目前沒有開放') + '</span>'; return; }
+      document.getElementById('stock-status').innerHTML = d.open
+        ? '<span style="color:#3BA55D">● 開盤中,可以交易</span>'
+        : '<span style="color:#F0B232">● 目前不能交易:' + escapeHtml_(d.openMessage || '') + '</span>(仍可查價、看持股)';
+      const cur = escapeHtml_(d.currencyDisplay);
+      document.getElementById('stock-balance').innerHTML = '我的' + cur + ':<b style="color:#fff">' + (d.balance === null ? '?' : d.balance) + '</b>'
+        + '　持股市值:<b style="color:#fff">' + d.totalValue + '</b>　總損益:<b style="color:' + stockClr_(d.totalPnl) + '">' + stockSign_(d.totalPnl) + '</b>'
+        + '<br><span style="font-size:11px;color:#72767D">1 TWD = ' + d.rate + ' ' + cur + '　手續費 ' + (d.feeRate * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + '%(最低 ' + d.feeMin + ' TWD),賣出證交稅 ' + (d.taxRate * 100) + '%(ETF ' + (d.etfTaxRate * 100) + '%)</span>';
+      const hb = document.getElementById('stock-holdings');
+      if (!d.holdings.length) hb.innerHTML = '<div style="color:#72767D">還沒有持股</div>';
+      else hb.innerHTML = d.holdings.map(h => `<div style="background:#2F3136;border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer" onclick="stockPick('${escapeHtml_(h.code)}')">
+          <div style="display:flex;justify-content:space-between"><b>${escapeHtml_(h.name)} <span style="color:#72767D">${escapeHtml_(h.code)}</span></b><span>${h.shares} 股</span></div>
+          <div style="font-size:12px;color:#B9BBBE">成本均價 ${h.avgCost} ${cur}/股　現價 ${h.price === null ? '?' : h.price} TWD　市值 ${h.value === null ? '?' : h.value}</div>
+          <div style="font-size:12px;color:${stockClr_(h.pnl || 0)}">損益 ${h.pnl === null ? '?' : stockSign_(h.pnl)}${h.pnlPct === null ? '' : '(' + stockSign_(h.pnlPct) + '%)'}</div></div>`).join('');
+      document.getElementById('stock-history').innerHTML = d.history.length ? d.history.map(x => {
+        const t = new Date(x.time); const ts = isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+        return `<div>${ts} ${escapeHtml_(x.action)} ${escapeHtml_(x.name)}(${escapeHtml_(x.code)}) ${x.shares}股 @${x.price}${x.pnl !== null && x.action === '賣出' ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
+      }).join('') : '還沒有交易紀錄';
+      stockEstimate();
+    }
+    function stockPick(code) { document.getElementById('stock-code').value = code; stockLookup(); }
+    async function stockLookup(silent) {
+      let q = document.getElementById('stock-code').value.trim();
+      if (!q) return;
+      const sg = document.getElementById('stock-suggest');
+      if (!/^[0-9A-Za-z]{4,6}$/.test(q)) {
+        sg.innerHTML = '搜尋中...';
+        const r = await chamberCall_('stockSearchWorker', { q });
+        if (!r || r.status !== 'success') { sg.innerHTML = '<span style="color:#ED4245">搜尋失敗</span>'; return; }
+        if (!r.results.length) { sg.innerHTML = '<span style="color:#F0B232">找不到符合的股票' + (r.nameListReady ? '' : '(名稱清單暫時抓不到,請直接輸入代號)') + '</span>'; return; }
+        if (r.results.length === 1) { q = r.results[0].code; document.getElementById('stock-code').value = q; sg.innerHTML = ''; }
+        else { sg.innerHTML = r.results.map(x => `<span style="display:inline-block;background:#2F3136;border-radius:6px;padding:3px 8px;margin:2px;cursor:pointer" onclick="stockPick('${escapeHtml_(x.code)}')">${escapeHtml_(x.code)} ${escapeHtml_(x.name)}</span>`).join(''); return; }
+      } else sg.innerHTML = '';
+      const d = await chamberCall_('stockQuoteWorker', { code: q.toUpperCase() });
+      const box = document.getElementById('stock-quote');
+      if (!d || d.status !== 'success') {
+        if (!silent) { stockQuote_ = null; box.style.display = 'block'; box.innerHTML = '<span style="color:#ED4245">' + escapeHtml_((d && d.message) || '查詢失敗') + '</span>'; document.getElementById('stock-trade').style.display = 'none'; }
+        return;
+      }
+      const x = d.quote; stockQuote_ = x;
+      box.style.display = 'block';
+      const c = stockClr_(x.change || 0);
+      box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:15px">${escapeHtml_(x.name)} <span style="color:#72767D">${escapeHtml_(x.code)}</span></b><span style="font-size:20px;font-weight:bold;color:${c}">${x.price}</span></div>
+        <div style="font-size:12px;color:${c}">${x.change === null ? '' : stockSign_(x.change) + '(' + stockSign_(x.changePct) + '%)'}</div>
+        <div style="font-size:12px;color:#B9BBBE">開 ${x.open ?? '-'}　高 ${x.high ?? '-'}　低 ${x.low ?? '-'}　昨收 ${x.prevClose ?? '-'}　量 ${x.volume ?? '-'}</div>
+        <div style="font-size:11px;color:#72767D">資料時間 ${escapeHtml_(x.date)} ${escapeHtml_(x.time)}</div>`;
+      document.getElementById('stock-trade').style.display = 'block';
+      stockEstimate();
+    }
+    function stockEstimate() {
+      const d = stockState_, x = stockQuote_, el = document.getElementById('stock-est');
+      if (!d || !d.enabled || !x) { el.textContent = ''; return; }
+      const n = parseInt(document.getElementById('stock-shares').value, 10);
+      if (!(n >= 1)) { el.textContent = ''; return; }
+      const gross = x.price * n, fee = Math.max(d.feeMin, gross * d.feeRate), tax = gross * (x.isEtf ? d.etfTaxRate : d.taxRate);
+      const buy = Math.ceil((gross + fee) * d.rate * 100 - 1e-7) / 100, sell = Math.floor((gross - fee - tax) * d.rate * 100 + 1e-7) / 100;
+      const cur = d.currencyDisplay;
+      el.innerHTML = `預估買進花費 約 <b>${buy}</b> ${escapeHtml_(cur)}　|　預估賣出可得 約 <b>${sell}</b> ${escapeHtml_(cur)}(實際以成交價為準)`;
+    }
+    async function stockTrade(side) {
+      if (stockBusy_ || !stockQuote_) return;
+      const n = parseInt(document.getElementById('stock-shares').value, 10);
+      if (!(n >= 1)) { toast_('股數至少要1股'); return; }
+      if (!confirm((side === 'buy' ? '買進 ' : '賣出 ') + stockQuote_.name + '(' + stockQuote_.code + ') ' + n + ' 股?\n(以成交當下的即時價為準)')) return;
+      stockBusy_ = true;
+      document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = true; });
+      const d = await chamberCall_(side === 'buy' ? 'stockBuyWorker' : 'stockSellWorker', { code: stockQuote_.code, shares: String(n) });
+      document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = false; });
+      stockBusy_ = false;
+      if (!d) { toast_('連線逾時,交易結果不確定,請先看「我的持股」和餘額再決定要不要重試'); await loadStock_(true); return; }
+      toast_(d.message || (d.status === 'success' ? '完成' : '失敗'));
+      await loadStock_(true);
+      if (typeof refreshPlayerData === 'function') { try { refreshPlayerData(); } catch (e) {} }
+    }
 
     // ============================================================
     // 🧊 道具開啟室(只有Worker版)。狀態每次操作後重抓;倒數用伺服器時間差校正,每秒更新畫面。
