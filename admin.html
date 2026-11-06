@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.50</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.51</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1783,6 +1783,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>🧊 道具開啟室設定</h3><button class="modal-close" onclick="closeModal('chamber-cfg-modal')">×</button></div>
     <div class="form-grid">
       <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="cc-enabled" style="width:auto" checked><label for="cc-enabled" style="margin:0">啟用開啟室</label></div>
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="cc-notify" style="width:auto" checked><label for="cc-notify" style="margin:0">道具等待完成(可開啟)時,自動私訊通知玩家 <span class="hint">每個道具只通知一次</span></label></div>
       <div class="field"><label>預設格數 <span class="hint">每位玩家一開始有幾格</span></label><input id="cc-default" type="number" min="0" value="2"></div>
       <div class="field"><label>最大格數 <span class="hint">付費解鎖+身分組加成合計的總上限</span></label><input id="cc-max" type="number" min="0" value="6"></div>
       <div class="field"><label>解鎖貨幣 <span class="hint">留空=不開放付費解鎖</span></label><input id="cc-cur" list="dc-list" placeholder="例:幻彩水晶"></div>
@@ -3322,6 +3323,7 @@ async function openChamberConfig() {
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   const c = d.config;
   document.getElementById('cc-enabled').checked = c.enabled !== false;
+  document.getElementById('cc-notify').checked = c.notifyDm !== false;
   document.getElementById('cc-default').value = c.defaultSlots;
   document.getElementById('cc-max').value = c.maxSlots;
   document.getElementById('cc-cur').value = c.unlockCurrency || '';
@@ -3335,6 +3337,7 @@ async function saveChamberConfig() {
   try {
     const d = await apiCraftWrite_('adminSaveChamberConfig', {
       enabled: document.getElementById('cc-enabled').checked,
+      notifyDm: document.getElementById('cc-notify').checked,
       defaultSlots: document.getElementById('cc-default').value,
       maxSlots: document.getElementById('cc-max').value,
       unlockCurrency: document.getElementById('cc-cur').value.trim(),
