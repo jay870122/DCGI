@@ -810,7 +810,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.128</div>
+    <div class="version-tag">系統版本：v5.4.129</div>
   </div>
 
   <script>
@@ -7292,7 +7292,10 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (qty < 1) { alert("數量必須大於 0！"); return; }
       if (qty > maxQty) { alert(`已超過限購數量！您目前最多只能買 ${maxQty} 個。`); return; }
       
-      let isHold = itemName.includes('[持有]') || itemName.includes('[持有上限');
+      // 🌟 按鈕傳進來的itemName已經被前端去掉[持有]標籤了,所以要回頭用商品ID找原始名稱判斷是不是條件福利
+      // (之前直接檢查itemName永遠是false,確認視窗會誤顯示「要花費X兌換」+扣款預估)
+      const holdSrcItem_ = (currentShopItems || []).find(it => it.id === itemId);
+      let isHold = itemName.includes('[持有]') || itemName.includes('[持有上限') || !!(holdSrcItem_ && /\[持有\]|\[持有上限/.test(holdSrcItem_.name || ''));
       let displayItemName = itemName.replace(/\[持有上限[^\]]*\]/g, '').replace('[持有]', '').trim();
 
       // 🌟 密碼鎖定:如果商品或所在分類還沒解鎖,先跳出提示要求輸入密碼,不用等後端回錯誤才問一次
