@@ -544,6 +544,18 @@
           </div>
           <div id="crypto-est" style="font-size:12px;color:#B9BBBE;margin-top:6px"></div>
         </div>
+        <div id="crypto-lev" style="display:none;margin-bottom:12px;background:#2F3136;border-radius:8px;padding:10px">
+          <div id="crypto-lev-title" style="font-weight:bold;margin-bottom:6px"></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="crypto-lev-side" style="padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff" onchange="cryptoLevEstimate()"><option value="long">做多(看漲)</option><option value="short">做空(看跌)</option></select>
+            <input id="crypto-lev-x" type="number" min="1" step="1" value="2" oninput="cryptoLevEstimate()" style="width:70px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"> 倍
+            <input id="crypto-lev-margin" type="number" min="0" step="any" placeholder="保證金" oninput="cryptoLevEstimate()" style="width:110px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">
+            <button class="btn" onclick="cryptoLevOpen()">開倉</button>
+          </div>
+          <div id="crypto-lev-est" style="font-size:12px;color:#B9BBBE;margin-top:6px"></div>
+          <div id="crypto-lev-list" style="margin-top:8px"></div>
+          <div style="font-size:11px;color:#72767D;margin-top:6px">先點上面的幣種,再選方向/倍數/保證金。虧損達保證金的一定比例會被系統自動強制平倉,最多賠掉保證金,餘額不會變負。</div>
+        </div>
         <div style="margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button></span></div>
         <div id="crypto-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行(只計算加密貨幣的交易)</div>
         <h3 style="margin:10px 0 6px;font-size:14px">我的持幣</h3>
@@ -746,7 +758,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.112</div>
+    <div class="version-tag">系統版本：v5.4.113</div>
   </div>
 
   <script>
@@ -4601,7 +4613,57 @@
         const t = new Date(x.time); const ts = isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
         return `<div>${ts} ${escapeHtml_(x.action)} ${x.qty} ${escapeHtml_(x.symbol)} @${cryptoFmt_(x.price)}${x.pnl !== null && x.action === '賣出' ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
       }).join('') : '還沒有交易紀錄';
+      renderCryptoLev_(d);
       cryptoEstimate();
+    }
+    function renderCryptoLev_(d) {
+      const box = document.getElementById('crypto-lev'), L = d.lev;
+      if (!L || (!L.enabled && !L.positions.length)) { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      document.getElementById('crypto-lev-title').textContent = '⚡ 槓桿合約' + (L.enabled ? '(最大 ' + L.maxLev + ' 倍,最低保證金 ' + L.minMargin + ',強平 = 虧損達保證金 ' + Math.round(L.liqRatio * 100) + '%)' : '(目前不開放新開倉,仍可平倉)');
+      document.getElementById('crypto-lev-x').max = L.maxLev;
+      const cur = escapeHtml_(d.currencyDisplay);
+      document.getElementById('crypto-lev-list').innerHTML = L.positions.length ? L.positions.map(p => `<div style="background:#202225;border-radius:8px;padding:8px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><b><span style="color:${p.side === '多' ? '#ED4245' : '#3BA55D'}">${p.side === '多' ? '做多' : '做空'}</span> ${escapeHtml_(p.symbol)} x${p.lev}</b><button class="btn" onclick="cryptoLevClose('${escapeHtml_(p.id)}')">平倉</button></div>
+          <div style="font-size:12px;color:#B9BBBE">開倉價 ${cryptoFmt_(p.entry)}　現價 ${cryptoFmt_(p.price)}　強平價 ${p.liqPrice === null ? '?' : cryptoFmt_(Math.round(p.liqPrice * 10000) / 10000)} USD</div>
+          <div style="font-size:12px;color:#B9BBBE">保證金 ${p.margin} ${cur}　目前權益 ${p.equity === null ? '?' : p.equity}</div>
+          <div style="font-size:12px;color:${stockClr_(p.pnl || 0)}">浮動損益 ${p.pnl === null ? '?' : stockSign_(p.pnl)}${p.pnlPct === null ? '' : '(' + stockSign_(p.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D;font-size:12px">目前沒有槓桿倉位</div>';
+      cryptoLevEstimate();
+    }
+    function cryptoLevEstimate() {
+      const d = cryptoState_, el = document.getElementById('crypto-lev-est');
+      if (!d || !d.lev || !d.lev.enabled || !cryptoSel_) { el.textContent = cryptoSel_ ? '' : '請先點選上面的幣種'; return; }
+      const b = d.board.find(x => x.symbol === cryptoSel_), x = parseFloat(document.getElementById('crypto-lev-x').value), m = parseFloat(document.getElementById('crypto-lev-margin').value);
+      if (!b || b.price === null || !(x >= 1) || !(m > 0)) { el.textContent = '目前選擇:' + cryptoSel_; return; }
+      const short = document.getElementById('crypto-lev-side').value === 'short';
+      const liq = short ? b.price * (1 + d.lev.liqRatio / x) : b.price * (1 - d.lev.liqRatio / x);
+      el.innerHTML = `${cryptoSel_} 倉位價值 約 <b>${Math.round(m * x * 100) / 100}</b> ${escapeHtml_(d.currencyDisplay)},開倉手續費 約 ${Math.ceil(m * x * d.feeRate * 100) / 100},強平價 約 <b>${cryptoFmt_(Math.round(liq * 10000) / 10000)}</b> USD(現價 ${cryptoFmt_(b.price)})`;
+    }
+    async function cryptoLevOpen() {
+      if (cryptoBusy_ || !cryptoSel_) { if (!cryptoSel_) toast_('請先點選上面的幣種'); return; }
+      const side = document.getElementById('crypto-lev-side').value, x = parseInt(document.getElementById('crypto-lev-x').value, 10), m = parseFloat(document.getElementById('crypto-lev-margin').value);
+      if (!(x >= 1) || !(m > 0)) { toast_('請填倍數和保證金'); return; }
+      if (!confirm('開倉 ' + cryptoSel_ + ' ' + (side === 'long' ? '做多' : '做空') + ' ' + x + ' 倍,保證金 ' + m + '?\n(以成交當下的即時價為準,虧損達上限會被強制平倉)')) return;
+      cryptoBusy_ = true;
+      document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = true; });
+      const d = await chamberCall_('cryptoLevOpenWorker', { symbol: cryptoSel_, side, lev: String(x), margin: String(m) });
+      document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = false; });
+      cryptoBusy_ = false;
+      if (!d) { toast_('連線逾時,結果不確定,請先看下面的倉位和餘額再決定要不要重試'); await loadCrypto_(true); return; }
+      toast_(d.message || (d.status === 'success' ? '完成' : '失敗'));
+      await loadCrypto_(true);
+    }
+    async function cryptoLevClose(id) {
+      if (cryptoBusy_) return;
+      if (!confirm('確定要平倉這個倉位?(以當下即時價結算)')) return;
+      cryptoBusy_ = true;
+      document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = true; });
+      const d = await chamberCall_('cryptoLevCloseWorker', { id });
+      document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = false; });
+      cryptoBusy_ = false;
+      if (!d) { toast_('連線逾時,結果不確定,請看倉位和餘額確認'); await loadCrypto_(true); return; }
+      toast_(d.message || (d.status === 'success' ? '完成' : '失敗'));
+      await loadCrypto_(true);
     }
     let cryptoLbData_ = null;
     async function loadCryptoLb_(mode) {
@@ -4626,6 +4688,7 @@
       document.getElementById('crypto-trade').style.display = 'block';
       const b = cryptoState_ && cryptoState_.board.find(x => x.symbol === sym);
       document.getElementById('crypto-sel').textContent = sym + (b ? '　' + b.name : '');
+      cryptoLevEstimate();
       if (cryptoState_) loadCrypto_(true);
       cryptoEstimate();
     }
