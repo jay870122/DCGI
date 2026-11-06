@@ -542,7 +542,7 @@
       </div>
     </div>
       <div class="lb-panel">
-        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 排行榜</h3><span><button class="btn" id="stock-lb-pnl" onclick="loadStockLb_('pnl')">總損益</button> <button class="btn" id="stock-lb-assets" onclick="loadStockLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="stockLbRefresh_()">🔄</button></span></div>
+        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 排行榜</h3><span><button class="btn" id="stock-lb-pnl" onclick="loadStockLb_('pnl')">總損益</button> <button class="btn" onclick="loadStockLb_('realized')">已實現</button> <button class="btn" onclick="loadStockLb_('unreal')">未實現</button> <button class="btn" id="stock-lb-assets" onclick="loadStockLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="stockLbRefresh_()">🔄</button></span></div>
         <div id="stock-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行</div>
       </div>
     </div>
@@ -604,7 +604,7 @@
       </div>
     </div>
       <div class="lb-panel">
-        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="cryptoLbRefresh_()">🔄</button></span></div>
+        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('realized')">已實現</button> <button class="btn" onclick="loadCryptoLb_('unreal')">未實現</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="cryptoLbRefresh_()">🔄</button></span></div>
         <div id="crypto-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行(只計算加密貨幣的交易)</div>
       </div>
     </div>
@@ -801,7 +801,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.123</div>
+    <div class="version-tag">系統版本：v5.4.124</div>
   </div>
 
   <script>
@@ -4628,6 +4628,7 @@
       drawChart_(el, d.points, chartFmt_(rg), base);
     }
     // ----- 手動刷新(3秒內不重複觸發) -----
+    function lbLabel_(mode) { return { pnl: '總損益(已實現+未實現)', realized: '已實現損益(已賣出/平倉的賺賠)', unreal: '未實現損益(目前持有的浮動賺賠)' }[mode] || ''; }
     let manualRefreshAt_ = 0;
     function manualOk_() { if (Date.now() - manualRefreshAt_ < 3000) { toast_('剛更新過,請稍等一下'); return false; } manualRefreshAt_ = Date.now(); return true; }
     function stockLbRefresh_() { if (!manualOk_()) return; stockLbData_ = null; loadStockLb_(stockLbMode_ || 'pnl'); }
@@ -4658,12 +4659,12 @@
         stockLbData_ = { d, at: Date.now() };
       }
       const d = stockLbData_.d, r = d[mode];
-      const lab = mode === 'pnl' ? '總損益(已實現+未實現)' : '總資產(' + escapeHtml_(d.currencyDisplay) + '餘額+持股市值)';
+      const lab = lbLabel_(mode) || '總資產(' + escapeHtml_(d.currencyDisplay) + '餘額+持股市值)';
       if (!r.top.length) { box.innerHTML = '還沒有人交易'; return; }
       const medal = (n) => n === 1 ? '🥇' : n === 2 ? '🥈' : n === 3 ? '🥉' : n + '.';
       box.innerHTML = '<div style="color:#72767D;margin-bottom:4px">' + lab + ',共 ' + r.total + ' 人' + (d.delayed ? ' ⚠️部分報價延遲' : '') + '</div>'
-        + r.top.map(x => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-radius:4px;${x.me ? 'background:#3C4270;' : ''}color:#DCDDDE"><span>${medal(x.rank)} ${escapeHtml_(x.name)}</span><b style="color:${mode === 'pnl' ? stockClr_(x.value) : '#fff'}">${mode === 'pnl' ? stockSign_(x.value) : x.value}</b></div>`).join('')
-        + (r.me && r.me.rank > 20 ? `<div style="padding:3px 6px;margin-top:4px;border-top:1px solid #4F545C;color:#DCDDDE">我:第 ${r.me.rank} 名 <b>${mode === 'pnl' ? stockSign_(r.me.value) : r.me.value}</b></div>` : '')
+        + r.top.map(x => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-radius:4px;${x.me ? 'background:#3C4270;' : ''}color:#DCDDDE"><span>${medal(x.rank)} ${escapeHtml_(x.name)}</span><b style="color:${mode !== 'assets' ? stockClr_(x.value) : '#fff'}">${mode !== 'assets' ? stockSign_(x.value) : x.value}</b></div>`).join('')
+        + (r.me && r.me.rank > 20 ? `<div style="padding:3px 6px;margin-top:4px;border-top:1px solid #4F545C;color:#DCDDDE">我:第 ${r.me.rank} 名 <b>${mode !== 'assets' ? stockSign_(r.me.value) : r.me.value}</b></div>` : '')
         + '<div style="color:#72767D;font-size:11px;margin-top:4px">每 20 秒更新</div>';
     }
     async function stockPick(code, fillShares) {
@@ -4860,12 +4861,12 @@
         cryptoLbData_ = { d, at: Date.now() };
       }
       const d = cryptoLbData_.d, r = d[mode];
-      const lab = mode === 'pnl' ? '總損益(已實現+未實現)' : '總資產(' + escapeHtml_(d.currencyDisplay) + '餘額+持幣市值)';
+      const lab = lbLabel_(mode) || '總資產(' + escapeHtml_(d.currencyDisplay) + '餘額+持幣市值)';
       if (!r.top.length) { box.innerHTML = '還沒有人交易'; return; }
       const medal = (n) => n === 1 ? '🥇' : n === 2 ? '🥈' : n === 3 ? '🥉' : n + '.';
       box.innerHTML = '<div style="color:#72767D;margin-bottom:4px">' + lab + ',共 ' + r.total + ' 人</div>'
-        + r.top.map(x => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-radius:4px;${x.me ? 'background:#3C4270;' : ''}color:#DCDDDE"><span>${medal(x.rank)} ${escapeHtml_(x.name)}</span><b style="color:${mode === 'pnl' ? stockClr_(x.value) : '#fff'}">${mode === 'pnl' ? stockSign_(x.value) : x.value}</b></div>`).join('')
-        + (r.me && r.me.rank > 20 ? `<div style="padding:3px 6px;margin-top:4px;border-top:1px solid #4F545C;color:#DCDDDE">我:第 ${r.me.rank} 名 <b>${mode === 'pnl' ? stockSign_(r.me.value) : r.me.value}</b></div>` : '')
+        + r.top.map(x => `<div style="display:flex;justify-content:space-between;padding:3px 6px;border-radius:4px;${x.me ? 'background:#3C4270;' : ''}color:#DCDDDE"><span>${medal(x.rank)} ${escapeHtml_(x.name)}</span><b style="color:${mode !== 'assets' ? stockClr_(x.value) : '#fff'}">${mode !== 'assets' ? stockSign_(x.value) : x.value}</b></div>`).join('')
+        + (r.me && r.me.rank > 20 ? `<div style="padding:3px 6px;margin-top:4px;border-top:1px solid #4F545C;color:#DCDDDE">我:第 ${r.me.rank} 名 <b>${mode !== 'assets' ? stockSign_(r.me.value) : r.me.value}</b></div>` : '')
         + '<div style="color:#72767D;font-size:11px;margin-top:4px">每 20 秒更新</div>';
     }
     function cryptoPick(sym) {
