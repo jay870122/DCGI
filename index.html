@@ -179,6 +179,11 @@
     /* 🌟 彈出視窗 (歷史紀錄) */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;}
     .modal-content { background: #2F3136; border-radius: 12px; width: 100%; max-width: 500px; max-height: 80vh; text-align: left; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+    .dual-wrap { display: flex; gap: 12px; align-items: flex-start; justify-content: center; width: 100%; max-width: 900px; margin: auto; }
+    .dual-wrap > .modal-content { flex: 1 1 500px; min-width: 0; }
+    .lb-panel { flex: 0 0 300px; background: #2F3136; border-radius: 12px; max-height: 80vh; overflow-y: auto; padding: 15px; box-sizing: border-box; }
+    #stock-modal, #crypto-modal { overflow-y: auto; }
+    @media (max-width: 900px) { .dual-wrap { flex-direction: column; align-items: stretch; max-width: 560px; } .lb-panel { flex: 0 0 auto; max-height: none; } }
     .modal-header { flex-shrink: 0; padding: 25px 45px 15px 25px; border-bottom: 1px solid #4F545C; position: relative; }
     .modal-body { overflow-y: auto; padding: 15px 25px 25px 25px; }
     .modal-close { position: absolute; top: 15px; right: 20px; color: #B9BBBE; font-size: 24px; font-weight: bold; cursor: pointer; }
@@ -494,6 +499,7 @@
 
   <!-- 📈 台股模擬(虛擬貨幣買賣台股,Worker專屬) -->
   <div id="stock-modal" class="modal-overlay">
+    <div class="dual-wrap">
     <div class="modal-content" style="max-width: 560px;">
       <div class="modal-header">
         <span class="modal-close" onclick="closeStock()">×</span>
@@ -528,19 +534,23 @@
           </div>
           <div id="stock-est" style="font-size:12px;color:#B9BBBE;margin-top:6px"></div>
         </div>
-        <div style="margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 排行榜</h3><span><button class="btn" id="stock-lb-pnl" onclick="loadStockLb_('pnl')">總損益</button> <button class="btn" id="stock-lb-assets" onclick="loadStockLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="stockLbRefresh_()">🔄</button></span></div>
-        <div id="stock-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行</div>
-        <h3 style="margin:10px 0 6px;font-size:14px">我的持股</h3>
+                <h3 style="margin:10px 0 6px;font-size:14px">我的持股</h3>
         <div id="stock-holdings" style="font-size:13px"></div>
         <h3 style="margin:12px 0 6px;font-size:14px">最近交易</h3>
         <div id="stock-history" style="font-size:12px;color:#B9BBBE"></div>
         <p style="color:#72767D;font-size:11px;margin:10px 0 0">報價來自證交所即時行情(約5秒更新,可能有延遲),以市價成交。這是虛擬遊戲,與真實金錢無關,貨幣不可買賣、不可兌現,所有內容非投資建議。顏色採台股慣例:紅漲綠跌。</p>
       </div>
     </div>
+      <div class="lb-panel">
+        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 排行榜</h3><span><button class="btn" id="stock-lb-pnl" onclick="loadStockLb_('pnl')">總損益</button> <button class="btn" id="stock-lb-assets" onclick="loadStockLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="stockLbRefresh_()">🔄</button></span></div>
+        <div id="stock-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行</div>
+      </div>
+    </div>
   </div>
 
   <!-- ₿ 加密貨幣模擬(Worker專屬) -->
   <div id="crypto-modal" class="modal-overlay">
+    <div class="dual-wrap">
     <div class="modal-content" style="max-width: 560px;">
       <div class="modal-header">
         <span class="modal-close" onclick="closeCrypto()">×</span>
@@ -586,13 +596,16 @@
           <div id="crypto-lev-list" style="margin-top:8px"></div>
           <div style="font-size:11px;color:#72767D;margin-top:6px">先點上面的幣種,再選方向/倍數/保證金。虧損達保證金的一定比例會被系統自動強制平倉,最多賠掉保證金,餘額不會變負。</div>
         </div>
-        <div style="margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="cryptoLbRefresh_()">🔄</button></span></div>
-        <div id="crypto-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行(只計算加密貨幣的交易)</div>
-        <h3 style="margin:10px 0 6px;font-size:14px">我的持幣</h3>
+                <h3 style="margin:10px 0 6px;font-size:14px">我的持幣</h3>
         <div id="crypto-holdings" style="font-size:13px"></div>
         <h3 style="margin:12px 0 6px;font-size:14px">最近交易</h3>
         <div id="crypto-history" style="font-size:12px;color:#B9BBBE"></div>
         <p style="color:#72767D;font-size:11px;margin:10px 0 0">報價為美元計價的即時行情(約10秒更新),市價成交,可買小數。這是虛擬遊戲,與真實金錢無關,貨幣不可買賣、不可兌現,所有內容非投資建議。顏色採紅漲綠跌。槓桿倉位有被強制平倉的風險。</p>
+      </div>
+    </div>
+      <div class="lb-panel">
+        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="cryptoLbRefresh_()">🔄</button></span></div>
+        <div id="crypto-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行(只計算加密貨幣的交易)</div>
       </div>
     </div>
   </div>
@@ -788,7 +801,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.122</div>
+    <div class="version-tag">系統版本：v5.4.123</div>
   </div>
 
   <script>
