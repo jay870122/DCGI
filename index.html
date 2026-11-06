@@ -510,7 +510,7 @@
         <div id="stock-quote" style="background:#2F3136;border-radius:8px;padding:10px;margin-bottom:10px;display:none"></div>
         <div id="stock-chart-wrap" style="display:none;margin-bottom:10px;background:#2F3136;border-radius:8px;padding:8px">
           <div style="display:flex;gap:4px;margin-bottom:4px">
-            <button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1d')">當日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('5d')">5日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1m')">1個月</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('6m')">半年</button>
+            <button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1d')">當日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('5d')">5日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1m')">1個月</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('6m')">半年</button><button class="btn" style="padding:3px 8px;font-size:12px;margin-left:auto;background:#4F545C" onclick="chartToggle_()">🕯️/📈 切換</button>
           </div>
           <div id="stock-chart" style="min-height:60px"></div>
           <div style="font-size:11px;color:#72767D;margin-top:2px">走勢圖資料可能延遲約20分鐘,僅供參考;成交價以上方即時報價為準。</div>
@@ -553,7 +553,7 @@
         <div id="crypto-trade" style="display:none;margin-bottom:12px;background:#2F3136;border-radius:8px;padding:10px">
           <div id="crypto-sel" style="font-weight:bold;margin-bottom:6px"></div>
           <div style="display:flex;gap:4px;margin-bottom:4px" id="crypto-chart-tabs">
-            <button class="btn" style="padding:3px 8px;font-size:12px" data-r="1h" onclick="cryptoChart_('1h')">1小時</button><button class="btn" style="padding:3px 8px;font-size:12px" data-r="1d" onclick="cryptoChart_('1d')">1天</button><button class="btn" style="padding:3px 8px;font-size:12px" data-r="7d" onclick="cryptoChart_('7d')">7天</button><button class="btn" style="padding:3px 8px;font-size:12px" data-r="30d" onclick="cryptoChart_('30d')">30天</button>
+            <button class="btn" style="padding:3px 8px;font-size:12px" data-r="1h" onclick="cryptoChart_('1h')">1小時</button><button class="btn" style="padding:3px 8px;font-size:12px" data-r="1d" onclick="cryptoChart_('1d')">1天</button><button class="btn" style="padding:3px 8px;font-size:12px" data-r="7d" onclick="cryptoChart_('7d')">7天</button><button class="btn" style="padding:3px 8px;font-size:12px" data-r="30d" onclick="cryptoChart_('30d')">30天</button><button class="btn" style="padding:3px 8px;font-size:12px;margin-left:auto;background:#4F545C" onclick="chartToggle_()">🕯️/📈 切換</button>
           </div>
           <div id="crypto-chart" style="margin-bottom:8px;min-height:60px"></div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -788,7 +788,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.118</div>
+    <div class="version-tag">系統版本：v5.4.119</div>
   </div>
 
   <script>
@@ -4524,23 +4524,47 @@
     }
     // ----- 簡易走勢圖(SVG,不需外部套件)。紅漲綠跌 -----
     const chartCache_ = {};
+    let chartMode_ = 'candle';
+    try { chartMode_ = localStorage.getItem('dc_chart_mode') || 'candle'; } catch (e) {}
+    function chartToggle_() {
+      chartMode_ = chartMode_ === 'candle' ? 'line' : 'candle';
+      try { localStorage.setItem('dc_chart_mode', chartMode_); } catch (e) {}
+      if (document.getElementById('crypto-modal').style.display === 'flex') cryptoChart_();
+      if (document.getElementById('stock-modal').style.display === 'flex') stockChart_();
+    }
     function drawChart_(el, pts, fmtT, base) {
       if (!pts || pts.length < 2) { el.innerHTML = '<div style="color:#72767D;font-size:12px">沒有走勢資料</div>'; return; }
-      const W = 500, H = 140, P = 4;
-      let mn = Math.min(...pts.map(p => p.c)), mx = Math.max(...pts.map(p => p.c));
+      const candle = chartMode_ === 'candle' && pts[0].o !== undefined;
+      const W = 500, H = 150, P = 4, VH = 28; // VH:底部成交量區高度
+      const hi = p => candle ? p.h : p.c, lo = p => candle ? p.l : p.c;
+      let mn = Math.min(...pts.map(lo)), mx = Math.max(...pts.map(hi));
       if (mx === mn) { mx += 1; mn -= 1; }
-      const ref = base || pts[0].c, up = pts[pts.length - 1].c >= ref, col = up ? '#ED4245' : '#3BA55D';
-      const X = i => P + (W - 2 * P) * i / (pts.length - 1), Y = v => P + (H - 2 * P) * (1 - (v - mn) / (mx - mn));
-      const line = pts.map((p, i) => X(i).toFixed(1) + ',' + Y(p.c).toFixed(1)).join(' ');
+      const ref = base || (candle ? pts[0].o : pts[0].c), up = pts[pts.length - 1].c >= ref, col = up ? '#ED4245' : '#3BA55D';
+      const ph = H - VH - 2 * P;
+      const X = i => P + (W - 2 * P) * (i + 0.5) / pts.length, Y = v => P + ph * (1 - (v - mn) / (mx - mn));
       const id = 'c' + Math.random().toString(36).slice(2, 7);
-      el.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:11px;color:#72767D"><span>高 ${mx}</span><span id="${id}-tip" style="color:#DCDDDE">&nbsp;</span><span>低 ${mn}</span></div>
-        <svg id="${id}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;touch-action:none"><polygon points="${P},${H} ${line} ${W - P},${H}" fill="${col}" opacity="0.15"/><polyline points="${line}" fill="none" stroke="${col}" stroke-width="1.5"/><line id="${id}-l" x1="0" x2="0" y1="0" y2="${H}" stroke="#B9BBBE" stroke-width="0.5" style="display:none"/></svg>`;
+      let body = '';
+      const bw = Math.max(1, (W - 2 * P) / pts.length * 0.7);
+      if (candle) {
+        const vmax = Math.max(1, ...pts.map(p => p.v || 0));
+        body = pts.map((p, i) => {
+          const c = p.c >= p.o ? '#ED4245' : '#3BA55D', x = X(i), yo = Y(p.o), yc = Y(p.c), top = Math.min(yo, yc), hh = Math.max(1, Math.abs(yo - yc));
+          const vh = (p.v || 0) / vmax * (VH - 2);
+          return `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${Y(p.h).toFixed(1)}" y2="${Y(p.l).toFixed(1)}" stroke="${c}" stroke-width="1"/><rect x="${(x - bw / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" fill="${c}"/><rect x="${(x - bw / 2).toFixed(1)}" y="${(H - vh).toFixed(1)}" width="${bw.toFixed(1)}" height="${vh.toFixed(1)}" fill="${c}" opacity="0.4"/>`;
+        }).join('');
+      } else {
+        const line = pts.map((p, i) => X(i).toFixed(1) + ',' + Y(p.c).toFixed(1)).join(' ');
+        body = `<polygon points="${P},${H - VH} ${line} ${W - P},${H - VH}" fill="${col}" opacity="0.15"/><polyline points="${line}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+      }
+      el.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:11px;color:#72767D"><span>高 ${mx}</span><span id="${id}-tip" style="color:#DCDDDE;text-align:center">&nbsp;</span><span>低 ${mn}</span></div>
+        <svg id="${id}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;touch-action:none">${body}<line id="${id}-l" x1="0" x2="0" y1="0" y2="${H}" stroke="#B9BBBE" stroke-width="0.5" style="display:none"/></svg>`;
       const svg = document.getElementById(id), tip = document.getElementById(id + '-tip'), ln = document.getElementById(id + '-l');
       const move = e => {
         const r = svg.getBoundingClientRect(), cx = (e.touches ? e.touches[0].clientX : e.clientX);
-        const i = Math.max(0, Math.min(pts.length - 1, Math.round((cx - r.left) / r.width * (pts.length - 1))));
+        const i = Math.max(0, Math.min(pts.length - 1, Math.floor((cx - r.left) / r.width * pts.length)));
+        const p = pts[i];
         ln.style.display = ''; ln.setAttribute('x1', X(i)); ln.setAttribute('x2', X(i));
-        tip.textContent = fmtT(pts[i].t) + '  ' + pts[i].c;
+        tip.textContent = fmtT(p.t) + (candle ? '  開' + p.o + ' 高' + p.h + ' 低' + p.l + ' 收' + p.c : '  ' + p.c);
       };
       svg.addEventListener('mousemove', move); svg.addEventListener('touchmove', move); svg.addEventListener('touchstart', move);
       svg.addEventListener('mouseleave', () => { ln.style.display = 'none'; tip.innerHTML = '&nbsp;'; });
@@ -4553,6 +4577,8 @@
     function cryptoLivePts_(pts) {
       const b = cryptoState_ && cryptoState_.board.find(x => x.symbol === cryptoSel_);
       if (!b || b.price === null || !pts.length) return pts;
+      const last = pts[pts.length - 1];
+      if (last.o !== undefined) return pts.slice(0, -1).concat([{ ...last, c: b.price, h: Math.max(last.h, b.price), l: Math.min(last.l, b.price) }]);
       return pts.concat([{ t: Date.now(), c: b.price }]);
     }
     async function cryptoChart_(range, force) {
