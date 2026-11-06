@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.51</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.52</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -387,7 +387,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="add-form" id="add-shop-form">
             <div class="fsep">基本資訊</div>
             <div class="field full">
-              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤</span></label>
+              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤;[持有]搭配[持有上限100]=持有量要在「價格~100」之間(價格填0=0~100)</span></label>
               <input id="ns-name" type="text" placeholder="例：7日優越童話通行證" oninput="updateHiddenNamePreview('ns-name', 'ns-name-preview')">
               <div id="ns-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
             </div>
@@ -1253,7 +1253,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>✏️ 編輯商品</h3><button class="modal-close" onclick="closeModal('shop-modal')">×</button></div>
     <div class="modal-body">
       <div class="full field">
-        <label>商品名稱 <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤</span></label>
+        <label>商品名稱 <span class="hint">可加[持有][序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤;[持有]搭配[持有上限100]=持有量要在「價格~100」之間(價格填0=0~100)</span></label>
         <input id="em-name" type="text" oninput="updateHiddenNamePreview('em-name', 'em-name-preview')">
         <div id="em-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
       </div>
