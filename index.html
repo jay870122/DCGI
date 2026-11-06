@@ -810,7 +810,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.127</div>
+    <div class="version-tag">系統版本：v5.4.128</div>
   </div>
 
   <script>
@@ -6382,7 +6382,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
         
-        let isHold = item.name.includes('[持有]');
+        let isHold = item.name.includes('[持有]') || item.name.includes('[持有上限');
         let displayName = item.name.replace(/\[持有上限[^\]]*\]/g, '').replace('[持有]', '').replace('[連結限定]', '').trim();
         const holdMaxM_ = (item.name || '').match(/\[持有上限[:：]?\s*(-?\d+(?:\.\d+)?)\]/);
         // 🌟 更新圖片 HTML 讓它帶有 onclick 事件以開啟預覽
@@ -7012,7 +7012,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (!item || item.state !== 'available') return false;
       if (item.isRaffle || item.isGambling) return false;
       if (item.ultimatePassword && item.ultimatePassword.enabled) return false;
-      if ((item.name || '').includes('[持有]')) return false;
+      if ((item.name || '').includes('[持有]') || (item.name || '').includes('[持有上限')) return false;
       if ((item.categoryLocked && !item.categoryUnlocked) || (item.itemLocked && !item.itemUnlocked)) return false;
       if (item.hasRolePermission === false) return false;
       return true;
@@ -7292,7 +7292,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       if (qty < 1) { alert("數量必須大於 0！"); return; }
       if (qty > maxQty) { alert(`已超過限購數量！您目前最多只能買 ${maxQty} 個。`); return; }
       
-      let isHold = itemName.includes('[持有]');
+      let isHold = itemName.includes('[持有]') || itemName.includes('[持有上限');
       let displayItemName = itemName.replace(/\[持有上限[^\]]*\]/g, '').replace('[持有]', '').trim();
 
       // 🌟 密碼鎖定:如果商品或所在分類還沒解鎖,先跳出提示要求輸入密碼,不用等後端回錯誤才問一次
