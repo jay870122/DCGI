@@ -761,7 +761,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.114</div>
+    <div class="version-tag">系統版本：v5.4.115</div>
   </div>
 
   <script>
@@ -4602,7 +4602,7 @@
         + '<br><span style="font-size:11px;color:#72767D">1 USD = ' + d.rate + ' ' + cur + '　手續費 ' + (d.feeRate * 100) + '%</span>';
       document.getElementById('crypto-board').innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">' + d.board.map(b => {
         const c = stockClr_(b.changePct || 0);
-        return `<div style="background:${cryptoSel_ === b.symbol ? '#3C4270' : '#2F3136'};border-radius:8px;padding:8px;cursor:pointer" onclick="cryptoPick('${escapeHtml_(b.symbol)}')">
+        return `<div class="crypto-cell" data-sym="${escapeHtml_(b.symbol)}" style="background:${cryptoSel_ === b.symbol ? '#3C4270' : '#2F3136'};border-radius:8px;padding:8px;cursor:pointer" onclick="cryptoPick('${escapeHtml_(b.symbol)}')">
           <div><b>${escapeHtml_(b.symbol)}</b> <span style="color:#72767D;font-size:11px">${escapeHtml_(b.name)}</span></div>
           <div style="font-size:15px;font-weight:bold;color:${c}">${cryptoFmt_(b.price)} <span style="font-size:11px">USD</span></div>
           <div style="font-size:11px;color:${c}">${b.changePct === null ? '' : stockSign_(b.changePct) + '% (24h)'}</div></div>`;
@@ -4692,7 +4692,7 @@
       const b = cryptoState_ && cryptoState_.board.find(x => x.symbol === sym);
       document.getElementById('crypto-sel').textContent = sym + (b ? '　' + b.name : '');
       cryptoLevEstimate();
-      if (cryptoState_) loadCrypto_(true);
+      document.querySelectorAll('#crypto-board .crypto-cell').forEach(el => { el.style.background = el.dataset.sym === sym ? '#3C4270' : '#2F3136'; });
       cryptoEstimate();
     }
     function cryptoEstimate() {
