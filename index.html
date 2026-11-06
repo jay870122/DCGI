@@ -524,6 +524,35 @@
     </div>
   </div>
 
+  <!-- ₿ 加密貨幣模擬(Worker專屬) -->
+  <div id="crypto-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 560px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeCrypto()">×</span>
+        <h2 style="margin:0;">₿ 加密貨幣模擬</h2>
+      </div>
+      <div class="modal-body">
+        <div id="crypto-status" style="font-size:13px;margin-bottom:8px"></div>
+        <div id="crypto-balance" style="font-size:13px;color:#B9BBBE;margin-bottom:10px"></div>
+        <div id="crypto-board" style="margin-bottom:10px"></div>
+        <div id="crypto-trade" style="display:none;margin-bottom:12px;background:#2F3136;border-radius:8px;padding:10px">
+          <div id="crypto-sel" style="font-weight:bold;margin-bottom:6px"></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input id="crypto-qty" type="number" min="0" step="any" value="0.001" oninput="cryptoEstimate()" style="width:140px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">
+            <button class="btn" style="background:#ED4245" onclick="cryptoTrade('buy')">買進</button>
+            <button class="btn" style="background:#3BA55D" onclick="cryptoTrade('sell')">賣出</button>
+          </div>
+          <div id="crypto-est" style="font-size:12px;color:#B9BBBE;margin-top:6px"></div>
+        </div>
+        <h3 style="margin:10px 0 6px;font-size:14px">我的持幣</h3>
+        <div id="crypto-holdings" style="font-size:13px"></div>
+        <h3 style="margin:12px 0 6px;font-size:14px">最近交易</h3>
+        <div id="crypto-history" style="font-size:12px;color:#B9BBBE"></div>
+        <p style="color:#72767D;font-size:11px;margin:10px 0 0">報價為美元計價的即時行情(約10秒更新),市價成交,可買小數。這是虛擬遊戲,與真實金錢無關。顏色採紅漲綠跌。</p>
+      </div>
+    </div>
+  </div>
+
   <div id="gift-code-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header">
@@ -715,7 +744,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.110</div>
+    <div class="version-tag">系統版本：v5.4.111</div>
   </div>
 
   <script>
@@ -822,6 +851,7 @@
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
           checkStockAvailability_();
+          checkCryptoAvailability_();
           checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
           maybeShowPushPrompt(); // 🌟 網址如果帶 ?subscribe=1(用來分享邀請大家訂閱推播的連結),自動跳出引導視窗
@@ -934,6 +964,7 @@
       renderShop();
     }
 
+    let cryptoAvailable = false;
     let stockAvailable = false; // 📈 台股模擬有沒有開放
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
@@ -957,6 +988,12 @@
       if (stockAvailable) {
         bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#ED4245,#F0B232)" onclick="openStock()">
                    <span>📈 台股模擬</span>
+                 </div>`;
+      }
+
+      if (cryptoAvailable) {
+        bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#F0B232,#5865F2)" onclick="openCrypto()">
+                   <span>₿ 加密貨幣模擬</span>
                  </div>`;
       }
 
@@ -4511,6 +4548,88 @@
       toast_(d.message || (d.status === 'success' ? '完成' : '失敗'));
       await loadStock_(true);
       if (typeof refreshPlayerData === 'function') { try { refreshPlayerData(); } catch (e) {} }
+    }
+
+
+    // ============================================================
+    // ₿ 加密貨幣模擬(只有Worker版)。紅漲綠跌。
+    // ============================================================
+    let cryptoState_ = null, cryptoTimer_ = null, cryptoSel_ = '', cryptoBusy_ = false, cryptoLoading_ = false;
+    async function checkCryptoAvailability_() {
+      const d = await chamberCall_('cryptoStatusWorker');
+      if (d && d.status === 'success' && d.enabled) { cryptoAvailable = true; renderSidebar(); }
+    }
+    function openCrypto() {
+      document.getElementById('crypto-modal').style.display = 'flex';
+      loadCrypto_();
+      if (cryptoTimer_) clearInterval(cryptoTimer_);
+      cryptoTimer_ = setInterval(() => { if (!cryptoBusy_) loadCrypto_(true); }, 15000);
+    }
+    function closeCrypto() {
+      document.getElementById('crypto-modal').style.display = 'none';
+      if (cryptoTimer_) { clearInterval(cryptoTimer_); cryptoTimer_ = null; }
+    }
+    function cryptoFmt_(n) { return n === null || n === undefined ? '?' : (n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(n)); }
+    async function loadCrypto_(silent) {
+      if (cryptoLoading_) return;
+      cryptoLoading_ = true;
+      if (!silent) document.getElementById('crypto-holdings').innerHTML = '<div style="color:#72767D">讀取中...</div>';
+      const d = await chamberCall_('cryptoStateWorker');
+      cryptoLoading_ = false;
+      if (!d || d.status !== 'success') { if (!silent) document.getElementById('crypto-holdings').innerHTML = '<div style="color:#ED4245">讀取失敗,請稍後再試</div>'; return; }
+      cryptoState_ = d;
+      if (!d.enabled) { document.getElementById('crypto-status').innerHTML = '<span style="color:#ED4245">' + escapeHtml_(d.message || '加密貨幣交易目前沒有開放') + '</span>'; return; }
+      document.getElementById('crypto-status').innerHTML = d.open ? '<span style="color:#3BA55D">● 開放交易中</span>' : '<span style="color:#F0B232">● 目前不能交易:' + escapeHtml_(d.openMessage || '') + '</span>(仍可看行情、持幣)';
+      const cur = escapeHtml_(d.currencyDisplay);
+      document.getElementById('crypto-balance').innerHTML = '我的' + cur + ':<b style="color:#fff">' + (d.balance === null ? '?' : d.balance) + '</b>　持幣市值:<b style="color:#fff">' + d.totalValue + '</b>　總損益:<b style="color:' + stockClr_(d.totalPnl) + '">' + stockSign_(d.totalPnl) + '</b>'
+        + '<br><span style="font-size:11px;color:#72767D">1 USD = ' + d.rate + ' ' + cur + '　手續費 ' + (d.feeRate * 100) + '%</span>';
+      document.getElementById('crypto-board').innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">' + d.board.map(b => {
+        const c = stockClr_(b.changePct || 0);
+        return `<div style="background:${cryptoSel_ === b.symbol ? '#3C4270' : '#2F3136'};border-radius:8px;padding:8px;cursor:pointer" onclick="cryptoPick('${escapeHtml_(b.symbol)}')">
+          <div><b>${escapeHtml_(b.symbol)}</b> <span style="color:#72767D;font-size:11px">${escapeHtml_(b.name)}</span></div>
+          <div style="font-size:15px;font-weight:bold;color:${c}">${cryptoFmt_(b.price)} <span style="font-size:11px">USD</span></div>
+          <div style="font-size:11px;color:${c}">${b.changePct === null ? '' : stockSign_(b.changePct) + '% (24h)'}</div></div>`;
+      }).join('') + '</div>';
+      const hb = document.getElementById('crypto-holdings');
+      hb.innerHTML = d.holdings.length ? d.holdings.map(h => `<div style="background:#2F3136;border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer" onclick="cryptoPick('${escapeHtml_(h.symbol)}')">
+          <div style="display:flex;justify-content:space-between"><b>${escapeHtml_(h.name)} <span style="color:#72767D">${escapeHtml_(h.symbol)}</span></b><span>${h.qty}</span></div>
+          <div style="font-size:12px;color:#B9BBBE">現價 ${cryptoFmt_(h.price)} USD　市值 ${h.value === null ? '?' : h.value} ${cur}　成本 ${h.cost}</div>
+          <div style="font-size:12px;color:${stockClr_(h.pnl || 0)}">損益 ${h.pnl === null ? '?' : stockSign_(h.pnl)}${h.pnlPct === null ? '' : '(' + stockSign_(h.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D">還沒有持幣</div>';
+      document.getElementById('crypto-history').innerHTML = d.history.length ? d.history.map(x => {
+        const t = new Date(x.time); const ts = isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+        return `<div>${ts} ${escapeHtml_(x.action)} ${x.qty} ${escapeHtml_(x.symbol)} @${cryptoFmt_(x.price)}${x.pnl !== null && x.action === '賣出' ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
+      }).join('') : '還沒有交易紀錄';
+      cryptoEstimate();
+    }
+    function cryptoPick(sym) {
+      cryptoSel_ = sym;
+      document.getElementById('crypto-trade').style.display = 'block';
+      const b = cryptoState_ && cryptoState_.board.find(x => x.symbol === sym);
+      document.getElementById('crypto-sel').textContent = sym + (b ? '　' + b.name : '');
+      if (cryptoState_) loadCrypto_(true);
+      cryptoEstimate();
+    }
+    function cryptoEstimate() {
+      const d = cryptoState_, el = document.getElementById('crypto-est');
+      if (!d || !d.enabled || !cryptoSel_) { el.textContent = ''; return; }
+      const b = d.board.find(x => x.symbol === cryptoSel_), q = parseFloat(document.getElementById('crypto-qty').value);
+      if (!b || b.price === null || !(q > 0)) { el.textContent = ''; return; }
+      const gross = q * b.price * d.rate, fee = gross * d.feeRate;
+      el.innerHTML = `預估買進花費 約 <b>${Math.ceil((gross + fee) * 100) / 100}</b> ${escapeHtml_(d.currencyDisplay)}　|　預估賣出可得 約 <b>${Math.floor((gross - fee) * 100) / 100}</b>(以成交價為準)`;
+    }
+    async function cryptoTrade(side) {
+      if (cryptoBusy_ || !cryptoSel_) return;
+      const q = parseFloat(document.getElementById('crypto-qty').value);
+      if (!(q > 0)) { toast_('數量要大於0'); return; }
+      if (!confirm((side === 'buy' ? '買進 ' : '賣出 ') + q + ' ' + cryptoSel_ + '?\n(以成交當下的即時價為準)')) return;
+      cryptoBusy_ = true;
+      document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = true; });
+      const d = await chamberCall_(side === 'buy' ? 'cryptoBuyWorker' : 'cryptoSellWorker', { symbol: cryptoSel_, qty: String(q) });
+      document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = false; });
+      cryptoBusy_ = false;
+      if (!d) { toast_('連線逾時,交易結果不確定,請先看「我的持幣」和餘額再決定要不要重試'); await loadCrypto_(true); return; }
+      toast_(d.message || (d.status === 'success' ? '完成' : '失敗'));
+      await loadCrypto_(true);
     }
 
     // ============================================================

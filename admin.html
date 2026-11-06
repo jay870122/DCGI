@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.46</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.47</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1033,6 +1033,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="btn btn-edit" onclick="openGrantGeneralItemModal()">🎁 手動發放道具</button>
             <button class="btn btn-edit" onclick="openChamberConfig()">🧊 開啟室設定</button>
             <button class="btn btn-edit" onclick="openStockConfig()">📈 台股設定</button>
+            <button class="btn btn-edit" onclick="openCryptoConfig()">₿ 加密貨幣設定</button>
             <button class="btn btn-edit" onclick="openPlayerItems()">🔍 查玩家道具/開啟室</button>
             <button class="fab" onclick="openItemTemplateForm()">➕ 新增道具模板</button>
           </div>
@@ -1711,6 +1712,32 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div id="pi-detailview" style="display:none">
       <button class="btn" onclick="backToPlayerList_()" style="margin-bottom:8px">← 返回列表</button>
       <div id="pi-result" style="max-height:62vh;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="crypto-cfg-modal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header"><h3>₿ 加密貨幣模擬設定</h3><button class="modal-close" onclick="closeModal('crypto-cfg-modal')">×</button></div>
+    <div class="form-grid">
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="cc2-enabled" style="width:auto"><label for="cc2-enabled" style="margin:0">啟用加密貨幣模擬(關閉=玩家端看不到入口)</label></div>
+      <div class="field"><label>交易貨幣 <span class="hint">可與台股相同,也可另開</span></label><input id="cc2-cur" list="dc-list" placeholder="例:股幣"></div>
+      <div class="field"><label>匯率 <span class="hint">1 USD = 幾個貨幣</span></label><input id="cc2-rate" type="number" min="0" step="any" value="30"></div>
+      <div class="field"><label>手續費率 <span class="hint">0.001 = 0.1%,買賣都收</span></label><input id="cc2-fee" type="number" min="0" step="any" value="0.001"></div>
+      <div class="field"><label>單筆最大金額(USD) <span class="hint">留空=不限</span></label><input id="cc2-max" type="number" min="0" placeholder="不限"></div>
+      <div class="field"><label>入口顯示日期起 <span class="hint">留空=不限</span></label><input id="cc2-from" type="date"></div>
+      <div class="field"><label>入口顯示日期迄</label><input id="cc2-to" type="date"></div>
+      <div class="field"><label>可下單日期起 <span class="hint">留空=沿用入口日期</span></label><input id="cc2-tfrom" type="date"></div>
+      <div class="field"><label>可下單日期迄</label><input id="cc2-tto" type="date"></div>
+      <div class="field"><label>開放星期 <span class="hint">1~7,逗號分隔</span></label><input id="cc2-days" placeholder="1,2,3,4,5,6,7"></div>
+      <div class="field"><label>開放時段 <span class="hint">台灣時間,例:00:00-24:00</span></label><input id="cc2-windows" placeholder="00:00-24:00"></div>
+      <div class="field full"><label>開放幣種 <span class="hint">代號用逗號分隔(要是 Coinbase 有 USD 交易對的幣),留空=預設清單</span></label><input id="cc2-wl" placeholder="BTC,ETH,SOL"></div>
+      <div class="field full"><label>測試報價</label>
+        <div style="display:flex;gap:6px"><input id="cc2-diag-code" value="BTC" style="width:100px"><button class="btn" onclick="cryptoDiag()">🔍 測試</button></div>
+        <pre id="cc2-diag-out" style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;max-height:200px;overflow:auto"></pre></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('crypto-cfg-modal')">取消</button>
+      <button class="btn btn-primary" id="cc2-save-btn" onclick="saveCryptoConfig()">💾 儲存</button>
     </div>
   </div>
 </div>
@@ -3363,6 +3390,38 @@ async function stockDiag() {
   const out = document.getElementById('sc-diag-out');
   out.textContent = '測試中...';
   const d = await stockAdminCall_('adminStockDiagWorker', { code: document.getElementById('sc-diag-code').value.trim() });
+  if (!d || d.status !== 'success') { out.textContent = '失敗: ' + ((d && d.message) || '未知錯誤'); return; }
+  out.textContent = d.steps.map(s => (s.ok ? '✅ ' : '❌ ') + s.step + (s.ms ? '(' + s.ms + 'ms)' : '') + '\n    ' + s.detail).join('\n');
+}
+
+// ============================================================
+// ₿ 加密貨幣模擬設定(Worker專屬)
+// ============================================================
+async function openCryptoConfig() {
+  const d = await stockAdminCall_('adminGetCryptoConfigWorker');
+  if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  const c = d.config, set = (id, v) => { document.getElementById(id).value = v === undefined || v === null ? '' : v; };
+  document.getElementById('cc2-enabled').checked = !!c.enabled;
+  set('cc2-cur', c.currency ? ((c.currency === '升階2') ? '幻彩水晶' : c.currency) : ''); set('cc2-rate', c.rate); set('cc2-fee', c.feeRate); set('cc2-max', c.maxAmount);
+  set('cc2-from', c.dateFrom); set('cc2-to', c.dateTo); set('cc2-tfrom', c.tradeFrom); set('cc2-tto', c.tradeTo);
+  set('cc2-days', c.days); set('cc2-windows', c.windows); set('cc2-wl', c.whitelist);
+  document.getElementById('cc2-diag-out').textContent = '';
+  document.getElementById('crypto-cfg-modal').classList.add('open');
+}
+async function saveCryptoConfig() {
+  const btn = document.getElementById('cc2-save-btn');
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
+  try {
+    const v = (id) => document.getElementById(id).value;
+    const d = await apiCraftWrite_('adminSaveCryptoConfig', { enabled: document.getElementById('cc2-enabled').checked, currency: v('cc2-cur').trim(), rate: v('cc2-rate'), feeRate: v('cc2-fee'), maxAmount: v('cc2-max'), dateFrom: v('cc2-from'), dateTo: v('cc2-to'), tradeFrom: v('cc2-tfrom'), tradeTo: v('cc2-tto'), days: v('cc2-days'), windows: v('cc2-windows'), whitelist: v('cc2-wl') });
+    if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+    toast(d.message); closeModal('crypto-cfg-modal');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+async function cryptoDiag() {
+  const out = document.getElementById('cc2-diag-out');
+  out.textContent = '測試中...';
+  const d = await stockAdminCall_('adminCryptoDiagWorker', { symbol: document.getElementById('cc2-diag-code').value.trim() });
   if (!d || d.status !== 'success') { out.textContent = '失敗: ' + ((d && d.message) || '未知錯誤'); return; }
   out.textContent = d.steps.map(s => (s.ok ? '✅ ' : '❌ ') + s.step + (s.ms ? '(' + s.ms + 'ms)' : '') + '\n    ' + s.detail).join('\n');
 }
@@ -6904,7 +6963,7 @@ async function loadAuctionBids() {
 // 🌟 點擊彈窗背景關閉(但編輯商品/拍賣這兩個表單欄位很多,很容易滑鼠稍微點歪就整個關掉、資料等於白填,
 // 所以這兩個排除在外,一定要按 × 或「取消」按鈕才會關閉)
 document.querySelectorAll('.overlay').forEach(el => {
-  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal' || el.id === 'item-template-modal' || el.id === 'redeem-code-modal' || el.id === 'craft-modal' || el.id === 'chamber-cfg-modal' || el.id === 'stock-cfg-modal' || el.id === 'player-items-modal') return;
+  if (el.id === 'shop-modal' || el.id === 'auction-modal' || el.id === 'bingo-activity-modal' || el.id === 'grant-bingoitem-modal' || el.id === 'item-template-modal' || el.id === 'redeem-code-modal' || el.id === 'craft-modal' || el.id === 'chamber-cfg-modal' || el.id === 'stock-cfg-modal' || el.id === 'crypto-cfg-modal' || el.id === 'player-items-modal') return;
   el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
 });
 
