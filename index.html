@@ -810,7 +810,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.125</div>
+    <div class="version-tag">系統版本：v5.4.126</div>
   </div>
 
   <script>
@@ -3360,7 +3360,14 @@
     function discardGeneralItemStack(btnEl, itemName, idx, totalCount) {
       if (generalItemActionInFlight) return;
       const qtyInput = document.getElementById(`gi-qty-${idx}`);
-      let quantity = parseInt(qtyInput.value, 10) || 1;
+      let quantity;
+      if (qtyInput) quantity = parseInt(qtyInput.value, 10) || 1;
+      else {
+        // 「必須經過開啟室」的道具沒有數量輸入框(只有放入開啟室按鈕),原本這裡會因為找不到輸入框而出錯,按丟棄完全沒反應
+        const ans = prompt(`要丟棄幾個「${itemName}」?(最多 ${totalCount || 1} 個)`, '1');
+        if (ans === null) return;
+        quantity = parseInt(ans, 10) || 0;
+      }
       if (quantity < 1) { alert('請輸入至少1個'); return; }
       if (totalCount && quantity > totalCount) quantity = totalCount;
       if (!confirm(`確定要丟棄「${itemName}」x${quantity} 嗎？丟棄後無法復原,也不會有任何獎勵。`)) return;
