@@ -16,6 +16,9 @@
     .btn { color: white;
            padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; width: 100%; display: inline-block;
            box-sizing: border-box; text-decoration: none; text-align: center;}
+    #stock-modal .btn, #crypto-modal .btn { background-color: #5865F2; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: bold; cursor: pointer; width: auto; }
+    #stock-modal .btn:hover, #crypto-modal .btn:hover { filter: brightness(1.12); }
+    #stock-modal .btn:disabled, #crypto-modal .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-login { background-color: #5865F2; margin-top: 10px; max-width: 300px; }
     .btn-login:hover { background-color: #4752C4; }
     .btn-logout { background-color: #ED4245; margin-top: 20px; max-width: 200px;}
@@ -758,7 +761,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.113</div>
+    <div class="version-tag">系統版本：v5.4.114</div>
   </div>
 
   <script>
