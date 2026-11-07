@@ -812,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.137</div>
+    <div class="version-tag">系統版本：v5.4.138</div>
   </div>
 
   <script>
@@ -4879,7 +4879,7 @@
       for (const b of (d.board || [])) {
         const px = prices[b.symbol]; if (!(px > 0) || b.price === px) continue;
         if (b._open === undefined) b._open = b.open > 0 ? b.open : (b.price > 0 && b.changePct !== null && b.changePct !== undefined ? b.price / (1 + b.changePct / 100) : null);
-        b.price = px; if (b._open > 0) b.changePct = (px - b._open) / b._open * 100;
+        b.price = px; if (b._open > 0) b.changePct = Math.round((px - b._open) / b._open * 10000) / 100;
         const cell = document.querySelector('#crypto-board .crypto-cell[data-sym="' + b.symbol + '"]');
         if (cell) {
           const clr = stockClr_(b.changePct || 0), pe = cell.querySelector('.cc-price'), ce = cell.querySelector('.cc-chg');
