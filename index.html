@@ -812,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.133</div>
+    <div class="version-tag">系統版本：v5.4.134</div>
   </div>
 
   <script>
@@ -4817,6 +4817,7 @@
       document.getElementById('crypto-modal').style.display = 'none';
       if (cryptoTimer_) { clearInterval(cryptoTimer_); cryptoTimer_ = null; }
       if (cryptoPxTimer_) { clearInterval(cryptoPxTimer_); cryptoPxTimer_ = null; }
+      cryptoWsClose_();
       if (cryptoLbTimer_) { clearInterval(cryptoLbTimer_); cryptoLbTimer_ = null; }
     }
     function cryptoFmt_(n) { return n === null || n === undefined ? '?' : (n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(n)); }
@@ -4869,7 +4870,47 @@
     // 輕量即時報價:每2秒只抓價格(後端不讀試算表),在前端用開倉價/數量重算浮動損益;完整資料仍每15秒刷新
     let cryptoPxBusy_ = false, cryptoLastAct_ = Date.now();
     ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, () => { cryptoLastAct_ = Date.now(); }, { passive: true, capture: true }));
+    // 把最新價格套到槓桿倉位畫面(只改數字,不重畫清單);WebSocket 與輪詢共用
+    function cryptoApplyPx_(prices) {
+      const d = cryptoState_;
+      if (!d || !d.lev || !d.lev.positions) return;
+      for (const p of d.lev.positions) {
+        const px = prices[p.symbol]; if (!(px > 0)) continue;
+        const pnl = Math.round((p.side === '多' ? px - p.entry : p.entry - px) * p.qty * d.rate * 100) / 100;
+        p.price = px; p.pnl = pnl; p.equity = Math.round(Math.max(0, p.margin + pnl) * 100) / 100; p.pnlPct = Math.round(pnl / p.margin * 10000) / 100;
+        const a = document.getElementById('lv-' + p.id + '-price'), b = document.getElementById('lv-' + p.id + '-eq'), c = document.getElementById('lv-' + p.id + '-pnl');
+        if (a) a.textContent = cryptoFmt_(px);
+        if (b) b.textContent = p.equity;
+        if (c) { c.style.color = stockClr_(pnl); c.textContent = '浮動損益 ' + stockSign_(pnl) + '(' + stockSign_(p.pnlPct) + '%)'; }
+      }
+    }
+    // 玩家端直連 Coinbase WebSocket(只用來顯示,成交/強平仍以後端價為準);連不上或太久沒資料就退回 Worker 輪詢
+    let cryptoWs_ = null, cryptoWsSyms_ = '', cryptoWsLast_ = 0, cryptoWsFail_ = 0, cryptoWsPx_ = {}, cryptoWsRaf_ = 0;
+    function cryptoWsClose_() { try { if (cryptoWs_) { cryptoWs_.onclose = null; cryptoWs_.close(); } } catch (e) {} cryptoWs_ = null; cryptoWsSyms_ = ''; }
+    function cryptoWsSync_() {
+      const d = cryptoState_, ms = document.getElementById('crypto-modal');
+      const syms = (d && d.lev && d.lev.positions && ms && ms.style.display !== 'none') ? Array.from(new Set(d.lev.positions.map(p => p.symbol))).sort() : [];
+      const key = syms.join(',');
+      if (!key || cryptoWsFail_ >= 3 || typeof WebSocket === 'undefined') { if (!key) cryptoWsClose_(); return; }
+      if (cryptoWs_ && cryptoWsSyms_ === key && cryptoWs_.readyState <= 1) return;
+      cryptoWsClose_(); cryptoWsSyms_ = key;
+      try {
+        const ws = new WebSocket('wss://ws-feed.exchange.coinbase.com'); cryptoWs_ = ws;
+        ws.onopen = () => { try { ws.send(JSON.stringify({ type: 'subscribe', product_ids: syms.map(x => x + '-USD'), channels: ['ticker'] })); } catch (e) {} };
+        ws.onmessage = (ev) => {
+          let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+          if (m.type !== 'ticker' || !m.product_id) return;
+          const px = parseFloat(m.price); if (!(px > 0)) return;
+          cryptoWsLast_ = Date.now(); cryptoWsFail_ = 0; cryptoWsPx_[m.product_id.replace('-USD', '')] = px;
+          if (!cryptoWsRaf_) cryptoWsRaf_ = setTimeout(() => { cryptoWsRaf_ = 0; cryptoApplyPx_(cryptoWsPx_); }, 300);
+        };
+        ws.onerror = () => { cryptoWsFail_++; };
+        ws.onclose = () => { if (cryptoWs_ === ws) { cryptoWs_ = null; cryptoWsFail_++; } };
+      } catch (e) { cryptoWsFail_++; cryptoWs_ = null; }
+    }
     async function cryptoLivePx_() {
+      cryptoWsSync_();
+      if (Date.now() - cryptoWsLast_ < 8000) return; // WebSocket 有資料就不用打 Worker
       if (cryptoPxBusy_ || cryptoBusy_ || document.hidden || Date.now() - cryptoLastAct_ > 120000) return;
       const d = cryptoState_;
       if (!d || !d.lev || !d.lev.positions || !d.lev.positions.length || document.getElementById('crypto-modal').style.display === 'none') return;
@@ -4878,15 +4919,7 @@
         const syms = Array.from(new Set(d.lev.positions.map(p => p.symbol)));
         const r = await chamberCall_('cryptoPricesWorker', { symbols: syms.join(',') });
         if (!r || r.status !== 'success' || cryptoState_ !== d) return;
-        for (const p of d.lev.positions) {
-          const px = r.prices[p.symbol]; if (!(px > 0)) continue;
-          const pnl = Math.round((p.side === '多' ? px - p.entry : p.entry - px) * p.qty * d.rate * 100) / 100;
-          p.price = px; p.pnl = pnl; p.equity = Math.round(Math.max(0, p.margin + pnl) * 100) / 100; p.pnlPct = Math.round(pnl / p.margin * 10000) / 100;
-          const a = document.getElementById('lv-' + p.id + '-price'), b = document.getElementById('lv-' + p.id + '-eq'), c = document.getElementById('lv-' + p.id + '-pnl');
-          if (a) a.textContent = cryptoFmt_(px);
-          if (b) b.textContent = p.equity;
-          if (c) { c.style.color = stockClr_(pnl); c.textContent = '浮動損益 ' + stockSign_(pnl) + '(' + stockSign_(p.pnlPct) + '%)'; }
-        }
+        cryptoApplyPx_(r.prices);
       } finally { cryptoPxBusy_ = false; }
     }
     function cryptoLevEstimate() {
