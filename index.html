@@ -812,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.136</div>
+    <div class="version-tag">系統版本：v5.4.137</div>
   </div>
 
   <script>
@@ -4875,6 +4875,20 @@
     function cryptoApplyPx_(prices) {
       const d = cryptoState_;
       if (!d) return;
+      let boardDirty = false;
+      for (const b of (d.board || [])) {
+        const px = prices[b.symbol]; if (!(px > 0) || b.price === px) continue;
+        if (b._open === undefined) b._open = b.open > 0 ? b.open : (b.price > 0 && b.changePct !== null && b.changePct !== undefined ? b.price / (1 + b.changePct / 100) : null);
+        b.price = px; if (b._open > 0) b.changePct = (px - b._open) / b._open * 100;
+        const cell = document.querySelector('#crypto-board .crypto-cell[data-sym="' + b.symbol + '"]');
+        if (cell) {
+          const clr = stockClr_(b.changePct || 0), pe = cell.querySelector('.cc-price'), ce = cell.querySelector('.cc-chg');
+          if (pe) { pe.style.color = clr; pe.innerHTML = cryptoFmt_(px) + ' <span style="font-size:11px">USD</span>'; }
+          if (ce) { ce.style.color = clr; ce.textContent = b.changePct === null ? '' : stockSign_(b.changePct) + '% (24h)'; }
+        }
+        if (b.symbol === cryptoSel_) boardDirty = true;
+      }
+      if (boardDirty) { try { cryptoEstimate(); cryptoLevEstimate(); } catch (e) {} }
       for (const h of (d.holdings || [])) {
         const px = prices[h.symbol]; if (!(px > 0)) continue;
         const val = Math.floor(px * d.rate * h.qty * 100 + 1e-7) / 100, pnl = Math.round((val - h.cost) * 100) / 100;
@@ -4900,7 +4914,7 @@
     function cryptoWsClose_() { try { if (cryptoWs_) { cryptoWs_.onclose = null; cryptoWs_.close(); } } catch (e) {} cryptoWs_ = null; cryptoWsSyms_ = ''; }
     function cryptoWsSync_() {
       const d = cryptoState_, ms = document.getElementById('crypto-modal');
-      const syms = (d && ms && ms.style.display !== 'none') ? Array.from(new Set(((d.lev && d.lev.positions) || []).map(p => p.symbol).concat((d.holdings || []).map(h => h.symbol)))).sort() : [];
+      const syms = (d && ms && ms.style.display !== 'none') ? Array.from(new Set(((d.lev && d.lev.positions) || []).map(p => p.symbol).concat((d.holdings || []).map(h => h.symbol), (d.board || []).map(b => b.symbol)))).sort() : [];
       const key = syms.join(',');
       if (!key || cryptoWsFail_ >= 3 || typeof WebSocket === 'undefined') { if (!key) cryptoWsClose_(); return; }
       if (cryptoWs_ && cryptoWsSyms_ === key && cryptoWs_.readyState <= 1) return;
@@ -4925,7 +4939,7 @@
       if (cryptoPxBusy_ || cryptoBusy_ || document.hidden || Date.now() - cryptoLastAct_ > 120000) return;
       const d = cryptoState_;
       if (!d || document.getElementById('crypto-modal').style.display === 'none') return;
-      const syms = Array.from(new Set(((d.lev && d.lev.positions) || []).map(p => p.symbol).concat((d.holdings || []).map(h => h.symbol)))).slice(0, 12);
+      const syms = Array.from(new Set(((d.lev && d.lev.positions) || []).map(p => p.symbol).concat((d.holdings || []).map(h => h.symbol), (d.board || []).map(b => b.symbol)))).slice(0, 12);
       if (!syms.length) return;
       cryptoPxBusy_ = true;
       try {
