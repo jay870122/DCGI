@@ -812,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.131</div>
+    <div class="version-tag">系統版本：v5.4.132</div>
   </div>
 
   <script>
@@ -4797,7 +4797,7 @@
     // ₿ 加密貨幣模擬(只有Worker版)。紅漲綠跌。
     // ============================================================
     let cryptoLbTimer_ = null, stockLbTimer_ = null;
-    let cryptoState_ = null, cryptoTimer_ = null, cryptoSel_ = '', cryptoBusy_ = false, cryptoLoading_ = false;
+    let cryptoPxTimer_ = null, cryptoState_ = null, cryptoTimer_ = null, cryptoSel_ = '', cryptoBusy_ = false, cryptoLoading_ = false;
     async function checkCryptoAvailability_() {
       const d = await chamberCall_('cryptoStatusWorker');
       if (d && d.status === 'success' && d.enabled) { cryptoAvailable = true; renderSidebar(); }
@@ -4807,6 +4807,8 @@
       loadCrypto_();
       if (cryptoTimer_) clearInterval(cryptoTimer_);
       let tick_ = 0;
+      if (cryptoPxTimer_) clearInterval(cryptoPxTimer_);
+      cryptoPxTimer_ = setInterval(cryptoLivePx_, 2000);
       cryptoTimer_ = setInterval(async () => { if (cryptoBusy_) return; await loadCrypto_(true); if (++tick_ % 4 === 0 && cryptoSel_) cryptoChart_(null, true); }, 15000);
       if (cryptoLbTimer_) clearInterval(cryptoLbTimer_);
       cryptoLbTimer_ = setInterval(() => { if (cryptoLbMode_ && !cryptoBusy_) loadCryptoLb_(cryptoLbMode_, true); }, 20000);
@@ -4814,6 +4816,7 @@
     function closeCrypto() {
       document.getElementById('crypto-modal').style.display = 'none';
       if (cryptoTimer_) { clearInterval(cryptoTimer_); cryptoTimer_ = null; }
+      if (cryptoPxTimer_) { clearInterval(cryptoPxTimer_); cryptoPxTimer_ = null; }
       if (cryptoLbTimer_) { clearInterval(cryptoLbTimer_); cryptoLbTimer_ = null; }
     }
     function cryptoFmt_(n) { return n === null || n === undefined ? '?' : (n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(n)); }
@@ -4858,10 +4861,32 @@
       const cur = escapeHtml_(d.currencyDisplay);
       document.getElementById('crypto-lev-list').innerHTML = L.positions.length ? L.positions.map(p => `<div style="background:#202225;border-radius:8px;padding:8px;margin-bottom:6px">
           <div style="display:flex;justify-content:space-between;align-items:center"><b><span style="color:${p.side === '多' ? '#ED4245' : '#3BA55D'}">${p.side === '多' ? '做多' : '做空'}</span> ${escapeHtml_(p.symbol)} x${p.lev}</b><button class="btn" onclick="cryptoLevClose('${escapeHtml_(p.id)}')">平倉</button></div>
-          <div style="font-size:12px;color:#B9BBBE">開倉價 ${cryptoFmt_(p.entry)}　現價 ${cryptoFmt_(p.price)}　強平價 ${p.liqPrice === null ? '?' : cryptoFmt_(Math.round(p.liqPrice * 10000) / 10000)} USD</div>
-          <div style="font-size:12px;color:#B9BBBE">保證金 ${p.margin} ${cur}　目前權益 ${p.equity === null ? '?' : p.equity}</div>
-          <div style="font-size:12px;color:${stockClr_(p.pnl || 0)}">浮動損益 ${p.pnl === null ? '?' : stockSign_(p.pnl)}${p.pnlPct === null ? '' : '(' + stockSign_(p.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D;font-size:12px">目前沒有槓桿倉位</div>';
+          <div style="font-size:12px;color:#B9BBBE">開倉價 ${cryptoFmt_(p.entry)}　現價 <span id="lv-${escapeHtml_(p.id)}-price">${cryptoFmt_(p.price)}</span>　強平價 ${p.liqPrice === null ? '?' : cryptoFmt_(Math.round(p.liqPrice * 10000) / 10000)} USD</div>
+          <div style="font-size:12px;color:#B9BBBE">保證金 ${p.margin} ${cur}　目前權益 <span id="lv-${escapeHtml_(p.id)}-eq">${p.equity === null ? '?' : p.equity}</span></div>
+          <div id="lv-${escapeHtml_(p.id)}-pnl" style="font-size:12px;color:${stockClr_(p.pnl || 0)}">浮動損益 ${p.pnl === null ? '?' : stockSign_(p.pnl)}${p.pnlPct === null ? '' : '(' + stockSign_(p.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D;font-size:12px">目前沒有槓桿倉位</div>';
       cryptoLevEstimate();
+    }
+    // 輕量即時報價:每2秒只抓價格(後端不讀試算表),在前端用開倉價/數量重算浮動損益;完整資料仍每15秒刷新
+    let cryptoPxBusy_ = false;
+    async function cryptoLivePx_() {
+      if (cryptoPxBusy_ || cryptoBusy_ || document.hidden) return;
+      const d = cryptoState_;
+      if (!d || !d.lev || !d.lev.positions || !d.lev.positions.length || document.getElementById('crypto-modal').style.display === 'none') return;
+      cryptoPxBusy_ = true;
+      try {
+        const syms = Array.from(new Set(d.lev.positions.map(p => p.symbol)));
+        const r = await chamberCall_('cryptoPricesWorker', { symbols: syms.join(',') });
+        if (!r || r.status !== 'success' || cryptoState_ !== d) return;
+        for (const p of d.lev.positions) {
+          const px = r.prices[p.symbol]; if (!(px > 0)) continue;
+          const pnl = Math.round((p.side === '多' ? px - p.entry : p.entry - px) * p.qty * d.rate * 100) / 100;
+          p.price = px; p.pnl = pnl; p.equity = Math.round(Math.max(0, p.margin + pnl) * 100) / 100; p.pnlPct = Math.round(pnl / p.margin * 10000) / 100;
+          const a = document.getElementById('lv-' + p.id + '-price'), b = document.getElementById('lv-' + p.id + '-eq'), c = document.getElementById('lv-' + p.id + '-pnl');
+          if (a) a.textContent = cryptoFmt_(px);
+          if (b) b.textContent = p.equity;
+          if (c) { c.style.color = stockClr_(pnl); c.textContent = '浮動損益 ' + stockSign_(pnl) + '(' + stockSign_(p.pnlPct) + '%)'; }
+        }
+      } finally { cryptoPxBusy_ = false; }
     }
     function cryptoLevEstimate() {
       const d = cryptoState_, el = document.getElementById('crypto-lev-est');
