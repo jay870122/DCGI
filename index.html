@@ -812,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.135</div>
+    <div class="version-tag">系統版本：v5.4.136</div>
   </div>
 
   <script>
@@ -4844,8 +4844,8 @@
       const hb = document.getElementById('crypto-holdings');
       hb.innerHTML = d.holdings.length ? d.holdings.map(h => `<div style="background:#2F3136;border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer" onclick="cryptoPick('${escapeHtml_(h.symbol)}');cryptoFill_('sell',1)" title="點一下自動填入賣出全部">
           <div style="display:flex;justify-content:space-between"><b>${escapeHtml_(h.name)} <span style="color:#72767D">${escapeHtml_(h.symbol)}</span></b><span>${h.qty}</span></div>
-          <div style="font-size:12px;color:#B9BBBE">現價 ${cryptoFmt_(h.price)} USD　市值 ${h.value === null ? '?' : h.value} ${cur}　成本 ${h.cost}</div>
-          <div style="font-size:12px;color:${stockClr_(h.pnl || 0)}">損益 ${h.pnl === null ? '?' : stockSign_(h.pnl)}${h.pnlPct === null ? '' : '(' + stockSign_(h.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D">還沒有持幣</div>';
+          <div style="font-size:12px;color:#B9BBBE">現價 <span id="hv-${escapeHtml_(h.symbol)}-px">${cryptoFmt_(h.price)}</span> USD　市值 <span id="hv-${escapeHtml_(h.symbol)}-val">${h.value === null ? '?' : h.value}</span> ${cur}　成本 ${h.cost}</div>
+          <div id="hv-${escapeHtml_(h.symbol)}-pnl" style="font-size:12px;color:${stockClr_(h.pnl || 0)}">損益 ${h.pnl === null ? '?' : stockSign_(h.pnl)}${h.pnlPct === null ? '' : '(' + stockSign_(h.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D">還沒有持幣</div>';
       document.getElementById('crypto-history').innerHTML = d.history.length ? d.history.map(x => {
         const t = new Date(x.time); const ts = isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
         return `<div>${ts} ${escapeHtml_(x.action)} ${x.qty} ${escapeHtml_(x.symbol)} @${cryptoFmt_(x.price)}${x.pnl !== null && x.action === '賣出' ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
@@ -4874,7 +4874,17 @@
     // 把最新價格套到槓桿倉位畫面(只改數字,不重畫清單);WebSocket 與輪詢共用
     function cryptoApplyPx_(prices) {
       const d = cryptoState_;
-      if (!d || !d.lev || !d.lev.positions) return;
+      if (!d) return;
+      for (const h of (d.holdings || [])) {
+        const px = prices[h.symbol]; if (!(px > 0)) continue;
+        const val = Math.floor(px * d.rate * h.qty * 100 + 1e-7) / 100, pnl = Math.round((val - h.cost) * 100) / 100;
+        h.price = px; h.value = val; h.pnl = pnl; h.pnlPct = h.cost > 0 ? Math.round(pnl / h.cost * 10000) / 100 : null;
+        const a = document.getElementById('hv-' + h.symbol + '-px'), b = document.getElementById('hv-' + h.symbol + '-val'), c = document.getElementById('hv-' + h.symbol + '-pnl');
+        if (a) a.textContent = cryptoFmt_(px);
+        if (b) b.textContent = val;
+        if (c) { c.style.color = stockClr_(pnl); c.textContent = '損益 ' + stockSign_(pnl) + (h.pnlPct === null ? '' : '(' + stockSign_(h.pnlPct) + '%)'); }
+      }
+      if (!d.lev || !d.lev.positions) return;
       for (const p of d.lev.positions) {
         const px = prices[p.symbol]; if (!(px > 0)) continue;
         const pnl = Math.round((p.side === '多' ? px - p.entry : p.entry - px) * p.qty * d.rate * 100) / 100;
@@ -4890,7 +4900,7 @@
     function cryptoWsClose_() { try { if (cryptoWs_) { cryptoWs_.onclose = null; cryptoWs_.close(); } } catch (e) {} cryptoWs_ = null; cryptoWsSyms_ = ''; }
     function cryptoWsSync_() {
       const d = cryptoState_, ms = document.getElementById('crypto-modal');
-      const syms = (d && d.lev && d.lev.positions && ms && ms.style.display !== 'none') ? Array.from(new Set(d.lev.positions.map(p => p.symbol))).sort() : [];
+      const syms = (d && ms && ms.style.display !== 'none') ? Array.from(new Set(((d.lev && d.lev.positions) || []).map(p => p.symbol).concat((d.holdings || []).map(h => h.symbol)))).sort() : [];
       const key = syms.join(',');
       if (!key || cryptoWsFail_ >= 3 || typeof WebSocket === 'undefined') { if (!key) cryptoWsClose_(); return; }
       if (cryptoWs_ && cryptoWsSyms_ === key && cryptoWs_.readyState <= 1) return;
@@ -4914,10 +4924,11 @@
       if (Date.now() - cryptoWsLast_ < 8000) return; // WebSocket 有資料就不用打 Worker
       if (cryptoPxBusy_ || cryptoBusy_ || document.hidden || Date.now() - cryptoLastAct_ > 120000) return;
       const d = cryptoState_;
-      if (!d || !d.lev || !d.lev.positions || !d.lev.positions.length || document.getElementById('crypto-modal').style.display === 'none') return;
+      if (!d || document.getElementById('crypto-modal').style.display === 'none') return;
+      const syms = Array.from(new Set(((d.lev && d.lev.positions) || []).map(p => p.symbol).concat((d.holdings || []).map(h => h.symbol)))).slice(0, 12);
+      if (!syms.length) return;
       cryptoPxBusy_ = true;
       try {
-        const syms = Array.from(new Set(d.lev.positions.map(p => p.symbol)));
         const r = await chamberCall_('cryptoPricesWorker', { symbols: syms.join(',') });
         if (!r || r.status !== 'success' || cryptoState_ !== d) return;
         cryptoApplyPx_(r.prices);
