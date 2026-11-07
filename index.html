@@ -812,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.132</div>
+    <div class="version-tag">系統版本：v5.4.133</div>
   </div>
 
   <script>
@@ -4808,7 +4808,7 @@
       if (cryptoTimer_) clearInterval(cryptoTimer_);
       let tick_ = 0;
       if (cryptoPxTimer_) clearInterval(cryptoPxTimer_);
-      cryptoPxTimer_ = setInterval(cryptoLivePx_, 2000);
+      cryptoPxTimer_ = setInterval(cryptoLivePx_, 3000);
       cryptoTimer_ = setInterval(async () => { if (cryptoBusy_) return; await loadCrypto_(true); if (++tick_ % 4 === 0 && cryptoSel_) cryptoChart_(null, true); }, 15000);
       if (cryptoLbTimer_) clearInterval(cryptoLbTimer_);
       cryptoLbTimer_ = setInterval(() => { if (cryptoLbMode_ && !cryptoBusy_) loadCryptoLb_(cryptoLbMode_, true); }, 20000);
@@ -4867,9 +4867,10 @@
       cryptoLevEstimate();
     }
     // 輕量即時報價:每2秒只抓價格(後端不讀試算表),在前端用開倉價/數量重算浮動損益;完整資料仍每15秒刷新
-    let cryptoPxBusy_ = false;
+    let cryptoPxBusy_ = false, cryptoLastAct_ = Date.now();
+    ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, () => { cryptoLastAct_ = Date.now(); }, { passive: true, capture: true }));
     async function cryptoLivePx_() {
-      if (cryptoPxBusy_ || cryptoBusy_ || document.hidden) return;
+      if (cryptoPxBusy_ || cryptoBusy_ || document.hidden || Date.now() - cryptoLastAct_ > 120000) return;
       const d = cryptoState_;
       if (!d || !d.lev || !d.lev.positions || !d.lev.positions.length || document.getElementById('crypto-modal').style.display === 'none') return;
       cryptoPxBusy_ = true;
