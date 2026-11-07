@@ -532,7 +532,8 @@
         </div>
         <div id="stock-trade" style="display:none;margin-bottom:12px">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input id="stock-shares" type="number" min="1" step="1" value="1" oninput="stockEstimate()" style="width:110px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"> 股
+            <select id="stock-mode" onchange="stockMode_()" style="padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"><option value="qty">依股數</option><option value="amount">依金額(買進)</option></select>
+            <input id="stock-shares" type="number" min="1" step="1" value="1" oninput="stockEstimate()" style="width:110px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"> <span id="stock-unit">股</span>
             <button class="btn" id="stock-buy-btn" style="background:#ED4245" onclick="stockTrade('buy')">買進</button>
             <button class="btn" id="stock-sell-btn" style="background:#3BA55D" onclick="stockTrade('sell')">賣出</button>
           </div>
@@ -576,7 +577,8 @@
           </div>
           <div id="crypto-chart" style="margin-bottom:8px;min-height:60px"></div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input id="crypto-qty" type="number" min="0" step="any" value="0.001" oninput="cryptoEstimate()" style="width:140px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">
+            <select id="crypto-mode" onchange="cryptoMode_()" style="padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"><option value="qty">依數量</option><option value="amount">依金額(買進)</option></select>
+            <input id="crypto-qty" type="number" min="0" step="any" value="0.001" oninput="cryptoEstimate()" style="width:140px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"> <span id="crypto-unit"></span>
             <button class="btn" style="background:#ED4245" onclick="cryptoTrade('buy')">買進</button>
             <button class="btn" style="background:#3BA55D" onclick="cryptoTrade('sell')">賣出</button>
           </div>
@@ -810,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.130</div>
+    <div class="version-tag">系統版本：v5.4.131</div>
   </div>
 
   <script>
@@ -4691,6 +4693,10 @@
     function stockFill_(kind, pct) {
       const d = stockState_, x = stockQuote_;
       if (!d || !d.enabled || !x) { toast_('請先查價'); return; }
+      if (stockAmt_()) {
+        if (kind === 'buy') { if (d.balance === null) return; document.getElementById('stock-shares').value = Math.floor(d.balance * 100) / 100; stockEstimate(); return; }
+        document.getElementById('stock-mode').value = 'qty'; stockMode_();
+      }
       let n = 0;
       if (kind === 'sell') { const h = d.holdings.find(y => y.code === x.code); n = h ? Math.max(1, Math.floor(h.shares * pct)) : 0; if (!n) { toast_('你沒有持有這檔股票'); return; } }
       else {
@@ -4733,9 +4739,26 @@
       stockEstimate();
       if (stockChartCode_.split(':')[0] !== x.code) stockChart_();
     }
+    function stockAmt_() { const m = document.getElementById('stock-mode'); return !!m && m.value === 'amount'; }
+    function stockMode_() {
+      const am = stockAmt_(), inp = document.getElementById('stock-shares');
+      document.getElementById('stock-unit').textContent = am ? ((stockState_ && stockState_.currencyDisplay) || '貨幣') : '股';
+      inp.step = am ? 'any' : '1'; inp.min = am ? '0' : '1'; inp.value = am ? '1000' : '1';
+      stockEstimate();
+    }
     function stockEstimate() {
       const d = stockState_, x = stockQuote_, el = document.getElementById('stock-est');
       if (!d || !d.enabled || !x) { el.textContent = ''; return; }
+      if (stockAmt_()) {
+        const a = parseFloat(document.getElementById('stock-shares').value);
+        if (!(a > 0)) { el.textContent = ''; return; }
+        let k = Math.floor((a / d.rate) / (x.price * (1 + d.feeRate)));
+        if (d.maxShares > 0) k = Math.min(k, d.maxShares);
+        const cst = (m) => { const g = x.price * m, f = Math.max(d.feeMin, g * d.feeRate); return Math.ceil((g + f) * d.rate * 100 - 1e-7) / 100; };
+        while (k > 0 && cst(k) > a) k--;
+        el.innerHTML = k >= 1 ? `約可買 <b>${k}</b> 股,花費約 <b>${cst(k)}</b> ${escapeHtml_(d.currencyDisplay)}(實際以成交價為準,花費不會超過 ${a})` : '金額不足以買1股';
+        return;
+      }
       const n = parseInt(document.getElementById('stock-shares').value, 10);
       if (!(n >= 1)) { el.textContent = ''; return; }
       const gross = x.price * n, fee = Math.max(d.feeMin, gross * d.feeRate), tax = gross * (x.isEtf ? d.etfTaxRate : d.taxRate);
@@ -4745,12 +4768,22 @@
     }
     async function stockTrade(side) {
       if (stockBusy_ || !stockQuote_) return;
+      if (stockAmt_()) {
+        if (side !== 'buy') { toast_('賣出請把上方切換成「依股數」'); return; }
+        const a = parseFloat(document.getElementById('stock-shares').value);
+        if (!(a > 0)) { toast_('金額要大於0'); return; }
+        if (!confirm('用 ' + a + ' ' + ((stockState_ && stockState_.currencyDisplay) || '') + ' 買進 ' + stockQuote_.name + '(' + stockQuote_.code + ')?\n(自動換算股數,以成交當下的即時價為準,花費不會超過此金額)')) return;
+        return stockTradeGo_(side, { code: stockQuote_.code, amount: String(a) });
+      }
       const n = parseInt(document.getElementById('stock-shares').value, 10);
       if (!(n >= 1)) { toast_('股數至少要1股'); return; }
       if (!confirm((side === 'buy' ? '買進 ' : '賣出 ') + stockQuote_.name + '(' + stockQuote_.code + ') ' + n + ' 股?\n(以成交當下的即時價為準)')) return;
+      return stockTradeGo_(side, { code: stockQuote_.code, shares: String(n) });
+    }
+    async function stockTradeGo_(side, params) {
       stockBusy_ = true;
       document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = true; });
-      const d = await chamberCall_(side === 'buy' ? 'stockBuyWorker' : 'stockSellWorker', { code: stockQuote_.code, shares: String(n) });
+      const d = await chamberCall_(side === 'buy' ? 'stockBuyWorker' : 'stockSellWorker', params);
       document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = false; });
       stockBusy_ = false;
       if (!d) { toast_('連線逾時,交易結果不確定,請先看「我的持股」和餘額再決定要不要重試'); await loadStock_(true); return; }
@@ -4898,6 +4931,10 @@
     function cryptoFill_(kind, pct) {
       const d = cryptoState_; if (!d || !cryptoSel_) { toast_('請先點選上面的幣種'); return; }
       const b = d.board.find(x => x.symbol === cryptoSel_);
+      if (cryptoAmt_()) {
+        if (kind === 'buy') { if (d.balance === null) return; document.getElementById('crypto-qty').value = Math.floor(d.balance * 100) / 100; cryptoEstimate(); return; }
+        document.getElementById('crypto-mode').value = 'qty'; cryptoMode_();
+      }
       let q = 0;
       if (kind === 'sell') { const h = d.holdings.find(x => x.symbol === cryptoSel_); q = h ? h.qty * pct : 0; if (!q) { toast_('你沒有持有 ' + cryptoSel_); return; } }
       else { if (!b || b.price === null || d.balance === null) return; q = d.balance / (b.price * d.rate * (1 + d.feeRate)) * pct; }
@@ -4912,22 +4949,46 @@
       document.getElementById('crypto-lev-margin').value = m > 0 ? m : '';
       cryptoLevEstimate();
     }
+    function cryptoAmt_() { const m = document.getElementById('crypto-mode'); return !!m && m.value === 'amount'; }
+    function cryptoMode_() {
+      const am = cryptoAmt_();
+      document.getElementById('crypto-unit').textContent = am ? ((cryptoState_ && cryptoState_.currencyDisplay) || '貨幣') : '';
+      document.getElementById('crypto-qty').value = am ? '1000' : '0.001';
+      cryptoEstimate();
+    }
     function cryptoEstimate() {
       const d = cryptoState_, el = document.getElementById('crypto-est');
       if (!d || !d.enabled || !cryptoSel_) { el.textContent = ''; return; }
       const b = d.board.find(x => x.symbol === cryptoSel_), q = parseFloat(document.getElementById('crypto-qty').value);
       if (!b || b.price === null || !(q > 0)) { el.textContent = ''; return; }
+      if (cryptoAmt_()) {
+        const unit = b.price * d.rate * (1 + d.feeRate);
+        let k = Math.floor(q / unit * 1e8 + 1e-6) / 1e8;
+        const cst = (m) => Math.ceil(m * b.price * d.rate * (1 + d.feeRate) * 100 - 1e-7) / 100;
+        while (k > 0 && cst(k) > q) k = Math.round((k - 1e-8) * 1e8) / 1e8;
+        el.innerHTML = k > 0 ? `約可買 <b>${k}</b> ${escapeHtml_(cryptoSel_)},花費約 <b>${cst(k)}</b> ${escapeHtml_(d.currencyDisplay)}(以成交價為準,花費不會超過 ${q})` : '金額太小,買不到';
+        return;
+      }
       const gross = q * b.price * d.rate, fee = gross * d.feeRate;
       el.innerHTML = `預估買進花費 約 <b>${Math.ceil((gross + fee) * 100) / 100}</b> ${escapeHtml_(d.currencyDisplay)}　|　預估賣出可得 約 <b>${Math.floor((gross - fee) * 100) / 100}</b>(以成交價為準)`;
     }
     async function cryptoTrade(side) {
       if (cryptoBusy_ || !cryptoSel_) return;
       const q = parseFloat(document.getElementById('crypto-qty').value);
-      if (!(q > 0)) { toast_('數量要大於0'); return; }
-      if (!confirm((side === 'buy' ? '買進 ' : '賣出 ') + q + ' ' + cryptoSel_ + '?\n(以成交當下的即時價為準)')) return;
+      let params;
+      if (cryptoAmt_()) {
+        if (side !== 'buy') { toast_('賣出請把上方切換成「依數量」'); return; }
+        if (!(q > 0)) { toast_('金額要大於0'); return; }
+        if (!confirm('用 ' + q + ' ' + ((cryptoState_ && cryptoState_.currencyDisplay) || '') + ' 買進 ' + cryptoSel_ + '?\n(自動換算數量,以成交當下的即時價為準,花費不會超過此金額)')) return;
+        params = { symbol: cryptoSel_, amount: String(q) };
+      } else {
+        if (!(q > 0)) { toast_('數量要大於0'); return; }
+        if (!confirm((side === 'buy' ? '買進 ' : '賣出 ') + q + ' ' + cryptoSel_ + '?\n(以成交當下的即時價為準)')) return;
+        params = { symbol: cryptoSel_, qty: String(q) };
+      }
       cryptoBusy_ = true;
       document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = true; });
-      const d = await chamberCall_(side === 'buy' ? 'cryptoBuyWorker' : 'cryptoSellWorker', { symbol: cryptoSel_, qty: String(q) });
+      const d = await chamberCall_(side === 'buy' ? 'cryptoBuyWorker' : 'cryptoSellWorker', params);
       document.querySelectorAll('#crypto-modal button').forEach(b => { b.disabled = false; });
       cryptoBusy_ = false;
       if (!d) { toast_('連線逾時,交易結果不確定,請先看「我的持幣」和餘額再決定要不要重試'); await loadCrypto_(true); return; }
