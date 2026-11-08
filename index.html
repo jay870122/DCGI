@@ -551,6 +551,10 @@
         <p style="color:#72767D;font-size:11px;margin:10px 0 0">報價來自證交所即時行情(約5秒更新,可能有延遲),以市價成交。這是虛擬遊戲,與真實金錢無關,貨幣不可買賣、不可兌現,所有內容非投資建議。顏色採台股慣例:紅漲綠跌。</p>
       </div>
     </div>
+      <details class="lb-panel" id="stock-mystats" ontoggle="if(this.open)loadMyStats_('stock')">
+        <summary style="cursor:pointer;font-size:14px;font-weight:bold">📊 我的戰績 <span style="font-weight:normal;color:#72767D;font-size:11px">(目前貨幣、台股)</span></summary>
+        <div id="stock-mystats-body" style="font-size:12px;margin-top:8px;color:#72767D">讀取中...</div>
+      </details>
       <div class="lb-panel">
         <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 排行榜</h3><span><button class="btn" id="stock-lb-pnl" onclick="loadStockLb_('pnl')">總損益</button> <button class="btn" onclick="loadStockLb_('realized')">已實現</button> <button class="btn" onclick="loadStockLb_('unreal')">未實現</button> <button class="btn" id="stock-lb-assets" onclick="loadStockLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="stockLbRefresh_()">🔄</button></span></div>
         <div id="stock-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行</div>
@@ -614,6 +618,10 @@
         <p style="color:#72767D;font-size:11px;margin:10px 0 0">報價為美元計價的即時行情(約10秒更新),市價成交,可買小數。這是虛擬遊戲,與真實金錢無關,貨幣不可買賣、不可兌現,所有內容非投資建議。顏色採紅漲綠跌。槓桿倉位有被強制平倉的風險。</p>
       </div>
     </div>
+      <details class="lb-panel" id="crypto-mystats" ontoggle="if(this.open)loadMyStats_('crypto')">
+        <summary style="cursor:pointer;font-size:14px;font-weight:bold">📊 我的戰績 <span style="font-weight:normal;color:#72767D;font-size:11px">(目前貨幣、加密貨幣)</span></summary>
+        <div id="crypto-mystats-body" style="font-size:12px;margin-top:8px;color:#72767D">讀取中...</div>
+      </details>
       <div class="lb-panel">
         <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('realized')">已實現</button> <button class="btn" onclick="loadCryptoLb_('unreal')">未實現</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="cryptoLbRefresh_()">🔄</button></span></div>
         <div id="crypto-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行(只計算加密貨幣的交易)</div>
@@ -812,7 +820,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.143</div>
+    <div class="version-tag">系統版本：v5.4.144</div>
   </div>
 
   <script>
@@ -4528,6 +4536,51 @@
     }
     function stockClr_(v) { return v > 0 ? '#ED4245' : (v < 0 ? '#3BA55D' : '#B9BBBE'); }
     function stockSign_(v) { return (v > 0 ? '+' : '') + v; }
+    // 我的戰績(從交易紀錄統計,展開時才讀取)與商店條件「目前數值」
+    async function loadMyStats_(kind) {
+      const box = document.getElementById(kind + '-mystats-body'); if (!box) return;
+      box.innerHTML = '讀取中...';
+      const d = await chamberCall_('myTradeStatsWorker', { kind });
+      if (!d || d.status !== 'success') { box.innerHTML = '<span style="color:#ED4245">讀取失敗,請稍後再試</span>'; return; }
+      const cur = escapeHtml_(d.currencyDisplay || ''), total = d.wins + d.losses;
+      const cell = (k, v, clr) => `<div style="background:#2F3136;border-radius:6px;padding:6px 8px"><div style="color:#72767D;font-size:11px">${k}</div><div style="color:${clr || '#fff'};font-weight:bold">${v}</div></div>`;
+      const pl = (v) => v === null || v === undefined ? '-' : stockSign_(v);
+      const cells = [
+        cell('已實現損益(' + cur + ')', pl(d.rz), stockClr_(d.rz)),
+        cell('已結算筆數', d.sells + ' 筆'),
+        cell('勝 / 敗', d.wins + ' / ' + d.losses),
+        cell('勝率', total ? Math.round(d.wins / total * 1000) / 10 + '%' : '-'),
+        cell('單筆最佳', pl(d.best), d.best === null ? '#fff' : stockClr_(d.best)),
+        cell('單筆最差', pl(d.worst), d.worst === null ? '#fff' : stockClr_(d.worst)),
+        cell('累計手續費' + (kind === 'stock' ? '/稅' : ''), d.fees),
+        cell('買進次數', d.buys + ' 次')
+      ];
+      if (kind === 'crypto') { cells.push(cell('槓桿開倉', d.opens + ' 次')); cells.push(cell('被強平', d.liq + ' 次', d.liq ? '#ED4245' : '#fff')); }
+      box.innerHTML = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px">${cells.join('')}</div><div style="color:#72767D;font-size:11px;margin-top:6px">只統計這個模擬的交易紀錄;未實現損益請看上方持倉。已結算 = 賣出/平倉/強平。</div>`;
+    }
+    let condStatsCache_ = null;
+    async function fillCondCurrent_() {
+      const spans = Array.from(document.querySelectorAll('.cond-cur'));
+      if (!spans.length || !currentUser) return;
+      const curs = Array.from(new Set(spans.filter(e => e.dataset.k === 'bal' && e.dataset.c).map(e => e.dataset.c)));
+      const key = curs.slice().sort().join(',');
+      if (!condStatsCache_ || Date.now() - condStatsCache_.at > 30000 || condStatsCache_.key !== key) {
+        const d = await chamberCall_('condStatsWorker', { currencies: key });
+        if (!d || d.status !== 'success') return;
+        condStatsCache_ = { at: Date.now(), key, d };
+      }
+      const d = condStatsCache_.d;
+      document.querySelectorAll('.cond-cur').forEach(e => {
+        const k = e.dataset.k, c = e.dataset.c; let v;
+        if (k === 'invrz') v = d.byCur && d.byCur[c] ? d.byCur[c].rz : undefined;
+        else if (k === 'invliq') v = d.byCur && d.byCur[c] ? d.byCur[c].liq : undefined;
+        else if (k === 'bal') v = d.bal ? d.bal[c] : undefined;
+        else if (k === 'liq') v = d.crypto ? d.crypto.liq : undefined;
+        else if (k === 'rzc') v = d.crypto ? d.crypto.rz : undefined;
+        else if (k === 'rzs') v = d.stock ? d.stock.rz : undefined;
+        e.textContent = v === undefined ? '' : ' (你目前 ' + v + ')';
+      });
+    }
     async function loadStock_(silent) {
       if (stockLoading_) return;
       stockLoading_ = true;
@@ -6449,6 +6502,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       }
     }
     function renderShop() {
+      setTimeout(() => { try { fillCondCurrent_(); } catch (e) {} }, 0);
       const container = document.getElementById('shop-list');
       const sortType = document.getElementById('sort-items').value;
       let displayItems = currentShopItems.filter(shouldShowLinkOnlyItem);
@@ -6540,10 +6594,10 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (item.limits.remainPW !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本周: ${item.limits.remainPW}</span>`;
         if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月: ${item.limits.remainPM}</span>`;
         if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 終身限購: ${item.limits.remainPT}</span>`;
-        for (const k_ of ['加密', '股票']) { const a_ = (item.name || '').match(new RegExp('\\[' + k_ + '已實現[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')), b_ = (item.name || '').match(new RegExp('\\[' + k_ + '已實現上限[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')); if (a_ || b_) limitsHtml += `<span class="limit-tag tag-total">📈 ${k_}已實現損益 ${a_ ? '≥ ' + a_[1] : ''}${a_ && b_ ? ' 且 ' : ''}${b_ ? '≤ ' + b_[1] : ''}</span>`; }
-        { const re2_ = /\[(投資損益|投資強平)\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m2_; while ((m2_ = re2_.exec(item.name || '')) !== null) { const lo_ = m2_[3].trim(), hi_ = m2_[4].trim(); if (m2_[2].trim() && (lo_ !== '' || hi_ !== '')) limitsHtml += `<span class="limit-tag tag-total">${m2_[1] === '投資損益' ? '📈' : '💥'} ${escapeHtml_(m2_[2].trim())}${m2_[1] === '投資損益' ? ' 投資已實現損益 ' : ' 被強平次數 '}${lo_ !== '' ? '≥ ' + escapeHtml_(lo_) : ''}${lo_ !== '' && hi_ !== '' ? ' 且 ' : ''}${hi_ !== '' ? '≤ ' + escapeHtml_(hi_) : ''}</span>`; } }
-        { const re_ = /\[持幣\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m_; while ((m_ = re_.exec(item.name || '')) !== null) { const lo_ = m_[2].trim(), hi_ = m_[3].trim(); if (m_[1].trim() && (lo_ !== '' || hi_ !== '')) limitsHtml += `<span class="limit-tag tag-total">🪙 持有 ${escapeHtml_(m_[1].trim())} ${lo_ !== '' ? '≥ ' + escapeHtml_(lo_) : ''}${lo_ !== '' && hi_ !== '' ? ' 且 ' : ''}${hi_ !== '' ? '≤ ' + escapeHtml_(hi_) : ''}</span>`; } }
-        { const lq1_ = (item.name || '').match(/\[強平次數[:：]?\s*(\d+)\]/), lq2_ = (item.name || '').match(/\[強平次數上限[:：]?\s*(\d+)\]/); if (lq1_ || lq2_) limitsHtml += `<span class="limit-tag tag-total">💥 需被強平 ${lq1_ ? lq1_[1] : 0}${lq2_ ? ' ~ ' + lq2_[1] : ' 次以上'}${lq2_ ? ' 次' : ''}</span>`; }
+        for (const k_ of ['加密', '股票']) { const a_ = (item.name || '').match(new RegExp('\\[' + k_ + '已實現[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')), b_ = (item.name || '').match(new RegExp('\\[' + k_ + '已實現上限[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')); if (a_ || b_) limitsHtml += `<span class="limit-tag tag-total">📈 ${k_}已實現損益 ${a_ ? '≥ ' + a_[1] : ''}${a_ && b_ ? ' 且 ' : ''}${b_ ? '≤ ' + b_[1] : ''}<span class="cond-cur" data-k="${k_ === '加密' ? 'rzc' : 'rzs'}"></span></span>`; }
+        { const re2_ = /\[(投資損益|投資強平)\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m2_; while ((m2_ = re2_.exec(item.name || '')) !== null) { const lo_ = m2_[3].trim(), hi_ = m2_[4].trim(); if (m2_[2].trim() && (lo_ !== '' || hi_ !== '')) limitsHtml += `<span class="limit-tag tag-total">${m2_[1] === '投資損益' ? '📈' : '💥'} ${escapeHtml_(m2_[2].trim())}${m2_[1] === '投資損益' ? ' 投資已實現損益 ' : ' 被強平次數 '}${lo_ !== '' ? '≥ ' + escapeHtml_(lo_) : ''}${lo_ !== '' && hi_ !== '' ? ' 且 ' : ''}${hi_ !== '' ? '≤ ' + escapeHtml_(hi_) : ''}<span class="cond-cur" data-k="${m2_[1] === '投資損益' ? 'invrz' : 'invliq'}" data-c="${escapeHtml_(m2_[2].trim())}"></span></span>`; } }
+        { const re_ = /\[持幣\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m_; while ((m_ = re_.exec(item.name || '')) !== null) { const lo_ = m_[2].trim(), hi_ = m_[3].trim(); if (m_[1].trim() && (lo_ !== '' || hi_ !== '')) limitsHtml += `<span class="limit-tag tag-total">🪙 持有 ${escapeHtml_(m_[1].trim())} ${lo_ !== '' ? '≥ ' + escapeHtml_(lo_) : ''}${lo_ !== '' && hi_ !== '' ? ' 且 ' : ''}${hi_ !== '' ? '≤ ' + escapeHtml_(hi_) : ''}<span class="cond-cur" data-k="bal" data-c="${escapeHtml_(m_[1].trim())}"></span></span>`; } }
+        { const lq1_ = (item.name || '').match(/\[強平次數[:：]?\s*(\d+)\]/), lq2_ = (item.name || '').match(/\[強平次數上限[:：]?\s*(\d+)\]/); if (lq1_ || lq2_) limitsHtml += `<span class="limit-tag tag-total">💥 需被強平 ${lq1_ ? lq1_[1] : 0}${lq2_ ? ' ~ ' + lq2_[1] : ' 次以上'}${lq2_ ? ' 次' : ''}<span class="cond-cur" data-k="liq"></span></span>`; }
         if (item.requiredRoleNames && item.requiredRoleNames.length > 0) {
           limitsHtml += buildRoleRequirementHtml_(item.requiredRoleNames, item.roleRequirementMode, item.roleRequirementMinCount, item.hasRolePermission, 'item-' + item.id);
         }
