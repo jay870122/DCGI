@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.58</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.59</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4009,9 +4009,11 @@ async function confirmSettleGambling() {
 const COND_TYPES_ = {
   hold:   { label: '持有量條件(價格=門檻)', min: false, max: '持有上限(選填)' },
   perbuy: { label: '單次兌換上限', min: false, max: '一次最多買幾個', int: true },
-  liq:    { label: '被強平次數', min: '最少次數', max: '最多次數', int: true },
-  crz:    { label: '加密已實現損益', min: '最少(可負數)', max: '最多(可負數)' },
-  srz:    { label: '股票已實現損益', min: '最少(可負數)', max: '最多(可負數)' },
+  liq:    { label: '被強平次數(全部加密,舊)', min: '最少次數', max: '最多次數', int: true, legacy: true },
+  crz:    { label: '加密已實現損益(舊)', min: '最少(可負數)', max: '最多(可負數)', legacy: true },
+  srz:    { label: '股票已實現損益(舊)', min: '最少(可負數)', max: '最多(可負數)', legacy: true },
+  invrz:  { label: '指定貨幣投資已實現損益', min: '最少(可負數)', max: '最多(可負數)', cur: true, multi: true },
+  invliq: { label: '指定貨幣投資被強平次數', min: '最少次數', max: '最多次數', cur: true, multi: true, int: true },
   bal:    { label: '持有指定貨幣', min: '最少(可負數)', max: '最多(可負數)', cur: true, multi: true }
 };
 function condNum_(v, int) { const x = (v === undefined || v === null ? '' : v).toString().trim(); if (x === '') return ''; const n = int ? parseInt(x, 10) : parseFloat(x); return isNaN(n) ? '' : String(n); }
@@ -4019,7 +4021,7 @@ function nameTagsSplit_(raw) {
   raw = (raw || '').toString();
   const N = '[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]';
   const g = (k) => { const m = raw.match(new RegExp('\\[' + k + N)); return m ? m[1] : ''; };
-  const base = raw.replace(/\s*(?:\[持有上限[^\]]*\]|\[持有\]|\[單次上限[^\]]*\]|\[強平次數[^\]]*\]|\[加密已實現[^\]]*\]|\[股票已實現[^\]]*\]|\[持幣[^\]]*\])\s*/g, ' ').trim();
+  const base = raw.replace(/\s*(?:\[持有上限[^\]]*\]|\[持有\]|\[單次上限[^\]]*\]|\[強平次數[^\]]*\]|\[加密已實現[^\]]*\]|\[股票已實現[^\]]*\]|\[持幣[^\]]*\]|\[投資損益[^\]]*\]|\[投資強平[^\]]*\])\s*/g, ' ').trim();
   const conds = [];
   const hmax = g('持有上限');
   if (/\[持有\]/.test(raw) || hmax !== '') conds.push({ t: 'hold', min: '', max: hmax });
@@ -4028,6 +4030,7 @@ function nameTagsSplit_(raw) {
   const c1 = g('加密已實現'), c2 = g('加密已實現上限'); if (c1 !== '' || c2 !== '') conds.push({ t: 'crz', min: c1, max: c2 });
   const s1 = g('股票已實現'), s2 = g('股票已實現上限'); if (s1 !== '' || s2 !== '') conds.push({ t: 'srz', min: s1, max: s2 });
   { const re = /\[持幣\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m; while ((m = re.exec(raw)) !== null) conds.push({ t: 'bal', cur: m[1].trim(), min: m[2].trim(), max: m[3].trim() }); }
+  { const re = /\[(投資損益|投資強平)\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m; while ((m = re.exec(raw)) !== null) conds.push({ t: m[1] === '投資損益' ? 'invrz' : 'invliq', cur: m[2].trim(), min: m[3].trim(), max: m[4].trim() }); }
   return { base, conds };
 }
 function condsGet_(px) { try { const a = JSON.parse((document.getElementById(px + '-conds') || {}).value || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
@@ -4042,7 +4045,8 @@ function nameWithTags_(px) {
   for (const c of condsGet_(px)) {
     const T = COND_TYPES_[c.t]; if (!T) continue;
     const mn = condNum_(c.min, T.int), mx = condNum_(c.max, T.int);
-    if (c.t === 'bal') { const cu = (c.cur || '').toString().replace(/[|\[\]]/g, '').trim(); if (cu && (mn !== '' || mx !== '')) post += ' [持幣|' + cu + '|' + mn + '|' + mx + ']'; }
+    if (c.t === 'invrz' || c.t === 'invliq') { const cu = (c.cur || '').toString().replace(/[|\[\]]/g, '').trim(); if (cu && (mn !== '' || mx !== '')) post += ' [' + (c.t === 'invrz' ? '投資損益' : '投資強平') + '|' + cu + '|' + mn + '|' + mx + ']'; }
+    else if (c.t === 'bal') { const cu = (c.cur || '').toString().replace(/[|\[\]]/g, '').trim(); if (cu && (mn !== '' || mx !== '')) post += ' [持幣|' + cu + '|' + mn + '|' + mx + ']'; }
     else if (c.t === 'hold') { pre += '[持有] ' + (mx !== '' ? '[持有上限' + mx + '] ' : ''); }
     else if (c.t === 'perbuy') { if (mx !== '' && parseInt(mx, 10) > 0) post += ' [單次上限' + mx + ']'; }
     else {
@@ -4058,7 +4062,7 @@ function renderConds_(px) {
   const arr = condsGet_(px), used = arr.map(c => c.t);
   box.innerHTML = arr.map((c, i) => {
     const T = COND_TYPES_[c.t] || COND_TYPES_.hold;
-    const opts = Object.keys(COND_TYPES_).filter(k => k === c.t || COND_TYPES_[k].multi || used.indexOf(k) === -1).map(k => `<option value="${k}" ${k === c.t ? 'selected' : ''}>${COND_TYPES_[k].label}</option>`).join('');
+    const opts = Object.keys(COND_TYPES_).filter(k => k === c.t || (!COND_TYPES_[k].legacy && (COND_TYPES_[k].multi || used.indexOf(k) === -1))).map(k => `<option value="${k}" ${k === c.t ? 'selected' : ''}>${COND_TYPES_[k].label}</option>`).join('');
     const inp = (f, ph) => `<input type="number" step="any" value="${(c[f] === undefined ? '' : c[f]).toString().replace(/"/g, '')}" placeholder="${ph}" oninput="condEdit_('${px}',${i},'${f}',this.value)" style="width:140px;padding:6px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">`;
     return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;padding:6px;background:#2F3136;border-radius:6px">
       <select onchange="condType_('${px}',${i},this.value)" style="padding:6px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">${opts}</select>
@@ -4067,7 +4071,7 @@ function renderConds_(px) {
   }).join('') || '<div style="color:#72767D;font-size:12px;margin-bottom:4px">目前沒有條件(一般兌換)</div>';
 }
 function addCond_(px) {
-  const arr = condsGet_(px), used = arr.map(c => c.t), free = Object.keys(COND_TYPES_).filter(k => COND_TYPES_[k].multi || used.indexOf(k) === -1);
+  const arr = condsGet_(px), used = arr.map(c => c.t), free = Object.keys(COND_TYPES_).filter(k => !COND_TYPES_[k].legacy && (COND_TYPES_[k].multi || used.indexOf(k) === -1));
   if (!free.length) { toast('所有條件類型都已加入', false); return; }
   arr.push({ t: free[0], cur: '', min: '', max: '' }); condsSet_(px, arr); renderConds_(px);
 }
