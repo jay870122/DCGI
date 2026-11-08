@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.56</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.57</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -387,19 +387,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="add-form" id="add-shop-form">
             <div class="fsep">基本資訊</div>
             <div class="field full">
-              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤;持有條件、持有上限、單次兌換上限請用下方欄位設定(不用手打標籤)</span></label>
+              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤;持有、單次上限、強平次數、已實現損益等條件請用下方「兌換條件」設定(不用手打標籤)</span></label>
               <input id="ns-name" type="text" placeholder="例：7日優越童話通行證" oninput="updateHiddenNamePreview('ns-name', 'ns-name-preview')">
               <div id="ns-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
             </div>
-      <div class="field"><label>持有條件 <span class="hint">需持有時,價格=門檻(負數=必須低於),不扣貨幣</span></label><select id="ns-hold"><option value="">無(一般兌換)</option><option value="1">需持有(價格為門檻)</option></select></div>
-      <div class="field"><label>持有上限 <span class="hint">選填;填了=持有量要在「價格~上限」之間</span></label><input id="ns-holdmax" type="number" placeholder="不限"></div>
-      <div class="field"><label>單次兌換上限 <span class="hint">選填;一次最多買幾個</span></label><input id="ns-perbuy" type="number" min="1" placeholder="不限"></div>
-      <div class="field"><label>強平次數(最少) <span class="hint">選填;累計被強平至少幾次才能兌換</span></label><input id="ns-liqmin" type="number" min="0" placeholder="不限"></div>
-      <div class="field"><label>強平次數(最多) <span class="hint">選填;被強平次數不能超過幾次</span></label><input id="ns-liqmax" type="number" min="0" placeholder="不限"></div>
-      <div class="field"><label>加密已實現損益(最少) <span class="hint">選填;可負數;例:5000=賺至少5000</span></label><input id="ns-crmin" type="number" placeholder="不限"></div>
-      <div class="field"><label>加密已實現損益(最多) <span class="hint">選填;例:-1000=虧損至少1000</span></label><input id="ns-crmax" type="number" placeholder="不限"></div>
-      <div class="field"><label>股票已實現損益(最少) <span class="hint">選填;可負數</span></label><input id="ns-srmin" type="number" placeholder="不限"></div>
-      <div class="field"><label>股票已實現損益(最多) <span class="hint">選填;可負數</span></label><input id="ns-srmax" type="number" placeholder="不限"></div>
+      <div class="field full"><label>兌換條件 <span class="hint">可自行新增/刪除;存檔時自動轉成名稱標籤。價格照常扣(「持有量條件」不扣、價格=門檻)</span></label>
+        <div id="ns-conds-ui"></div><input type="hidden" id="ns-conds" value="[]">
+        <button type="button" onclick="addCond_('ns')" style="margin-top:6px;padding:6px 12px;border-radius:6px;border:1px dashed #4F545C;background:transparent;color:#B9BBBE;cursor:pointer">＋ 新增條件</button>
+      </div>
             <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
             <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="幻彩水晶" list="dc-list"><datalist id="dc-list"></datalist></div>
             <div class="field full">
@@ -1262,19 +1257,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>✏️ 編輯商品</h3><button class="modal-close" onclick="closeModal('shop-modal')">×</button></div>
     <div class="modal-body">
       <div class="full field">
-        <label>商品名稱 <span class="hint">可加[序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤;持有條件、持有上限、單次兌換上限請用下方欄位設定(不用手打標籤)</span></label>
+        <label>商品名稱 <span class="hint">可加[序號][非即時][隱藏][連結限定][測試][隱藏名稱]標籤;持有、單次上限、強平次數、已實現損益等條件請用下方「兌換條件」設定(不用手打標籤)</span></label>
         <input id="em-name" type="text" oninput="updateHiddenNamePreview('em-name', 'em-name-preview')">
         <div id="em-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
       </div>
-      <div class="field"><label>持有條件 <span class="hint">需持有時,價格=門檻(負數=必須低於),不扣貨幣</span></label><select id="em-hold"><option value="">無(一般兌換)</option><option value="1">需持有(價格為門檻)</option></select></div>
-      <div class="field"><label>持有上限 <span class="hint">選填;填了=持有量要在「價格~上限」之間</span></label><input id="em-holdmax" type="number" placeholder="不限"></div>
-      <div class="field"><label>單次兌換上限 <span class="hint">選填;一次最多買幾個</span></label><input id="em-perbuy" type="number" min="1" placeholder="不限"></div>
-      <div class="field"><label>強平次數(最少) <span class="hint">選填;累計被強平至少幾次才能兌換</span></label><input id="em-liqmin" type="number" min="0" placeholder="不限"></div>
-      <div class="field"><label>強平次數(最多) <span class="hint">選填;被強平次數不能超過幾次</span></label><input id="em-liqmax" type="number" min="0" placeholder="不限"></div>
-      <div class="field"><label>加密已實現損益(最少) <span class="hint">選填;可負數;例:5000=賺至少5000</span></label><input id="em-crmin" type="number" placeholder="不限"></div>
-      <div class="field"><label>加密已實現損益(最多) <span class="hint">選填;例:-1000=虧損至少1000</span></label><input id="em-crmax" type="number" placeholder="不限"></div>
-      <div class="field"><label>股票已實現損益(最少) <span class="hint">選填;可負數</span></label><input id="em-srmin" type="number" placeholder="不限"></div>
-      <div class="field"><label>股票已實現損益(最多) <span class="hint">選填;可負數</span></label><input id="em-srmax" type="number" placeholder="不限"></div>
+      <div class="field full"><label>兌換條件 <span class="hint">可自行新增/刪除;存檔時自動轉成名稱標籤。價格照常扣(「持有量條件」不扣、價格=門檻)</span></label>
+        <div id="em-conds-ui"></div><input type="hidden" id="em-conds" value="[]">
+        <button type="button" onclick="addCond_('em')" style="margin-top:6px;padding:6px 12px;border-radius:6px;border:1px dashed #4F545C;background:transparent;color:#B9BBBE;cursor:pointer">＋ 新增條件</button>
+      </div>
       <div class="field"><label>價格</label><input id="em-price" type="number" min="0"></div>
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
       <div class="full field">
@@ -4016,32 +4006,77 @@ async function confirmSettleGambling() {
 }
 
 // 持有/持有上限/單次上限 原本是名稱裡的標籤;現在用欄位輸入,存檔時自動組回名稱標籤、開啟編輯時自動拆出來(後端與玩家端不變)
-function rzTag_(raw, kind, up) { const m = (raw || '').toString().match(new RegExp('\\[' + kind + '已實現' + (up ? '上限' : '') + '[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')); return m ? m[1] : ''; }
+const COND_TYPES_ = {
+  hold:   { label: '持有量條件(價格=門檻)', min: false, max: '持有上限(選填)' },
+  perbuy: { label: '單次兌換上限', min: false, max: '一次最多買幾個', int: true },
+  liq:    { label: '被強平次數', min: '最少次數', max: '最多次數', int: true },
+  crz:    { label: '加密已實現損益', min: '最少(可負數)', max: '最多(可負數)' },
+  srz:    { label: '股票已實現損益', min: '最少(可負數)', max: '最多(可負數)' }
+};
+function condNum_(v, int) { const x = (v === undefined || v === null ? '' : v).toString().trim(); if (x === '') return ''; const n = int ? parseInt(x, 10) : parseFloat(x); return isNaN(n) ? '' : String(n); }
 function nameTagsSplit_(raw) {
   raw = (raw || '').toString();
-  const mx = raw.match(/\[持有上限[:：]?\s*(-?\d+(?:\.\d+)?)\]/), pb = raw.match(/\[單次上限[:：]?\s*(\d+)\]/);
+  const N = '[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]';
+  const g = (k) => { const m = raw.match(new RegExp('\\[' + k + N)); return m ? m[1] : ''; };
   const base = raw.replace(/\s*(?:\[持有上限[^\]]*\]|\[持有\]|\[單次上限[^\]]*\]|\[強平次數[^\]]*\]|\[加密已實現[^\]]*\]|\[股票已實現[^\]]*\])\s*/g, ' ').trim();
-  const l1 = raw.match(/\[強平次數[:：]?\s*(\d+)\]/), l2 = raw.match(/\[強平次數上限[:：]?\s*(\d+)\]/);
-  return { base, hold: /\[持有\]/.test(raw) || !!mx, max: mx ? mx[1] : '', perbuy: pb ? pb[1] : '', liqmin: l1 ? l1[1] : '', liqmax: l2 ? l2[1] : '', crmin: rzTag_(raw, '加密', false), crmax: rzTag_(raw, '加密', true), srmin: rzTag_(raw, '股票', false), srmax: rzTag_(raw, '股票', true) };
+  const conds = [];
+  const hmax = g('持有上限');
+  if (/\[持有\]/.test(raw) || hmax !== '') conds.push({ t: 'hold', min: '', max: hmax });
+  const pb = g('單次上限'); if (pb !== '') conds.push({ t: 'perbuy', min: '', max: pb });
+  const l1 = g('強平次數'), l2 = g('強平次數上限'); if (l1 !== '' || l2 !== '') conds.push({ t: 'liq', min: l1, max: l2 });
+  const c1 = g('加密已實現'), c2 = g('加密已實現上限'); if (c1 !== '' || c2 !== '') conds.push({ t: 'crz', min: c1, max: c2 });
+  const s1 = g('股票已實現'), s2 = g('股票已實現上限'); if (s1 !== '' || s2 !== '') conds.push({ t: 'srz', min: s1, max: s2 });
+  return { base, conds };
+}
+function condsGet_(px) { try { const a = JSON.parse((document.getElementById(px + '-conds') || {}).value || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function condsSet_(px, arr, silent) {
+  const el = document.getElementById(px + '-conds'); if (!el) return;
+  el.value = JSON.stringify(arr);
+  if (!silent) { window._condSelf = true; el.dispatchEvent(new Event('input')); window._condSelf = false; }
 }
 function nameWithTags_(px) {
-  const v = id => (document.getElementById(id) || {}).value || '';
-  const base = nameTagsSplit_(v(px + '-name')).base, mx = v(px + '-holdmax').toString().trim(), pb = parseInt(v(px + '-perbuy'), 10);
-  let rzOut = '';
-  for (const [k, id1, id2] of [['加密', 'crmin', 'crmax'], ['股票', 'srmin', 'srmax']]) {
-    const a = v(px + '-' + id1).toString().trim(), b = v(px + '-' + id2).toString().trim();
-    if (a !== '' && !isNaN(parseFloat(a))) rzOut += ' [' + k + '已實現' + parseFloat(a) + ']';
-    if (b !== '' && !isNaN(parseFloat(b))) rzOut += ' [' + k + '已實現上限' + parseFloat(b) + ']';
+  const base = nameTagsSplit_((document.getElementById(px + '-name') || {}).value).base;
+  let pre = '', post = '';
+  for (const c of condsGet_(px)) {
+    const T = COND_TYPES_[c.t]; if (!T) continue;
+    const mn = condNum_(c.min, T.int), mx = condNum_(c.max, T.int);
+    if (c.t === 'hold') { pre += '[持有] ' + (mx !== '' ? '[持有上限' + mx + '] ' : ''); }
+    else if (c.t === 'perbuy') { if (mx !== '' && parseInt(mx, 10) > 0) post += ' [單次上限' + mx + ']'; }
+    else {
+      const k = c.t === 'liq' ? '強平次數' : (c.t === 'crz' ? '加密已實現' : '股票已實現');
+      if (mn !== '') post += ' [' + k + mn + ']';
+      if (mx !== '') post += ' [' + k + '上限' + mx + ']';
+    }
   }
-  const lmin = v(px + '-liqmin').toString().trim(), lmax = v(px + '-liqmax').toString().trim();
-  const hold = v(px + '-hold') === '1' || mx !== '';
-  return (hold ? '[持有] ' : '') + (mx !== '' && !isNaN(parseFloat(mx)) ? '[持有上限' + parseFloat(mx) + '] ' : '') + base + (pb > 0 ? ' [單次上限' + pb + ']' : '') + (lmin !== '' && !isNaN(parseInt(lmin, 10)) ? ' [強平次數' + parseInt(lmin, 10) + ']' : '') + (lmax !== '' && !isNaN(parseInt(lmax, 10)) ? ' [強平次數上限' + parseInt(lmax, 10) + ']' : '') + rzOut;
+  return pre + base + post;
 }
+function renderConds_(px) {
+  const box = document.getElementById(px + '-conds-ui'); if (!box) return;
+  const arr = condsGet_(px), used = arr.map(c => c.t);
+  box.innerHTML = arr.map((c, i) => {
+    const T = COND_TYPES_[c.t] || COND_TYPES_.hold;
+    const opts = Object.keys(COND_TYPES_).filter(k => k === c.t || used.indexOf(k) === -1).map(k => `<option value="${k}" ${k === c.t ? 'selected' : ''}>${COND_TYPES_[k].label}</option>`).join('');
+    const inp = (f, ph) => `<input type="number" step="any" value="${(c[f] === undefined ? '' : c[f]).toString().replace(/"/g, '')}" placeholder="${ph}" oninput="condEdit_('${px}',${i},'${f}',this.value)" style="width:140px;padding:6px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">`;
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;padding:6px;background:#2F3136;border-radius:6px">
+      <select onchange="condType_('${px}',${i},this.value)" style="padding:6px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">${opts}</select>
+      ${T.min ? inp('min', T.min) : ''}${T.max ? inp('max', T.max) : ''}
+      <button type="button" onclick="condDel_('${px}',${i})" style="padding:4px 10px;border-radius:6px;border:none;background:#ED4245;color:#fff;cursor:pointer">刪除</button></div>`;
+  }).join('') || '<div style="color:#72767D;font-size:12px;margin-bottom:4px">目前沒有條件(一般兌換)</div>';
+}
+function addCond_(px) {
+  const arr = condsGet_(px), used = arr.map(c => c.t), free = Object.keys(COND_TYPES_).filter(k => used.indexOf(k) === -1);
+  if (!free.length) { toast('所有條件類型都已加入', false); return; }
+  arr.push({ t: free[0], min: '', max: '' }); condsSet_(px, arr); renderConds_(px);
+}
+function condDel_(px, i) { const arr = condsGet_(px); arr.splice(i, 1); condsSet_(px, arr); renderConds_(px); }
+function condType_(px, i, t) { const arr = condsGet_(px); arr[i] = { t, min: '', max: '' }; condsSet_(px, arr); renderConds_(px); }
+function condEdit_(px, i, f, v) { const arr = condsGet_(px); if (arr[i]) { arr[i][f] = v; condsSet_(px, arr); } }
+['ns', 'em'].forEach(px => { const el = document.getElementById(px + '-conds'); if (el) el.addEventListener('input', () => { if (!window._condSelf) renderConds_(px); }); renderConds_(px); });
 function openEditShop(itemId) {
   const i = shopItems.find(x => x.itemId === itemId);
   if (!i) return;
   const f = id => document.getElementById(id);
-  f('em-id').value=i.itemId; { const t_ = nameTagsSplit_(i.name); f('em-name').value=t_.base; f('em-hold').value=t_.hold?'1':''; f('em-holdmax').value=t_.max; f('em-perbuy').value=t_.perbuy; f('em-liqmin').value=t_.liqmin; f('em-liqmax').value=t_.liqmax; f('em-crmin').value=t_.crmin; f('em-crmax').value=t_.crmax; f('em-srmin').value=t_.srmin; f('em-srmax').value=t_.srmax; } f('em-price').value=i.price;
+  f('em-id').value=i.itemId; { const t_ = nameTagsSplit_(i.name); f('em-name').value=t_.base; condsSet_('em', t_.conds, true); renderConds_('em'); } f('em-price').value=i.price;
   updateHiddenNamePreview('em-name', 'em-name-preview'); // 🌟 打開既有商品編輯時就先跑一次,不用等打字才觸發
   f('em-currency').value=i.currency||'幻彩水晶'; f('em-category').value=i.category||'';
   f('em-stock').value=i.stock!==undefined&&i.stock!==''?i.stock:'';
@@ -4465,13 +4500,13 @@ async function duplicateAuction(id) {
 
 // ── Add Shop ──
 function resetAddShop() {
-  ['ns-name','ns-hold','ns-holdmax','ns-perbuy','ns-liqmin','ns-liqmax','ns-crmin','ns-crmax','ns-srmin','ns-srmax','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
+  ['ns-name','ns-conds','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl',
    'ns-altcurrency','ns-altrate','ns-extracost','ns-extracostamount','ns-milestone','ns-milestone-share','ns-lockpw','ns-lockcode','ns-lockhint','ns-lockseed','ns-lockschedule','ns-raffle-weights',
    'ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-maxodds','ns-gambling-drawtime',
    'ns-up-min','ns-up-max','ns-up-answer'].forEach(id => document.getElementById(id).value='');
-  itemOptionsState.ns = [];
+  itemOptionsState.ns = []; renderConds_('ns');
   renderItemOptions('ns');
   document.getElementById('ns-raffle').checked = false;
   document.getElementById('ns-raffle-manual').checked = false;
@@ -5097,9 +5132,9 @@ function loadItemOptions(prefix, rawJson) {
   renderItemOptions(prefix);
 }
 
-const NS_FIELDS = ['ns-name','ns-hold','ns-holdmax','ns-perbuy','ns-liqmin','ns-liqmax','ns-crmin','ns-crmax','ns-srmin','ns-srmax','ns-price','ns-currency','ns-category','ns-stock','ns-linkedserialpool','ns-status','ns-sdate','ns-edate',
+const NS_FIELDS = ['ns-name','ns-conds','ns-price','ns-currency','ns-category','ns-stock','ns-linkedserialpool','ns-status','ns-sdate','ns-edate',
   'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt','ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-role-mode','ns-role-count','ns-excl','ns-lockpw','ns-lockcode','ns-lockpersist','ns-lockvis','ns-lockhint','ns-lockpwmode','ns-lockseed','ns-lockschedule','ns-lockguesscount','ns-lockguessperiod','ns-raffle-weights','ns-gambling-mode','ns-gambling-refund','ns-gambling-options','ns-gambling-poollock','ns-gambling-maxodds','ns-gambling-drawtime','ns-up-min','ns-up-max'];
-const EM_FIELDS = ['em-name','em-hold','em-holdmax','em-perbuy','em-liqmin','em-liqmax','em-crmin','em-crmax','em-srmin','em-srmax','em-price','em-currency','em-category','em-stock','em-linkedserialpool','em-status','em-sdate','em-edate',
+const EM_FIELDS = ['em-name','em-conds','em-price','em-currency','em-category','em-stock','em-linkedserialpool','em-status','em-sdate','em-edate',
   'em-lgd','em-lgw','em-lgm','em-lpd','em-lpw','em-lpm','em-lpt','em-rvar','em-rqty','em-img','em-remark','em-role','em-role-mode','em-role-count','em-excl','em-lockpw','em-lockcode','em-lockpersist','em-lockvis','em-lockhint','em-lockpwmode','em-lockseed','em-lockschedule','em-lockguesscount','em-lockguessperiod','em-raffle-weights','em-gambling-mode','em-gambling-refund','em-gambling-options','em-gambling-poollock','em-gambling-maxodds','em-gambling-drawtime','em-up-min','em-up-max'];
 const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-status','na-sdate','na-edate','na-ext1','na-ext2','na-img','na-remark','na-role','na-role-mode','na-role-count','na-altcurrency','na-altrate','na-wincount','na-raffleslots','na-rafflepool'];
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate','ea-wincount','ea-raffleslots','ea-rafflepool'];
