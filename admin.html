@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.61</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.62</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1732,8 +1732,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>匯率 <span class="hint">1 USD = 幾個貨幣</span></label><input id="cc2-rate" type="number" min="0" step="any" value="30"></div>
       <div class="field"><label>手續費率 <span class="hint">0.001 = 0.1%,買賣都收</span></label><input id="cc2-fee" type="number" min="0" step="any" value="0.001"></div>
       <div class="field"><label>單筆最大金額(USD) <span class="hint">留空=不限</span></label><input id="cc2-max" type="number" min="0" placeholder="不限"></div>
-      <div class="field"><label>入口顯示日期起 <span class="hint">留空=不限</span></label><input id="cc2-from" type="date"></div>
-      <div class="field"><label>入口顯示日期迄</label><input id="cc2-to" type="date"></div>
+      <div class="field"><label>入口顯示時間起 <span class="hint">可精準到秒,留空=不限</span></label><input id="cc2-from" type="datetime-local" step="1"></div>
+      <div class="field"><label>入口顯示時間迄</label><input id="cc2-to" type="datetime-local" step="1"></div>
       <div class="field"><label>可下單時間起 <span class="hint">留空=沿用入口日期</span></label><input id="cc2-tfrom" type="datetime-local" step="1"></div>
       <div class="field"><label>可下單時間迄 <span class="hint">可精準到秒(台灣時間),留空=沿用入口日期</span></label><input id="cc2-tto" type="datetime-local" step="1"></div>
       <div class="field"><label>開放星期 <span class="hint">1~7,逗號分隔</span></label><input id="cc2-days" placeholder="1,2,3,4,5,6,7"></div>
@@ -3420,7 +3420,7 @@ async function openCryptoConfig() {
   const c = d.config, set = (id, v) => { document.getElementById(id).value = v === undefined || v === null ? '' : v; };
   document.getElementById('cc2-enabled').checked = !!c.enabled;
   set('cc2-cur', c.currency ? ((c.currency === '升階2') ? '幻彩水晶' : c.currency) : ''); set('cc2-rate', c.rate); set('cc2-fee', c.feeRate); set('cc2-max', c.maxAmount);
-  set('cc2-from', c.dateFrom); set('cc2-to', c.dateTo); const dtl_ = (x, end) => { x = (x||'').toString().trim(); if (!x) return ''; if (x.length <= 10) return x + (end ? 'T23:59:59' : 'T00:00'); return x.replace(' ','T'); }; set('cc2-tfrom', dtl_(c.tradeFrom,false)); set('cc2-tto', dtl_(c.tradeTo,true));
+  var dtl0_ = (x, end) => { x = (x||'').toString().trim(); if (!x) return ''; if (x.length <= 10) return x + (end ? 'T23:59:59' : 'T00:00'); return x.replace(' ','T'); }; set('cc2-from', dtl0_(c.dateFrom,false)); set('cc2-to', dtl0_(c.dateTo,true)); const dtl_ = (x, end) => { x = (x||'').toString().trim(); if (!x) return ''; if (x.length <= 10) return x + (end ? 'T23:59:59' : 'T00:00'); return x.replace(' ','T'); }; set('cc2-tfrom', dtl_(c.tradeFrom,false)); set('cc2-tto', dtl_(c.tradeTo,true));
   const L = c.lev || {}; document.getElementById('cc2-lev-on').checked = !!L.enabled; set('cc2-lev-max', L.maxLev); set('cc2-lev-liq', L.liqRatio); set('cc2-lev-min', L.minMargin); set('cc2-lev-pos', L.maxPositions); document.getElementById('cc2-lev-dm').checked = L.liqDm !== false;
   set('cc2-days', c.days); set('cc2-windows', c.windows); set('cc2-wl', c.whitelist);
   document.getElementById('cc2-diag-out').textContent = '';
