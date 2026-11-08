@@ -824,7 +824,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.146</div>
+    <div class="version-tag">系統版本：v5.4.147</div>
   </div>
 
   <script>
@@ -4595,7 +4595,7 @@
       stockState_ = d;
       if (!d.enabled) { document.getElementById('stock-status').innerHTML = '<span style="color:#ED4245">' + escapeHtml_(d.message || '台股模擬目前沒有開放') + '</span>'; return; }
       document.getElementById('stock-status').innerHTML = d.open
-        ? '<span style="color:#3BA55D">● 開盤中,可以交易</span>'
+        ? '<span style="color:#3BA55D">● 開盤中,可以交易</span>' + cdHtml_(d)
         : '<span style="color:#F0B232">● 目前不能交易:' + escapeHtml_(d.openMessage || '') + '</span>(仍可查價、看持股)';
       const cur = escapeHtml_(d.currencyDisplay);
       document.getElementById('stock-balance').innerHTML = '我的' + cur + ':<b style="color:#fff">' + (d.balance === null ? '?' : d.balance) + '</b>'
@@ -4887,7 +4887,7 @@
       if (!d || d.status !== 'success') { if (!silent) document.getElementById('crypto-holdings').innerHTML = '<div style="color:#ED4245">讀取失敗,請稍後再試</div>'; return; }
       cryptoState_ = d;
       if (!d.enabled) { document.getElementById('crypto-status').innerHTML = '<span style="color:#ED4245">' + escapeHtml_(d.message || '加密貨幣交易目前沒有開放') + '</span>'; return; }
-      document.getElementById('crypto-status').innerHTML = d.open ? '<span style="color:#3BA55D">● 開放交易中</span>' : '<span style="color:#F0B232">● 目前不能交易:' + escapeHtml_(d.openMessage || '') + '</span>(仍可看行情、持幣)';
+      document.getElementById('crypto-status').innerHTML = d.open ? '<span style="color:#3BA55D">● 開放交易中</span>' + cdHtml_(d) : '<span style="color:#F0B232">● 目前不能交易:' + escapeHtml_(d.openMessage || '') + '</span>(仍可看行情、持幣)';
       const cur = escapeHtml_(d.currencyDisplay);
       document.getElementById('crypto-balance').innerHTML = '我的' + cur + ':<b style="color:#fff">' + (d.balance === null ? '?' : d.balance) + '</b>　持幣市值:<b style="color:#fff">' + d.totalValue + '</b>　總損益:<b style="color:' + stockClr_(d.totalPnl) + '">' + stockSign_(d.totalPnl) + '</b>'
         + '<br><span style="font-size:11px;color:#72767D">1 USD = ' + d.rate + ' ' + cur + '　手續費 ' + (d.feeRate * 100) + '%</span>';
@@ -8249,6 +8249,26 @@ function fetchScoresAndShop(discordId, callback = null) {
   
 function lbToggle_(h){ var p=h.closest('.lb-panel'); if(p) p.classList.toggle('lb-collapsed'); }
 try { if (window.innerWidth <= 900) document.querySelectorAll('.lb-panel').forEach(function(p){ p.classList.add('lb-collapsed'); }); } catch(e) {}
+
+// 倒數:距離停止交易 / 入口關閉(用伺服器時間校正,不受手機時間影響)
+function cdHtml_(d){
+  var off = d && d.serverNow ? (d.serverNow - Date.now()) : 0, out = '';
+  if (d && d.tradeCloseAt) out += '<div style="margin-top:4px;font-size:12px;color:#F0B232">⏳ 距離停止交易還有 <b class="cd-tick" data-t="' + d.tradeCloseAt + '" data-off="' + off + '">--</b></div>';
+  if (d && d.entryCloseAt && d.entryCloseAt !== d.tradeCloseAt) out += '<div style="margin-top:2px;font-size:12px;color:#B9BBBE">🚪 距離關閉還有 <b class="cd-tick" data-t="' + d.entryCloseAt + '" data-off="' + off + '">--</b></div>';
+  return out;
+}
+function cdTick_(){
+  try {
+    document.querySelectorAll('.cd-tick').forEach(function(el){
+      var left = Math.floor((parseFloat(el.dataset.t) - (Date.now() + parseFloat(el.dataset.off || 0))) / 1000);
+      if (left <= 0) { el.textContent = '已結束'; return; }
+      var dd = Math.floor(left / 86400), hh = Math.floor(left % 86400 / 3600), mm = Math.floor(left % 3600 / 60), ss = left % 60, p = function(x){ return String(x).padStart(2, '0'); };
+      el.textContent = (dd > 0 ? dd + '天 ' : '') + p(hh) + ':' + p(mm) + ':' + p(ss);
+      el.style.color = left <= 60 ? '#ED4245' : '';
+    });
+  } catch(e) {}
+}
+setInterval(cdTick_, 1000);
 </script>
 </body>
 </html>
