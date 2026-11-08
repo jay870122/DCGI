@@ -812,7 +812,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.141</div>
+    <div class="version-tag">系統版本：v5.4.142</div>
   </div>
 
   <script>
@@ -1285,7 +1285,7 @@
               totalRewardsHtml = `<div style="margin-top: 6px; padding: 6px; background-color: #2F3136; border-radius: 4px; font-size: 13px; color: #58FF9C; border: 1px solid #40444B;">📊 總共獲得：${record.totalRewards}</div>`;
             }
 
-            let displayName = record.itemName.replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現)[^\]]*\]/g, '').replace('[持有]', '').replace('[隱藏]', '').trim();
+            let displayName = record.itemName.replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現|持幣)[^\]]*\]/g, '').replace('[持有]', '').replace('[隱藏]', '').trim();
 
             container.insertAdjacentHTML('beforeend', `
               <div class="history-card">
@@ -6541,6 +6541,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (item.limits.remainPM !== null) limitsHtml += `<span class="limit-tag tag-personal">👤 個人本月: ${item.limits.remainPM}</span>`;
         if (item.limits.remainPT !== null) limitsHtml += `<span class="limit-tag tag-total">👑 終身限購: ${item.limits.remainPT}</span>`;
         for (const k_ of ['加密', '股票']) { const a_ = (item.name || '').match(new RegExp('\\[' + k_ + '已實現[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')), b_ = (item.name || '').match(new RegExp('\\[' + k_ + '已實現上限[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')); if (a_ || b_) limitsHtml += `<span class="limit-tag tag-total">📈 ${k_}已實現損益 ${a_ ? '≥ ' + a_[1] : ''}${a_ && b_ ? ' 且 ' : ''}${b_ ? '≤ ' + b_[1] : ''}</span>`; }
+        { const re_ = /\[持幣\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m_; while ((m_ = re_.exec(item.name || '')) !== null) { const lo_ = m_[2].trim(), hi_ = m_[3].trim(); if (m_[1].trim() && (lo_ !== '' || hi_ !== '')) limitsHtml += `<span class="limit-tag tag-total">🪙 持有 ${escapeHtml_(m_[1].trim())} ${lo_ !== '' ? '≥ ' + escapeHtml_(lo_) : ''}${lo_ !== '' && hi_ !== '' ? ' 且 ' : ''}${hi_ !== '' ? '≤ ' + escapeHtml_(hi_) : ''}</span>`; } }
         { const lq1_ = (item.name || '').match(/\[強平次數[:：]?\s*(\d+)\]/), lq2_ = (item.name || '').match(/\[強平次數上限[:：]?\s*(\d+)\]/); if (lq1_ || lq2_) limitsHtml += `<span class="limit-tag tag-total">💥 需被強平 ${lq1_ ? lq1_[1] : 0}${lq2_ ? ' ~ ' + lq2_[1] : ' 次以上'}${lq2_ ? ' 次' : ''}</span>`; }
         if (item.requiredRoleNames && item.requiredRoleNames.length > 0) {
           limitsHtml += buildRoleRequirementHtml_(item.requiredRoleNames, item.roleRequirementMode, item.roleRequirementMinCount, item.hasRolePermission, 'item-' + item.id);
@@ -6555,7 +6556,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
         
         let isHold = item.name.includes('[持有]') || item.name.includes('[持有上限');
-        let displayName = item.name.replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現)[^\]]*\]/g, '').replace('[持有]', '').replace('[連結限定]', '').trim();
+        let displayName = item.name.replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現|持幣)[^\]]*\]/g, '').replace('[持有]', '').replace('[連結限定]', '').trim();
         const holdMaxM_ = (item.name || '').match(/\[持有上限[:：]?\s*(-?\d+(?:\.\d+)?)\]/);
         // 🌟 更新圖片 HTML 讓它帶有 onclick 事件以開啟預覽
         let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="openImage('${item.imageUrl}')">` : '';
@@ -7217,7 +7218,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       return cartItemName_(item) + (o ? `「${o.name}」` : (l.optionName ? `「${l.optionName}」` : ''));
     }
     function cartItemName_(item) {
-      return (item.name || '').replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現)[^\]]*\]/g, '').replace('[持有]', '').replace('[連結限定]', '').trim();
+      return (item.name || '').replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現|持幣)[^\]]*\]/g, '').replace('[持有]', '').replace('[連結限定]', '').trim();
     }
 
     function addToCart_(itemId, safeId) {
@@ -7470,7 +7471,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       // (之前直接檢查itemName永遠是false,確認視窗會誤顯示「要花費X兌換」+扣款預估)
       const holdSrcItem_ = (currentShopItems || []).find(it => it.id === itemId);
       let isHold = itemName.includes('[持有]') || itemName.includes('[持有上限') || !!(holdSrcItem_ && /\[持有\]|\[持有上限/.test(holdSrcItem_.name || ''));
-      let displayItemName = itemName.replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現)[^\]]*\]/g, '').replace('[持有]', '').trim();
+      let displayItemName = itemName.replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現|持幣)[^\]]*\]/g, '').replace('[持有]', '').trim();
 
       // 🌟 密碼鎖定:如果商品或所在分類還沒解鎖,先跳出提示要求輸入密碼,不用等後端回錯誤才問一次
       let unlockPassword = unlockPasswordOverride || '';
