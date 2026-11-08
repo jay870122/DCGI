@@ -191,6 +191,10 @@
     .dual-wrap { display: flex; gap: 12px; align-items: flex-start; justify-content: center; width: 100%; max-width: 900px; margin: auto; }
     .dual-wrap > .modal-content { flex: 1 1 500px; min-width: 0; }
     .lb-panel { flex: 0 0 300px; background: #2F3136; border-radius: 12px; max-height: 80vh; overflow-y: auto; padding: 15px; box-sizing: border-box; }
+    .lb-panel.lb-collapsed > :not(:first-child), .lb-panel.lb-collapsed > :first-child > span { display: none; }
+    .lb-panel.lb-collapsed > :first-child { margin-bottom: 0 !important; }
+    .lb-panel.lb-collapsed .lb-arrow { display:inline-block; transform: rotate(-90deg); }
+    .lb-panel h3 { user-select: none; }
     #stock-modal, #crypto-modal { overflow-y: auto; }
     @media (max-width: 900px) { .dual-wrap { flex-direction: column; align-items: stretch; max-width: 560px; } .lb-panel { flex: 0 0 auto; max-height: none; } }
     .modal-header { flex-shrink: 0; padding: 25px 45px 15px 25px; border-bottom: 1px solid #4F545C; position: relative; }
@@ -552,7 +556,7 @@
       </div>
     </div>
       <div class="lb-panel">
-        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 排行榜</h3><span><button class="btn" id="stock-lb-pnl" onclick="loadStockLb_('pnl')">總損益</button> <button class="btn" onclick="loadStockLb_('realized')">已實現</button> <button class="btn" onclick="loadStockLb_('unreal')">未實現</button> <button class="btn" id="stock-lb-assets" onclick="loadStockLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="stockLbRefresh_()">🔄</button></span></div>
+        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px;cursor:pointer" onclick="lbToggle_(this)" title="點一下收合/展開"><span class="lb-arrow">▾</span> 🏆 排行榜</h3><span><button class="btn" id="stock-lb-pnl" onclick="loadStockLb_('pnl')">總損益</button> <button class="btn" onclick="loadStockLb_('realized')">已實現</button> <button class="btn" onclick="loadStockLb_('unreal')">未實現</button> <button class="btn" id="stock-lb-assets" onclick="loadStockLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="stockLbRefresh_()">🔄</button></span></div>
         <div id="stock-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行</div>
       <details style="margin-top:12px;padding-top:12px;border-top:1px solid #40444B" id="stock-mystats" ontoggle="if(this.open)loadMyStats_('stock')">
         <summary style="cursor:pointer;font-size:14px;font-weight:bold">📊 我的戰績 <span style="font-weight:normal;color:#72767D;font-size:11px">(目前貨幣、台股)</span></summary>
@@ -619,7 +623,7 @@
       </div>
     </div>
       <div class="lb-panel">
-        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('realized')">已實現</button> <button class="btn" onclick="loadCryptoLb_('unreal')">未實現</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="cryptoLbRefresh_()">🔄</button></span></div>
+        <div style="margin:0 0 8px;display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px;cursor:pointer" onclick="lbToggle_(this)" title="點一下收合/展開"><span class="lb-arrow">▾</span> 🏆 加密貨幣排行榜</h3><span><button class="btn" onclick="loadCryptoLb_('pnl')">總損益</button> <button class="btn" onclick="loadCryptoLb_('realized')">已實現</button> <button class="btn" onclick="loadCryptoLb_('unreal')">未實現</button> <button class="btn" onclick="loadCryptoLb_('assets')">總資產</button> <button class="btn" style="background:#4F545C" title="立即重新整理排行榜" onclick="cryptoLbRefresh_()">🔄</button></span></div>
         <div id="crypto-lb" style="font-size:12px;margin-bottom:6px;color:#72767D">點上面按鈕查看排行(只計算加密貨幣的交易)</div>
       <details style="margin-top:12px;padding-top:12px;border-top:1px solid #40444B" id="crypto-mystats" ontoggle="if(this.open)loadMyStats_('crypto')">
         <summary style="cursor:pointer;font-size:14px;font-weight:bold">📊 我的戰績 <span style="font-weight:normal;color:#72767D;font-size:11px">(目前貨幣、加密貨幣)</span></summary>
@@ -820,7 +824,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.145</div>
+    <div class="version-tag">系統版本：v5.4.146</div>
   </div>
 
   <script>
@@ -8242,6 +8246,9 @@ function fetchScoresAndShop(discordId, callback = null) {
         () => swipeToAdjacentCategory(1, getOrderedAuctionCategories, () => currentAuctionCategory, selectAuctionCategory),
         () => swipeToAdjacentCategory(-1, getOrderedAuctionCategories, () => currentAuctionCategory, selectAuctionCategory));
     });
-  </script>
+  
+function lbToggle_(h){ var p=h.closest('.lb-panel'); if(p) p.classList.toggle('lb-collapsed'); }
+try { if (window.innerWidth <= 900) document.querySelectorAll('.lb-panel').forEach(function(p){ p.classList.add('lb-collapsed'); }); } catch(e) {}
+</script>
 </body>
 </html>
