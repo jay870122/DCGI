@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.69</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.70</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1795,16 +1795,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     </div>
   </div>
 </div>
-<div class="overlay" id="curmon-modal">
-  <div class="modal" style="max-width:900px">
-    <div class="modal-header"><h3>📊 各玩家每月獲得量</h3><button class="modal-close" onclick="closeModal('curmon-modal')">×</button></div>
-    <div class="form-grid">
-      <div class="field full"><span class="hint">依「貨幣批次」帳本統計(餘額增加量,不含消費)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
-      <div class="field full"><input id="cm-cur" value="幻彩水晶" style="width:160px"> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
-      <div class="field full" style="overflow:auto;max-height:55vh"><table id="cm-tbl" style="border-collapse:collapse;font-size:13px"></table></div>
-    </div>
-  </div>
-</div>
 <div class="overlay" id="curexp-modal">
   <div class="modal" style="max-width:620px">
     <div class="modal-header"><h3>⏳ 貨幣有效期(過期制度)</h3><button class="modal-close" onclick="closeModal('curexp-modal')">×</button></div>
@@ -1822,6 +1812,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <button class="btn" onclick="ceRunNow()">🔄 立即對帳一次</button>
       <button class="btn" onclick="closeModal('curexp-modal')">取消</button>
       <button class="btn btn-primary" id="ce-save-btn" onclick="saveCurExp()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="curmon-modal">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-header"><h3>📊 各玩家每月獲得量</h3><button class="modal-close" onclick="closeModal('curmon-modal')">×</button></div>
+    <div class="form-grid">
+      <div class="field full"><span class="hint">依「貨幣批次」帳本統計(餘額增加量,不含消費)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
+      <div class="field full"><input id="cm-cur" value="幻彩水晶" style="width:160px"> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
+      <div class="field full" style="overflow:auto;max-height:55vh"><table id="cm-tbl" style="border-collapse:collapse;font-size:13px"></table></div>
     </div>
   </div>
 </div>
