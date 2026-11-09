@@ -856,7 +856,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.161</div>
+    <div class="version-tag">系統版本：v5.4.162</div>
   </div>
 
   <script>
@@ -1392,7 +1392,7 @@
           (n.hint ? '<div style="color:#F0B232;font-size:13px;margin:6px 0">📝 ' + escapeHtml_(n.hint) + '</div>' : '') +
           '<textarea id="note-t-' + id + '" maxlength="' + mxL + '" rows="3" style="width:100%;box-sizing:border-box;background:#202225;color:#fff;border:1px solid #40444B;border-radius:6px;padding:8px;font-size:14px" placeholder="請在這裡輸入(最多 ' + mxL + ' 字)" oninput="document.getElementById(\'note-c-' + id + '\').textContent=this.value.length+\'/' + mxL + '\'"' + (full ? ' disabled' : '') + '>' + escapeHtml_(n.text) + '</textarea>' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;flex-wrap:wrap"><span style="font-size:12px;color:#B9BBBE">' + (n.modifiedAt ? '最後修改:' + noteFmt_(n.modifiedAt) + '(已修改 ' + mods + '/' + mxE + ' 次)' : '尚未送出(送出後可再修改 ' + mxE + ' 次)') + ' · <span id="note-c-' + id + '">' + n.text.length + '/' + mxL + '</span></span>' +
-          '<button class="btn-action" id="note-b-' + id + '" onclick="saveNote_(\'' + id + '\')" style="background-color:#5865F2"' + (full ? ' disabled' : '') + '>' + (expired ? '已過修改期限' : full ? '已達修改上限' : (pend ? '送出' : '更新留言')) + '</button></div>' +
+          '<span style="display:flex;gap:6px">' + (pend ? '' : '<button class="btn-action" onclick="deleteNote_(\'' + id + '\')" style="background-color:#4F545C">🗑 移除</button>') + '<button class="btn-action" id="note-b-' + id + '" onclick="saveNote_(\'' + id + '\')" style="background-color:#5865F2"' + (full ? ' disabled' : '') + '>' + (expired ? '已過修改期限' : full ? '已達修改上限' : (pend ? '送出' : '更新留言')) + '</button></span></div>' +
           '<div style="font-size:11px;color:#72767D;margin-top:4px">' + (n.deadline ? '⏰ 修改期限:' + noteFmt_(n.deadline) + (expired ? '(已截止)' : '') + ' · ' : '') + '送出或更新後,會通知處理人員</div></div>';
       }).join('');
     }
@@ -1404,6 +1404,14 @@
       btn.disabled = false; btn.textContent = old;
       if (!d || d.status !== 'success') { toast_((d && d.message) || '送出失敗,請稍後再試'); return; }
       toast_(d.message || '已送出');
+      await refreshNotes_();
+    }
+
+    async function deleteNote_(id) {
+      if (!confirm('確定要移除這則留言嗎?移除後畫面上就看不到了(管理員的紀錄仍會保留)。')) return;
+      const d = await chamberCall_('deleteNoteWorker', { id: id });
+      if (!d || d.status !== 'success') { toast_((d && d.message) || '移除失敗,請稍後再試'); return; }
+      toast_(d.message || '已移除');
       await refreshNotes_();
     }
 
