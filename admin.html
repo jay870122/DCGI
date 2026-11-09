@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.63</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.64</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1775,6 +1775,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>標的白名單 <span class="hint">留空=全部可交易;否則只開放這些代號(逗號分隔)</span></label><input id="sc-wl" placeholder="2330,0050"></div>
       <div class="field"><label>單筆最大股數 <span class="hint">留空=不限</span></label><input id="sc-max" type="number" min="0" placeholder="不限"></div>
       <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="sc-delayed" style="width:auto"><label for="sc-delayed" style="margin:0">即時報價來源失效時,仍允許用延遲約20分鐘的報價交易(不建議,容易被套利)</label></div>
+      <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="sc-lev-on" style="width:auto"><label for="sc-lev-on" style="margin:0">⚡ 啟用台股槓桿(做多/做空,不留倉過夜:收盤前自動平倉;關閉後不能新開倉,已開的仍可平倉)</label></div>
+      <div class="field"><label>槓桿最大倍數</label><input id="sc-lev-max" type="number" min="1" max="1000" value="5"></div>
+      <div class="field"><label>強平虧損比例 <span class="hint">0.9=虧損達保證金90%就強平</span></label><input id="sc-lev-liq" type="number" min="0.5" max="1" step="0.01" value="0.9"></div>
+      <div class="field"><label>最低保證金(貨幣)</label><input id="sc-lev-min" type="number" min="0" step="any" value="1"></div>
+      <div class="field"><label>單人最大倉位數</label><input id="sc-lev-pos" type="number" min="1" value="3"></div>
+      <div class="field"><label>收盤前幾分鐘自動平倉 <span class="hint">同時禁止此時段新開倉;0=只在收盤後的下一次巡邏(每分鐘)平倉</span></label><input id="sc-lev-ac" type="number" min="0" max="120" value="5"></div>
+      <div class="field"><label><input id="sc-lev-dm" type="checkbox" checked> 強平/收盤自動平倉時私訊通知玩家</label></div>
       <div class="field full"><span class="hint">即使在開放時段內,證交所當天休市(例如國定假日)也會自動禁止交易。成交價為即時報價,市價單。</span></div>
       <div class="field full"><label>測試報價 <span class="hint">確認 Worker 連得到證交所即時行情</span></label>
         <div style="display:flex;gap:6px"><input id="sc-diag-code" value="2330" style="width:100px"><button class="btn" onclick="stockDiag()">🔍 測試</button></div>
@@ -3387,6 +3394,7 @@ async function openStockConfig() {
   document.getElementById('sc-wl').value = c.whitelist;
   document.getElementById('sc-max').value = c.maxShares;
   document.getElementById('sc-delayed').checked = !!c.allowDelayed;
+  { const L = c.lev || {}; document.getElementById('sc-lev-on').checked = !!L.enabled; document.getElementById('sc-lev-max').value = L.maxLev || 5; document.getElementById('sc-lev-liq').value = L.liqRatio || 0.9; document.getElementById('sc-lev-min').value = L.minMargin || 1; document.getElementById('sc-lev-pos').value = L.maxPositions || 3; document.getElementById('sc-lev-ac').value = L.autoCloseMin === undefined ? 5 : L.autoCloseMin; document.getElementById('sc-lev-dm').checked = L.liqDm !== false; }
   document.getElementById('sc-diag-out').textContent = '';
   document.getElementById('stock-cfg-modal').classList.add('open');
 }
@@ -3397,7 +3405,7 @@ async function saveStockConfig() {
     const v = (id) => document.getElementById(id).value;
     const d = await apiCraftWrite_('adminSaveStockConfig', {
       enabled: document.getElementById('sc-enabled').checked, currency: v('sc-cur').trim(), rate: v('sc-rate'), feeRate: v('sc-fee'), feeMin: v('sc-feemin'),
-      taxRate: v('sc-tax'), etfTaxRate: v('sc-etftax'), dateFrom: v('sc-from'), dateTo: v('sc-to'), tradeFrom: v('sc-tfrom'), tradeTo: v('sc-tto'), days: v('sc-days'), windows: v('sc-windows'), whitelist: v('sc-wl'), maxShares: v('sc-max'), allowDelayed: document.getElementById('sc-delayed').checked,
+      taxRate: v('sc-tax'), etfTaxRate: v('sc-etftax'), dateFrom: v('sc-from'), dateTo: v('sc-to'), tradeFrom: v('sc-tfrom'), tradeTo: v('sc-tto'), days: v('sc-days'), windows: v('sc-windows'), levEnabled: document.getElementById('sc-lev-on').checked, levMax: v('sc-lev-max'), levLiq: v('sc-lev-liq'), levMinMargin: v('sc-lev-min'), levMaxPos: v('sc-lev-pos'), levAutoClose: v('sc-lev-ac'), levLiqDm: document.getElementById('sc-lev-dm').checked, whitelist: v('sc-wl'), maxShares: v('sc-max'), allowDelayed: document.getElementById('sc-delayed').checked,
     });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('stock-cfg-modal');

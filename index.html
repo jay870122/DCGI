@@ -548,6 +548,23 @@
           </div>
           <div id="stock-est" style="font-size:12px;color:#B9BBBE;margin-top:6px"></div>
         </div>
+        <div id="stock-lev" style="display:none;margin-bottom:12px;background:#2F3136;border-radius:8px;padding:10px">
+          <div id="stock-lev-title" style="font-weight:bold;margin-bottom:6px"></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="stock-lev-side" style="padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff" onchange="stockLevEstimate()"><option value="long">做多(看漲)</option><option value="short">做空(看跌)</option></select>
+            <input id="stock-lev-x" type="number" min="1" step="1" value="2" oninput="stockLevEstimate()" style="width:70px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff"> 倍
+            <input id="stock-lev-margin" type="number" min="0" step="any" placeholder="保證金" oninput="stockLevEstimate()" style="width:110px;padding:8px;border-radius:6px;border:1px solid #4F545C;background:#202225;color:#fff">
+            <button class="btn" onclick="stockLevOpen()">開倉</button>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:4px;font-size:12px">
+            <button class="btn" style="background:#4F545C;padding:4px 8px;font-size:12px" onclick="stockLevMargin_(0.25)">保證金 25%餘額</button>
+            <button class="btn" style="background:#4F545C;padding:4px 8px;font-size:12px" onclick="stockLevMargin_(0.5)">50%</button>
+            <button class="btn" style="background:#4F545C;padding:4px 8px;font-size:12px" onclick="stockLevMargin_(1)">全部</button>
+          </div>
+          <div id="stock-lev-est" style="font-size:12px;color:#B9BBBE;margin-top:6px"></div>
+          <div id="stock-lev-list" style="margin-top:8px"></div>
+          <div id="stock-lev-note" style="font-size:11px;color:#72767D;margin-top:6px"></div>
+        </div>
                 <h3 style="margin:10px 0 6px;font-size:14px">我的持股</h3>
         <div id="stock-holdings" style="font-size:13px"></div>
         <h3 style="margin:12px 0 6px;font-size:14px">最近交易</h3>
@@ -824,7 +841,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.147</div>
+    <div class="version-tag">系統版本：v5.4.148</div>
   </div>
 
   <script>
@@ -4609,9 +4626,75 @@
           <div style="font-size:12px;color:${stockClr_(h.pnl || 0)}">損益 ${h.pnl === null ? '?' : stockSign_(h.pnl)}${h.pnlPct === null ? '' : '(' + stockSign_(h.pnlPct) + '%)'}</div></div>`).join('');
       document.getElementById('stock-history').innerHTML = d.history.length ? d.history.map(x => {
         const t = new Date(x.time); const ts = isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
-        return `<div>${ts} ${escapeHtml_(x.action)} ${escapeHtml_(x.name)}(${escapeHtml_(x.code)}) ${x.shares}股 @${x.price}${x.pnl !== null && x.action === '賣出' ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
+        return `<div>${ts} ${escapeHtml_(x.action)} ${escapeHtml_(x.name)}(${escapeHtml_(x.code)}) ${x.shares}股 @${x.price}${x.pnl !== null && ['賣出', '平倉', '強平'].indexOf(x.action) !== -1 ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
       }).join('') : '還沒有交易紀錄';
+      renderStockLev_(d);
       stockEstimate();
+    }
+
+    // ----- 台股槓桿(做多/做空,不留倉過夜,收盤前自動平倉) -----
+    function renderStockLev_(d) {
+      const box = document.getElementById('stock-lev'), L = d.lev;
+      if (!L || (!L.enabled && !L.positions.length)) { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      document.getElementById('stock-lev-title').textContent = '⚡ 槓桿合約' + (L.enabled ? '(最大 ' + L.maxLev + ' 倍,最低保證金 ' + L.minMargin + ',強平 = 虧損達保證金 ' + Math.round(L.liqRatio * 100) + '%)' : '(目前不開放新開倉,仍可平倉)');
+      document.getElementById('stock-lev-x').max = L.maxLev;
+      const cur = escapeHtml_(d.currencyDisplay);
+      document.getElementById('stock-lev-list').innerHTML = L.positions.length ? L.positions.map(p => `<div style="background:#202225;border-radius:8px;padding:8px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><b><span style="color:${p.side === '多' ? '#ED4245' : '#3BA55D'}">${p.side === '多' ? '做多' : '做空'}</span> ${escapeHtml_(p.name || '')} <span style="color:#72767D">${escapeHtml_(p.symbol)}</span> x${p.lev}</b><button class="btn" onclick="stockLevClose('${escapeHtml_(p.id)}')">平倉</button></div>
+          <div style="font-size:12px;color:#B9BBBE">開倉價 ${p.entry}　現價 ${p.price === null ? '?' : p.price}　強平價 ${p.liqPrice === null ? '?' : Math.round(p.liqPrice * 100) / 100} TWD　${p.qty} 股</div>
+          <div style="font-size:12px;color:#B9BBBE">保證金 ${p.margin} ${cur}　目前權益 ${p.equity === null ? '?' : p.equity}</div>
+          <div style="font-size:12px;color:${stockClr_(p.pnl || 0)}">浮動損益 ${p.pnl === null ? '?' : stockSign_(p.pnl)}${p.pnlPct === null ? '' : '(' + stockSign_(p.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D;font-size:12px">目前沒有槓桿倉位</div>';
+      document.getElementById('stock-lev-note').textContent = '槓桿倉位不留過夜' + (L.autoCloseMin > 0 ? ':收盤前 ' + L.autoCloseMin + ' 分鐘不能再開倉,' : ':') + '收盤前會自動以市價平倉。虧損達保證金的一定比例會被強制平倉,最多賠掉保證金,餘額不會變負。先查價選好股票再開倉。';
+      stockLevEstimate();
+    }
+    function stockLevEstimate() {
+      const d = stockState_, x = stockQuote_, el = document.getElementById('stock-lev-est');
+      if (!el) return;
+      if (!d || !d.lev || !d.lev.enabled) { el.textContent = ''; return; }
+      if (!x) { el.textContent = '請先查價選擇股票'; return; }
+      const lv = parseFloat(document.getElementById('stock-lev-x').value), m = parseFloat(document.getElementById('stock-lev-margin').value);
+      if (!(lv >= 1) || !(m > 0)) { el.textContent = '目前選擇:' + x.name + '(' + x.code + ')'; return; }
+      const short = document.getElementById('stock-lev-side').value === 'short';
+      const liq = short ? x.price * (1 + d.lev.liqRatio / lv) : x.price * (1 - d.lev.liqRatio / lv);
+      const notional = m * lv, qty = Math.floor(notional / (d.rate * x.price) * 1e4) / 1e4;
+      const fee = Math.ceil(Math.max(d.feeMin, qty * x.price * d.feeRate) * d.rate * 100) / 100;
+      el.innerHTML = `${escapeHtml_(x.name)}(${escapeHtml_(x.code)}) 倉位價值 約 <b>${Math.round(notional * 100) / 100}</b> ${escapeHtml_(d.currencyDisplay)}(約 ${qty} 股),開倉手續費 約 ${fee},強平價 約 <b>${Math.round(liq * 100) / 100}</b> TWD(現價 ${x.price})`;
+    }
+    function stockLevMargin_(pct) {
+      const d = stockState_; if (!d || d.balance === null) return;
+      const lv = parseFloat(document.getElementById('stock-lev-x').value) || 1;
+      const m = Math.floor(d.balance * pct / (1 + lv * d.feeRate) * 100) / 100;
+      document.getElementById('stock-lev-margin').value = m > 0 ? m : '';
+      stockLevEstimate();
+    }
+    async function stockLevOpen() {
+      if (stockBusy_ || !stockQuote_) { if (!stockQuote_) toast_('請先查價選擇股票'); return; }
+      const side = document.getElementById('stock-lev-side').value, lv = parseInt(document.getElementById('stock-lev-x').value, 10), m = parseFloat(document.getElementById('stock-lev-margin').value);
+      if (!(lv >= 1) || !(m > 0)) { toast_('請填倍數和保證金'); return; }
+      if (!confirm('開倉 ' + stockQuote_.name + '(' + stockQuote_.code + ') ' + (side === 'long' ? '做多' : '做空') + ' ' + lv + ' 倍,保證金 ' + m + '?\n(以成交當下的即時價為準;不留過夜,收盤前會自動平倉)')) return;
+      stockBusy_ = true;
+      document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = true; });
+      const d = await chamberCall_('stockLevOpenWorker', { code: stockQuote_.code, side, lev: String(lv), margin: String(m) });
+      document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = false; });
+      stockBusy_ = false;
+      if (!d) { toast_('連線逾時,結果不確定,請先看下面的倉位和餘額再決定要不要重試'); await loadStock_(true); return; }
+      toast_(d.message || (d.status === 'success' ? '完成' : '失敗'));
+      await loadStock_(true);
+      if (typeof refreshPlayerData === 'function') { try { refreshPlayerData(); } catch (e) {} }
+    }
+    async function stockLevClose(id) {
+      if (stockBusy_) return;
+      if (!confirm('確定要平倉這個倉位?(以當下即時價結算)')) return;
+      stockBusy_ = true;
+      document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = true; });
+      const d = await chamberCall_('stockLevCloseWorker', { id });
+      document.querySelectorAll('#stock-modal button').forEach(b => { b.disabled = false; });
+      stockBusy_ = false;
+      if (!d) { toast_('連線逾時,結果不確定,請看倉位和餘額確認'); await loadStock_(true); return; }
+      toast_(d.message || (d.status === 'success' ? '完成' : '失敗'));
+      await loadStock_(true);
+      if (typeof refreshPlayerData === 'function') { try { refreshPlayerData(); } catch (e) {} }
     }
     // ----- 簡易走勢圖(SVG,不需外部套件)。紅漲綠跌 -----
     const chartCache_ = {};
@@ -4804,6 +4887,7 @@
       stockEstimate();
     }
     function stockEstimate() {
+      try { stockLevEstimate(); } catch (e) {}
       const d = stockState_, x = stockQuote_, el = document.getElementById('stock-est');
       if (!d || !d.enabled || !x) { el.textContent = ''; return; }
       if (stockAmt_()) {
@@ -4905,7 +4989,7 @@
           <div id="hv-${escapeHtml_(h.symbol)}-pnl" style="font-size:12px;color:${stockClr_(h.pnl || 0)}">損益 ${h.pnl === null ? '?' : stockSign_(h.pnl)}${h.pnlPct === null ? '' : '(' + stockSign_(h.pnlPct) + '%)'}</div></div>`).join('') : '<div style="color:#72767D">還沒有持幣</div>';
       document.getElementById('crypto-history').innerHTML = d.history.length ? d.history.map(x => {
         const t = new Date(x.time); const ts = isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
-        return `<div>${ts} ${escapeHtml_(x.action)} ${x.qty} ${escapeHtml_(x.symbol)} @${cryptoFmt_(x.price)}${x.pnl !== null && x.action === '賣出' ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
+        return `<div>${ts} ${escapeHtml_(x.action)} ${x.qty} ${escapeHtml_(x.symbol)} @${cryptoFmt_(x.price)}${x.pnl !== null && ['賣出', '平倉', '強平'].indexOf(x.action) !== -1 ? ' <span style="color:' + stockClr_(x.pnl) + '">損益 ' + stockSign_(x.pnl) + '</span>' : ''}</div>`;
       }).join('') : '還沒有交易紀錄';
       renderCryptoLev_(d);
       cryptoEstimate();
