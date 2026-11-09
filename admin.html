@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.62</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.63</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1766,10 +1766,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>手續費最低(TWD)</label><input id="sc-feemin" type="number" min="0" step="any" value="1"></div>
       <div class="field"><label>證交稅率(賣出) <span class="hint">0.003 = 0.3%</span></label><input id="sc-tax" type="number" min="0" step="any" value="0.003"></div>
       <div class="field"><label>ETF證交稅率 <span class="hint">代號00開頭視為ETF</span></label><input id="sc-etftax" type="number" min="0" step="any" value="0.001"></div>
-      <div class="field"><label>入口顯示日期起 <span class="hint">留空=不限;期間外玩家看不到入口</span></label><input id="sc-from" type="date"></div>
-      <div class="field"><label>入口顯示日期迄 <span class="hint">留空=不限</span></label><input id="sc-to" type="date"></div>
-      <div class="field"><label>可下單日期起 <span class="hint">留空=沿用入口顯示日期</span></label><input id="sc-tfrom" type="date"></div>
-      <div class="field"><label>可下單日期迄 <span class="hint">留空=沿用入口顯示日期</span></label><input id="sc-tto" type="date"></div>
+      <div class="field"><label>入口顯示時間起 <span class="hint">可精準到秒;留空=不限;期間外玩家看不到入口</span></label><input id="sc-from" type="datetime-local" step="1"></div>
+      <div class="field"><label>入口顯示時間迄 <span class="hint">可精準到秒;留空=不限</span></label><input id="sc-to" type="datetime-local" step="1"></div>
+      <div class="field"><label>可下單時間起 <span class="hint">可精準到秒;留空=沿用入口顯示時間</span></label><input id="sc-tfrom" type="datetime-local" step="1"></div>
+      <div class="field"><label>可下單時間迄 <span class="hint">可精準到秒;留空=沿用入口顯示時間</span></label><input id="sc-tto" type="datetime-local" step="1"></div>
       <div class="field"><label>開放星期 <span class="hint">1=週一…7=週日,逗號分隔</span></label><input id="sc-days" placeholder="1,2,3,4,5"></div>
       <div class="field"><label>開放時段 <span class="hint">台灣時間,多段用逗號,例:09:00-12:00,13:00-13:30</span></label><input id="sc-windows" placeholder="09:00-13:30"></div>
       <div class="field"><label>標的白名單 <span class="hint">留空=全部可交易;否則只開放這些代號(逗號分隔)</span></label><input id="sc-wl" placeholder="2330,0050"></div>
@@ -3378,10 +3378,10 @@ async function openStockConfig() {
   document.getElementById('sc-feemin').value = c.feeMin;
   document.getElementById('sc-tax').value = c.taxRate;
   document.getElementById('sc-etftax').value = c.etfTaxRate;
-  document.getElementById('sc-from').value = c.dateFrom || '';
-  document.getElementById('sc-to').value = c.dateTo || '';
-  document.getElementById('sc-tfrom').value = c.tradeFrom || '';
-  document.getElementById('sc-tto').value = c.tradeTo || '';
+  document.getElementById('sc-from').value = dtlS_(c.dateFrom, false);
+  document.getElementById('sc-to').value = dtlS_(c.dateTo, true);
+  document.getElementById('sc-tfrom').value = dtlS_(c.tradeFrom, false);
+  document.getElementById('sc-tto').value = dtlS_(c.tradeTo, true);
   document.getElementById('sc-days').value = c.days;
   document.getElementById('sc-windows').value = c.windows;
   document.getElementById('sc-wl').value = c.whitelist;
@@ -7060,6 +7060,7 @@ document.querySelectorAll('.overlay').forEach(el => {
 });
 
 init();
+function dtlS_(x, end) { x = (x||'').toString().trim(); if (!x) return ''; if (x.length <= 10) return x + (end ? 'T23:59:59' : 'T00:00'); return x.replace(' ','T'); }
 </script>
 </body>
 </html>
