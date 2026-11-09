@@ -842,7 +842,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.154</div>
+    <div class="version-tag">系統版本：v5.4.155</div>
   </div>
 
   <script>
@@ -8363,16 +8363,23 @@ async function loadCurExpiry_() {
   const off = d.serverNow ? (d.serverNow - Date.now()) : 0, now = Date.now() + off;
   const fmt = (ms) => { const t = new Date(ms - 1 + 8 * 3600000); return (t.getUTCMonth() + 1) + '/' + t.getUTCDate(); };
   const left = (ms) => { const dd = Math.ceil((ms - now) / 86400000); return dd <= 0 ? '今天' : dd + '天後'; };
-  const lines = d.items.map((it) => {
+  const lines = [], first = [];
+  d.items.forEach((it) => {
     const bs = it.batches || [], term = it.unit === 'month' ? (it.days + ' 個月(同月取得的月底一起到期)') : (it.days + ' 天');
-    if (!bs.length) return '<div style="color:#B9BBBE">⏳ ' + escapeHtml_(it.display) + ' 有效期 ' + term + '(目前沒有即將到期的)</div>';
+    if (!bs.length) { lines.push('<div style="color:#B9BBBE">' + escapeHtml_(it.display) + ' 有效 ' + term + ',目前沒有即將到期的</div>'); return; }
+    first.push({ name: it.display, b: bs[0] });
     const parts = bs.slice(0, 4).map((b) => {
       const soon = b.expireAt - now <= 7 * 86400000;
       return '<span style="color:' + (soon ? '#ED4245' : '#F0B232') + '">' + fmt(b.expireAt) + ' 到期(' + left(b.expireAt) + ') <b>' + b.amount + '</b></span>';
     });
-    return '<div>⏳ ' + escapeHtml_(it.display) + '(有效 ' + term + '):' + parts.join('、') + (bs.length > 4 ? '…' : '') + '</div>';
+    lines.push('<div>' + escapeHtml_(it.display) + '(有效 ' + term + '):' + parts.join('、') + (bs.length > 4 ? '…' : '') + '</div>');
   });
-  box.innerHTML = lines.join(''); box.style.display = '';
+  if (!first.length) { box.style.display = 'none'; return; }
+  const minAt = Math.min.apply(null, first.map((x) => x.b.expireAt));
+  const near = first.filter((x) => x.b.expireAt === minAt);
+  const soon = minAt - now <= 7 * 86400000;
+  const sum = '<summary style="cursor:pointer;list-style:none;color:' + (soon ? '#ED4245' : '#F0B232') + '">⏳ ' + fmt(minAt) + ' 到期(' + left(minAt) + '):' + near.map((x) => escapeHtml_(x.name) + ' <b>' + x.b.amount + '</b>').join('、') + ' <span style="color:#B9BBBE">▾ 詳情</span></summary>';
+  box.innerHTML = '<details>' + sum + '<div style="margin-top:4px;padding-left:4px">' + lines.join('') + '</div></details>'; box.style.display = '';
 }
 // 倒數:距離停止交易 / 入口關閉(用伺服器時間校正,不受手機時間影響)
 function cdHtml_(d){
