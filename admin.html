@@ -98,6 +98,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
 .overlay.open{display:flex}
 .modal{background:var(--s);border:1px solid var(--bd);border-radius:12px;width:100%;max-width:700px;margin:auto}
+.modal.as-page{max-width:980px;margin:0 0 24px 0}.modal.as-page .modal-close{display:none}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--bd)}
 .modal-header h3{font-size:16px;font-weight:700}
 .modal-close{background:none;border:none;color:var(--mu);font-size:22px;cursor:pointer;line-height:1}
@@ -256,7 +257,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.73</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.74</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -282,9 +283,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('redeem-codes')">🎫 兌換碼管理</div>
       <div class="nav-item" onclick="navTo('push')">🔔 推播通知</div>
       <hr class="nav-sep">
-      <div class="nav-item" onclick="openStockConfig()">📈 台股設定</div>
-      <div class="nav-item" onclick="openCryptoConfig()">₿ 加密貨幣設定</div>
-      <div class="nav-item" onclick="openCurExp()">⏳ 貨幣有效期</div>
+      <div class="nav-item" onclick="navTo('stock-cfg')">📈 台股設定</div>
+      <div class="nav-item" onclick="navTo('crypto-cfg')">₿ 加密貨幣設定</div>
+      <div class="nav-item" onclick="navTo('cur-exp')">⏳ 貨幣有效期</div>
+      <div class="nav-item" onclick="navTo('cur-mon')">📊 貨幣獲得/消耗統計</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
       <div class="nav-item" onclick="navTo('reward-keys')">🎫 序號庫管理</div>
@@ -1179,6 +1181,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
 
       <!-- 密碼鎖定管理 -->
+      <div id="page-stock-cfg" style="display:none"><div class="page-header"><div class="page-title">📈 台股設定</div></div><div class="pg-host" data-modal="stock-cfg-modal"></div></div>
+      <div id="page-crypto-cfg" style="display:none"><div class="page-header"><div class="page-title">₿ 加密貨幣設定</div></div><div class="pg-host" data-modal="crypto-cfg-modal"></div></div>
+      <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
+      <div id="page-cur-mon" style="display:none"><div class="page-header"><div class="page-title">📊 貨幣獲得/消耗統計</div></div><div class="pg-host" data-modal="curmon-modal"></div></div>
       <div id="page-lock-settings" style="display:none">
         <div class="page-header"><div class="page-title">🔒 密碼鎖定管理</div></div>
 
@@ -1820,7 +1826,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full"><span id="ce-run-out" class="hint"></span></div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="openCurMonthly()">📊 各月獲得統計</button>
+      <button class="btn" onclick="navTo('cur-mon')">📊 各月獲得/消耗統計</button>
       <button class="btn" onclick="ceRunNow()">🔄 立即對帳一次</button>
       <button class="btn" onclick="closeModal('curexp-modal')">取消</button>
       <button class="btn btn-primary" id="ce-save-btn" onclick="saveCurExp()">💾 儲存</button>
@@ -3271,7 +3277,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','item-templates','craft-recipes','redeem-codes','push','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','cur-exp','cur-mon','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3289,6 +3295,10 @@ function navTo(p) {
   if (p==='item-templates') loadItemTemplates();
   if (p==='craft-recipes') loadCraftAdmin();
   if (p==='redeem-codes') loadRedeemCodes();
+  if (p==='stock-cfg') openStockConfig();
+  if (p==='crypto-cfg') openCryptoConfig();
+  if (p==='cur-exp') openCurExp();
+  if (p==='cur-mon') openCurMonthly();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
   if (p==='auction-bids') {
@@ -3306,6 +3316,18 @@ function toast(msg, ok=true) {
 }
 
 // ── Modal ──
+// 設定類視窗改成側邊欄的獨立頁面:把原本彈窗的內容搬進頁面,不再跳出小視窗
+function modalsToPages_() {
+  document.querySelectorAll('.pg-host').forEach(h => {
+    const ov = document.getElementById(h.getAttribute('data-modal')); if (!ov) return;
+    const m = ov.querySelector('.modal'); if (!m) return;
+    m.id = ov.id; m.classList.add('as-page');
+    m.querySelectorAll('.modal-footer .btn').forEach(b => { if (b.textContent.trim() === '取消') b.remove(); });
+    const hd = m.querySelector('.modal-header'); if (hd) hd.remove();
+    ov.remove(); h.appendChild(m);
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', modalsToPages_); else modalsToPages_();
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ============================================================
