@@ -532,7 +532,7 @@
             <button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1d')">當日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('5d')">5日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1m')">1個月</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('6m')">半年</button><button class="btn" style="padding:3px 8px;font-size:12px;margin-left:auto;background:#4F545C" onclick="chartToggle_()">🕯️/📈 切換</button>
           </div>
           <div id="stock-chart" style="min-height:60px"></div>
-          <div style="font-size:11px;color:#72767D;margin-top:2px">走勢圖歷史資料可能延遲約20分鐘;「當日」圖表尾端會用這個視窗即時抓到的報價補上(開著視窗才會持續累積),成交價以上方即時報價為準。</div>
+          <div style="font-size:11px;color:#72767D;margin-top:2px">「當日」走勢使用富果即時 5 分 K(約每分鐘更新);若富果暫時不可用會退回延遲約20分鐘的資料,並用這個視窗即時抓到的報價補上尾端。其他區間資料可能延遲,成交價以上方即時報價為準。</div>
         </div>
         <div id="stock-trade" style="display:none;margin-bottom:12px">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -841,7 +841,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.149</div>
+    <div class="version-tag">系統版本：v5.4.150</div>
   </div>
 
   <script>
@@ -4782,7 +4782,7 @@
       const live = stockLive_[code];
       if (rg !== '1d' || !live || !live.length || !pts || !pts.length) return pts;
       const B = 300000, lastT = pts[pts.length - 1].t, out = pts.slice(), bk = {};
-      live.forEach(function(k){ if (k.t <= lastT) return; const b = Math.floor(k.t / B) * B; const c = bk[b]; if (!c) bk[b] = { t: b, o: k.p, h: k.p, l: k.p, c: k.p, v: 0 }; else { c.h = Math.max(c.h, k.p); c.l = Math.min(c.l, k.p); c.c = k.p; } });
+      live.forEach(function(k){ if (k.t < lastT + B) return; const b = Math.floor(k.t / B) * B; const c = bk[b]; if (!c) bk[b] = { t: b, o: k.p, h: k.p, l: k.p, c: k.p, v: 0 }; else { c.h = Math.max(c.h, k.p); c.l = Math.min(c.l, k.p); c.c = k.p; } });
       Object.keys(bk).sort().forEach(function(b){ out.push(bk[b]); });
       return out;
     }
