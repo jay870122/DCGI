@@ -856,7 +856,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.159</div>
+    <div class="version-tag">系統版本：v5.4.160</div>
   </div>
 
   <script>
@@ -7018,7 +7018,19 @@ function fetchScoresAndShop(discordId, callback = null) {
                 📦 剩餘庫存：${item.limits.baseStock}${item.limits.baseStock !== "無限" && item.limits.baseStock > 0 ? '(猜對後庫存還有剩會自動換新答案,可以繼續玩)' : ''}<br>
                 💰 每次猜測花費：${formatCost_(item.price, item.displayCurrency)}`;
               })() : `📦 庫存：${item.limits.baseStock}`}
-              ${(() => { const pb_ = (item.name || '').match(/\[單次上限[:：]?\s*(\d+)\]/); return pb_ && parseInt(pb_[1], 10) > 0 ? '<br>🧮 單次上限：' + parseInt(pb_[1], 10) + ' 個' : ''; })()}
+              ${(() => {
+                const nm_ = item.name || '', L_ = [];
+                const gv_ = (k) => { const m = nm_.match(new RegExp('\\[' + k + '[:：]?\\s*(-?\\d+(?:\\.\\d+)?)\\]')); return m ? m[1] : ''; };
+                const rg_ = (a, b, unit) => (a !== '' && b !== '') ? a + ' ~ ' + b + unit : a !== '' ? '至少 ' + a + unit : b !== '' ? '至多 ' + b + unit : '';
+                const pb_ = gv_('單次上限'); if (pb_ !== '' && parseFloat(pb_) > 0) L_.push('🧮 單次上限：' + pb_ + ' 個');
+                const hm_ = gv_('持有上限'); if (hm_ !== '') L_.push('📏 持有上限：' + hm_);
+                const lq_ = rg_(gv_('強平次數'), gv_('強平次數上限'), ' 次'); if (lq_) L_.push('⚠️ 被強平次數限制：' + lq_);
+                const cz_ = rg_(gv_('加密已實現'), gv_('加密已實現上限'), ''); if (cz_) L_.push('📈 加密已實現損益限制：' + cz_);
+                const sz_ = rg_(gv_('股票已實現'), gv_('股票已實現上限'), ''); if (sz_) L_.push('📈 股票已實現損益限制：' + sz_);
+                const re_ = /\[(持幣|投資損益|投資強平)\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/g; let m_;
+                while ((m_ = re_.exec(nm_)) !== null) { const r_ = rg_(m_[3].trim(), m_[4].trim(), ''); if (r_) L_.push((m_[1] === '持幣' ? '💰 持有 ' : m_[1] === '投資損益' ? '📈 ' : '⚠️ ') + escapeHtml_(m_[2].trim()) + (m_[1] === '持幣' ? ' 餘額：' : m_[1] === '投資損益' ? ' 投資已實現損益：' : ' 投資被強平次數：') + r_); }
+                return L_.length ? '<div style="font-size:12px;color:#F0B232;margin-top:4px">' + L_.join('<br>') + '</div>' : '';
+              })()}
               ${limitsHtml}
               ${gachaHtml}
               ${item.nextMilestone ? (() => {
