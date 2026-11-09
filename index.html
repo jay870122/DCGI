@@ -841,7 +841,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.151</div>
+    <div class="version-tag">系統版本：v5.4.152</div>
   </div>
 
   <script>
@@ -8361,6 +8361,8 @@ function cdHtml_(d){
   } else if (d && d.tradeCloseAt) {
     out += '<div style="margin-top:4px;font-size:12px;color:#F0B232">⏳ 距離停止交易還有 <b class="cd-tick" data-t="' + d.tradeCloseAt + '" data-off="' + off + '">--</b>' + (hasWatch ? '(之後進入觀盤期)' : '') + '</div>';
   }
+  if (d && d.nextOpenAt && d.open === false) out += '<div style="margin-top:2px;font-size:12px;color:#57F287">😴 關盤休息中,距離開盤還有 <b class="cd-tick" data-t="' + d.nextOpenAt + '" data-off="' + off + '">--</b></div>';
+  else if (d && d.windowEndAt && d.open) out += '<div style="margin-top:2px;font-size:12px;color:#57F287">🔔 距離收盤(本節結束)還有 <b class="cd-tick" data-t="' + d.windowEndAt + '" data-off="' + off + '">--</b></div>';
   if (d && d.entryCloseAt && d.entryCloseAt !== d.tradeCloseAt) out += '<div style="margin-top:2px;font-size:12px;color:#B9BBBE">🚪 距離關閉還有 <b class="cd-tick" data-t="' + d.entryCloseAt + '" data-off="' + off + '">--</b></div>';
   return out;
 }
