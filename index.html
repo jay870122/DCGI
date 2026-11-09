@@ -328,6 +328,19 @@
     </div>
   </div>
 
+  <!-- 💬 我的留言(盲盒[留言]獎勵):填寫給非即時處理人員的一段話,送出後還能修改 -->
+  <div id="note-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeNotes()">×</span>
+        <h2 style="margin:0;">💬 我的留言</h2>
+      </div>
+      <div class="modal-body">
+        <div id="note-list-container"><p style="text-align:center; color:#B9BBBE;">讀取中...</p></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 🌟 BINGO賓果卡彈窗 -->
   <div id="bingo-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 480px;">
@@ -815,6 +828,7 @@
         <div class="header-actions">
           <button class="btn-action" onclick="showAuctions()" style="background-color: #F0B232;">🔨 拍賣會</button>
           <button class="btn-action" onclick="showHistory()" style="background-color: #5865F2;">📜 我的紀錄</button>
+          <button id="btn-notes" class="btn-action" onclick="showNotes()" style="background-color: #EB459E; display:none;">💬 我的留言<span id="note-badge" style="display:none;margin-left:4px;background:#ED4245;color:#fff;border-radius:10px;padding:0 6px;font-size:11px"></span></button>
           <button class="btn-action" onclick="showBackpack()" style="background-color: #43B581;">🎒 背包</button>
           <button class="btn-action" onclick="showRedeemCode()" style="background-color: #7289DA;">🎫 序號兌換</button>
           <button class="btn-action" onclick="logout()" style="background-color: #ED4245;">登出帳號</button>
@@ -842,7 +856,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.155</div>
+    <div class="version-tag">系統版本：v5.4.156</div>
   </div>
 
   <script>
@@ -1345,6 +1359,52 @@
     }
 
     function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
+
+    // ===== 💬 我的留言 =====
+    var notesCache_ = [], notesFirstLoad_ = true, notesAutoShown_ = {};
+    function noteFmt_(ms) { if (!ms) return ''; const t = new Date(ms + 8 * 3600000), p = n => String(n).padStart(2, '0'); return t.getUTCFullYear() + '/' + p(t.getUTCMonth() + 1) + '/' + p(t.getUTCDate()) + ' ' + p(t.getUTCHours()) + ':' + p(t.getUTCMinutes()); }
+    async function refreshNotes_() {
+      try {
+        const d = await chamberCall_('myNotesWorker');
+        if (!d || d.status !== 'success') return;
+        notesCache_ = d.notes || [];
+        const btn = document.getElementById('btn-notes'), badge = document.getElementById('note-badge');
+        if (btn) btn.style.display = notesCache_.length ? '' : 'none';
+        if (badge) { badge.style.display = d.pending > 0 ? '' : 'none'; badge.textContent = d.pending > 0 ? d.pending : ''; }
+        const fresh = notesCache_.filter(n => n.status === '待填寫' && !notesAutoShown_[n.id]);
+        fresh.forEach(n => { notesAutoShown_[n.id] = 1; });
+        // 第一次載入頁面只更新紅點;之後(例如剛抽中、剛購買)有新的待填寫留言才自動彈出
+        if (!notesFirstLoad_ && fresh.length) showNotes(); else if (document.getElementById('note-modal').style.display === 'flex') renderNotes_();
+        notesFirstLoad_ = false;
+      } catch (e) {}
+    }
+    function showNotes() { document.getElementById('note-modal').style.display = 'flex'; renderNotes_(); }
+    function closeNotes() { document.getElementById('note-modal').style.display = 'none'; }
+    function renderNotes_() {
+      const box = document.getElementById('note-list-container');
+      if (!notesCache_.length) { box.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前沒有需要填寫的留言</p>'; return; }
+      const list = notesCache_.slice().sort((a, b) => (a.status === '待填寫' ? 0 : 1) - (b.status === '待填寫' ? 0 : 1) || b.createdAt - a.createdAt);
+      box.innerHTML = list.map(n => {
+        const pend = n.status === '待填寫', id = escapeHtml_(n.id);
+        return '<div style="border:1px solid #40444B;border-radius:8px;padding:10px;margin-bottom:10px;background:#2F3136">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + escapeHtml_(n.item) + (n.qty > 1 ? ' x' + n.qty : '') + '</b><span style="font-size:11px;padding:1px 8px;border-radius:10px;background:' + (pend ? '#ED4245' : '#3BA55D') + '">' + (pend ? '待填寫' : '已送出') + '</span></div>' +
+          (n.hint ? '<div style="color:#F0B232;font-size:13px;margin:6px 0">📝 ' + escapeHtml_(n.hint) + '</div>' : '') +
+          '<textarea id="note-t-' + id + '" maxlength="200" rows="3" style="width:100%;box-sizing:border-box;background:#202225;color:#fff;border:1px solid #40444B;border-radius:6px;padding:8px;font-size:14px" placeholder="請在這裡輸入(最多 200 字)" oninput="document.getElementById(\'note-c-' + id + '\').textContent=this.value.length+\'/200\'">' + escapeHtml_(n.text) + '</textarea>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;flex-wrap:wrap"><span style="font-size:12px;color:#B9BBBE">' + (n.modifiedAt ? '最後修改:' + noteFmt_(n.modifiedAt) + '(共修改 ' + n.edits + ' 次)' : '尚未送出') + ' · <span id="note-c-' + id + '">' + n.text.length + '/200</span></span>' +
+          '<button class="btn-action" id="note-b-' + id + '" onclick="saveNote_(\'' + id + '\')" style="background-color:#5865F2">' + (pend ? '送出' : '更新留言') + '</button></div>' +
+          '<div style="font-size:11px;color:#72767D;margin-top:4px">送出或更新後,會通知處理人員</div></div>';
+      }).join('');
+    }
+    async function saveNote_(id) {
+      const ta = document.getElementById('note-t-' + id), btn = document.getElementById('note-b-' + id); if (!ta || !btn) return;
+      const text = ta.value.trim(); if (!text) { toast_('請輸入留言內容'); return; }
+      const old = btn.textContent; btn.disabled = true; btn.textContent = '送出中...';
+      const d = await chamberCall_('saveNoteWorker', { id: id, text: text });
+      btn.disabled = false; btn.textContent = old;
+      if (!d || d.status !== 'success') { toast_((d && d.message) || '送出失敗,請稍後再試'); return; }
+      toast_(d.message || '已送出');
+      await refreshNotes_();
+    }
 
     // ── BINGO 賓果卡 ──
     let currentBingoActivityId = null; // 🌟 目前正在看的是哪個BINGO活動的卡片(在活動列表畫面時是null)
@@ -6450,6 +6510,7 @@ function fetchScoresAndShop(discordId, callback = null) {
           latestBalances_ = { s1: data.s1, s2: data.s2, s3: data.s3 }; // 🌟 購物車顯示目前餘額/扣完後餘額用
           cartBalanceStale_ = false;
           try { loadCurExpiry_(); } catch (e) {}
+          try { refreshNotes_(); } catch (e) {}
           // 🌟🆕 修正bug:「背包裡的貨幣清單沒有因為開道具而即時更新」——開道具成功後會呼叫
           // fetchScoresAndShop()刷新latestCustomVars(資料本身是新的),但如果背包彈窗當下正開著,
           // 畫面上已經畫出來的那份backpack-list-container是舊的DOM,不會自己跟著重新渲染,玩家
