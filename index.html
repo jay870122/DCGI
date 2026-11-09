@@ -856,7 +856,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.157</div>
+    <div class="version-tag">系統版本：v5.4.158</div>
   </div>
 
   <script>
@@ -1363,11 +1363,12 @@
     // ===== 💬 我的留言 =====
     var notesCache_ = [], notesFirstLoad_ = true, notesAutoShown_ = {};
     function noteFmt_(ms) { if (!ms) return ''; const t = new Date(ms + 8 * 3600000), p = n => String(n).padStart(2, '0'); return t.getUTCFullYear() + '/' + p(t.getUTCMonth() + 1) + '/' + p(t.getUTCDate()) + ' ' + p(t.getUTCHours()) + ':' + p(t.getUTCMinutes()); }
+    let notesOff_ = 0;
     async function refreshNotes_() {
       try {
         const d = await chamberCall_('myNotesWorker');
         if (!d || d.status !== 'success') return;
-        notesCache_ = d.notes || [];
+        notesCache_ = d.notes || []; notesOff_ = d.serverNow ? (d.serverNow - Date.now()) : 0;
         const btn = document.getElementById('btn-notes'), badge = document.getElementById('note-badge');
         if (btn) btn.style.display = notesCache_.length ? '' : 'none';
         if (badge) { badge.style.display = d.pending > 0 ? '' : 'none'; badge.textContent = d.pending > 0 ? d.pending : ''; }
@@ -1385,14 +1386,14 @@
       if (!notesCache_.length) { box.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前沒有需要填寫的留言</p>'; return; }
       const list = notesCache_.slice().sort((a, b) => (a.status === '待填寫' ? 0 : 1) - (b.status === '待填寫' ? 0 : 1) || b.createdAt - a.createdAt);
       box.innerHTML = list.map(n => {
-        const pend = n.status === '待填寫', id = escapeHtml_(n.id), mxL = n.maxLen || 200, mxE = (n.maxEdits === undefined || n.maxEdits === null) ? 20 : n.maxEdits, mods = Math.max(0, (n.edits || 0) - 1), full = (n.edits || 0) >= mxE + 1;
+        const pend = n.status === '待填寫', id = escapeHtml_(n.id), mxL = n.maxLen || 200, mxE = (n.maxEdits === undefined || n.maxEdits === null) ? 20 : n.maxEdits, mods = Math.max(0, (n.edits || 0) - 1), expired = !!(n.deadline && Date.now() + notesOff_ > n.deadline), full = (n.edits || 0) >= mxE + 1 || expired;
         return '<div style="border:1px solid #40444B;border-radius:8px;padding:10px;margin-bottom:10px;background:#2F3136">' +
           '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + escapeHtml_(n.item) + (n.qty > 1 ? ' x' + n.qty : '') + '</b><span style="font-size:11px;padding:1px 8px;border-radius:10px;background:' + (pend ? '#ED4245' : '#3BA55D') + '">' + (pend ? '待填寫' : '已送出') + '</span></div>' +
           (n.hint ? '<div style="color:#F0B232;font-size:13px;margin:6px 0">📝 ' + escapeHtml_(n.hint) + '</div>' : '') +
           '<textarea id="note-t-' + id + '" maxlength="' + mxL + '" rows="3" style="width:100%;box-sizing:border-box;background:#202225;color:#fff;border:1px solid #40444B;border-radius:6px;padding:8px;font-size:14px" placeholder="請在這裡輸入(最多 ' + mxL + ' 字)" oninput="document.getElementById(\'note-c-' + id + '\').textContent=this.value.length+\'/' + mxL + '\'"' + (full ? ' disabled' : '') + '>' + escapeHtml_(n.text) + '</textarea>' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;flex-wrap:wrap"><span style="font-size:12px;color:#B9BBBE">' + (n.modifiedAt ? '最後修改:' + noteFmt_(n.modifiedAt) + '(已修改 ' + mods + '/' + mxE + ' 次)' : '尚未送出(送出後可再修改 ' + mxE + ' 次)') + ' · <span id="note-c-' + id + '">' + n.text.length + '/' + mxL + '</span></span>' +
-          '<button class="btn-action" id="note-b-' + id + '" onclick="saveNote_(\'' + id + '\')" style="background-color:#5865F2"' + (full ? ' disabled' : '') + '>' + (full ? '已達修改上限' : (pend ? '送出' : '更新留言')) + '</button></div>' +
-          '<div style="font-size:11px;color:#72767D;margin-top:4px">送出或更新後,會通知處理人員</div></div>';
+          '<button class="btn-action" id="note-b-' + id + '" onclick="saveNote_(\'' + id + '\')" style="background-color:#5865F2"' + (full ? ' disabled' : '') + '>' + (expired ? '已過修改期限' : full ? '已達修改上限' : (pend ? '送出' : '更新留言')) + '</button></div>' +
+          '<div style="font-size:11px;color:#72767D;margin-top:4px">' + (n.deadline ? '⏰ 修改期限:' + noteFmt_(n.deadline) + (expired ? '(已截止)' : '') + ' · ' : '') + '送出或更新後,會通知處理人員</div></div>';
       }).join('');
     }
     async function saveNote_(id) {
