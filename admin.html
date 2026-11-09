@@ -257,7 +257,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.74</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.75</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -277,6 +277,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('admin-users')">👑 管理員管理</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
+      <div class="nav-item" onclick="navTo('cur-exp')">⏳ 貨幣有效期</div>
+      <div class="nav-item" onclick="navTo('cur-mon')">📊 貨幣獲得/消耗統計</div>
+      <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('bingo')">🎰 BINGO 賓果卡</div>
       <div class="nav-item" onclick="navTo('item-templates')">🎁 道具模板管理</div>
       <div class="nav-item" onclick="navTo('craft-recipes')">🔨 合成配方管理</div>
@@ -285,8 +288,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('stock-cfg')">📈 台股設定</div>
       <div class="nav-item" onclick="navTo('crypto-cfg')">₿ 加密貨幣設定</div>
-      <div class="nav-item" onclick="navTo('cur-exp')">⏳ 貨幣有效期</div>
-      <div class="nav-item" onclick="navTo('cur-mon')">📊 貨幣獲得/消耗統計</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
       <div class="nav-item" onclick="navTo('reward-keys')">🎫 序號庫管理</div>
@@ -3277,7 +3278,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','cur-exp','cur-mon','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
