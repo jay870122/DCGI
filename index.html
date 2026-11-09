@@ -856,7 +856,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.158</div>
+    <div class="version-tag">系統版本：v5.4.159</div>
   </div>
 
   <script>
@@ -7018,6 +7018,7 @@ function fetchScoresAndShop(discordId, callback = null) {
                 📦 剩餘庫存：${item.limits.baseStock}${item.limits.baseStock !== "無限" && item.limits.baseStock > 0 ? '(猜對後庫存還有剩會自動換新答案,可以繼續玩)' : ''}<br>
                 💰 每次猜測花費：${formatCost_(item.price, item.displayCurrency)}`;
               })() : `📦 庫存：${item.limits.baseStock}`}
+              ${(() => { const pb_ = (item.name || '').match(/\[單次上限[:：]?\s*(\d+)\]/); return pb_ && parseInt(pb_[1], 10) > 0 ? '<br>🧮 單次上限：' + parseInt(pb_[1], 10) + ' 個' : ''; })()}
               ${limitsHtml}
               ${gachaHtml}
               ${item.nextMilestone ? (() => {
