@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.78</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.79</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1843,7 +1843,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>📊 各玩家每月獲得量</h3><button class="modal-close" onclick="closeModal('curmon-modal')">×</button></div>
     <div class="form-grid">
       <div class="field full"><span class="hint">依「貨幣批次」帳本統計(餘額增加量,不含消費;切到「消耗」可看每月餘額減少量,不含過期扣除,從啟用這功能起才開始記錄;商品編輯裡勾「兌換此商品不計入消耗」的不會算進來)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
-      <div class="field full"><input id="cm-cur" value="幻彩水晶" style="width:160px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto"><option value="gain">獲得</option><option value="spend">消耗(從現在起記錄)</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
+      <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="cm-cur" value="幻彩水晶" style="width:150px;padding:7px 10px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="gain">獲得</option><option value="spend">消耗(從現在起記錄)</option></select> <select id="cm-month" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="">全部月份</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
       <div class="field full" style="overflow:auto;max-height:55vh"><table id="cm-tbl" style="border-collapse:collapse;font-size:13px"></table></div>
     </div>
   </div>
@@ -3525,10 +3525,25 @@ async function loadCurMonthly() {
 }
 function cmView_() {
   const d = cmData_, sp = (document.getElementById('cm-mode') || {}).value === 'spend';
-  return sp ? { months: d.spendMonths || [], totals: d.spendTotals || {}, players: d.spendPlayers || [], label: '消耗' } : { months: d.months, totals: d.monthTotals, players: d.players, label: '獲得' };
+  const v = sp ? { months: d.spendMonths || [], totals: d.spendTotals || {}, players: d.spendPlayers || [], label: '消耗' } : { months: d.months, totals: d.monthTotals, players: d.players, label: '獲得' };
+  const sel = document.getElementById('cm-month'), want = sel ? sel.value : '';
+  if (want && v.months.indexOf(want) >= 0) {
+    const m = want;
+    v.months = [m];
+    v.players = v.players.filter(p => p.m[m]).map(p => ({ id: p.id, nick: p.nick, m: { [m]: p.m[m] }, total: p.m[m] })).sort((a, b) => b.total - a.total);
+  }
+  return v;
+}
+function cmFillMonths_() {
+  const d = cmData_, sel = document.getElementById('cm-month'); if (!d || !sel) return;
+  const sp = (document.getElementById('cm-mode') || {}).value === 'spend', cur = sel.value;
+  const ms = (sp ? (d.spendMonths || []) : d.months).slice();
+  sel.innerHTML = '<option value="">全部月份</option>' + ms.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+  sel.value = ms.indexOf(cur) >= 0 ? cur : '';
 }
 function renderCurMonthly_() {
   const d0 = cmData_; if (!d0) return;
+  cmFillMonths_();
   const tb = document.getElementById('cm-tbl'), d = cmView_();
   if (!d.months.length) { tb.innerHTML = '<tr><td>目前還沒有「' + d.label + '」資料(每 5 分鐘對帳一次,之後才會累積)</td></tr>'; return; }
   const th = 'style="border:1px solid #444;padding:4px 8px;white-space:nowrap"';
