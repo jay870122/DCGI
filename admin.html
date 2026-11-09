@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.79</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.80</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1843,7 +1843,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>📊 各玩家每月獲得量</h3><button class="modal-close" onclick="closeModal('curmon-modal')">×</button></div>
     <div class="form-grid">
       <div class="field full"><span class="hint">依「貨幣批次」帳本統計(餘額增加量,不含消費;切到「消耗」可看每月餘額減少量,不含過期扣除,從啟用這功能起才開始記錄;商品編輯裡勾「兌換此商品不計入消耗」的不會算進來)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
-      <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="cm-cur" value="幻彩水晶" style="width:150px;padding:7px 10px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="gain">獲得</option><option value="spend">消耗(從現在起記錄)</option></select> <select id="cm-month" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="">全部月份</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
+      <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="cm-cur" value="幻彩水晶" style="width:150px;padding:7px 10px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="both">獲得＋消耗</option><option value="gain">只看獲得</option><option value="spend">只看消耗(從現在起記錄)</option></select> <select id="cm-month" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="">全部月份</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
       <div class="field full" style="overflow:auto;max-height:55vh"><table id="cm-tbl" style="border-collapse:collapse;font-size:13px"></table></div>
     </div>
   </div>
@@ -3534,16 +3534,41 @@ function cmView_() {
   }
   return v;
 }
+function cmBoth_() {
+  const d = cmData_, sel = document.getElementById('cm-month'), want = sel ? sel.value : '';
+  let months = Array.from(new Set((d.months || []).concat(d.spendMonths || [])));
+  months.sort((a, b) => a === '初始餘額' ? -1 : b === '初始餘額' ? 1 : a < b ? -1 : 1);
+  if (want && months.indexOf(want) >= 0) months = [want];
+  const map = {};
+  (d.players || []).forEach(p => { map[p.id] = { id: p.id, nick: p.nick, g: p.m, s: {} }; });
+  (d.spendPlayers || []).forEach(p => { (map[p.id] = map[p.id] || { id: p.id, nick: p.nick, g: {}, s: {} }).s = p.m; });
+  const sum = (o) => months.reduce((a, m) => a + (o[m] || 0), 0);
+  const players = Object.values(map).map(p => ({ id: p.id, nick: p.nick, g: p.g, s: p.s, tg: sum(p.g), ts: sum(p.s) })).filter(p => p.tg || p.ts).sort((a, b) => (b.tg + b.ts) - (a.tg + a.ts));
+  const tot = { g: {}, s: {} }; months.forEach(m => { tot.g[m] = (d.monthTotals || {})[m] || 0; tot.s[m] = (d.spendTotals || {})[m] || 0; });
+  return { months, players, tot, tg: sum(tot.g), ts: sum(tot.s) };
+}
+function renderCurBoth_() {
+  const tb = document.getElementById('cm-tbl'), b = cmBoth_();
+  const th = 'style="border:1px solid #444;padding:4px 8px;white-space:nowrap"';
+  const n = v => v ? v.toLocaleString() : '';
+  let h = '<tr><th ' + th + ' rowspan="2">玩家</th>' + b.months.map(m => '<th ' + th + ' colspan="2">' + m + '</th>').join('') + '<th ' + th + ' colspan="3">合計</th></tr><tr>' + b.months.map(() => '<th ' + th + '>獲得</th><th ' + th + '>消耗</th>').join('') + '<th ' + th + '>獲得</th><th ' + th + '>消耗</th><th ' + th + '>淨增減</th></tr>';
+  const net = (g, s) => { const x = g - s; return '<td ' + th + ' align="right" style="border:1px solid #444;padding:4px 8px;color:' + (x < 0 ? '#ED4245' : '#57F287') + '">' + (x > 0 ? '+' : '') + x.toLocaleString() + '</td>'; };
+  h += '<tr style="font-weight:bold"><td ' + th + '>全部玩家</td>' + b.months.map(m => '<td ' + th + ' align="right">' + n(b.tot.g[m]) + '</td><td ' + th + ' align="right">' + n(b.tot.s[m]) + '</td>').join('') + '<td ' + th + ' align="right">' + n(b.tg) + '</td><td ' + th + ' align="right">' + n(b.ts) + '</td>' + net(b.tg, b.ts) + '</tr>';
+  b.players.forEach(p => { h += '<tr><td ' + th + '>' + (p.nick || '') + ' <span style="color:#72767D;font-size:11px">' + p.id + '</span></td>' + b.months.map(m => '<td ' + th + ' align="right">' + n(p.g[m]) + '</td><td ' + th + ' align="right">' + n(p.s[m]) + '</td>').join('') + '<td ' + th + ' align="right">' + n(p.tg) + '</td><td ' + th + ' align="right">' + n(p.ts) + '</td>' + net(p.tg, p.ts) + '</tr>'; });
+  tb.innerHTML = b.players.length ? h : '<tr><td>目前沒有資料</td></tr>';
+}
 function cmFillMonths_() {
   const d = cmData_, sel = document.getElementById('cm-month'); if (!d || !sel) return;
   const sp = (document.getElementById('cm-mode') || {}).value === 'spend', cur = sel.value;
-  const ms = (sp ? (d.spendMonths || []) : d.months).slice();
+  const mode = (document.getElementById('cm-mode') || {}).value;
+  const ms = (mode === 'both' ? Array.from(new Set((d.months || []).concat(d.spendMonths || []))) : sp ? (d.spendMonths || []) : d.months).slice();
   sel.innerHTML = '<option value="">全部月份</option>' + ms.map(m => '<option value="' + m + '">' + m + '</option>').join('');
   sel.value = ms.indexOf(cur) >= 0 ? cur : '';
 }
 function renderCurMonthly_() {
   const d0 = cmData_; if (!d0) return;
   cmFillMonths_();
+  if ((document.getElementById('cm-mode') || {}).value === 'both') { renderCurBoth_(); return; }
   const tb = document.getElementById('cm-tbl'), d = cmView_();
   if (!d.months.length) { tb.innerHTML = '<tr><td>目前還沒有「' + d.label + '」資料(每 5 分鐘對帳一次,之後才會累積)</td></tr>'; return; }
   const th = 'style="border:1px solid #444;padding:4px 8px;white-space:nowrap"';
@@ -3553,7 +3578,17 @@ function renderCurMonthly_() {
   tb.innerHTML = h;
 }
 function cmCsv() {
-  if (!cmData_) return; const d = cmView_(), disp = cmData_.display;
+  if (!cmData_) return; const disp = cmData_.display;
+  if ((document.getElementById('cm-mode') || {}).value === 'both') {
+    const b = cmBoth_(), q2 = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const head = ['DiscordID', '暱稱'];
+    b.months.forEach(m => { head.push(m + ' 獲得', m + ' 消耗'); }); head.push('合計獲得', '合計消耗', '淨增減');
+    const rows2 = [head];
+    b.players.forEach(p => { const r = ["'" + p.id, p.nick]; b.months.forEach(m => { r.push(p.g[m] || 0, p.s[m] || 0); }); r.push(p.tg, p.ts, p.tg - p.ts); rows2.push(r); });
+    const bl = new Blob(['\ufeff' + rows2.map(r => r.map(q2).join(',')).join('\n')], { type: 'text/csv' });
+    const a2 = document.createElement('a'); a2.href = URL.createObjectURL(bl); a2.download = '各月獲得消耗_' + disp + '.csv'; a2.click(); return;
+  }
+  const d = cmView_();
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';
   const rows = [['DiscordID', '暱稱'].concat(d.months, ['合計'])];
   d.players.forEach(p => rows.push(["'" + p.id, p.nick].concat(d.months.map(m => p.m[m] || 0), [p.total])));
