@@ -257,7 +257,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.76</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.77</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3487,7 +3487,7 @@ function ceAddRow_(cur, days, remind, unit, bind, rate) {
   const wrap = document.getElementById('ce-rows');
   const d = document.createElement('div');
   d.className = 'ce-row'; d.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
-  d.innerHTML = '<input class="ce-cur" list="dc-list" placeholder="貨幣(例:幻彩水晶)" style="flex:2;min-width:140px"> <input class="ce-days" type="number" min="1" max="3650" placeholder="有效期長" style="width:90px"> <select class="ce-unit" style="width:70px"><option value="天">天</option><option value="月">個月</option></select> <input class="ce-rem" type="number" min="0" max="365" placeholder="提前提醒天數" style="width:112px"> <button class="btn" onclick="this.parentNode.remove()">✕</button><div style="flex-basis:100%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:#72767D;font-size:12px">🔗 綁定貨幣(選填) <input class="ce-bind" list="dc-list" placeholder="例:幻彩水晶碎片" style="flex:1;min-width:130px"> 1 個本貨幣 = <input class="ce-rate" type="number" min="0" step="any" placeholder="1000" style="width:90px"> 個綁定貨幣</div>';
+  d.innerHTML = '<span class="hint">貨幣</span><input class="ce-cur" list="dc-list" placeholder="貨幣(例:幻彩水晶)" style="flex:2;min-width:140px"> <span class="hint">有效期</span><input class="ce-days" type="number" min="1" max="3650" placeholder="有效期長" title="有效期長度" style="width:90px"> <select class="ce-unit" style="width:70px"><option value="天">天</option><option value="月">個月</option></select> <span class="hint">到期前</span><input class="ce-rem" type="number" min="0" max="365" placeholder="提前提醒天數" title="到期前幾天私訊提醒" style="width:80px"><span class="hint">天提醒</span> <button class="btn" onclick="this.parentNode.remove()">✕</button><div style="flex-basis:100%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:#72767D;font-size:12px">🔗 綁定貨幣(選填) <input class="ce-bind" list="dc-list" placeholder="例:幻彩水晶碎片" style="flex:1;min-width:130px"> 1 個本貨幣 = <input class="ce-rate" type="number" min="0" step="any" placeholder="1000" style="width:90px"> 個綁定貨幣</div>';
   d.querySelector('.ce-bind').value = bind || ''; d.querySelector('.ce-rate').value = rate || '';
   d.querySelector('.ce-cur').value = cur || ''; d.querySelector('.ce-days').value = days || 90; d.querySelector('.ce-unit').value = unit === '月' ? '月' : '天'; d.querySelector('.ce-rem').value = remind === undefined ? 7 : remind;
   wrap.appendChild(d);
