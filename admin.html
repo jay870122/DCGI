@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.84</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.85</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3805,6 +3805,15 @@ async function loadShopItems() {
   const d = await apiWorkerRead('adminShopItems', {}, {action:'adminGetShopItems'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   shopItems = d.items;
+  // 🌟🔧 分類下拉選單每次載入商品都依「目前真的有的商品」重建(原本只在登入時抓一次,後來新增的分類要重新登入才會出現)
+  try {
+    const sel = document.getElementById('shop-cat-filter'), keep = sel.value, cats = [];
+    shopItems.forEach(i => { const c = (i.category || '').toString().trim(); if (c && cats.indexOf(c) === -1) cats.push(c); });
+    sel.innerHTML = '<option value="">全部分類</option>' + cats.map(c => '<option value="' + c.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">' + c.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
+    sel.value = cats.indexOf(keep) !== -1 ? keep : '';
+    const sc = document.getElementById('sc-list');
+    if (sc) { const have = Array.from(sc.children).map(o => o.value); cats.forEach(c => { if (have.indexOf(c) === -1) { const o = document.createElement('option'); o.value = c; sc.appendChild(o); } }); }
+  } catch (e) {}
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   renderShopTable();
 }
