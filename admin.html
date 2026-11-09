@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.66</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.67</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -985,6 +985,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="page-title">💰 玩家貨幣管理 <span class="count-badge" id="pc-count">—</span></div>
           <div class="toolbar">
             <input class="search" id="pc-search" placeholder="搜尋暱稱/DiscordID..." oninput="renderPlayerCurrencyTable()">
+            <button class="btn btn-edit" onclick="openCurExp()">⏳ 貨幣有效期</button>
             <button class="fab" onclick="openAdjustPanel()">🛠️ 批次調整(已選 <span id="pc-selected-count">0</span> 人)</button>
           </div>
         </div>
