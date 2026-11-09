@@ -842,7 +842,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.153</div>
+    <div class="version-tag">系統版本：v5.4.154</div>
   </div>
 
   <script>
@@ -8361,15 +8361,16 @@ async function loadCurExpiry_() {
   const d = await chamberCall_('currencyExpiryWorker');
   if (!d || d.status !== 'success' || !(d.items || []).length) { box.style.display = 'none'; return; }
   const off = d.serverNow ? (d.serverNow - Date.now()) : 0, now = Date.now() + off;
-  const fmt = (ms) => { const t = new Date(ms + 8 * 3600000); return (t.getUTCMonth() + 1) + '/' + t.getUTCDate(); };
+  const fmt = (ms) => { const t = new Date(ms - 1 + 8 * 3600000); return (t.getUTCMonth() + 1) + '/' + t.getUTCDate(); };
+  const left = (ms) => { const dd = Math.ceil((ms - now) / 86400000); return dd <= 0 ? '今天' : dd + '天後'; };
   const lines = d.items.map((it) => {
-    const bs = it.batches || [];
-    if (!bs.length) return '<div style="color:#B9BBBE">⏳ ' + escapeHtml_(it.display) + ' 有效期 ' + it.days + ' 天(目前沒有即將到期的)</div>';
+    const bs = it.batches || [], term = it.unit === 'month' ? (it.days + ' 個月(同月取得的月底一起到期)') : (it.days + ' 天');
+    if (!bs.length) return '<div style="color:#B9BBBE">⏳ ' + escapeHtml_(it.display) + ' 有效期 ' + term + '(目前沒有即將到期的)</div>';
     const parts = bs.slice(0, 4).map((b) => {
       const soon = b.expireAt - now <= 7 * 86400000;
-      return '<span style="color:' + (soon ? '#ED4245' : '#F0B232') + '">' + fmt(b.expireAt) + ' 到期 <b>' + b.amount + '</b></span>';
+      return '<span style="color:' + (soon ? '#ED4245' : '#F0B232') + '">' + fmt(b.expireAt) + ' 到期(' + left(b.expireAt) + ') <b>' + b.amount + '</b></span>';
     });
-    return '<div>⏳ ' + escapeHtml_(it.display) + '(有效 ' + it.days + ' 天):' + parts.join('、') + (bs.length > 4 ? '…' : '') + '</div>';
+    return '<div>⏳ ' + escapeHtml_(it.display) + '(有效 ' + term + '):' + parts.join('、') + (bs.length > 4 ? '…' : '') + '</div>';
   });
   box.innerHTML = lines.join(''); box.style.display = '';
 }
