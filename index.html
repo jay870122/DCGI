@@ -809,6 +809,7 @@
             <div class="score-item">🔥 幻彩水晶: <span class="score-value" id="score-s2">0</span></div>
             <div class="score-item" id="score-s3-container">💎 點數3: <span class="score-value" id="score-s3">0</span></div>
           </div>
+          <div id="cur-expiry-box" style="display:none;margin:6px 0 2px;font-size:12px;line-height:1.7"></div>
           <div class="role-box" id="role-box-container"></div>
         </div>
         <div class="header-actions">
@@ -841,7 +842,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.152</div>
+    <div class="version-tag">系統版本：v5.4.153</div>
   </div>
 
   <script>
@@ -6448,6 +6449,7 @@ function fetchScoresAndShop(discordId, callback = null) {
           latestCustomVars = data.customVars || []; // 🌟 背包彈窗要用完整清單(不篩選)
           latestBalances_ = { s1: data.s1, s2: data.s2, s3: data.s3 }; // 🌟 購物車顯示目前餘額/扣完後餘額用
           cartBalanceStale_ = false;
+          try { loadCurExpiry_(); } catch (e) {}
           // 🌟🆕 修正bug:「背包裡的貨幣清單沒有因為開道具而即時更新」——開道具成功後會呼叫
           // fetchScoresAndShop()刷新latestCustomVars(資料本身是新的),但如果背包彈窗當下正開著,
           // 畫面上已經畫出來的那份backpack-list-container是舊的DOM,不會自己跟著重新渲染,玩家
@@ -8352,6 +8354,25 @@ function fetchScoresAndShop(discordId, callback = null) {
 function lbToggle_(h){ var p=h.closest('.lb-panel'); if(p) p.classList.toggle('lb-collapsed'); }
 try { if (window.innerWidth <= 900) document.querySelectorAll('.lb-panel').forEach(function(p){ p.classList.add('lb-collapsed'); }); } catch(e) {}
 
+
+// ⏳ 貨幣有效期:顯示「X 水晶將於 日期 到期」(後台沒設定有效期的貨幣不會出現)
+async function loadCurExpiry_() {
+  const box = document.getElementById('cur-expiry-box'); if (!box) return;
+  const d = await chamberCall_('currencyExpiryWorker');
+  if (!d || d.status !== 'success' || !(d.items || []).length) { box.style.display = 'none'; return; }
+  const off = d.serverNow ? (d.serverNow - Date.now()) : 0, now = Date.now() + off;
+  const fmt = (ms) => { const t = new Date(ms + 8 * 3600000); return (t.getUTCMonth() + 1) + '/' + t.getUTCDate(); };
+  const lines = d.items.map((it) => {
+    const bs = it.batches || [];
+    if (!bs.length) return '<div style="color:#B9BBBE">⏳ ' + escapeHtml_(it.display) + ' 有效期 ' + it.days + ' 天(目前沒有即將到期的)</div>';
+    const parts = bs.slice(0, 4).map((b) => {
+      const soon = b.expireAt - now <= 7 * 86400000;
+      return '<span style="color:' + (soon ? '#ED4245' : '#F0B232') + '">' + fmt(b.expireAt) + ' 到期 <b>' + b.amount + '</b></span>';
+    });
+    return '<div>⏳ ' + escapeHtml_(it.display) + '(有效 ' + it.days + ' 天):' + parts.join('、') + (bs.length > 4 ? '…' : '') + '</div>';
+  });
+  box.innerHTML = lines.join(''); box.style.display = '';
+}
 // 倒數:距離停止交易 / 入口關閉(用伺服器時間校正,不受手機時間影響)
 function cdHtml_(d){
   var off = d && d.serverNow ? (d.serverNow - Date.now()) : 0, out = '';
