@@ -257,7 +257,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.75</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.76</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1821,6 +1821,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full"><span class="hint">每種貨幣可各自設定「取得後幾天到期」,或改選「個月」= <b>X月取得的統一在 N 個月後的月底到期</b>(例:7月取得、3個月 → 10/31 結束一起到期);沒列在這裡的貨幣=永不過期。依「先取得的先扣」計算,到期時自動從玩家餘額扣除、私訊玩家並寫入歷史紀錄。
       <br>· 第一次設定某貨幣時,玩家<b>現有餘額視為「設定當下」取得</b>,從那天起算有效天數(不會一開啟就全部過期)。
       <br>· 每 5 分鐘對帳一次(餘額增加=新批次、減少=扣最舊批次),所以到期時間最多有幾分鐘誤差。
+      <br>· <b>🔗 綁定貨幣</b>:水晶⇄水晶碎片這類可互換的貨幣,在水晶那列填「碎片」和比例(1 水晶 = 1000 碎片)。互換時,被扣掉的那批貨幣的<b>取得日期會跟著帶到另一邊</b>,換來換去不會讓有效期重新計算,也不算消耗。碎片那列不用另外綁(沒設的話會自動補一列同樣的有效期)。
       <br>· 之後把「有效天數」改小,已取得的批次會立刻依新天數重新計算(可能立刻過期);把貨幣從清單移除=該貨幣改回永不過期。</span></div>
       <div class="field full"><div id="ce-rows"></div>
         <button class="btn" onclick="ceAddRow_()" style="margin-top:6px">➕ 新增貨幣</button></div>
@@ -3482,11 +3483,12 @@ async function saveStockConfig() {
 // ============================================================
 // ⏳ 貨幣有效期(過期制度)
 // ============================================================
-function ceAddRow_(cur, days, remind, unit) {
+function ceAddRow_(cur, days, remind, unit, bind, rate) {
   const wrap = document.getElementById('ce-rows');
   const d = document.createElement('div');
   d.className = 'ce-row'; d.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
-  d.innerHTML = '<input class="ce-cur" list="dc-list" placeholder="貨幣(例:幻彩水晶)" style="flex:2;min-width:140px"> <input class="ce-days" type="number" min="1" max="3650" placeholder="有效期長" style="width:90px"> <select class="ce-unit" style="width:70px"><option value="天">天</option><option value="月">個月</option></select> <input class="ce-rem" type="number" min="0" max="365" placeholder="提前提醒天數" style="width:112px"> <button class="btn" onclick="this.parentNode.remove()">✕</button>';
+  d.innerHTML = '<input class="ce-cur" list="dc-list" placeholder="貨幣(例:幻彩水晶)" style="flex:2;min-width:140px"> <input class="ce-days" type="number" min="1" max="3650" placeholder="有效期長" style="width:90px"> <select class="ce-unit" style="width:70px"><option value="天">天</option><option value="月">個月</option></select> <input class="ce-rem" type="number" min="0" max="365" placeholder="提前提醒天數" style="width:112px"> <button class="btn" onclick="this.parentNode.remove()">✕</button><div style="flex-basis:100%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:#72767D;font-size:12px">🔗 綁定貨幣(選填) <input class="ce-bind" list="dc-list" placeholder="例:幻彩水晶碎片" style="flex:1;min-width:130px"> 1 個本貨幣 = <input class="ce-rate" type="number" min="0" step="any" placeholder="1000" style="width:90px"> 個綁定貨幣</div>';
+  d.querySelector('.ce-bind').value = bind || ''; d.querySelector('.ce-rate').value = rate || '';
   d.querySelector('.ce-cur').value = cur || ''; d.querySelector('.ce-days').value = days || 90; d.querySelector('.ce-unit').value = unit === '月' ? '月' : '天'; d.querySelector('.ce-rem').value = remind === undefined ? 7 : remind;
   wrap.appendChild(d);
 }
@@ -3495,7 +3497,7 @@ async function openCurExp() {
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   try { const dl = document.getElementById('dc-list'); if (dl && !dl.children.length) dl.innerHTML = (d.currencies || []).map(c => '<option value="' + c.display + '">').join(''); } catch (e) {}
   document.getElementById('ce-rows').innerHTML = '';
-  (d.rows || []).forEach(r => ceAddRow_(r.display, r.days, r.remind, r.unit));
+  (d.rows || []).forEach(r => ceAddRow_(r.display, r.days, r.remind, r.unit, r.bind, r.rate));
   if (!(d.rows || []).length) ceAddRow_('幻彩水晶', 90, 7);
   document.getElementById('ce-run-out').textContent = (d.rows || []).length ? '' : '尚未啟用:填好後按「儲存」才會開始計算(以儲存當下的餘額作為起算)。';
   document.getElementById('curexp-modal').classList.add('open');
@@ -3504,7 +3506,7 @@ async function saveCurExp() {
   const btn = document.getElementById('ce-save-btn');
   const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
   try {
-    const rows = Array.from(document.querySelectorAll('#ce-rows .ce-row')).map(r => ({ currency: r.querySelector('.ce-cur').value.trim(), days: r.querySelector('.ce-days').value, remind: r.querySelector('.ce-rem').value, unit: r.querySelector('.ce-unit').value })).filter(x => x.currency);
+    const rows = Array.from(document.querySelectorAll('#ce-rows .ce-row')).map(r => ({ currency: r.querySelector('.ce-cur').value.trim(), days: r.querySelector('.ce-days').value, remind: r.querySelector('.ce-rem').value, unit: r.querySelector('.ce-unit').value, bind: r.querySelector('.ce-bind').value.trim(), rate: r.querySelector('.ce-rate').value })).filter(x => x.currency);
     const d = await apiCraftWrite_('adminSaveCurrencyExpiry', { rows });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('curexp-modal');
