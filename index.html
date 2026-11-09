@@ -532,7 +532,7 @@
             <button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1d')">當日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('5d')">5日</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('1m')">1個月</button><button class="btn" style="padding:3px 8px;font-size:12px" onclick="stockChart_('6m')">半年</button><button class="btn" style="padding:3px 8px;font-size:12px;margin-left:auto;background:#4F545C" onclick="chartToggle_()">🕯️/📈 切換</button>
           </div>
           <div id="stock-chart" style="min-height:60px"></div>
-          <div style="font-size:11px;color:#72767D;margin-top:2px">走勢圖資料可能延遲約20分鐘,僅供參考;成交價以上方即時報價為準。</div>
+          <div style="font-size:11px;color:#72767D;margin-top:2px">走勢圖歷史資料可能延遲約20分鐘;「當日」圖表尾端會用這個視窗即時抓到的報價補上(開著視窗才會持續累積),成交價以上方即時報價為準。</div>
         </div>
         <div id="stock-trade" style="display:none;margin-bottom:12px">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -841,7 +841,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.148</div>
+    <div class="version-tag">系統版本：v5.4.149</div>
   </div>
 
   <script>
@@ -4769,6 +4769,23 @@
       chartCache_[key] = { at: Date.now(), pts: d.points };
       drawChart_(el, cryptoLivePts_(d.points), chartFmt_(rg));
     }
+    // 當日走勢的尾端用「這個視窗即時抓到的報價」補上(圖表資料來源本身延遲約20分鐘,報價輪詢是即時的)
+    const stockLive_ = {};
+    function stockLiveAdd_(x) {
+      if (!x || x.delayed || !(x.price > 0)) return;
+      const arr = stockLive_[x.code] = stockLive_[x.code] || [], now = Date.now(), last = arr[arr.length - 1];
+      if (last && now - last.t < 3000) { last.p = x.price; last.t = now; return; }
+      arr.push({ t: now, p: x.price, v: x.volume });
+      if (arr.length > 1500) arr.shift();
+    }
+    function stockChartPts_(code, pts, rg) {
+      const live = stockLive_[code];
+      if (rg !== '1d' || !live || !live.length || !pts || !pts.length) return pts;
+      const B = 300000, lastT = pts[pts.length - 1].t, out = pts.slice(), bk = {};
+      live.forEach(function(k){ if (k.t <= lastT) return; const b = Math.floor(k.t / B) * B; const c = bk[b]; if (!c) bk[b] = { t: b, o: k.p, h: k.p, l: k.p, c: k.p, v: 0 }; else { c.h = Math.max(c.h, k.p); c.l = Math.min(c.l, k.p); c.c = k.p; } });
+      Object.keys(bk).sort().forEach(function(b){ out.push(bk[b]); });
+      return out;
+    }
     async function stockChart_(range) {
       if (!stockQuote_) return;
       if (range) stockChartRange_ = range;
@@ -4776,14 +4793,14 @@
       const el = document.getElementById('stock-chart'), code = stockQuote_.code, rg = stockChartRange_, key = 's:' + code + ':' + rg;
       stockChartCode_ = code + ':' + rg;
       const c = chartCache_[key];
-      if (c && Date.now() - c.at < 60000) { drawChart_(el, c.pts, chartFmt_(rg), c.base); return; }
+      if (c && Date.now() - c.at < 60000) { drawChart_(el, stockChartPts_(code, c.pts, rg), chartFmt_(rg), c.base); return; }
       el.innerHTML = '<div style="color:#72767D;font-size:12px">讀取走勢中...</div>';
       const d = await chamberCall_('stockChartWorker', { code, range: rg });
       if (!stockQuote_ || code !== stockQuote_.code || rg !== stockChartRange_) return;
       if (!d || d.status !== 'success') { el.innerHTML = '<div style="color:#ED4245;font-size:12px">' + escapeHtml_((d && d.message) || '讀取失敗') + '</div>'; return; }
       const base = rg === '1d' ? d.prevClose : null;
       chartCache_[key] = { at: Date.now(), pts: d.points, base };
-      drawChart_(el, d.points, chartFmt_(rg), base);
+      drawChart_(el, stockChartPts_(code, d.points, rg), chartFmt_(rg), base);
     }
     // ----- 手動刷新(3秒內不重複觸發) -----
     function lbLabel_(mode) { return { pnl: '總損益(已實現+未實現)', realized: '已實現損益(已賣出/平倉的賺賠)', unreal: '未實現損益(目前持有的浮動賺賠)' }[mode] || ''; }
@@ -4868,7 +4885,7 @@
         if (!silent) { stockQuote_ = null; box.style.display = 'block'; box.innerHTML = '<span style="color:#ED4245">' + escapeHtml_((d && d.message) || '查詢失敗') + '</span>'; document.getElementById('stock-trade').style.display = 'none'; }
         return;
       }
-      const x = d.quote; stockQuote_ = x;
+      const x = d.quote; stockQuote_ = x; stockLiveAdd_(x);
       box.style.display = 'block';
       const c = stockClr_(x.change || 0);
       box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:15px">${escapeHtml_(x.name)} <span style="color:#72767D">${escapeHtml_(x.code)}</span></b><span style="font-size:20px;font-weight:bold;color:${c}">${x.price}</span></div>
@@ -4878,6 +4895,7 @@
       document.getElementById('stock-trade').style.display = 'block';
       stockEstimate();
       if (stockChartCode_.split(':')[0] !== x.code) stockChart_();
+      else if (stockChartRange_ === '1d') stockChart_();
     }
     function stockAmt_() { const m = document.getElementById('stock-mode'); return !!m && m.value === 'amount'; }
     function stockMode_() {
