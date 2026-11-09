@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.68</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.69</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -281,6 +281,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('craft-recipes')">🔨 合成配方管理</div>
       <div class="nav-item" onclick="navTo('redeem-codes')">🎫 兌換碼管理</div>
       <div class="nav-item" onclick="navTo('push')">🔔 推播通知</div>
+      <hr class="nav-sep">
+      <div class="nav-item" onclick="openStockConfig()">📈 台股設定</div>
+      <div class="nav-item" onclick="openCryptoConfig()">₿ 加密貨幣設定</div>
+      <div class="nav-item" onclick="openCurExp()">⏳ 貨幣有效期</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('history')">🎁 兌換/抽獎紀錄</div>
       <div class="nav-item" onclick="navTo('reward-keys')">🎫 序號庫管理</div>
@@ -985,7 +989,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="page-title">💰 玩家貨幣管理 <span class="count-badge" id="pc-count">—</span></div>
           <div class="toolbar">
             <input class="search" id="pc-search" placeholder="搜尋暱稱/DiscordID..." oninput="renderPlayerCurrencyTable()">
-            <button class="btn btn-edit" onclick="openCurExp()">⏳ 貨幣有效期</button>
             <button class="fab" onclick="openAdjustPanel()">🛠️ 批次調整(已選 <span id="pc-selected-count">0</span> 人)</button>
           </div>
         </div>
@@ -1037,9 +1040,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="toolbar">
             <button class="btn btn-edit" onclick="openGrantGeneralItemModal()">🎁 手動發放道具</button>
             <button class="btn btn-edit" onclick="openChamberConfig()">🧊 開啟室設定</button>
-            <button class="btn btn-edit" onclick="openStockConfig()">📈 台股設定</button>
-            <button class="btn btn-edit" onclick="openCryptoConfig()">₿ 加密貨幣設定</button>
-            <button class="btn btn-edit" onclick="openCurExp()">⏳ 貨幣有效期</button>
             <button class="btn btn-edit" onclick="openPlayerItems()">🔍 查玩家道具/開啟室</button>
             <button class="fab" onclick="openItemTemplateForm()">➕ 新增道具模板</button>
           </div>
