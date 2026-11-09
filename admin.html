@@ -256,7 +256,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.71</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.72</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1820,8 +1820,22 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>📊 各玩家每月獲得量</h3><button class="modal-close" onclick="closeModal('curmon-modal')">×</button></div>
     <div class="form-grid">
       <div class="field full"><span class="hint">依「貨幣批次」帳本統計(餘額增加量,不含消費;切到「消耗」可看每月餘額減少量,不含過期扣除,從啟用這功能起才開始記錄)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
-      <div class="field full"><input id="cm-cur" value="幻彩水晶" style="width:160px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto"><option value="gain">獲得</option><option value="spend">消耗(從現在起記錄)</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
+      <div class="field full"><input id="cm-cur" value="幻彩水晶" style="width:160px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto"><option value="gain">獲得</option><option value="spend">消耗(從現在起記錄)</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button> <button class="btn" onclick="openCurExc()">⚙️ 不計入消耗的商品</button></div>
       <div class="field full" style="overflow:auto;max-height:55vh"><table id="cm-tbl" style="border-collapse:collapse;font-size:13px"></table></div>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="curexc-modal">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header"><h3>⚙️ 兌換時不計入消耗的商品</h3><button class="modal-close" onclick="closeModal('curexc-modal')">×</button></div>
+    <div class="form-grid">
+      <div class="field full"><span class="hint">勾選的商品(例:水晶⇄水晶碎片互換),兌換時花掉的貨幣<b>不會算進「消耗」統計</b>。只對<b>設定之後</b>的兌換生效;金額以商店設定的價格 × 數量計算,對帳時從餘額減少量中扣掉。</span></div>
+      <div class="field full"><input id="cx-q" placeholder="搜尋商品名稱/ID" oninput="renderCurExc_()" style="width:100%"></div>
+      <div class="field full" id="cx-list" style="max-height:50vh;overflow:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('curexc-modal')">取消</button>
+      <button class="btn btn-primary" id="cx-save-btn" onclick="saveCurExc()">💾 儲存</button>
     </div>
   </div>
 </div>
@@ -3473,6 +3487,27 @@ async function saveCurExp() {
     const d = await apiCraftWrite_('adminSaveCurrencyExpiry', { rows });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('curexp-modal');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+var cxItems_ = [];
+async function openCurExc() {
+  const d = await stockAdminCall_('adminGetSpendExcludeWorker');
+  if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  cxItems_ = d.items || []; document.getElementById('cx-q').value = '';
+  renderCurExc_(); document.getElementById('curexc-modal').classList.add('open');
+}
+function renderCurExc_() {
+  const q = document.getElementById('cx-q').value.trim().toLowerCase();
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  document.getElementById('cx-list').innerHTML = cxItems_.map((it, i) => ({ it, i })).filter(x => !q || (x.it.name + ' ' + x.it.id).toLowerCase().indexOf(q) >= 0)
+    .map(x => '<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" ' + (x.it.excluded ? 'checked ' : '') + 'onchange="cxItems_[' + x.i + '].excluded=this.checked"> <span>' + esc(x.it.name) + ' <span style="color:#72767D;font-size:11px">' + esc(x.it.price + ' ' + x.it.currency + ' · ' + x.it.id) + '</span></span></label>').join('') || '<span class="hint">沒有符合的商品</span>';
+}
+async function saveCurExc() {
+  const btn = document.getElementById('cx-save-btn'), orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
+  try {
+    const d = await apiCraftWrite_('adminSaveSpendExclude', { items: cxItems_.filter(x => x.excluded).map(x => ({ id: x.id, name: x.name })) });
+    if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+    toast(d.message); closeModal('curexc-modal');
   } finally { btn.disabled = false; btn.textContent = orig; }
 }
 var cmData_ = null;
