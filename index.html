@@ -93,6 +93,11 @@
     .ic-cm-item .cm-h { color: #949BA4; font-size: 12px; margin-bottom: 2px; }
     .ic-cm-item .cm-h b { color: #fff; font-size: 13px; margin-right: 6px; }
     .ic-cm-item .cm-del { cursor: pointer; margin-left: 8px; color: #ED4245; }
+    .ic-cm-item .cm-rp { cursor: pointer; margin-left: 8px; color: #00A8FC; }
+    .ic-cm-reply { margin-left: 18px; padding-left: 10px; border-left: 2px solid #3F4147; }
+    .ic-cm-item .cm-to { color: #00A8FC; font-size: 12px; }
+    .cm-rpbar { margin-top: 8px; padding: 4px 8px; background: #2B2D31; border-radius: 6px; font-size: 12px; color: #B5BAC1; display: flex; justify-content: space-between; align-items: center; }
+    .cm-rpbar .cm-rpx { cursor: pointer; color: #ED4245; }
     .ic-cm-item .cm-t { white-space: pre-wrap; word-break: break-word; color: #DBDEE1; }
     .ic-cm-box textarea { width: 100%; box-sizing: border-box; min-height: 56px; background: #2B2D31; color: #fff; border: 1px solid #3F4147; border-radius: 6px; padding: 8px; font-size: 13px; resize: vertical; margin-top: 6px; }
     .ic-cm-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; color: #949BA4; font-size: 12px; }
@@ -879,7 +884,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.179</div>
+    <div class="version-tag">系統版本：v5.4.180</div>
   </div>
 
   <script>
@@ -970,8 +975,9 @@
       try { icCmRestore_(); } catch (e) {}
     }
     window.addEventListener('resize', () => { try { layoutInfoCards_(); } catch (e) {} });
-    // 💬 資訊卡片留言(公開討論串):卡片開放留言才會出現「💬 留言」按鈕,點開看所有人的留言、可發言;自己的留言可刪除
-    const icCmOpen_ = new Set(), icCmData_ = {}, icCmDraft_ = {};
+    // 💬 資訊卡片留言(公開討論串):卡片開放留言才會出現「💬 留言」按鈕,點開看所有人的留言、可發言、可回覆(被回覆的人會收到私訊通知);
+    //   自己的留言可刪除。板面開著時會每 N 秒(後台每張卡可設)自動刷新。
+    const icCmOpen_ = new Set(), icCmData_ = {}, icCmDraft_ = {}, icCmReply_ = {}, icCmTimers_ = {};
     function icCmEsc_(t) { return (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function icCmBox_(id) { return Array.from(document.querySelectorAll('.ic-cm-box')).find((b) => b.dataset.id === id) || null; }
     function icCmSetCount_(id, n) {
@@ -983,9 +989,22 @@
       if (d && d.status === 'success') { icCmData_[id] = { list: d.comments || [], isAdmin: !!d.isAdmin }; icCmSetCount_(id, icCmData_[id].list.length); }
       else if (!icCmData_[id]) icCmData_[id] = { list: [], isAdmin: false, err: (d && d.message) || '載入失敗,請稍後再試' };
     }
+    function icCmSig_(id) { const d = icCmData_[id]; return d ? d.list.map((m) => m.id).join(',') + '|' + (d.err || '') : ''; }
+    function icCmStopTimer_(id) { if (icCmTimers_[id]) { clearInterval(icCmTimers_[id]); delete icCmTimers_[id]; } }
+    function icCmStartTimer_(id) {
+      icCmStopTimer_(id);
+      const card = (infoCards_ || []).find((c) => c.id === id) || {}, sec = card.cmRefresh === undefined ? 15 : card.cmRefresh;
+      if (!(sec > 0)) return;
+      icCmTimers_[id] = setInterval(async () => {
+        if (!icCmOpen_.has(id)) { icCmStopTimer_(id); return; }
+        if (document.hidden || !icCmBox_(id)) return;
+        const before = icCmSig_(id); await icCmLoad_(id);
+        if (icCmSig_(id) !== before) icCmRender_(id);
+      }, sec * 1000);
+    }
     async function icCmToggle_(id) {
-      if (icCmOpen_.has(id)) icCmOpen_.delete(id);
-      else { icCmOpen_.add(id); const b = icCmBox_(id); if (b) { b.style.display = 'block'; b.innerHTML = '<div style="color:#949BA4;font-size:13px">載入中…</div>'; } await icCmLoad_(id); }
+      if (icCmOpen_.has(id)) { icCmOpen_.delete(id); icCmStopTimer_(id); }
+      else { icCmOpen_.add(id); const b = icCmBox_(id); if (b) { b.style.display = 'block'; b.innerHTML = '<div style="color:#949BA4;font-size:13px">載入中…</div>'; } await icCmLoad_(id); icCmStartTimer_(id); }
       icCmRender_(id);
     }
     function icCmRender_(id) {
@@ -993,21 +1012,35 @@
       if (!icCmOpen_.has(id)) { box.style.display = 'none'; return; }
       const d = icCmData_[id]; if (!d) return;
       const card = (infoCards_ || []).find((c) => c.id === id) || {}, max = card.cmMax || 200;
-      const old = box.querySelector('textarea'); if (old) icCmDraft_[id] = old.value;
+      const old = box.querySelector('textarea'); let hadFocus = false, selS = 0, selE = 0;
+      if (old) { icCmDraft_[id] = old.value; hadFocus = (old === document.activeElement); selS = old.selectionStart; selE = old.selectionEnd; }
       const fmt = (iso) => { const t = new Date(iso); return isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); };
-      const items = d.list.map((m) => '<div class="ic-cm-item"><div class="cm-h"><b>' + icCmEsc_(m.name) + '</b>' + fmt(m.at) + ((m.mine || d.isAdmin) ? '<span class="cm-del" data-mid="' + icCmEsc_(m.id) + '" onclick="icCmDel_(\'' + icCmEsc_(id).replace(/'/g, '') + '\', this.dataset.mid)">🗑 刪除</span>' : '') + '</div><div class="cm-t">' + icCmEsc_(m.text) + '</div></div>').join('');
+      const ids = new Set(d.list.map((m) => m.id)), kids = {}, tops = [];
+      d.list.forEach((m) => { if (m.parent && ids.has(m.parent)) (kids[m.parent] = kids[m.parent] || []).push(m); else tops.push(m); });
+      const one = (m, isReply) => '<div class="ic-cm-item' + (isReply ? ' ic-cm-reply' : '') + '"><div class="cm-h"><b>' + icCmEsc_(m.name) + '</b>' + fmt(m.at)
+        + '<span class="cm-rp" data-mid="' + icCmEsc_(m.id) + '" data-nm="' + icCmEsc_(m.name) + '">↩ 回覆</span>'
+        + ((m.mine || d.isAdmin) ? '<span class="cm-del" data-mid="' + icCmEsc_(m.id) + '">🗑 刪除</span>' : '') + '</div><div class="cm-t">'
+        + (isReply && m.replyTo ? '<span class="cm-to">↩ @' + icCmEsc_(m.replyTo) + '</span> ' : '') + icCmEsc_(m.text) + '</div></div>';
+      const items = tops.map((m) => one(m, false) + (kids[m.id] || []).map((k) => one(k, true)).join('')).join('');
+      const rp = icCmReply_[id];
       box.style.display = 'block';
       box.innerHTML = (d.err ? '<div style="color:#ED4245;font-size:13px">' + icCmEsc_(d.err) + '</div>' : '') + (items || '<div style="color:#949BA4;font-size:13px">還沒有留言,來當第一個吧!</div>')
-        + '<textarea maxlength="' + max + '" placeholder="寫下你的留言…"></textarea><div class="ic-cm-foot"><span class="cm-cnt">0 / ' + max + '</span><button type="button" class="ic-cm-btn cm-send">送出留言</button></div>';
+        + (rp ? '<div class="cm-rpbar">↩ 回覆 <b>@' + icCmEsc_(rp.name) + '</b><span class="cm-rpx">✕ 取消回覆</span></div>' : '')
+        + '<textarea maxlength="' + max + '" placeholder="' + (rp ? '回覆 @' + icCmEsc_(rp.name) + '…(對方會收到私訊通知)' : '寫下你的留言…') + '"></textarea><div class="ic-cm-foot"><span class="cm-cnt">0 / ' + max + '</span><button type="button" class="ic-cm-btn cm-send">' + (rp ? '送出回覆' : '送出留言') + '</button></div>';
       const ta = box.querySelector('textarea'), cnt = box.querySelector('.cm-cnt'), btn = box.querySelector('.cm-send');
       ta.value = icCmDraft_[id] || ''; cnt.textContent = ta.value.length + ' / ' + max;
+      if (hadFocus) { ta.focus(); try { ta.setSelectionRange(selS, selE); } catch (e) {} }
       ta.addEventListener('input', () => { icCmDraft_[id] = ta.value; cnt.textContent = ta.value.length + ' / ' + max; });
+      box.querySelectorAll('.cm-del').forEach((el) => el.addEventListener('click', () => icCmDel_(id, el.dataset.mid)));
+      box.querySelectorAll('.cm-rp').forEach((el) => el.addEventListener('click', () => { icCmReply_[id] = { mid: el.dataset.mid, name: el.dataset.nm }; icCmRender_(id); const t2 = box.querySelector('textarea'); if (t2) t2.focus(); }));
+      const rx = box.querySelector('.cm-rpx'); if (rx) rx.addEventListener('click', () => { delete icCmReply_[id]; icCmRender_(id); });
       btn.addEventListener('click', async () => {
         const text = ta.value.trim(); if (!text) { toast_('請輸入留言內容'); return; }
         btn.disabled = true; btn.textContent = '送出中…';
-        const r = await chamberCall_('infoCardCommentPostWorker', { card: id, text });
-        if (r && r.status === 'success') { icCmDraft_[id] = ''; toast_('✅ 已送出留言'); await icCmLoad_(id); icCmRender_(id); }
-        else { toast_((r && r.message) || '送出失敗,請稍後再試'); btn.disabled = false; btn.textContent = '送出留言'; }
+        const params = { card: id, text }; if (rp) params.parent = rp.mid;
+        const r = await chamberCall_('infoCardCommentPostWorker', params);
+        if (r && r.status === 'success') { icCmDraft_[id] = ''; delete icCmReply_[id]; toast_(rp ? '✅ 已送出回覆' : '✅ 已送出留言'); await icCmLoad_(id); icCmRender_(id); }
+        else { toast_((r && r.message) || '送出失敗,請稍後再試'); btn.disabled = false; btn.textContent = rp ? '送出回覆' : '送出留言'; }
       });
     }
     async function icCmDel_(cardId, mid) {
