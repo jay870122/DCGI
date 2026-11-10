@@ -77,6 +77,10 @@
     .shop-input { padding: 8px 12px; border-radius: 5px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 14px; outline: none; }
     
     /* 🌟 商品網格卡片 */
+    .info-card { grid-column: 1 / -1; background: #2B2D31; border: 1px solid #3F4147; border-left: 4px solid #5865F2; border-radius: 10px; padding: 14px 16px; color: #DBDEE1; font-size: 14px; line-height: 1.6; }
+    .info-card .ic-title { font-weight: bold; font-size: 15px; color: #fff; margin-bottom: 6px; }
+    .info-card .ic-sec + .ic-sec { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #4E5058; }
+    .info-card b { color: #F0B232; }
     .shop-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; }
     .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px;
                       padding: 15px; display: flex; flex-direction: column; position: relative; overflow: hidden; height: 100%; box-sizing: border-box; }
@@ -856,7 +860,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.165</div>
+    <div class="version-tag">系統版本：v5.4.166</div>
   </div>
 
   <script>
@@ -878,6 +882,22 @@
   
     let currentUser = null; 
     let currentShopItems = []; 
+    // 📝 資訊卡片(非兌換用的文字卡,後台「資訊卡片」編輯):分類空白=每個分類都顯示;同「合併群組」的卡片合成一張
+    let infoCards_ = [];
+    function infoCardsHtml_() {
+      const esc = (t) => (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const fmt = (t) => esc(t).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#00A8FC">$1</a>').replace(/\n/g, '<br>');
+      const list = (infoCards_ || []).filter((c) => !c.category || c.category === currentCategory);
+      const out = [], gi = {};
+      list.forEach((c) => {
+        if (c.group) { if (gi[c.group] === undefined) { gi[c.group] = out.length; out.push([]); } out[gi[c.group]].push(c); }
+        else out.push([c]);
+      });
+      return out.map((g) => '<div class="info-card">' + g.map((c) => '<div class="ic-sec">' + (c.title ? '<div class="ic-title">' + esc(c.title) + '</div>' : '') + '<div>' + fmt(c.text) + '</div></div>').join('') + '</div>').join('');
+    }
+    async function loadInfoCards_() {
+      try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { renderShop(); } catch (e) {} } } catch (e) {}
+    }
     // 🌟 [連結限定]商品機制:預設對所有玩家隱藏,只有(1)管理員 或 (2)透過分享連結直接指名要看這個商品
     // 才會顯示。isAdminUser在載入商店資料時會被設定;linkOnlyRevealedIds記錄「這次瀏覽期間,透過分享連結
     // 被揭露、允許顯示」的商品ID清單。
@@ -6520,6 +6540,7 @@ function fetchScoresAndShop(discordId, callback = null) {
           latestBalances_ = { s1: data.s1, s2: data.s2, s3: data.s3 }; // 🌟 購物車顯示目前餘額/扣完後餘額用
           cartBalanceStale_ = false;
           try { loadCurExpiry_(); } catch (e) {}
+          try { loadInfoCards_(); } catch (e) {}
           try { refreshNotes_(); } catch (e) {}
           // 🌟🆕 修正bug:「背包裡的貨幣清單沒有因為開道具而即時更新」——開道具成功後會呼叫
           // fetchScoresAndShop()刷新latestCustomVars(資料本身是新的),但如果背包彈窗當下正開著,
@@ -6724,8 +6745,9 @@ function fetchScoresAndShop(discordId, callback = null) {
       else if (sortType === 'price-high') displayItems.sort((a, b) => b.price - a.price);
 
       container.innerHTML = "";
+      const infoHtml_ = infoCardsHtml_();
       if (displayItems.length === 0) {
-        container.innerHTML = "<div style='color:#B9BBBE; padding: 20px;'>此分類目前無商品</div>";
+        container.innerHTML = infoHtml_ + (infoHtml_ ? "" : "<div style='color:#B9BBBE; padding: 20px;'>此分類目前無商品</div>");
         return;
       }
 
@@ -7065,10 +7087,10 @@ function fetchScoresAndShop(discordId, callback = null) {
             <span>🔒 「${currentCategory}」需要密碼才能購買，以下為模糊預覽${catHintHtml}${catGuessSpanHtml}</span>
             <button class="btn-action" onclick="promptUnlockCategory('${currentCategory.replace(/'/g,"\\'")}')">輸入密碼解鎖</button>
           </div>
-          <div class="category-blur-content">${allCardsHtml}</div>
+          ${infoHtml_}<div class="category-blur-content">${allCardsHtml}</div>
         `;
       } else {
-        container.innerHTML = allCardsHtml;
+        container.innerHTML = infoHtml_ + allCardsHtml;
       }
 
       startCountdowns();

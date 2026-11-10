@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.88</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.89</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -314,6 +314,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <option value="DRAFT">📝 草稿</option>
               <option value="ARCHIVED">📦 封存區</option>
             </select>
+            <button class="btn btn-edit" onclick="openInfoCards()">📝 資訊卡片</button>
             <button class="btn btn-edit" id="shop-reorder-toggle" onclick="toggleShopReorderMode()">🔀 排序模式</button>
             <button class="btn-save" id="shop-reorder-save" style="display:none" onclick="saveShopReorderInline()">💾 儲存順序</button>
             <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
@@ -1833,6 +1834,22 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('stock-cfg-modal')">取消</button>
       <button class="btn btn-primary" id="sc-save-btn" onclick="saveStockConfig()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="infocard-modal">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-header"><h3>📝 資訊卡片(非兌換用的文字卡)</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
+    <div class="form-grid">
+      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 內文可換行;<code>**粗體**</code>會變黃色粗體;網址會自動變連結。取消「顯示」=暫時隱藏。</span></div>
+      <div class="field full"><div id="ic-rows"></div>
+        <button class="btn" onclick="icAddRow_()" style="margin-top:6px">➕ 新增卡片</button>
+        <button class="btn" onclick="icMerge_(true)" style="margin-top:6px">🔗 合併已勾選</button>
+        <button class="btn" onclick="icMerge_(false)" style="margin-top:6px">✂️ 拆開已勾選</button></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('infocard-modal')">取消</button>
+      <button class="btn-save" id="ic-save-btn" onclick="saveInfoCards()">💾 儲存</button>
     </div>
   </div>
 </div>
@@ -3533,6 +3550,57 @@ async function saveCurExp() {
     const d = await apiCraftWrite_('adminSaveCurrencyExpiry', { rows });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('curexp-modal');
+  } finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+// ============================================================
+// 📝 資訊卡片
+// ============================================================
+function icEsc_(t) { return (t || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function icAddRow_(c) {
+  c = c || {};
+  const d = document.createElement('div');
+  d.className = 'ic-row'; d.dataset.id = c.id || '';
+  d.style.cssText = 'border:1px solid #3F4147;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px';
+  d.innerHTML = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-sel">選取</label>'
+    + '<input class="ic-cat" list="sc-list" placeholder="分類(空=全部)" style="width:150px" value="' + icEsc_(c.category) + '"> '
+    + '<input class="ic-title" placeholder="標題" style="flex:1;min-width:140px" value="' + icEsc_(c.title) + '"> '
+    + '<span class="hint">排序</span><input class="ic-order" type="number" style="width:70px" value="' + (c.order || '') + '"> '
+    + '<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-show"' + (c.show === false ? '' : ' checked') + '>顯示</label> '
+    + '<span class="ic-grp hint"></span><input type="hidden" class="ic-group" value="' + icEsc_(c.group) + '">'
+    + '<button class="btn btn-del" onclick="this.closest(\'.ic-row\').remove()">刪除</button></div>'
+    + '<textarea class="ic-text" rows="3" placeholder="想顯示的文字內容(可換行、**粗體**)" style="width:100%">' + icEsc_(c.text) + '</textarea>';
+  document.getElementById('ic-rows').appendChild(d);
+  icRefreshGroups_();
+}
+function icRefreshGroups_() {
+  const rows = Array.from(document.querySelectorAll('#ic-rows .ic-row')), cnt = {};
+  rows.forEach(r => { const g = r.querySelector('.ic-group').value; if (g) cnt[g] = (cnt[g] || 0) + 1; });
+  rows.forEach(r => { const g = r.querySelector('.ic-group').value; r.querySelector('.ic-grp').textContent = g ? '🔗 合併組(' + cnt[g] + '張)' : ''; r.style.borderColor = g ? '#5865F2' : '#3F4147'; });
+}
+function icMerge_(merge) {
+  const sel = Array.from(document.querySelectorAll('#ic-rows .ic-row')).filter(r => r.querySelector('.ic-sel').checked);
+  if (!sel.length) { toast('請先勾選要處理的卡片', false); return; }
+  if (merge && sel.length < 2) { toast('合併至少要勾選 2 張', false); return; }
+  const g = merge ? ('g' + Date.now().toString(36)) : '';
+  sel.forEach(r => { r.querySelector('.ic-group').value = g; r.querySelector('.ic-sel').checked = false; });
+  icRefreshGroups_();
+}
+async function openInfoCards() {
+  const d = await stockAdminCall_('adminInfoCardsListWorker');
+  if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  document.getElementById('ic-rows').innerHTML = '';
+  (d.cards || []).forEach(icAddRow_);
+  document.getElementById('infocard-modal').classList.add('open');
+}
+async function saveInfoCards() {
+  const btn = document.getElementById('ic-save-btn');
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
+  try {
+    const cards = Array.from(document.querySelectorAll('#ic-rows .ic-row')).map((r, i) => ({ id: r.dataset.id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || (i + 1), group: r.querySelector('.ic-group').value, show: r.querySelector('.ic-show').checked }));
+    const d = await apiCraftWrite_('adminInfoCardsSave', { cards });
+    if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+    toast(d.message); closeModal('infocard-modal');
   } finally { btn.disabled = false; btn.textContent = orig; }
 }
 var cmData_ = null;
