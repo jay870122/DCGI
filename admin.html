@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.98</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.99</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -308,12 +308,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <select class="filter-sel" id="shop-cat-filter" onchange="renderShopTable()">
               <option value="">全部分類</option>
             </select>
-            <select class="filter-sel" id="shop-status-filter" onchange="renderShopTable()">
+            <select class="filter-sel" id="shop-status-filter" onchange="rebuildShopCats_();renderShopTable()">
               <option value="">全部狀態</option>
               <option value="ACTIVE">🟢 上架中</option>
               <option value="DRAFT">📝 草稿</option>
               <option value="ARCHIVED">📦 封存區</option>
             </select>
+            <button class="btn btn-edit" id="shop-refresh-btn" onclick="refreshShopList_()">🔄 重新整理</button>
             <button class="btn btn-edit" onclick="openInfoCards()">📝 資訊卡片</button>
             <button class="btn btn-edit" id="shop-reorder-toggle" onclick="toggleShopReorderMode()">🔀 排序模式</button>
             <button class="btn-save" id="shop-reorder-save" style="display:none" onclick="saveShopReorderInline()">💾 儲存順序</button>
@@ -4052,17 +4053,25 @@ async function loadShopItems() {
   try { const ar = await stockAdminCall_('adminShopArchiveListWorker'); const set = new Set((ar && ar.status === 'success' ? ar.ids : []).map(String)); shopItems.forEach(i => { i.archived = set.has(String(i.itemId)) && i.status === 'DRAFT'; }); } catch (e) {}
   // 🌟🔧 分類下拉選單每次載入商品都依「目前真的有的商品」重建(原本只在登入時抓一次,後來新增的分類要重新登入才會出現)
   try {
-    const sel = document.getElementById('shop-cat-filter'), keep = sel.value, cats = [];
-    shopItems.forEach(i => { const c = (i.category || '').toString().trim(); if (c && cats.indexOf(c) === -1) cats.push(c); });
-    sel.innerHTML = '<option value="">全部分類</option>' + cats.map(c => '<option value="' + c.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">' + c.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
-    sel.value = cats.indexOf(keep) !== -1 ? keep : '';
     const sc = document.getElementById('sc-list');
-    if (sc) { const have = Array.from(sc.children).map(o => o.value); cats.forEach(c => { if (have.indexOf(c) === -1) { const o = document.createElement('option'); o.value = c; sc.appendChild(o); } }); }
+    if (sc) { const have = Array.from(sc.children).map(o => o.value); shopItems.forEach(i => { const c = (i.category || '').toString().trim(); if (c && have.indexOf(c) === -1) { have.push(c); const o = document.createElement('option'); o.value = c; sc.appendChild(o); } }); }
   } catch (e) {}
+  rebuildShopCats_();
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   renderShopTable();
 }
 
+// 分類下拉:只列出「目前篩選會看到的商品」所在的分類——一般/上架中/草稿不含已封存商品,所以分類裡的商品全封存了就不會再出現;選「📦 封存區」時改列封存商品的分類
+function rebuildShopCats_() {
+  try {
+    const sel = document.getElementById('shop-cat-filter'), keep = sel.value, cats = [];
+    const arch = document.getElementById('shop-status-filter').value === 'ARCHIVED';
+    shopItems.forEach(i => { if (!!i.archived !== arch) return; const c = (i.category || '').toString().trim(); if (c && cats.indexOf(c) === -1) cats.push(c); });
+    sel.innerHTML = '<option value="">全部分類</option>' + cats.map(c => '<option value="' + c.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">' + c.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
+    sel.value = cats.indexOf(keep) !== -1 ? keep : '';
+  } catch (e) {}
+}
+async function refreshShopList_() { const b = document.getElementById('shop-refresh-btn'); if (b) { b.disabled = true; b.textContent = '⏳ 重新整理中...'; } try { await loadShopItems(); toast('✅ 已重新整理'); } finally { if (b) { b.disabled = false; b.textContent = '🔄 重新整理'; } } }
 let shopSort = { key: null, dir: 1 };
 // 狀態排序:要跟表格上實際顯示的標籤一致(草稿/已開獎/已公布結果 也算進去),順序=上架中→未開始→草稿→已結束/已開獎/已公布
 function shopStateRank_(i) {
