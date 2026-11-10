@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.109</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.110</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3770,6 +3770,9 @@ function icAddRow_(c) {
     + '<div class="field"><label>寬度 <span class="hint">共 6 格,6=整行</span></label><select class="ic-size">' + sizeOpts + '</select></div>'
     + '<div class="field"><label>排序 <span class="hint">同位置多張時,數字小的在前</span></label><input class="ic-order" type="number" value="' + (c.order || '') + '"></div>'
     + '<div class="field full"><label>合併群組 <span class="hint">相同代號的卡片會合成同一張卡(各自標題/內文上下排列);留空=單獨一張</span></label><input class="ic-group" list="ic-grp-list" placeholder="例:g1(不用合併就留空)" value="' + icEsc_(c.group) + '"></div>'
+    + '<div class="field full"><label>💬 留言 <span class="hint">勾選後,玩家可以在這張卡片下方公開留言/回覆(所有人看得到,管理員可刪除任何留言)</span></label><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" class="ic-cm-open"' + (c.cmOpen ? ' checked' : '') + '> 開放留言</label></div>'
+    + '<div class="field"><label>留言字數上限 <span class="hint">每則,10~1000</span></label><input class="ic-cm-max" type="number" min="10" max="1000" value="' + (parseInt(c.cmMax, 10) || 200) + '"></div>'
+    + '<div class="field"><label>每人留言次數 <span class="hint">每張卡每人最多幾則,1~50</span></label><input class="ic-cm-per" type="number" min="1" max="50" value="' + (parseInt(c.cmPer, 10) || 5) + '"></div>'
     + '<div class="field full"><label>內文 <span class="hint">所見即所得,直接在下方編輯;要手改 Markdown 原始碼就勾選「顯示程式碼」</span></label>'
     + IC_TB_HTML_
     + '<label style="display:flex;gap:4px;align-items:center;margin:6px 0 4px" class="hint"><input type="checkbox" class="ic-code-toggle">&lt;/&gt; 顯示程式碼(Markdown 原始碼)</label>'
@@ -3839,7 +3842,7 @@ async function saveInfoCards() {
   try {
     if (!r.querySelector('.ic-code-toggle').checked) icSyncFromWys_(r);
     const id = r.dataset.id || ('c' + Date.now().toString(36));
-    const card = { id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || ((icAll_ || []).length + 1), group: r.querySelector('.ic-group').value.trim(), pos: r.dataset.pos === '' ? null : parseInt(r.dataset.pos, 10), size: r.querySelector('.ic-size').value, show: r.querySelector('.ic-show').value === 'true' };
+    const card = { id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || ((icAll_ || []).length + 1), group: r.querySelector('.ic-group').value.trim(), pos: r.dataset.pos === '' ? null : parseInt(r.dataset.pos, 10), size: r.querySelector('.ic-size').value, show: r.querySelector('.ic-show').value === 'true', cmOpen: r.querySelector('.ic-cm-open').checked, cmMax: r.querySelector('.ic-cm-max').value, cmPer: r.querySelector('.ic-cm-per').value };
     const all = (icAll_ || []).slice(); const k = all.findIndex(x => x.id === id);
     if (k >= 0) all[k] = card; else all.push(card);
     const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });

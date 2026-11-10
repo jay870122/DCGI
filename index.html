@@ -83,6 +83,18 @@
     .info-card .ic-sec + .ic-sec { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #4E5058; }
     .info-card b, .info-card strong { color: inherit; }
     .info-card img { max-width: 100%; cursor: zoom-in; }
+    .ic-cm { margin-top: 10px; }
+    .ic-cm-btn { background: #3F4147; color: #DBDEE1; border: 0; border-radius: 6px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+    .ic-cm-btn:hover { background: #4E5058; }
+    .ic-cm-box { margin-top: 8px; background: #1E1F22; border-radius: 8px; padding: 10px; }
+    .ic-cm-item { padding: 6px 0; border-bottom: 1px solid #2B2D31; font-size: 13px; }
+    .ic-cm-item:last-child { border-bottom: 0; }
+    .ic-cm-item .cm-h { color: #949BA4; font-size: 12px; margin-bottom: 2px; }
+    .ic-cm-item .cm-h b { color: #fff; font-size: 13px; margin-right: 6px; }
+    .ic-cm-item .cm-del { cursor: pointer; margin-left: 8px; color: #ED4245; }
+    .ic-cm-item .cm-t { white-space: pre-wrap; word-break: break-word; color: #DBDEE1; }
+    .ic-cm-box textarea { width: 100%; box-sizing: border-box; min-height: 56px; background: #2B2D31; color: #fff; border: 1px solid #3F4147; border-radius: 6px; padding: 8px; font-size: 13px; resize: vertical; margin-top: 6px; }
+    .ic-cm-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; color: #949BA4; font-size: 12px; }
     #img-zoom { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,.92); display: none; align-items: center; justify-content: center; padding: 10px; box-sizing: border-box; cursor: zoom-out; }
     #img-zoom.open { display: flex; }
     #img-zoom img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
@@ -866,7 +878,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.176</div>
+    <div class="version-tag">系統版本：v5.4.177</div>
   </div>
 
   <script>
@@ -943,7 +955,7 @@
       });
       if (!out.length) return '';
       // 資訊卡直接當成商品網格裡的一格(跟商品卡同一排:商品、文字、商品…),實際跨幾欄由 layoutInfoCards_ 依目前欄數換算
-      return out.map((g) => { const sz = Math.min(6, Math.max(1, parseInt(g[0].size, 10) || 6)); return '<div class="info-card ic-s' + sz + '" data-ics="' + sz + '" style="grid-column:1/-1">' + g.map((c) => '<div class="ic-sec">' + (c.title ? '<div class="ic-title">' + esc(c.title) + '</div>' : '') + '<div>' + infoMd_(c.text) + '</div></div>').join('') + '</div>'; }).join('');
+      return out.map((g) => { const sz = Math.min(6, Math.max(1, parseInt(g[0].size, 10) || 6)); return '<div class="info-card ic-s' + sz + '" data-ics="' + sz + '" style="grid-column:1/-1">' + g.map((c) => '<div class="ic-sec">' + (c.title ? '<div class="ic-title">' + esc(c.title) + '</div>' : '') + '<div>' + infoMd_(c.text) + '</div>' + (c.cmOpen ? '<div class="ic-cm"><button type="button" class="ic-cm-btn" data-id="' + esc(c.id).replace(/"/g, '&quot;') + '" onclick="icCmToggle_(this.dataset.id)">💬 留言</button><div class="ic-cm-box" data-id="' + esc(c.id).replace(/"/g, '&quot;') + '" style="display:none"></div></div>' : '') + '</div>').join('') + '</div>'; }).join('');
     }
     // size(1~6,代表佔一整行的幾/6)→ 換算成目前網格欄數的跨欄數;6=整行,其餘至少 1 欄
     function layoutInfoCards_() {
@@ -954,8 +966,51 @@
         const span = sz >= 6 ? cols : Math.max(1, Math.min(cols, Math.floor(sz / 6 * cols + 0.001)));
         el.style.gridColumn = 'span ' + span;
       });
+      try { icCmRestore_(); } catch (e) {}
     }
     window.addEventListener('resize', () => { try { layoutInfoCards_(); } catch (e) {} });
+    // 💬 資訊卡片留言(公開討論串):卡片開放留言才會出現「💬 留言」按鈕,點開看所有人的留言、可發言;自己的留言可刪除
+    const icCmOpen_ = new Set(), icCmData_ = {}, icCmDraft_ = {};
+    function icCmEsc_(t) { return (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function icCmBox_(id) { return Array.from(document.querySelectorAll('.ic-cm-box')).find((b) => b.dataset.id === id) || null; }
+    async function icCmLoad_(id) {
+      const d = await chamberCall_('infoCardCommentsWorker', { card: id });
+      if (d && d.status === 'success') icCmData_[id] = { list: d.comments || [], isAdmin: !!d.isAdmin };
+      else if (!icCmData_[id]) icCmData_[id] = { list: [], isAdmin: false, err: (d && d.message) || '載入失敗,請稍後再試' };
+    }
+    async function icCmToggle_(id) {
+      if (icCmOpen_.has(id)) icCmOpen_.delete(id);
+      else { icCmOpen_.add(id); const b = icCmBox_(id); if (b) { b.style.display = 'block'; b.innerHTML = '<div style="color:#949BA4;font-size:13px">載入中…</div>'; } await icCmLoad_(id); }
+      icCmRender_(id);
+    }
+    function icCmRender_(id) {
+      const box = icCmBox_(id); if (!box) return;
+      if (!icCmOpen_.has(id)) { box.style.display = 'none'; return; }
+      const d = icCmData_[id]; if (!d) return;
+      const card = (infoCards_ || []).find((c) => c.id === id) || {}, max = card.cmMax || 200;
+      const old = box.querySelector('textarea'); if (old) icCmDraft_[id] = old.value;
+      const fmt = (iso) => { const t = new Date(iso); return isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); };
+      const items = d.list.map((m) => '<div class="ic-cm-item"><div class="cm-h"><b>' + icCmEsc_(m.name) + '</b>' + fmt(m.at) + ((m.mine || d.isAdmin) ? '<span class="cm-del" data-mid="' + icCmEsc_(m.id) + '" onclick="icCmDel_(\'' + icCmEsc_(id).replace(/'/g, '') + '\', this.dataset.mid)">🗑 刪除</span>' : '') + '</div><div class="cm-t">' + icCmEsc_(m.text) + '</div></div>').join('');
+      box.style.display = 'block';
+      box.innerHTML = (d.err ? '<div style="color:#ED4245;font-size:13px">' + icCmEsc_(d.err) + '</div>' : '') + (items || '<div style="color:#949BA4;font-size:13px">還沒有留言,來當第一個吧!</div>')
+        + '<textarea maxlength="' + max + '" placeholder="寫下你的留言…"></textarea><div class="ic-cm-foot"><span class="cm-cnt">0 / ' + max + '</span><button type="button" class="ic-cm-btn cm-send">送出留言</button></div>';
+      const ta = box.querySelector('textarea'), cnt = box.querySelector('.cm-cnt'), btn = box.querySelector('.cm-send');
+      ta.value = icCmDraft_[id] || ''; cnt.textContent = ta.value.length + ' / ' + max;
+      ta.addEventListener('input', () => { icCmDraft_[id] = ta.value; cnt.textContent = ta.value.length + ' / ' + max; });
+      btn.addEventListener('click', async () => {
+        const text = ta.value.trim(); if (!text) { toast_('請輸入留言內容'); return; }
+        btn.disabled = true; btn.textContent = '送出中…';
+        const r = await chamberCall_('infoCardCommentPostWorker', { card: id, text });
+        if (r && r.status === 'success') { icCmDraft_[id] = ''; toast_('✅ 已送出留言'); await icCmLoad_(id); icCmRender_(id); }
+        else { toast_((r && r.message) || '送出失敗,請稍後再試'); btn.disabled = false; btn.textContent = '送出留言'; }
+      });
+    }
+    async function icCmDel_(cardId, mid) {
+      if (!confirm('確定要刪除這則留言嗎?')) return;
+      const r = await chamberCall_('infoCardCommentDeleteWorker', { id: mid });
+      if (r && r.status === 'success') { toast_('已刪除留言'); await icCmLoad_(cardId); icCmRender_(cardId); } else toast_((r && r.message) || '刪除失敗');
+    }
+    function icCmRestore_() { icCmOpen_.forEach((id) => icCmRender_(id)); }
     // 🔍 資訊卡內的圖片:點一下全螢幕放大,再點一下(或按 Esc)關閉
     (function () {
       function box() { let b = document.getElementById('img-zoom'); if (!b) { b = document.createElement('div'); b.id = 'img-zoom'; b.innerHTML = '<span class="iz-x">×</span><img alt="">'; b.addEventListener('click', () => b.classList.remove('open')); document.body.appendChild(b); } return b; }
