@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.125</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.126</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3664,7 +3664,7 @@ function ctAdmRenderBallots_() {
   rows.sort((a, c) => (a.b.time < c.b.time ? 1 : a.b.time > c.b.time ? -1 : 0));
   const act = rows.filter((x) => x.b.active);
   const fmt = (t) => { const m = Date.parse(t); return m ? new Date(m).toLocaleString('zh-TW', { hour12: false }) : ''; };
-  box.innerHTML = rows.length ? '<div class="hint" style="margin-bottom:4px">共 ' + rows.length + ' 筆(有效 ' + act.length + ' 筆、' + new Set(act.map((x) => x.b.voter + '|' + x.b.track)).size + ' 位投票者)</div><div class="ct-tw" style="max-height:420px"><table><thead><tr><th>時間</th><th>賽道</th><th>投票者</th><th>投給</th><th>類型</th><th>狀態</th></tr></thead><tbody>' + rows.map((x) => '<tr' + (x.b.active ? '' : ' style="opacity:.5"') + '><td>' + ctEsc_(fmt(x.b.time)) + '</td><td>' + ctEsc_(tn[x.b.track] || x.b.track) + '</td><td>' + ctEsc_(x.b.voterName) + '<div class="hint">' + ctEsc_(x.b.voter) + '</div></td><td>' + ctEsc_(x.w.name || x.b.work) + '<div class="hint">' + ctEsc_(x.w.user || '') + '</div></td><td>' + (x.b.type === 'excellent' ? '⭐優異' : '支持') + '</td><td>' + (x.b.active ? '有效' : '已撤回') + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">沒有投票紀錄</div>';
+  box.innerHTML = rows.length ? '<div class="hint" style="margin-bottom:4px">共 ' + rows.length + ' 筆(有效 ' + act.length + ' 筆、' + new Set(act.map((x) => x.b.voter + '|' + x.b.track)).size + ' 位投票者)</div><div class="ct-tw" style="max-height:420px"><table><thead><tr><th>時間</th><th>賽道</th><th>投票者</th><th>投給</th><th>類型</th><th>狀態</th></tr></thead><tbody>' + rows.map((x) => '<tr' + (x.b.active ? '' : ' style="opacity:.5"') + '><td>' + ctEsc_(fmt(x.b.time)) + '</td><td>' + ctEsc_(tn[x.b.track] || x.b.track) + '</td><td>' + ctEsc_(x.b.voterName) + '<div class="hint">' + ctEsc_(x.b.voter) + '</div></td><td>' + ctEsc_(x.w.name || x.b.work) + '<div class="hint">' + ctEsc_(x.w.user || '') + '</div></td><td>' + (x.b.type === 'excellent' ? '⭐優異' : '支持') + '</td><td>' + (x.b.active ? '有效' : x.b.orphan ? '作品已刪除(已退票)' : '已撤回') + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">沒有投票紀錄</div>';
 }
 async function ctAdmSaveTracks() {
   const rows = Array.from(document.querySelectorAll('#ct-adm-tracks .ct-trow')).map((r) => ({ id: r.dataset.id, name: r.querySelector('.ct-name').value.trim(), round: r.querySelector('.ct-round').value, status: r.querySelector('.ct-status').value, start: r.querySelector('.ct-start').value ? new Date(r.querySelector('.ct-start').value).toISOString() : '', end: r.querySelector('.ct-end').value ? new Date(r.querySelector('.ct-end').value).toISOString() : '' })).filter((t) => t.name);
