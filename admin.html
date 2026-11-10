@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.91</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.92</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1841,7 +1841,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal" style="max-width:760px">
     <div class="modal-header"><h3>📝 資訊卡片(非兌換用的文字卡)</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
     <div class="form-grid">
-      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>。</span></div>
+      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>寬度</b>:1/6~6/6(共 6 格,6/6=整行、3/6=半行、2/6=一行放 3 張)。相鄰的小卡會排在同一行;合併的卡片以第一張的寬度為準;手機上窄卡會自動變成半行/整行。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>。</span></div>
       <div class="field full"><div id="ic-rows"></div>
         <button class="btn" onclick="icAddRow_()" style="margin-top:6px">➕ 新增卡片</button>
         <button class="btn" onclick="icMerge_(true)" style="margin-top:6px">🔗 合併已勾選</button>
@@ -3599,6 +3599,7 @@ function icAddRow_(c) {
   d.innerHTML = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-sel">選取</label>'
     + '<input class="ic-cat" list="sc-list" placeholder="分類(空=全部)" style="width:150px" value="' + icEsc_(c.category) + '"> '
     + '<input class="ic-title" placeholder="標題" style="flex:1;min-width:140px" value="' + icEsc_(c.title) + '"> '
+    + '<span class="hint">寬度</span><select class="ic-size" title="卡片寬度:共 6 格,6=整行(1/6 最小,3/6=半行,2/6=一行放 3 張)">' + [1,2,3,4,5,6].map(n => '<option value="' + n + '"' + (n === (parseInt(c.size, 10) || 6) ? ' selected' : '') + '>' + n + '/6' + (n === 6 ? '(整行)' : n === 3 ? '(半行)' : n === 2 ? '(1/3行)' : '') + '</option>').join('') + '</select> '
     + '<span class="hint">排序</span><input class="ic-order" type="number" style="width:70px" value="' + (c.order || '') + '"> '
     + '<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-show"' + (c.show === false ? '' : ' checked') + '>顯示</label> '
     + '<span class="ic-grp hint"></span><input type="hidden" class="ic-group" value="' + icEsc_(c.group) + '">'
@@ -3634,7 +3635,7 @@ async function saveInfoCards() {
   const btn = document.getElementById('ic-save-btn');
   const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
   try {
-    const cards = Array.from(document.querySelectorAll('#ic-rows .ic-row')).map((r, i) => ({ id: r.dataset.id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || (i + 1), group: r.querySelector('.ic-group').value, show: r.querySelector('.ic-show').checked }));
+    const cards = Array.from(document.querySelectorAll('#ic-rows .ic-row')).map((r, i) => ({ id: r.dataset.id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || (i + 1), group: r.querySelector('.ic-group').value, size: r.querySelector('.ic-size').value, show: r.querySelector('.ic-show').checked }));
     const d = await apiCraftWrite_('adminInfoCardsSave', { cards });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('infocard-modal');

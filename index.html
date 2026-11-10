@@ -77,7 +77,9 @@
     .shop-input { padding: 8px 12px; border-radius: 5px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 14px; outline: none; }
     
     /* 🌟 商品網格卡片 */
-    .info-card { grid-column: 1 / -1; background: #2B2D31; border: 1px solid #3F4147; border-left: 4px solid #5865F2; border-radius: 10px; padding: 14px 16px; color: #DBDEE1; font-size: 14px; line-height: 1.6; }
+    .info-row { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 15px; }
+    @media (max-width: 700px) { .info-row .info-card { grid-column: span 6 !important; } .info-row .info-card.ic-s1, .info-row .info-card.ic-s2, .info-row .info-card.ic-s3 { grid-column: span 3 !important; } }
+    .info-card { background: #2B2D31; border: 1px solid #3F4147; border-left: 4px solid #5865F2; border-radius: 10px; padding: 14px 16px; color: #DBDEE1; font-size: 14px; line-height: 1.6; }
     .info-card .ic-title { font-weight: bold; font-size: 15px; color: #fff; margin-bottom: 6px; }
     .info-card .ic-sec + .ic-sec { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #4E5058; }
     .info-card b { color: #F0B232; }
@@ -861,7 +863,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.167</div>
+    <div class="version-tag">系統版本：v5.4.168</div>
   </div>
 
   <script>
@@ -923,7 +925,8 @@
         if (c.group) { if (gi[c.group] === undefined) { gi[c.group] = out.length; out.push([]); } out[gi[c.group]].push(c); }
         else out.push([c]);
       });
-      return out.map((g) => '<div class="info-card">' + g.map((c) => '<div class="ic-sec">' + (c.title ? '<div class="ic-title">' + esc(c.title) + '</div>' : '') + '<div>' + infoMd_(c.text) + '</div></div>').join('') + '</div>').join('');
+      if (!out.length) return '';
+      return '<div class="info-row">' + out.map((g) => { const sz = Math.min(6, Math.max(1, parseInt(g[0].size, 10) || 6)); return '<div class="info-card ic-s' + sz + '" style="grid-column:span ' + sz + '">' + g.map((c) => '<div class="ic-sec">' + (c.title ? '<div class="ic-title">' + esc(c.title) + '</div>' : '') + '<div>' + infoMd_(c.text) + '</div></div>').join('') + '</div>'; }).join('') + '</div>';
     }
     async function loadInfoCards_() {
       try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { renderShop(); } catch (e) {} } } catch (e) {}
