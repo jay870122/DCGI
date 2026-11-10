@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.86</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.87</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -397,7 +397,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="add-form" id="add-shop-form">
             <div class="fsep">基本資訊</div>
             <div class="field full">
-              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加[序號][非即時][留言:提示][隱藏][連結限定][測試][隱藏名稱]標籤;持有、單次上限、強平次數、已實現損益等條件請用下方「兌換條件」設定(不用手打標籤)</span></label>
+              <label>商品名稱<span style="color:var(--red)">*</span> <span class="hint">可加標籤:[序號][非即時][隱藏][連結限定][測試][隱藏名稱];盲盒中獎後讓玩家填留言用 <b>[留言:提示:字數:次數:修改期限]</b>(後三項可省略,例 [留言:收件信箱:100:3:2天]=字數100、最多改3次、2天內可改;預設200字/20次/不限時間);持有、單次上限、強平次數、已實現損益等條件請用下方「兌換條件」設定(不用手打標籤)</span></label>
               <input id="ns-name" type="text" placeholder="例：7日優越童話通行證" oninput="updateHiddenNamePreview('ns-name', 'ns-name-preview')">
               <div id="ns-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
             </div>
@@ -1283,7 +1283,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>✏️ 編輯商品</h3><button class="modal-close" onclick="closeModal('shop-modal')">×</button></div>
     <div class="modal-body">
       <div class="full field">
-        <label>商品名稱 <span class="hint">可加[序號][非即時][留言:提示][隱藏][連結限定][測試][隱藏名稱]標籤;持有、單次上限、強平次數、已實現損益等條件請用下方「兌換條件」設定(不用手打標籤)</span></label>
+        <label>商品名稱 <span class="hint">可加標籤:[序號][非即時][隱藏][連結限定][測試][隱藏名稱];盲盒中獎後讓玩家填留言用 <b>[留言:提示:字數:次數:修改期限]</b>(後三項可省略,例 [留言:收件信箱:100:3:2天]=字數100、最多改3次、2天內可改;預設200字/20次/不限時間);持有、單次上限、強平次數、已實現損益等條件請用下方「兌換條件」設定(不用手打標籤)</span></label>
         <input id="em-name" type="text" oninput="updateHiddenNamePreview('em-name', 'em-name-preview')">
         <div id="em-name-preview" style="display:none;margin-top:4px;font-size:12px;padding:6px 8px;background:#2F3136;border-radius:4px"></div>
       </div>
@@ -3820,6 +3820,12 @@ async function loadShopItems() {
 }
 
 let shopSort = { key: null, dir: 1 };
+// 狀態排序:要跟表格上實際顯示的標籤一致(草稿/已開獎/已公布結果 也算進去),順序=上架中→未開始→草稿→已結束/已開獎/已公布
+function shopStateRank_(i) {
+  if (i.status === 'DRAFT') return 2;
+  if ((i.isRaffle && i.raffleResult) || (i.isGambling && i.gamblingResult)) return 3.5;
+  const m = { available: 0, not_started: 1, ended: 3 }; return m[i.state] !== undefined ? m[i.state] : 4;
+}
 function sortShopBy(key) {
   if (shopSort.key === key) shopSort.dir *= -1; else { shopSort.key = key; shopSort.dir = 1; }
   renderShopTable();
@@ -3914,6 +3920,7 @@ function renderShopTable() {
       let va = a[k], vb = b[k];
       if (k === 'price') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
       else if (k === 'stock') { va = (va === '' || va === undefined) ? Infinity : parseFloat(va); vb = (vb === '' || vb === undefined) ? Infinity : parseFloat(vb); if (isNaN(va)) va = Infinity; if (isNaN(vb)) vb = Infinity; }
+      else if (k === 'state') { va = shopStateRank_(a); vb = shopStateRank_(b); }
       else { va = (va || '').toString().toLowerCase(); vb = (vb || '').toString().toLowerCase(); }
       if (va < vb) return -1 * dir;
       if (va > vb) return 1 * dir;
