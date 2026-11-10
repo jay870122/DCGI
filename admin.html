@@ -247,6 +247,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   .order-row{flex-wrap:wrap}
   .order-add-row{flex-direction:column}
 }
+    .ic-chk { display: flex !important; flex-direction: row !important; align-items: center; justify-content: flex-start !important; gap: 8px; cursor: pointer; width: auto !important; margin: 4px 0 0; }
+    .ic-chk input[type=checkbox] { width: auto !important; flex: none; margin: 0; }
 </style>
 </head>
 <body>
@@ -261,7 +263,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.114</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.115</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3771,7 +3773,9 @@ function icAddRow_(c) {
     + '<div class="field"><label>寬度 <span class="hint">共 6 格,6=整行</span></label><select class="ic-size">' + sizeOpts + '</select></div>'
     + '<div class="field"><label>排序 <span class="hint">同位置多張時,數字小的在前</span></label><input class="ic-order" type="number" value="' + (c.order || '') + '"></div>'
     + '<div class="field full"><label>合併群組 <span class="hint">相同代號的卡片會合成同一張卡(各自標題/內文上下排列);留空=單獨一張</span></label><input class="ic-group" list="ic-grp-list" placeholder="例:g1(不用合併就留空)" value="' + icEsc_(c.group) + '"></div>'
-    + '<div class="field full"><label>💬 留言 <span class="hint">勾選後,玩家可以在這張卡片下方公開留言/回覆(所有人看得到,管理員可刪除任何留言)</span></label><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" class="ic-cm-open"' + (c.cmOpen ? ' checked' : '') + '> 開放留言</label><label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin-top:4px"><input type="checkbox" class="ic-cm-aonly"' + (c.cmAdminOnly ? ' checked' : '') + '> 🔒 留言僅管理員可見 <span class="hint">玩家仍可留言,但只看得到自己的留言與管理員給他的回覆</span></label></div>'
+    + '<div class="field full"><label>💬 留言 <span class="hint">勾選後,玩家可以在這張卡片下方公開留言/回覆(所有人看得到,管理員可刪除任何留言)</span></label>'
+    + '<label class="ic-chk"><input type="checkbox" class="ic-cm-open"' + (c.cmOpen ? ' checked' : '') + '><span>開放留言</span></label>'
+    + '<label class="ic-chk"><input type="checkbox" class="ic-cm-aonly"' + (c.cmAdminOnly ? ' checked' : '') + '><span>🔒 留言僅管理員可見 <span class="hint">玩家仍可留言,但只看得到自己的留言與管理員給他的回覆</span></span></label></div>'
     + '<div class="field"><label>留言字數上限 <span class="hint">每則,10~1000</span></label><input class="ic-cm-max" type="number" min="10" max="1000" value="' + (parseInt(c.cmMax, 10) || 200) + '"></div>'
     + '<div class="field"><label>每人留言次數 <span class="hint">每張卡每人最多幾則;0=不限</span></label><input class="ic-cm-per" type="number" min="0" max="50" value="' + (c.cmPer === undefined || c.cmPer === null || c.cmPer === '' || isNaN(parseInt(c.cmPer, 10)) ? 5 : parseInt(c.cmPer, 10)) + '"></div>'
     + '<div class="field"><label>留言板自動刷新(秒) <span class="hint">玩家開著留言板時每幾秒更新一次;0=不自動刷新,最小 5</span></label><input class="ic-cm-refresh" type="number" min="0" max="300" value="' + (c.cmRefresh === undefined || c.cmRefresh === null || c.cmRefresh === '' || isNaN(parseInt(c.cmRefresh, 10)) ? 15 : parseInt(c.cmRefresh, 10)) + '"></div>'
