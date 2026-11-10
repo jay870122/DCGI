@@ -863,7 +863,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.170</div>
+    <div class="version-tag">系統版本：v5.4.171</div>
   </div>
 
   <script>
@@ -8537,6 +8537,28 @@ function cdTick_(){
   } catch(e) {}
 }
 setInterval(cdTick_, 1000);
+</script>
+
+<script>
+// 🔄 自動檢查新版本:GitHub Pages 的網頁會被 CDN/瀏覽器快取最多約 10 分鐘,重整後可能還是舊版。
+// 這裡每次開啟與每 5 分鐘都偷偷用 no-store 抓一次最新版頁面比對版本號,不一樣就自動換成新版(帶版本參數繞過快取)。
+(function () {
+  var RX = /系統版本：(v[\d.]+)/;
+  function cur() { try { return ((document.querySelector('.version-tag') || {}).textContent || '').match(/v[\d.]+/)[0]; } catch (e) { return ''; } }
+  async function check() {
+    try {
+      var me = cur(); if (!me) return;
+      var r = await fetch(location.pathname + '?_vc=' + Date.now(), { cache: 'no-store' });
+      var m = (await r.text()).match(RX); if (!m || m[1] === me) return;
+      var key = 'ver_reload_' + m[1], n = 0;
+      try { n = parseInt(sessionStorage.getItem(key) || '0', 10); } catch (e) {}
+      if (n >= 2) return; // 避免萬一繞不過快取時無限重新整理
+      try { sessionStorage.setItem(key, String(n + 1)); } catch (e) {}
+      var u = new URL(location.href); u.searchParams.set('v', m[1]); location.replace(u.toString());
+    } catch (e) {}
+  }
+  setTimeout(check, 1500); setInterval(check, 300000);
+})();
 </script>
 </body>
 </html>
