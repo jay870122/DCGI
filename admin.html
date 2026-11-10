@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.108</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.109</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3560,20 +3560,29 @@ async function saveCurExp() {
     function infoMd_(src) {
       const esc = (t) => (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       const okUrl = (u) => /^https?:\/\/[^\s"'<>]+$/i.test(u);
+      const carry = [];
       const inline = (t) => {
+        const pre = carry.map((e) => e.o).join('');
         t = esc(t);
         const keep = []; t = t.replace(/`([^`\n]+)`/g, (m, c) => { keep.push('<code style="background:#1E1F22;padding:1px 5px;border-radius:4px">' + c + '</code>'); return '\u0000' + (keep.length - 1) + '\u0000'; });
         t = t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)(?:\s+=(\d{2,4}))?\)/g, (m, alt, u, w) => okUrl(u) ? '<img src="' + u + '" alt="' + alt + '" loading="lazy" style="max-width:100%;' + (w ? 'width:' + Math.min(parseInt(w, 10), 1200) + 'px;' : '') + 'height:auto;border-radius:8px;display:block;margin:6px 0">' : m);
         t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m);
         t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/~~([^~\n]+)~~/g, '<s>$1</s>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
-        t = t.replace(/\[size=(\d{1,2})\]([\s\S]*?)\[\/size\]/g, (m, n, x) => '<span style="font-size:' + Math.max(10, Math.min(48, parseInt(n, 10))) + 'px">' + x + '</span>');
         t = t.replace(/\[特大\]([\s\S]*?)\[\/特大\]/g, '<span style="font-size:28px">$1</span>').replace(/\[大\]([\s\S]*?)\[\/大\]/g, '<span style="font-size:20px">$1</span>').replace(/\[小\]([\s\S]*?)\[\/小\]/g, '<span style="font-size:12px">$1</span>');
-        t = t.replace(/\[u\]([\s\S]*?)\[\/u\]/g, '<u>$1</u>');
-        t = t.replace(/\[font=(sans|kai|ming|mono)\]([\s\S]*?)\[\/font\]/g, (m, f, x) => '<span style="font-family:' + ({ sans: "'Microsoft JhengHei',sans-serif", kai: "DFKai-SB,BiauKai,'標楷體',serif", ming: "PMingLiU,'新細明體',serif", mono: 'Consolas,monospace' })[f] + '">' + x + '</span>');
-        t = t.replace(/\[(center|right|left)\]([\s\S]*?)\[\/\1\]/g, '<span style="display:block;text-align:$1">$2</span>');
-        t = t.replace(/\[color=(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})\]([\s\S]*?)\[\/color\]/g, '<span style="color:$1">$2</span>');
+        // 🌟 標籤用「堆疊」處理:可以巢狀、可以跨行(換行時自動關掉再重開),多餘的結尾標籤直接忽略,不會再出現 [/color] 跑出來
+        t = t.replace(/\[(\/)?(size|color|font|u|center|left|right)(?:=([^\]]*))?\]/g, (m, cl, nm, arg) => {
+          if (cl) { const i = carry.length - 1; if (i >= 0 && carry[i].nm === nm) { return carry.pop().c; } return ''; }
+          let op = '', c = '</span>';
+          if (nm === 'size') { if (!/^\d{1,2}$/.test(arg || '')) return m; op = '<span style="font-size:' + Math.max(10, Math.min(48, parseInt(arg, 10))) + 'px">'; }
+          else if (nm === 'color') { if (!/^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})$/.test(arg || '')) return m; op = '<span style="color:' + arg + '">'; }
+          else if (nm === 'font') { const fm = { sans: "'Microsoft JhengHei',sans-serif", kai: "DFKai-SB,BiauKai,'標楷體',serif", ming: "PMingLiU,'新細明體',serif", mono: 'Consolas,monospace' }; if (!fm[arg]) return m; op = '<span style="font-family:' + fm[arg] + '">'; }
+          else if (nm === 'u') { op = '<u>'; c = '</u>'; }
+          else { op = '<span style="display:block;text-align:' + nm + '">'; }
+          carry.push({ nm, o: op, c }); return op;
+        });
         t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
-        return t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
+        const rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
+        return pre + rs + carry.map((e) => e.c).reverse().join('');
       };
       const lines = (src || '').toString().replace(/\r/g, '').split('\n'), out = []; let list = null;
       const close = () => { if (list) { out.push('</' + list + '>'); list = null; } };
