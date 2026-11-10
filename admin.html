@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.128</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.129</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1226,6 +1226,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="ct-card">
           <div class="ct-h"><div><h3>🏁 賽道設定</h3><div class="hint">可設「投票開始/結束時間」自動切換(未開放→投票中→已截止);兩個時間都留空=只看「狀態」手動切。「已公布」永遠以手動為準。</div></div>
             <label class="ct-chk"><input type="checkbox" id="ct-testmode"> 🧪 測試模式<span class="hint">只有管理員看得到入口、也只有管理員能投票(測完記得取消)</span></label></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><label class="hint" style="font-size:13px">🔀 投票時作品順序</label><select id="ct-shuffle" style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px 8px"><option value="">固定(依作品編號)</option><option value="user">每位玩家各自隨機(同一人每次看到的順序一樣)</option><option value="visit">每次開啟頁面重新隨機</option></select><span class="hint">只在「投票中/已截止」時隨機;作品編號(#n)不變,「已公布」後依名次排列。要按「儲存賽道」才會生效</span></div>
           <div id="ct-adm-tracks"></div>
           <div class="ct-act"><button class="btn btn-edit" onclick="ctAdmAddTrack()">➕ 新增賽道</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveTracks()">💾 儲存賽道</button></div>
         </div>
@@ -3646,6 +3647,7 @@ function ctAdmRender_() {
   const d = ctAdm_; if (!d) return;
   document.getElementById('ct-adm-tracks').innerHTML = d.tracks.map(ctAdmTrackRow_).join('');
   document.getElementById('ct-testmode').checked = !!d.testMode;
+  document.getElementById('ct-shuffle').value = d.shuffle || '';
   const sel = document.getElementById('ctw-track'), cur = sel.value;
   sel.innerHTML = d.tracks.map((t) => '<option value="' + ctEsc_(t.id) + '">' + ctEsc_(t.name) + '</option>').join(''); if (cur) sel.value = cur;
   const byT = {}; d.works.forEach((w) => { (byT[w.track] = byT[w.track] || []).push(w); });
@@ -3699,7 +3701,7 @@ function ctAdmRenderBallots_() {
 }
 async function ctAdmSaveTracks() {
   const rows = Array.from(document.querySelectorAll('#ct-adm-tracks .ct-trow')).map((r) => ({ id: r.dataset.id, name: r.querySelector('.ct-name').value.trim(), round: r.querySelector('.ct-round').value, status: r.querySelector('.ct-status').value, start: r.querySelector('.ct-start').value ? new Date(r.querySelector('.ct-start').value).toISOString() : '', end: r.querySelector('.ct-end').value ? new Date(r.querySelector('.ct-end').value).toISOString() : '' })).filter((t) => t.name);
-  const d = await apiCraftWrite_('adminContestSaveTracks', { tracks: rows, testMode: document.getElementById('ct-testmode').checked });
+  const d = await apiCraftWrite_('adminContestSaveTracks', { tracks: rows, testMode: document.getElementById('ct-testmode').checked, shuffle: document.getElementById('ct-shuffle').value });
   if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   toast(d.message); loadContestAdmin();
 }

@@ -925,7 +925,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.189</div>
+    <div class="version-tag">系統版本：v5.4.190</div>
   </div>
 
   <script>
@@ -4876,14 +4876,16 @@
     async function checkContestAvailability_() {
       try { const d = await chamberCall_('contestStateWorker'); if (d && d.status === 'success' && (d.tracks || []).length) { contestAvailable = true; renderSidebar(); } } catch (e) {}
     }
+    let ctSeed_ = Math.random().toString(36).slice(2, 10);
     async function openContest() {
+      ctSeed_ = Math.random().toString(36).slice(2, 10);
       document.getElementById('contest-modal').style.display = 'flex';
       document.getElementById('ct-works').innerHTML = '<div style="color:#949BA4">載入中…</div>';
       await loadContest_(true);
     }
     function closeContest() { document.getElementById('contest-modal').style.display = 'none'; }
     async function loadContest_(first) {
-      const d = await chamberCall_('contestStateWorker');
+      const d = await chamberCall_('contestStateWorker', { seed: ctSeed_ });
       if (!d || d.status !== 'success') { document.getElementById('ct-works').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
       ctState_ = d;
       if (!ctTrack_ || !d.tracks.some((t) => t.id === ctTrack_)) ctTrack_ = d.tracks.length ? d.tracks[0].id : null;
@@ -4907,7 +4909,7 @@
       if (!t) { document.getElementById('ct-info').textContent = ''; document.getElementById('ct-works').innerHTML = '<div style="color:#949BA4">目前沒有開放的賽道</div>'; return; }
       const open = t.status === '投票中', pub = t.status === '已公布';
       const fmtT = (iso) => { const x = iso ? new Date(iso) : null; return x && !isNaN(x) ? (x.getMonth() + 1) + '/' + x.getDate() + ' ' + String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0') : ''; };
-      document.getElementById('ct-info').innerHTML = (d.testMode ? '<div style="color:#FEE75C">🧪 測試模式:只有管理員看得到這個頁面</div>' : '') + '第 ' + t.round + ' 輪 · ' + E(t.name) + '(共 ' + t.works.length + ' 件作品)' + ((t.start || t.end) ? ' · 投票 ' + (fmtT(t.start) || '—') + ' ~ ' + (fmtT(t.end) || '—') : '')
+      document.getElementById('ct-info').innerHTML = (d.testMode ? '<div style="color:#FEE75C">🧪 測試模式:只有管理員看得到這個頁面</div>' : '') + '第 ' + t.round + ' 輪 · ' + E(t.name) + '(共 ' + t.works.length + ' 件作品)' + ((t.start || t.end) ? ' · 投票 ' + (fmtT(t.start) || '—') + ' ~ ' + (fmtT(t.end) || '—') : '') + (d.shuffle && !pub ? ' · 🔀 作品順序為隨機排列' : '')
         + (open ? '<br>🗳️ 你的票:支持票 <b style="color:#fff">' + t.used.support + ' / ' + t.limits.support + '</b>、⭐ 優異票(計 2 票)<b style="color:#fff">' + t.used.excellent + ' / ' + t.limits.excellent + '</b>。不可投自己的作品,投票期間可隨時收回改投。'
           + (d.prophetReward ? '<div style="margin-top:8px;background:rgba(240,178,50,.10);border:1px solid rgba(240,178,50,.45);border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.7;color:#DBDEE1">⭐ <b style="color:#F0B232">優異票 = 2 票</b>(支持票 = 1 票)<br>🔮 <b style="color:#F0B232">投票神預測</b>:你的優異票若投給該賽道最後獲得「優異獎」的作品(最高票,或前 10% 名額),賽道結算後可獲得 <b style="color:#fff">' + d.prophetReward.exch + ' ' + E(d.prophetReward.names[0]) + ' + ' + d.prophetReward.lottery + ' ' + E(d.prophetReward.names[1]) + '</b>' + '</div>' : '')
           : pub ? '🏆 成績已公布' : t.status === '已截止' ? '⏹️ 投票已截止,等待公布成績' : '尚未開放投票');
