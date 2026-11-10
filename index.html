@@ -863,7 +863,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.171</div>
+    <div class="version-tag">系統版本：v5.4.172</div>
   </div>
 
   <script>
@@ -920,9 +920,10 @@
       });
       close(); return out.join('');
     }
-    function infoCardsHtml_() {
+    // sel: 不給=置頂的卡(沒設位置);數字 k=排在第 k 個商品前的卡;(k,true)=位置>=k 的卡;'all'=全部
+    function infoCardsHtml_(sel, orMore) {
       const esc = (t) => (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const list = (infoCards_ || []).filter((c) => !c.category || c.category === currentCategory);
+      const list = (infoCards_ || []).filter((c) => (!c.category || c.category === currentCategory) && (sel === 'all' ? true : sel === undefined ? (c.pos === null || c.pos === undefined) : (c.pos !== null && c.pos !== undefined && (orMore ? c.pos >= sel : c.pos === sel))));
       const out = [], gi = {};
       list.forEach((c) => {
         if (c.group) { if (gi[c.group] === undefined) { gi[c.group] = out.length; out.push([]); } out[gi[c.group]].push(c); }
@@ -6783,12 +6784,14 @@ function fetchScoresAndShop(discordId, callback = null) {
       container.innerHTML = "";
       const infoHtml_ = infoCardsHtml_();
       if (displayItems.length === 0) {
-        container.innerHTML = infoHtml_ + (infoHtml_ ? "" : "<div style='color:#B9BBBE; padding: 20px;'>此分類目前無商品</div>");
+        const infoAll_ = infoCardsHtml_('all');
+        container.innerHTML = infoAll_ + (infoAll_ ? "" : "<div style='color:#B9BBBE; padding: 20px;'>此分類目前無商品</div>");
         return;
       }
 
       let allCardsHtml = '';
-      displayItems.forEach((item) => {
+      displayItems.forEach((item, itemIdx_) => {
+        allCardsHtml += infoCardsHtml_(itemIdx_); // 排在這個商品前面的資訊卡
         const isAvail = item.state === "available";
         const badgeClass = isAvail ? "badge-avail" : "badge-unavail";
         const safeId = "item-" + item.id; 
@@ -7112,6 +7115,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         allCardsHtml += html;
       });
 
+      allCardsHtml += infoCardsHtml_(displayItems.length, true); // 排在最後(位置>=商品數)的資訊卡
       // 🌟 分類是「模糊顯示」且還沒解鎖:整批商品卡片包一層模糊遮罩,上方顯示解鎖按鈕橫幅
       if (isCatBlurLocked) {
         const catHintText = catLockSampleForHint && catLockSampleForHint.categoryLockHintText;

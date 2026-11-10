@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.99</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.100</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1842,7 +1842,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal" style="max-width:760px">
     <div class="modal-header"><h3>📝 資訊卡片(非兌換用的文字卡)</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
     <div class="form-grid">
-      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>寬度</b>:1/6~6/6(共 6 格,6/6=整行、3/6=半行、2/6=一行放 3 張)。相鄰的小卡會排在同一行;合併的卡片以第一張的寬度為準;手機上窄卡會自動變成半行/整行。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>、<code>[u]底線[/u]</code>、<code>[font=kai]標楷體[/font]</code>(sans/kai/ming/mono)、<code>[center]置中[/center]</code>(left/right)。<br>· <b>編輯工具列</b>:每張卡的內文框上方有字體、大小、粗體/斜體/底線/刪除線、顏色、對齊、表情、圖片、連結、標題、清單、引用、程式碼、分隔線按鈕,<b>預設就是所見即所得</b>:直接在「✏️」區塊裡打字、貼圖、選取文字後按按鈕套用格式(跟前台顯示一模一樣);要看或手改原始碼,勾選「&lt;/&gt; 顯示程式碼」,兩邊會同步。</span></div>
+      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>寬度</b>:1/6~6/6(共 6 格,6/6=整行、3/6=半行、2/6=一行放 3 張)。相鄰的小卡會排在同一行;合併的卡片以第一張的寬度為準;手機上窄卡會自動變成半行/整行。<br>· <b>位置</b>:預設排在商品卡片最上方。想把卡片夾在商品中間,到「商品管理 → 選一個分類 → 🔀 排序模式」,卡片會跟商品一起列出來,拖曳或按 ▲▼ 就能調整(只有「分類」欄有填的卡片會出現;分類留空的卡片固定在最上方)。<br>· <b>排序</b>:同一個位置有多張卡時,數字小的在前面。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>、<code>[u]底線[/u]</code>、<code>[font=kai]標楷體[/font]</code>(sans/kai/ming/mono)、<code>[center]置中[/center]</code>(left/right)。<br>· <b>編輯工具列</b>:每張卡的內文框上方有字體、大小、粗體/斜體/底線/刪除線、顏色、對齊、表情、圖片、連結、標題、清單、引用、程式碼、分隔線按鈕,<b>預設就是所見即所得</b>:直接在「✏️」區塊裡打字、貼圖、選取文字後按按鈕套用格式(跟前台顯示一模一樣);要看或手改原始碼,勾選「&lt;/&gt; 顯示程式碼」,兩邊會同步。</span></div>
       <div class="field full"><div id="ic-rows"></div>
         <button class="btn" onclick="icAddRow_()" style="margin-top:6px">➕ 新增卡片</button>
         <button class="btn" onclick="icMerge_(true)" style="margin-top:6px">🔗 合併已勾選</button>
@@ -3725,7 +3725,7 @@ function icEsc_(t) { return (t || '').toString().replace(/&/g, '&amp;').replace(
 function icAddRow_(c) {
   c = c || {};
   const d = document.createElement('div');
-  d.className = 'ic-row'; d.dataset.id = c.id || '';
+  d.className = 'ic-row'; d.dataset.id = c.id || ''; d.dataset.pos = (c.pos === null || c.pos === undefined) ? '' : c.pos;
   d.style.cssText = 'border:1px solid #3F4147;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px';
   d.innerHTML = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-sel">選取</label>'
     + '<input class="ic-cat" list="sc-list" placeholder="分類(空=全部)" style="width:150px" value="' + icEsc_(c.category) + '"> '
@@ -3769,7 +3769,7 @@ async function saveInfoCards() {
   const btn = document.getElementById('ic-save-btn');
   const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
   try {
-    const cards = Array.from(document.querySelectorAll('#ic-rows .ic-row')).map((r, i) => ({ id: r.dataset.id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || (i + 1), group: r.querySelector('.ic-group').value, size: r.querySelector('.ic-size').value, show: r.querySelector('.ic-show').checked }));
+    const cards = Array.from(document.querySelectorAll('#ic-rows .ic-row')).map((r, i) => ({ id: r.dataset.id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || (i + 1), group: r.querySelector('.ic-group').value, pos: r.dataset.pos === '' ? null : parseInt(r.dataset.pos, 10), size: r.querySelector('.ic-size').value, show: r.querySelector('.ic-show').checked }));
     const d = await apiCraftWrite_('adminInfoCardsSave', { cards });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('infocard-modal');
@@ -4095,12 +4095,26 @@ function updateSortArrows(prefix, sortState) {
 // 🌟 商品排序模式:直接在商品管理列表裡用 ▲▼ 調整同分類商品的顯示順序,不用再跳去「排序設定」頁面
 let shopReorderMode = false;
 let shopReorderList = [];
-function toggleShopReorderMode() {
+let icAll_ = [];
+// 排序清單 = 該分類商品 + 該分類的資訊卡片(卡片位置 = 排在第 N 個商品前)
+function buildShopReorderList_(cat) {
+  const items = shopItems.filter(i => i.category === cat && !i.archived).slice()
+    .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
+  const cards = (icAll_ || []).filter(c => (c.category || '') === cat).map(c => Object.assign({ _card: true }, c, { pos: (c.pos === null || c.pos === undefined) ? 0 : c.pos }))
+    .sort((a, b) => a.pos - b.pos || (a.order || 0) - (b.order || 0));
+  const out = []; let ci = 0;
+  for (let k = 0; k <= items.length; k++) {
+    while (ci < cards.length && (cards[ci].pos === k || (k === items.length && cards[ci].pos >= k))) out.push(cards[ci++]);
+    if (k < items.length) out.push(items[k]);
+  }
+  return out;
+}
+async function toggleShopReorderMode() {
   if (!shopReorderMode) {
     const cat = document.getElementById('shop-cat-filter').value;
     if (!cat) { toast('請先在上面選一個分類,才能排序(排序只能對同一分類內的商品進行)', false); return; }
-    shopReorderList = shopItems.filter(i => i.category === cat && !i.archived).slice()
-      .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
+    try { const ic = await stockAdminCall_('adminInfoCardsListWorker'); icAll_ = (ic && ic.status === 'success') ? (ic.cards || []) : []; } catch (e) { icAll_ = []; }
+    shopReorderList = buildShopReorderList_(cat);
     shopReorderMode = true;
   } else {
     shopReorderMode = false;
@@ -4121,16 +4135,25 @@ function moveShopReorderRow(idx, dir) {
 }
 async function saveShopReorderInline() {
   if (shopReorderList.length === 0) { toast('這個分類沒有商品可以排序', false); return; }
-  const items = shopReorderList.map((i, idx) => ({ itemId: i.itemId, sortOrder: idx + 1 }));
-  const d = await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) });
-  if (d.status === 'success') {
-    toast('✅ ' + d.message);
-    await loadShopItems();
-    const cat = document.getElementById('shop-cat-filter').value;
-    shopReorderList = shopItems.filter(i => i.category === cat && !i.archived).slice()
-      .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
-    renderShopTable();
-  } else toast('❌ ' + d.message, false);
+  const real = shopReorderList.filter(i => !i._card);
+  const items = real.map((i, idx) => ({ itemId: i.itemId, sortOrder: idx + 1 }));
+  const d = real.length ? await api({ action: 'adminReorderShopItems', items: JSON.stringify(items) }) : { status: 'success', message: '' };
+  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
+  // 資訊卡片:位置 = 前面有幾個商品;同一個「合併群組」的卡片一起用第一張的位置
+  const posById = {}, grpPos = {}; let before = 0;
+  shopReorderList.forEach(i => { if (i._card) { if (i.group && grpPos[i.group] !== undefined) posById[i.id] = grpPos[i.group]; else { posById[i.id] = before; if (i.group) grpPos[i.group] = before; } } else before++; });
+  const cardsChanged = shopReorderList.some(i => i._card);
+  if (cardsChanged) {
+    const allCards = icAll_.map(c => (posById[c.id] !== undefined) ? Object.assign({}, c, { pos: posById[c.id] }) : c);
+    const cr = await apiCraftWrite_('adminInfoCardsSave', { cards: allCards });
+    if (!cr || cr.status !== 'success') { toast('❌ 商品順序已存,但資訊卡片位置儲存失敗:' + ((cr && cr.message) || ''), false); return; }
+  }
+  toast('✅ ' + (d.message || '已儲存順序'));
+  await loadShopItems();
+  const cat = document.getElementById('shop-cat-filter').value;
+  try { const ic = await stockAdminCall_('adminInfoCardsListWorker'); icAll_ = (ic && ic.status === 'success') ? (ic.cards || []) : icAll_; } catch (e) {}
+  shopReorderList = buildShopReorderList_(cat);
+  renderShopTable();
 }
 
 function renderShopTable() {
@@ -4145,13 +4168,13 @@ function renderShopTable() {
           <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
           <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},1)" ${idx===shopReorderList.length-1?'disabled':''}>▼</button>
         </div></td>
-        <td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</td>
+        ${i._card ? `<td class="cell-name" colspan="3" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${i.group ? '(合併組)' : ''}</span>${(i.title || (i.text || '').slice(0, 24) || '(無標題)').replace(/</g, '&lt;')}</td><td></td><td></td><td></td><td></td>` : `<td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</td>
         <td data-label="分類">${i.category||'—'}</td>
         <td data-label="價格">${i.price}</td>
         <td data-label="庫存">${i.stock||'無限'}</td>
         <td></td>
         <td class="cell-id" data-label="ID">${i.itemId||'—'}</td>
-        <td></td>
+        <td></td>`}
       </tr>`).join('');
     enableDragReorder(document.getElementById('shop-tbody'), '.drag-row', (from, to) => {
       const [moved] = shopReorderList.splice(from, 1);
