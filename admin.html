@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.102</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.103</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -315,7 +315,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <option value="ARCHIVED">📦 封存區</option>
             </select>
             <button class="btn btn-edit" id="shop-refresh-btn" onclick="refreshShopList_()">🔄 重新整理</button>
-            <button class="btn btn-edit" onclick="openInfoCards()">📝 資訊卡片</button>
             <button class="btn btn-edit" id="shop-reorder-toggle" onclick="toggleShopReorderMode()">🔀 排序模式</button>
             <button class="btn-save" id="shop-reorder-save" style="display:none" onclick="saveShopReorderInline()">💾 儲存順序</button>
             <span style="position:relative;display:inline-block"><button class="fab" onclick="toggleAddMenu_(event)">➕ 新增 ▾</button>
@@ -1843,21 +1842,17 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   </div>
 </div>
 <div class="overlay" id="infocard-modal">
-  <div class="modal" style="max-width:760px">
-    <div class="modal-header"><h3>📝 資訊卡片(非兌換用的文字卡)</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
-    <div class="form-grid">
-      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>寬度</b>:1/6~6/6(共 6 格,6/6=整行、3/6=半行、2/6=一行放 3 張)。相鄰的小卡會排在同一行;合併的卡片以第一張的寬度為準;手機上窄卡會自動變成半行/整行。<br>· <b>位置</b>:預設排在商品卡片最上方。想把卡片夾在商品中間,到「商品管理 → 選一個分類 → 🔀 排序模式」,卡片會跟商品一起列出來,拖曳或按 ▲▼ 就能調整(只有「分類」欄有填的卡片會出現;分類留空的卡片固定在最上方)。<br>· <b>排序</b>:同一個位置有多張卡時,數字小的在前面。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>、<code>[u]底線[/u]</code>、<code>[font=kai]標楷體[/font]</code>(sans/kai/ming/mono)、<code>[center]置中[/center]</code>(left/right)。<br>· <b>編輯工具列</b>:每張卡的內文框上方有字體、大小、粗體/斜體/底線/刪除線、顏色、對齊、表情、圖片、連結、標題、清單、引用、程式碼、分隔線按鈕,<b>預設就是所見即所得</b>:直接在「✏️」區塊裡打字、貼圖、選取文字後按按鈕套用格式(跟前台顯示一模一樣);要看或手改原始碼,勾選「&lt;/&gt; 顯示程式碼」,兩邊會同步。</span></div>
-      <div class="field full"><div id="ic-rows"></div>
-        <button class="btn" onclick="icAddRow_()" style="margin-top:6px">➕ 新增卡片</button>
-        <button class="btn" onclick="icMerge_(true)" style="margin-top:6px">🔗 合併已勾選</button>
-        <button class="btn" onclick="icMerge_(false)" style="margin-top:6px">✂️ 拆開已勾選</button></div>
-    </div>
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header"><h3 id="ic-modal-title">📝 編輯資訊卡片</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
+    <div class="form-grid" id="ic-rows"></div>
     <div class="modal-footer">
+      <button class="btn btn-del" id="ic-del-btn" onclick="deleteInfoCardFromModal_()" style="margin-right:auto;display:none">🗑️ 刪除此卡片</button>
       <button class="btn" onclick="closeModal('infocard-modal')">取消</button>
       <button class="btn-save" id="ic-save-btn" onclick="saveInfoCards()">💾 儲存</button>
     </div>
   </div>
 </div>
+<datalist id="ic-grp-list"></datalist>
 <div class="overlay" id="curexp-modal">
   <div class="modal" style="max-width:620px">
     <div class="modal-header"><h3>⏳ 貨幣有效期(過期制度)</h3><button class="modal-close" onclick="closeModal('curexp-modal')">×</button></div>
@@ -3750,26 +3745,32 @@ function icAddRow_(c) {
   c = c || {};
   const d = document.createElement('div');
   d.className = 'ic-row'; d.dataset.id = c.id || ''; d.dataset.pos = (c.pos === null || c.pos === undefined) ? '' : c.pos;
-  d.style.cssText = 'border:1px solid #3F4147;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px';
-  d.innerHTML = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-sel">選取</label>'
-    + '<input class="ic-cat" list="sc-list" placeholder="分類(空=全部)" style="width:150px" value="' + icEsc_(c.category) + '"> '
-    + '<input class="ic-title" placeholder="標題" style="flex:1;min-width:140px" value="' + icEsc_(c.title) + '"> '
-    + '<span class="hint">寬度</span><select class="ic-size" title="卡片寬度:共 6 格,6=整行(1/6 最小,3/6=半行,2/6=一行放 3 張)">' + [1,2,3,4,5,6].map(n => '<option value="' + n + '"' + (n === (parseInt(c.size, 10) || 6) ? ' selected' : '') + '>' + n + '/6' + (n === 6 ? '(整行)' : n === 3 ? '(半行)' : n === 2 ? '(1/3行)' : '') + '</option>').join('') + '</select> '
-    + '<span class="hint">排序</span><input class="ic-order" type="number" style="width:70px" value="' + (c.order || '') + '"> '
-    + '<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-show"' + (c.show === false ? '' : ' checked') + '>顯示</label> '
-    + '<span class="ic-grp hint"></span><input type="hidden" class="ic-group" value="' + icEsc_(c.group) + '">'
-    + '<button class="btn btn-del" onclick="this.closest(\'.ic-row\').remove()">刪除</button></div>'
+  d.style.display = 'contents'; // 讓底下的欄位直接排進 .form-grid,跟商品編輯視窗一樣
+  const sizeOpts = [1,2,3,4,5,6].map(n => '<option value="' + n + '"' + (n === (parseInt(c.size, 10) || 6) ? ' selected' : '') + '>' + n + '/6' + (n === 6 ? '(整行)' : n === 3 ? '(半行)' : n === 2 ? '(1/3 行)' : '') + '</option>').join('');
+  d.innerHTML = '<div class="field full"><label>標題 <span class="hint">選填,顯示在卡片最上面</span></label><input class="ic-title" placeholder="例:活動說明" value="' + icEsc_(c.title) + '"></div>'
+    + '<div class="field"><label>分類 <span class="hint">留空=每個分類都顯示</span></label><input class="ic-cat" list="sc-list" value="' + icEsc_(c.category) + '"></div>'
+    + '<div class="field"><label>狀態</label><select class="ic-show"><option value="true"' + (c.show === false ? '' : ' selected') + '>🟢 顯示</option><option value="false"' + (c.show === false ? ' selected' : '') + '>🙈 隱藏(玩家看不到)</option></select></div>'
+    + '<div class="field"><label>寬度 <span class="hint">共 6 格,6=整行</span></label><select class="ic-size">' + sizeOpts + '</select></div>'
+    + '<div class="field"><label>排序 <span class="hint">同位置多張時,數字小的在前</span></label><input class="ic-order" type="number" value="' + (c.order || '') + '"></div>'
+    + '<div class="field full"><label>合併群組 <span class="hint">相同代號的卡片會合成同一張卡(各自標題/內文上下排列);留空=單獨一張</span></label><input class="ic-group" list="ic-grp-list" placeholder="例:g1(不用合併就留空)" value="' + icEsc_(c.group) + '"></div>'
+    + '<div class="field full"><label>內文 <span class="hint">所見即所得,直接在下方編輯;要手改 Markdown 原始碼就勾選「顯示程式碼」</span></label>'
     + IC_TB_HTML_
-    + '<label style="display:flex;gap:4px;align-items:center" class="hint"><input type="checkbox" class="ic-code-toggle">&lt;/&gt; 顯示程式碼(Markdown 原始碼)</label>'
-    + '<textarea class="ic-text" rows="5" placeholder="Markdown 原始碼" style="width:100%;display:none;font-family:Consolas,monospace">' + icEsc_(c.text) + '</textarea>'
-    + '<div class="hint">✏️ 直接在下面編輯(就是前台實際顯示的樣子,選取文字後用上方工具列套用格式)</div><div class="ic-prev" contenteditable="true" spellcheck="false" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:70px;outline:none"></div>';
+    + '<label style="display:flex;gap:4px;align-items:center;margin:6px 0 4px" class="hint"><input type="checkbox" class="ic-code-toggle">&lt;/&gt; 顯示程式碼(Markdown 原始碼)</label>'
+    + '<textarea class="ic-text" rows="6" placeholder="Markdown 原始碼" style="width:100%;display:none;font-family:Consolas,monospace">' + icEsc_(c.text) + '</textarea>'
+    + '<div class="ic-prev" contenteditable="true" spellcheck="false" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:120px;outline:none;margin-top:4px"></div></div>'
+    + '<div class="field full"><details><summary class="hint" style="cursor:pointer">ℹ️ 語法說明(點開)</summary><div class="hint" style="line-height:1.7;margin-top:6px">'
+    + '· <b>Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code> <code>[文字](網址)</code><br>'
+    + '· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,指定寬度加 <code>=300</code><br>'
+    + '· <b>大小/顏色</b>:<code>[size=24]大字[/size]</code>(10~48)、<code>[color=#ff0000]紅字[/color]</code>、<code>[u]底線[/u]</code>、<code>[font=kai]標楷體[/font]</code>、<code>[center]置中[/center]</code><br>'
+    + '· <b>位置</b>:預設排在商品最上方;想夾在商品中間,到「商品管理 → 選分類 → 🔀 排序模式」拖曳。分類留空的卡片固定在最上方。'
+    + '</div></details></div>';
   d.addEventListener('input', (ev) => icOnInput_(d, ev));
   d.addEventListener('change', (ev) => { if (ev.target.classList.contains('ic-code-toggle')) icToggleCode_(d); });
   document.getElementById('ic-rows').appendChild(d);
   icRenderWys_(d);
-  icRefreshGroups_();
 }
-function icRefreshGroups_() {
+function icRefreshGroups_() { return; // 舊版多列管理用,已改成單張編輯
+  
   const rows = Array.from(document.querySelectorAll('#ic-rows .ic-row')), cnt = {};
   rows.forEach(r => { const g = r.querySelector('.ic-group').value; if (g) cnt[g] = (cnt[g] || 0) + 1; });
   rows.forEach(r => { const g = r.querySelector('.ic-group').value; r.querySelector('.ic-grp').textContent = g ? '🔗 合併組(' + cnt[g] + '張)' : ''; r.style.borderColor = g ? '#5865F2' : '#3F4147'; });
@@ -3796,24 +3797,37 @@ async function deleteInfoCard_(id) {
 async function openInfoCards(focusId, newCard) {
   const d = await stockAdminCall_('adminInfoCardsListWorker');
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  icAll_ = d.cards || [];
+  const gl = document.getElementById('ic-grp-list'); if (gl) gl.innerHTML = Array.from(new Set(icAll_.map(x => x.group).filter(Boolean))).map(g => '<option value="' + icEsc_(g) + '">').join('');
   document.getElementById('ic-rows').innerHTML = '';
-  (d.cards || []).forEach(icAddRow_);
-  if (newCard) icAddRow_({ category: (document.getElementById('shop-cat-filter') || {}).value || '', show: true, size: 6, order: (d.cards || []).length + 1 });
+  let card;
+  if (newCard) card = { category: (document.getElementById('shop-cat-filter') || {}).value || '', show: true, size: 6, order: icAll_.length + 1 };
+  else card = icAll_.find(x => x.id === focusId);
+  if (!card) { toast('找不到這張資訊卡片,請重新整理後再試', false); return; }
+  icAddRow_(card);
+  document.getElementById('ic-modal-title').textContent = newCard ? '➕ 新增資訊卡片' : '✏️ 編輯資訊卡片';
+  document.getElementById('ic-del-btn').style.display = newCard ? 'none' : '';
   document.getElementById('infocard-modal').classList.add('open');
-  setTimeout(() => {
-    const rows = Array.from(document.querySelectorAll('#ic-rows .ic-row'));
-    const t = newCard ? rows[rows.length - 1] : rows.find(r => r.dataset.id === focusId);
-    if (t) { t.scrollIntoView({ block: 'center' }); t.style.boxShadow = '0 0 0 2px #F0B232'; const ti = t.querySelector('.ic-title'); if (newCard && ti) ti.focus(); }
-  }, 50);
+  if (newCard) setTimeout(() => { const ti = document.querySelector('#ic-rows .ic-title'); if (ti) ti.focus(); }, 50);
+}
+async function deleteInfoCardFromModal_() {
+  const r = document.querySelector('#ic-rows .ic-row'); if (!r || !r.dataset.id) return;
+  closeModal('infocard-modal');
+  await deleteInfoCard_(r.dataset.id);
 }
 async function saveInfoCards() {
+  const r = document.querySelector('#ic-rows .ic-row'); if (!r) return;
   const btn = document.getElementById('ic-save-btn');
   const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
   try {
-    const cards = Array.from(document.querySelectorAll('#ic-rows .ic-row')).map((r, i) => ({ id: r.dataset.id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || (i + 1), group: r.querySelector('.ic-group').value, pos: r.dataset.pos === '' ? null : parseInt(r.dataset.pos, 10), size: r.querySelector('.ic-size').value, show: r.querySelector('.ic-show').checked }));
-    const d = await apiCraftWrite_('adminInfoCardsSave', { cards });
+    if (!r.querySelector('.ic-code-toggle').checked) icSyncFromWys_(r);
+    const id = r.dataset.id || ('c' + Date.now().toString(36));
+    const card = { id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || ((icAll_ || []).length + 1), group: r.querySelector('.ic-group').value.trim(), pos: r.dataset.pos === '' ? null : parseInt(r.dataset.pos, 10), size: r.querySelector('.ic-size').value, show: r.querySelector('.ic-show').value === 'true' };
+    const all = (icAll_ || []).slice(); const k = all.findIndex(x => x.id === id);
+    if (k >= 0) all[k] = card; else all.push(card);
+    const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
-    toast(d.message); closeModal('infocard-modal');
+    toast('✅ 資訊卡片已儲存'); closeModal('infocard-modal'); await loadShopItems();
   } finally { btn.disabled = false; btn.textContent = orig; }
 }
 var cmData_ = null;
