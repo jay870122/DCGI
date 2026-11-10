@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.127</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.128</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1263,7 +1263,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="ct-card">
-          <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">(總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍):冠軍 25/15、其餘前 10% 名額 25/5、參與獎 15/2、投票獎 5/1〔該賽道至少投 1 票〕、投票神預測獎 10/2;貨幣=「穿搭大賽兌換卷 / 穿搭大賽抽獎卷」,要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」)</div></div>
+          <div class="ct-h"><div><h3>⚙️ 獎勵設定</h3><div class="hint">可以自己調每個獎項的兌換卷/抽獎卷數量、總排名獎的名次區間、投票獎的最低票數,以及發獎用的貨幣名稱。改了要按「儲存獎勵設定」。<b>已經發放過的獎勵不會補差額</b>,所以請在發放前先設好。</div></div></div>
+          <div id="ct-cfg-box"></div>
+          <div class="ct-act"><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveCfg()">💾 儲存獎勵設定</button><button class="btn btn-edit" onclick="ctAdmCfgReset_()">↩ 還原為已儲存的設定</button></div>
+        </div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍)、參與獎、投票獎、投票神預測獎;金額在上面「獎勵設定」調整;貨幣要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」</div></div>
             <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards(true)">🧪 試算(假設全部公布)</button><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div></div>
           <div id="ct-adm-rewards"></div>
         </div>
@@ -3649,9 +3655,34 @@ function ctAdmRender_() {
       + (ws.length ? '<div class="ct-tw"><table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.award ? ' <span title="優異獎(' + w.award + ')">🏅' + ctEsc_(w.award) + '</span>' : '') + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',0);return false">Talesbook</a>' : '', w.url2 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',1);return false">遊戲截圖</a>' : ''].filter(Boolean).join(' · ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有作品</div>') + '</div>';
   }).join('') || '<div class="hint">還沒有賽道</div>';
   ctAdmRenderBallots_();
+  ctAdmRenderCfg_();
   const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
   document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>玩家</th><th>命中優異獎(件數)</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">賽道截止後才會有資料</div>';
   document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有成績</div>';
+}
+const CT_CFG_LABELS_ = [['champ', '🏅 優異獎(最高票)'], ['top10', '🏅 優異獎(前 10% 名額)'], ['join', '🎽 參與獎(每位參賽者)'], ['vote', '🗳️ 投票獎(該賽道投票達最低票數)'], ['prophet', '🔮 投票神預測獎']];
+const CT_CFG_INP_ = 'background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px;';
+function ctAdmCfgOrow_(r) { return '<tr class="ctc-orow"><td><input type="number" min="1" class="ctc-o0" value="' + r[0] + '" style="' + CT_CFG_INP_ + 'width:80px"> ~ <input type="number" min="1" class="ctc-o1" value="' + r[1] + '" style="' + CT_CFG_INP_ + 'width:80px"></td><td><input type="number" min="0" class="ctc-o2" value="' + r[2] + '" style="' + CT_CFG_INP_ + 'width:90px"></td><td><input type="number" min="0" class="ctc-o3" value="' + r[3] + '" style="' + CT_CFG_INP_ + 'width:90px"></td><td><button class="btn btn-del" onclick="this.closest(\'tr\').remove()">移除</button></td></tr>'; }
+function ctAdmCfgAddRow_() { const tb = document.getElementById('ctc-overall'); if (!tb) return; const rows = tb.querySelectorAll('.ctc-orow'); const last = rows.length ? parseInt(rows[rows.length - 1].querySelector('.ctc-o1').value, 10) || 0 : 0; tb.insertAdjacentHTML('beforeend', ctAdmCfgOrow_([last + 1, last + 1, 0, 0])); }
+function ctAdmRenderCfg_() {
+  const c = ctAdm_ && ctAdm_.cfg, box = document.getElementById('ct-cfg-box'); if (!c || !box) return;
+  const num = (id, v) => '<input type="number" min="0" id="' + id + '" value="' + v + '" style="' + CT_CFG_INP_ + 'width:90px">';
+  box.innerHTML = '<div class="ct-tb" style="margin-top:0">各賽道獎項</div><div class="ct-tw"><table><thead><tr><th>獎項</th><th>兌換卷</th><th>抽獎卷</th></tr></thead><tbody>'
+    + CT_CFG_LABELS_.map((x) => { const v = c.track[x[0]] || [x[1], 0, 0]; return '<tr><td>' + x[1] + (x[0] === 'vote' ? '<div class="hint">最低票數 <input type="number" min="1" max="99" id="ctc-votemin" value="' + c.voteMin + '" style="' + CT_CFG_INP_ + 'width:70px"> 票</div>' : '') + '</td><td>' + num('ctc-' + x[0] + '-0', v[1]) + '</td><td>' + num('ctc-' + x[0] + '-1', v[2]) + '</td></tr>'; }).join('') + '</tbody></table></div>'
+    + '<div class="ct-tb">總排名獎 <span class="hint" style="font-weight:400">(名次區間;沒列到的名次沒有獎)</span></div><div class="ct-tw"><table><thead><tr><th>名次</th><th>兌換卷</th><th>抽獎卷</th><th></th></tr></thead><tbody id="ctc-overall">' + (c.overall || []).map(ctAdmCfgOrow_).join('') + '</tbody></table></div><div class="ct-act" style="margin-top:6px"><button class="btn btn-edit" onclick="ctAdmCfgAddRow_()">➕ 新增名次區間</button></div>'
+    + '<div class="ct-tb">發獎貨幣名稱 <span class="hint" style="font-weight:400">(要跟貨幣設定裡的「顯示名稱」完全一樣)</span></div><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="hint">兌換卷 <input id="ctc-name0" value="' + ctEsc_(c.names[0]) + '" style="' + CT_CFG_INP_ + 'width:200px"></label><label class="hint">抽獎卷 <input id="ctc-name1" value="' + ctEsc_(c.names[1]) + '" style="' + CT_CFG_INP_ + 'width:200px"></label></div>';
+}
+function ctAdmCfgReset_() { ctAdmRenderCfg_(); toast('已還原為目前儲存的設定'); }
+async function ctAdmSaveCfg() {
+  const g = (id) => { const e = document.getElementById(id); return e ? e.value : ''; };
+  const track = {}; CT_CFG_LABELS_.forEach((x) => { track[x[0]] = [parseInt(g('ctc-' + x[0] + '-0'), 10) || 0, parseInt(g('ctc-' + x[0] + '-1'), 10) || 0]; });
+  const overall = Array.from(document.querySelectorAll('#ctc-overall .ctc-orow')).map((r) => [0, 1, 2, 3].map((i) => parseInt(r.querySelector('.ctc-o' + i).value, 10) || 0)).filter((r) => r[0] >= 1 && r[1] >= r[0]);
+  for (let i = 0; i < overall.length; i++) for (let j = i + 1; j < overall.length; j++) if (overall[i][0] <= overall[j][1] && overall[j][0] <= overall[i][1]) { toast('總排名獎的名次區間有重疊(' + overall[i][0] + '~' + overall[i][1] + ' 與 ' + overall[j][0] + '~' + overall[j][1] + ')', false); return; }
+  const names = [g('ctc-name0').trim(), g('ctc-name1').trim()];
+  if (!names[0] || !names[1]) { toast('貨幣名稱不能留空', false); return; }
+  const d = await apiCraftWrite_('adminContestSaveRewards', { track, overall, voteMin: parseInt(g('ctc-votemin'), 10) || 1, names });
+  if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  toast('✅ ' + d.message); loadContestAdmin();
 }
 function ctAdmRenderBallots_() {
   const d = ctAdm_, box = document.getElementById('ct-adm-ballots'), sel = document.getElementById('ct-bal-track'); if (!d || !box || !sel) return;
