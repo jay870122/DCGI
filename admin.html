@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.105</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.106</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3597,7 +3597,7 @@ const IC_TB_HTML_ = `<div class="ic-tb" style="display:flex;gap:4px;align-items:
 <button type="button" class="btn" data-act="wrap" data-o="*" data-c="*" data-p="斜體" title="斜體"><i>I</i></button>
 <button type="button" class="btn" data-act="wrap" data-o="[u]" data-c="[/u]" data-p="底線" title="底線"><u>U</u></button>
 <button type="button" class="btn" data-act="wrap" data-o="~~" data-c="~~" data-p="刪除線" title="刪除線"><s>S</s></button>
-<input type="color" data-act="color" value="#ff5555" title="文字顏色(先選取文字,再選顏色)" style="width:28px;height:24px;padding:0;border:0;background:none">
+<button type="button" class="btn" data-act="colorbox" title="文字顏色(先選取文字,再選顏色)">🎨 顏色</button><span class="ic-cp" style="display:none;flex-basis:100%;gap:5px;align-items:center;flex-wrap:wrap;background:#1E1F22;padding:6px 8px;border-radius:6px"><button type="button" class="ic-sw" data-act="colorset" data-v="#ff5555" title="#ff5555" style="width:22px;height:22px;background:#ff5555;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#ff9900" title="#ff9900" style="width:22px;height:22px;background:#ff9900;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#f0b232" title="#f0b232" style="width:22px;height:22px;background:#f0b232;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#43b581" title="#43b581" style="width:22px;height:22px;background:#43b581;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#3ba7ff" title="#3ba7ff" style="width:22px;height:22px;background:#3ba7ff;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#5865f2" title="#5865f2" style="width:22px;height:22px;background:#5865f2;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#c77dff" title="#c77dff" style="width:22px;height:22px;background:#c77dff;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#ff73b9" title="#ff73b9" style="width:22px;height:22px;background:#ff73b9;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#ffffff" title="#ffffff" style="width:22px;height:22px;background:#ffffff;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><button type="button" class="ic-sw" data-act="colorset" data-v="#b9bbbe" title="#b9bbbe" style="width:22px;height:22px;background:#b9bbbe;border:1px solid #888;border-radius:4px;padding:0;cursor:pointer"></button><input type="color" class="ic-cp-in" value="#ff5555" title="自訂顏色" style="width:32px;height:26px;padding:0;border:0;background:none"><button type="button" class="btn-save" data-act="colorapply" style="padding:4px 10px">✔ 確定</button></span>
 <button type="button" class="btn" data-act="wrap" data-o="[left]" data-c="[/left]" data-p="靠左" title="靠左">⬅</button>
 <button type="button" class="btn" data-act="wrap" data-o="[center]" data-c="[/center]" data-p="置中" title="置中">↔</button>
 <button type="button" class="btn" data-act="wrap" data-o="[right]" data-c="[/right]" data-p="靠右" title="靠右">➡</button>
@@ -3687,6 +3687,13 @@ function icWysEsc_(t) { return (t || '').replace(/&/g, '&amp;').replace(/</g, '&
 function icWysCmd_(row, cmd, val) { icRestoreRange_(row); document.execCommand('styleWithCSS', false, false); document.execCommand(cmd, false, val || null); icSyncFromWys_(row); icSaveRange_(row); }
 function icToolbarAct_(el) {
   const row = el.closest('.ic-row'), act = el.dataset.act, code = row.querySelector('.ic-code-toggle').checked;
+  if (act === 'colorbox') { const p = row.querySelector('.ic-cp'); p.style.display = p.style.display === 'none' ? 'flex' : 'none'; return; }
+  if (act === 'colorset' || act === 'colorapply') {
+    const v = act === 'colorset' ? el.dataset.v : row.querySelector('.ic-cp-in').value;
+    if (code) icInsert_(row.querySelector('.ic-text'), '[color=' + v + ']', '[/color]', '文字');
+    else icWysHtml_(row, '<span style="color:' + v + '">' + icWysEsc_(icSelText_(row) || '文字') + '</span>');
+    row.querySelector('.ic-cp').style.display = 'none'; return;
+  }
   if (act === 'emoji') { const e = row.querySelector('.ic-emo'); e.style.display = e.style.display === 'none' ? 'flex' : 'none'; return; }
   if (code) {
     const ta = row.querySelector('.ic-text');
@@ -3722,7 +3729,7 @@ document.addEventListener('mousedown', (ev) => { const b = ev.target.closest && 
 document.addEventListener('keyup', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
 document.addEventListener('mouseup', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
 document.addEventListener('focusout', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
-document.addEventListener('click', (ev) => { const b = ev.target.closest && ev.target.closest('.ic-tb [data-act], .ic-emo [data-act]'); if (b && !['font', 'size', 'color'].includes(b.dataset.act)) icToolbarAct_(b); });
+document.addEventListener('click', (ev) => { const b = ev.target.closest && ev.target.closest('.ic-tb [data-act], .ic-emo [data-act]'); if (b && !['font', 'size'].includes(b.dataset.act)) icToolbarAct_(b); });
 document.addEventListener('change', (ev) => {
   const el = ev.target; if (!el.closest || !el.closest('.ic-tb')) return;
   const row = el.closest('.ic-row'), code = row.querySelector('.ic-code-toggle').checked, v = el.value;
