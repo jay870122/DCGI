@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.97</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.98</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4049,7 +4049,7 @@ async function loadShopItems() {
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   shopItems = d.items;
   // 📦 封存區:封存名單存在 Worker(商品封存分頁),封存的商品一定是草稿(玩家看不到),列表預設不顯示,要選「📦 封存區」才看得到
-  try { const ar = await stockAdminCall_('adminShopArchiveListWorker'); const set = new Set((ar && ar.status === 'success' ? ar.ids : []).map(String)); shopItems.forEach(i => { i.archived = set.has(String(i.itemId)); }); } catch (e) {}
+  try { const ar = await stockAdminCall_('adminShopArchiveListWorker'); const set = new Set((ar && ar.status === 'success' ? ar.ids : []).map(String)); shopItems.forEach(i => { i.archived = set.has(String(i.itemId)) && i.status === 'DRAFT'; }); } catch (e) {}
   // 🌟🔧 分類下拉選單每次載入商品都依「目前真的有的商品」重建(原本只在登入時抓一次,後來新增的分類要重新登入才會出現)
   try {
     const sel = document.getElementById('shop-cat-filter'), keep = sel.value, cats = [];
@@ -4256,18 +4256,31 @@ async function archiveShopIds_(ids, archive) {
   if (!ids.length) return;
   if (archive) {
     const st = await api({ action: 'adminBatchSetShopItemStatus', itemIds: JSON.stringify(ids), status: 'DRAFT' });
-    if (!st || st.status !== 'success') { toast('❌ 下架失敗:' + ((st && st.message) || ''), false); return; }
+    if (!st || st.status !== 'success') { toast('❌ 下架失敗,未封存:' + ((st && st.message) || ''), false); return; }
+    const m = ((st.message || '').match(/(\d+)/) || [])[1];
+    if (m !== undefined && parseInt(m, 10) < ids.length) { toast('❌ 只有 ' + m + '/' + ids.length + ' 個商品成功下架(其餘找不到),未寫入封存名單,請重新整理後再試', false); return; }
   }
   const d = await apiCraftWrite_('adminShopArchiveSet', { itemIds: ids, archive });
-  if (d && d.status === 'success') { toast('✅ ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
+  if (d && d.status === 'success') { toast('✅ ' + d.message); shopSelectedIds.clear(); await loadShopItems(); }
   else toast('❌ ' + ((d && d.message) || '失敗'), false);
+}
+function archiveNames_(ids) { return ids.map(id => { const it = shopItems.find(x => String(x.itemId) === String(id)); return '・' + (it ? it.name : id); }).slice(0, 8).join('\n') + (ids.length > 8 ? '\n…等共 ' + ids.length + ' 個' : ''); }
+async function confirmArchive2_(ids) {
+  if (!confirm('【封存確認 1/2】\n要封存這 ' + ids.length + ' 個商品嗎?\n' + archiveNames_(ids) + '\n\n封存會先下架(玩家看不到、無法兌換)。')) return false;
+  return confirm('【封存確認 2/2】\n再確認一次:真的要封存嗎?\n之後可在「狀態 → 📦 封存區」還原(還原後是草稿,需重新上架)。');
 }
 async function batchArchiveShop(archive) {
   if (shopSelectedIds.size === 0) return;
-  if (!confirm(archive ? `確定要把已勾選的 ${shopSelectedIds.size} 個商品封存嗎?(會先下架,玩家看不到;之後可在「📦 封存區」還原)` : `確定要把已勾選的 ${shopSelectedIds.size} 個商品移出封存區嗎?(還原後是草稿狀態)`)) return;
-  await archiveShopIds_(Array.from(shopSelectedIds), archive);
+  const ids = Array.from(shopSelectedIds);
+  if (archive) { if (!(await confirmArchive2_(ids))) return; }
+  else if (!confirm(`確定要把已勾選的 ${ids.length} 個商品移出封存區嗎?(還原後是草稿狀態)`)) return;
+  await archiveShopIds_(ids, archive);
 }
-async function archiveShopOne(id, archive) { await archiveShopIds_([id], archive); }
+async function archiveShopOne(id, archive) {
+  if (archive) { if (!(await confirmArchive2_([id]))) return; }
+  else if (!confirm('確定要把這個商品移出封存區嗎?(還原後是草稿狀態)\n' + archiveNames_([id]))) return;
+  await archiveShopIds_([id], archive);
+}
 
 async function batchDrawShopRaffles() {
   if (shopSelectedIds.size === 0) return;
