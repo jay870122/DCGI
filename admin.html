@@ -49,6 +49,17 @@ body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-s
 .login-card h2{font-size:22px;color:var(--gold);margin-bottom:8px}
 .login-card p{color:var(--mu);font-size:14px;margin-bottom:28px;line-height:1.6}
 /* page header */
+.ct-card{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:20px 24px;margin-bottom:20px}
+.ct-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.ct-h h3{font-size:16px;font-weight:700;margin:0 0 2px}
+.ct-card .hint{color:var(--mu);font-size:12px}
+.ct-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.ct-chk{display:flex;gap:6px;align-items:center;flex-wrap:wrap;cursor:pointer;font-size:13px;font-weight:600;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 12px;max-width:420px}
+.ct-chk input{width:auto!important}
+.ct-tw{border:1px solid var(--bd);border-radius:var(--r);overflow:auto;margin:6px 0 4px}
+.ct-tw table{min-width:560px}
+.ct-trow{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px;margin-bottom:8px}
+.ct-tb{font-size:14px;font-weight:700;margin:16px 0 2px}
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
 .page-title{font-size:20px;font-weight:700}
 /* toolbar */
@@ -263,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.124</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.125</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1209,38 +1220,58 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="page-crypto-cfg" style="display:none"><div class="page-header"><div class="page-title">₿ 加密貨幣設定</div></div><div class="pg-host" data-modal="crypto-cfg-modal"></div></div>
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
       <div id="page-contest" style="display:none">
-        <div class="page-header"><div class="page-title">🎽 角色穿搭大賽(匿名交叉投票)</div><div class="toolbar"><button class="btn btn-edit" onclick="loadContestAdmin()">🔄 重新整理</button></div></div>
-        <div class="hint" style="margin-bottom:12px">流程:①先在「賽道」設好狀態(未開放=玩家看不到、投票中=開放投票、已截止=停止投票、已公布=顯示名次/分數/參賽者);②在「新增作品」替玩家建檔(玩家不能自己上傳);③到時間把賽道改「投票中」→「已截止」→「已公布」,最後全部賽道都公布才會顯示總排名。規則:每賽道每人支持票上限=作品數×40%(無條件進位)、優異票上限=作品數×15%(1 張計 2 票)、不可投自己;賽道得分=得票÷最高票×70 + (人數−名次+1)÷人數×30;總排名=同一人最高的兩個賽道相加。</div>
-        <h3 style="margin:10px 0 6px">賽道</h3>
-        <div class="hint" style="margin-bottom:6px">可設「投票開始/結束時間」自動切換(未開放→投票中→已截止);兩個時間都留空=只看下面「狀態」手動切。「已公布」永遠以手動為準(到時間你再改成已公布)。</div>
-        <label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="ct-testmode" style="width:auto"> 🧪 測試模式:只有管理員看得到大賽入口、也只有管理員能投票(正式開放前勾起來測試,測完取消)</label>
-        <div id="ct-adm-tracks"></div>
-        <div style="margin:8px 0 18px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ctAdmAddTrack()">➕ 新增賽道</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveTracks()">💾 儲存賽道</button></div>
-        <h3 style="margin:10px 0 6px">新增 / 編輯作品</h3>
-        <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 16px;margin-bottom:10px">
-          <div class="field"><label>賽道</label><select id="ctw-track" onchange="ctAdmRenderPicker_()"></select></div>
-          <div class="field" style="grid-column:1/-1"><label>參賽者 <span class="hint">勾選一位玩家(可搜尋名稱/ID);已在該賽道有作品的會標示。名單裡沒有的人,可在下面直接填 ID</span></label>
-            <input id="ctw-search" placeholder="🔍 搜尋玩家名稱或 ID" oninput="ctAdmRenderPicker_()" style="margin-bottom:6px">
-            <div id="ctw-picker" style="max-height:200px;overflow:auto;border:1px solid var(--bd);border-radius:var(--r);padding:6px;background:var(--s2)"><span class="hint">載入玩家名單中…</span></div>
-            <input id="ctw-user" inputmode="numeric" placeholder="或直接填 Discord ID" style="margin-top:6px" oninput="ctAdmRenderPicker_()"></div>
-          <div class="field"><label>參賽者名稱 <span class="hint">留空=自動抓玩家名稱</span></label><input id="ctw-name"></div>
-          <div class="field"><label>Talesbook 截圖網址</label><input id="ctw-url1" placeholder="https://..."></div>
-          <div class="field"><label>遊戲截圖網址</label><input id="ctw-url2" placeholder="https://..."></div>
-          <div class="field" style="grid-column:1/-1"><label>創意說明</label><textarea id="ctw-text" rows="3"></textarea></div>
+        <div class="page-header"><div class="page-title">🎽 角色穿搭大賽(匿名交叉投票)</div><div class="toolbar"><button class="btn btn-edit" id="ct-refresh-btn" onclick="ctAdmRefresh_()">🔄 重新整理</button></div></div>
+        <details class="ct-card" style="padding:14px 24px"><summary style="cursor:pointer;font-weight:700">📖 流程說明</summary><div class="hint" style="margin-top:8px;line-height:1.7">流程:①先在「賽道」設好狀態(未開放=玩家看不到、投票中=開放投票、已截止=停止投票、已公布=顯示名次/分數/參賽者);②在「新增作品」替玩家建檔(玩家不能自己上傳);③到時間把賽道改「投票中」→「已截止」→「已公布」,最後全部賽道都公布才會顯示總排名。規則:每賽道每人支持票上限=作品數×40%(無條件進位)、優異票上限=作品數×15%(1 張計 2 票)、不可投自己;賽道得分=得票÷最高票×70 + (人數−名次+1)÷人數×30;總排名=同一人最高的兩個賽道相加。</div></details>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🏁 賽道設定</h3><div class="hint">可設「投票開始/結束時間」自動切換(未開放→投票中→已截止);兩個時間都留空=只看「狀態」手動切。「已公布」永遠以手動為準。</div></div>
+            <label class="ct-chk"><input type="checkbox" id="ct-testmode"> 🧪 測試模式<span class="hint">只有管理員看得到入口、也只有管理員能投票(測完記得取消)</span></label></div>
+          <div id="ct-adm-tracks"></div>
+          <div class="ct-act"><button class="btn btn-edit" onclick="ctAdmAddTrack()">➕ 新增賽道</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveTracks()">💾 儲存賽道</button></div>
         </div>
-        <div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap"><input type="hidden" id="ctw-id"><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveWork()" id="ctw-save">➕ 新增作品</button><button class="btn btn-close" onclick="ctAdmResetForm()">清空表單</button></div>
-        <h3 style="margin:10px 0 6px">作品與即時成績 <span class="hint">(後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到)</span></h3>
-        <div id="ct-adm-works"></div>
-        <h3 style="margin:18px 0 6px">🗳️ 投票明細 <span class="hint">(誰投給哪件作品;含已撤回的票)</span></h3>
-        <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap"><input id="ct-bal-q" placeholder="🔍 搜尋投票者名稱/ID 或作品參賽者" oninput="ctAdmRenderBallots_()" style="max-width:320px"><select id="ct-bal-track" onchange="ctAdmRenderBallots_()" style="max-width:200px"></select></div>
-        <div id="ct-adm-ballots"></div>
-        <h3 style="margin:18px 0 6px">🔮 投票神預測獎 <span class="hint">(把優異票投給「該賽道任一優異獎作品」的人;賽道「已截止」後才計入)</span></h3>
-        <div id="ct-adm-prophets"></div>
-        <h3 style="margin:18px 0 6px">🎁 獎勵結算與發放 <span class="hint">(總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍):冠軍 25/15、其餘前 10% 名額 25/5、參與獎 15/2、投票獎 5/1〔該賽道至少投 1 票〕、投票神預測獎 10/2;貨幣=「穿搭大賽兌換卷 / 穿搭大賽抽獎卷」,要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」)</span></h3>
-        <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div>
-        <div id="ct-adm-rewards"></div>
-        <h3 style="margin:18px 0 6px">總排名 <span class="hint">(取每人最高的兩個賽道;同分比單一賽道得票率、再比總得票)</span></h3>
-        <div id="ct-adm-overall"></div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🧵 新增 / 編輯作品</h3><div class="hint">玩家不能自己上傳,由管理員替參賽者建檔</div></div></div>
+          <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px 20px;margin-bottom:14px">
+            <div class="field"><label>賽道</label><select id="ctw-track" onchange="ctAdmRenderPicker_()"></select></div>
+            <div class="field"><label>參賽者名稱 <span class="hint">留空=自動抓玩家名稱</span></label><input id="ctw-name"></div>
+            <div class="field" style="grid-column:1/-1"><label>參賽者 <span class="hint">勾選一位玩家(可搜尋名稱/ID);已在該賽道有作品的會標示。名單裡沒有的人,可在下面直接填 ID</span></label>
+              <input id="ctw-search" placeholder="🔍 搜尋玩家名稱或 ID" oninput="ctAdmRenderPicker_()" style="margin-bottom:6px">
+              <div id="ctw-picker" style="max-height:200px;overflow:auto;border:1px solid var(--bd);border-radius:var(--r);padding:6px;background:var(--s2)"><span class="hint">載入玩家名單中…</span></div>
+              <input id="ctw-user" inputmode="numeric" placeholder="或直接填 Discord ID" style="margin-top:6px" oninput="ctAdmRenderPicker_()"></div>
+            <div class="field"><label>Talesbook 截圖網址</label><input id="ctw-url1" placeholder="https://..."></div>
+            <div class="field"><label>遊戲截圖網址</label><input id="ctw-url2" placeholder="https://..."></div>
+            <div class="field" style="grid-column:1/-1"><label>創意說明</label><textarea id="ctw-text" rows="3"></textarea></div>
+          </div>
+          <div class="ct-act"><input type="hidden" id="ctw-id"><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveWork()" id="ctw-save">➕ 新增作品</button><button class="btn btn-close" onclick="ctAdmResetForm()">清空表單</button></div>
+        </div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>📊 作品與即時成績</h3><div class="hint">後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到</div></div></div>
+          <div id="ct-adm-works"></div>
+        </div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🗳️ 投票明細</h3><div class="hint">誰投給哪件作品;含已撤回的票</div></div>
+            <div class="ct-act" style="margin:0"><input id="ct-bal-q" placeholder="🔍 搜尋投票者或參賽者" oninput="ctAdmRenderBallots_()" style="width:220px"><select id="ct-bal-track" onchange="ctAdmRenderBallots_()" style="width:160px"></select></div></div>
+          <div id="ct-adm-ballots"></div>
+        </div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🔮 投票神預測獎</h3><div class="hint">把優異票投給「該賽道任一優異獎作品」的人;賽道「已截止」後才計入</div></div></div>
+          <div id="ct-adm-prophets"></div>
+        </div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">(總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍):冠軍 25/15、其餘前 10% 名額 25/5、參與獎 15/2、投票獎 5/1〔該賽道至少投 1 票〕、投票神預測獎 10/2;貨幣=「穿搭大賽兌換卷 / 穿搭大賽抽獎卷」,要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」)</div></div>
+            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div></div>
+          <div id="ct-adm-rewards"></div>
+        </div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🏆 總排名</h3><div class="hint">取每人最高的兩個賽道;同分比單一賽道得票率、再比總得票</div></div></div>
+          <div id="ct-adm-overall"></div>
+        </div>
       </div>
       <div id="page-cur-mon" style="display:none"><div class="page-header"><div class="page-title">📊 貨幣獲得/消耗統計</div></div><div class="pg-host" data-modal="curmon-modal"></div></div>
       <div id="page-lock-settings" style="display:none">
@@ -1877,6 +1908,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <button class="btn" onclick="closeModal('stock-cfg-modal')">取消</button>
       <button class="btn btn-primary" id="sc-save-btn" onclick="saveStockConfig()">💾 儲存</button>
     </div>
+  </div>
+</div>
+<div class="overlay" id="ct-img-modal" onclick="if(event.target===this)closeModal('ct-img-modal')">
+  <div class="modal" style="max-width:920px">
+    <div class="modal-header"><h3 id="ct-img-title">截圖</h3><button class="modal-close" onclick="closeModal('ct-img-modal')">×</button></div>
+    <div id="ct-img-tabs" style="padding:14px 24px 0;display:flex;gap:8px;flex-wrap:wrap"></div>
+    <div style="padding:14px 24px 20px;text-align:center"><img id="ct-img-el" alt="" style="max-width:100%;max-height:72vh;border-radius:8px;display:none"><div id="ct-img-fail" class="hint" style="display:none;padding:30px 0"></div><div id="ct-img-text" class="hint" style="margin-top:12px;text-align:left;white-space:pre-wrap"></div></div>
   </div>
 </div>
 <div class="overlay" id="infocard-modal">
@@ -3568,9 +3606,30 @@ let ctAdm_ = null;
 function ctEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 async function loadContestAdmin() {
   const d = await stockAdminCall_('adminContestGetWorker');
-  if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return false; }
   ctAdm_ = d; ctAdmRender_(); ctAdmLoadPlayers_().then(ctAdmRenderPicker_);
+  return true;
 }
+async function ctAdmRefresh_() {
+  const b = document.getElementById('ct-refresh-btn'); if (b) { b.disabled = true; b.textContent = '⏳ 重新整理中...'; }
+  try { if (await loadContestAdmin()) toast('✅ 已重新整理'); } finally { if (b) { b.disabled = false; b.textContent = '🔄 重新整理'; } }
+}
+let ctImg_ = { w: null, i: 0 };
+function ctAdmImg_(id, i) {
+  const w = (ctAdm_ && ctAdm_.works || []).find((x) => x.id === id); if (!w) return;
+  const urls = [w.url1, w.url2], names = ['Talesbook 截圖', '遊戲截圖'];
+  ctImg_ = { w, i };
+  document.getElementById('ct-img-title').textContent = '🖼️ ' + (w.name || '作品') + '(' + names[i] + ')';
+  document.getElementById('ct-img-tabs').innerHTML = urls.map((u, k) => u ? '<button class="btn ' + (k === i ? 'btn-edit' : '') + '" onclick="ctAdmImg_(\'' + ctEsc_(id) + '\',' + k + ')">' + names[k] + '</button>' : '').join('');
+  const img = document.getElementById('ct-img-el'), fail = document.getElementById('ct-img-fail');
+  fail.style.display = 'none'; img.style.display = 'none';
+  img.onload = () => { img.style.display = 'inline-block'; };
+  img.onerror = () => { img.style.display = 'none'; fail.style.display = 'block'; fail.textContent = '這個網址無法直接顯示成圖片:' + urls[i]; };
+  img.src = urls[i];
+  document.getElementById('ct-img-text').textContent = w.text ? '創意說明:\n' + w.text : '';
+  document.getElementById('ct-img-modal').classList.add('open');
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const m = document.getElementById('ct-img-modal'); if (m) m.classList.remove('open'); } });
 function ctIsoLocal_(iso) { const t = iso ? new Date(iso) : null; if (!t || isNaN(t)) return ''; const p = (n) => String(n).padStart(2, '0'); return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()) + 'T' + p(t.getHours()) + ':' + p(t.getMinutes()); }
 function ctAdmTrackRow_(t) {
   const sts = ['未開放', '投票中', '已截止', '已公布'], inp = 'background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px';
@@ -3586,13 +3645,13 @@ function ctAdmRender_() {
   const byT = {}; d.works.forEach((w) => { (byT[w.track] = byT[w.track] || []).push(w); });
   document.getElementById('ct-adm-works').innerHTML = d.tracks.map((t) => {
     const ws = (byT[t.id] || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99));
-    return '<div style="margin-bottom:14px"><b>' + ctEsc_(t.name) + '</b> <span class="hint">第' + t.round + '輪 · ' + ctEsc_(t.effStatus || t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票</span>'
-      + (ws.length ? '<table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.award ? ' <span title="優異獎(' + w.award + ')">🏅' + ctEsc_(w.award) + '</span>' : '') + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1, w.url2].filter(Boolean).map((u, i) => '<a href="' + ctEsc_(u) + '" target="_blank" rel="noopener">圖' + (i + 1) + '</a>').join(' ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有作品</div>') + '</div>';
+    return '<div><div class="ct-tb">' + ctEsc_(t.name) + ' <span class="hint" style="font-weight:400">第' + t.round + '輪 · ' + ctEsc_(t.effStatus || t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票</span></div>'
+      + (ws.length ? '<div class="ct-tw"><table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.award ? ' <span title="優異獎(' + w.award + ')">🏅' + ctEsc_(w.award) + '</span>' : '') + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',0);return false">Talesbook</a>' : '', w.url2 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',1);return false">遊戲截圖</a>' : ''].filter(Boolean).join(' · ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有作品</div>') + '</div>';
   }).join('') || '<div class="hint">還沒有賽道</div>';
   ctAdmRenderBallots_();
   const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
-  document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<table><thead><tr><th>#</th><th>玩家</th><th>命中優異獎(件數)</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table>' : '<div class="hint">賽道截止後才會有資料</div>';
-  document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有成績</div>';
+  document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>玩家</th><th>命中優異獎(件數)</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">賽道截止後才會有資料</div>';
+  document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有成績</div>';
 }
 function ctAdmRenderBallots_() {
   const d = ctAdm_, box = document.getElementById('ct-adm-ballots'), sel = document.getElementById('ct-bal-track'); if (!d || !box || !sel) return;
@@ -3605,7 +3664,7 @@ function ctAdmRenderBallots_() {
   rows.sort((a, c) => (a.b.time < c.b.time ? 1 : a.b.time > c.b.time ? -1 : 0));
   const act = rows.filter((x) => x.b.active);
   const fmt = (t) => { const m = Date.parse(t); return m ? new Date(m).toLocaleString('zh-TW', { hour12: false }) : ''; };
-  box.innerHTML = rows.length ? '<div class="hint" style="margin-bottom:4px">共 ' + rows.length + ' 筆(有效 ' + act.length + ' 筆、' + new Set(act.map((x) => x.b.voter + '|' + x.b.track)).size + ' 位投票者)</div><div style="max-height:420px;overflow:auto"><table><thead><tr><th>時間</th><th>賽道</th><th>投票者</th><th>投給</th><th>類型</th><th>狀態</th></tr></thead><tbody>' + rows.map((x) => '<tr' + (x.b.active ? '' : ' style="opacity:.5"') + '><td>' + ctEsc_(fmt(x.b.time)) + '</td><td>' + ctEsc_(tn[x.b.track] || x.b.track) + '</td><td>' + ctEsc_(x.b.voterName) + '<div class="hint">' + ctEsc_(x.b.voter) + '</div></td><td>' + ctEsc_(x.w.name || x.b.work) + '<div class="hint">' + ctEsc_(x.w.user || '') + '</div></td><td>' + (x.b.type === 'excellent' ? '⭐優異' : '支持') + '</td><td>' + (x.b.active ? '有效' : '已撤回') + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">沒有投票紀錄</div>';
+  box.innerHTML = rows.length ? '<div class="hint" style="margin-bottom:4px">共 ' + rows.length + ' 筆(有效 ' + act.length + ' 筆、' + new Set(act.map((x) => x.b.voter + '|' + x.b.track)).size + ' 位投票者)</div><div class="ct-tw" style="max-height:420px"><table><thead><tr><th>時間</th><th>賽道</th><th>投票者</th><th>投給</th><th>類型</th><th>狀態</th></tr></thead><tbody>' + rows.map((x) => '<tr' + (x.b.active ? '' : ' style="opacity:.5"') + '><td>' + ctEsc_(fmt(x.b.time)) + '</td><td>' + ctEsc_(tn[x.b.track] || x.b.track) + '</td><td>' + ctEsc_(x.b.voterName) + '<div class="hint">' + ctEsc_(x.b.voter) + '</div></td><td>' + ctEsc_(x.w.name || x.b.work) + '<div class="hint">' + ctEsc_(x.w.user || '') + '</div></td><td>' + (x.b.type === 'excellent' ? '⭐優異' : '支持') + '</td><td>' + (x.b.active ? '有效' : '已撤回') + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">沒有投票紀錄</div>';
 }
 async function ctAdmSaveTracks() {
   const rows = Array.from(document.querySelectorAll('#ct-adm-tracks .ct-trow')).map((r) => ({ id: r.dataset.id, name: r.querySelector('.ct-name').value.trim(), round: r.querySelector('.ct-round').value, status: r.querySelector('.ct-status').value, start: r.querySelector('.ct-start').value ? new Date(r.querySelector('.ct-start').value).toISOString() : '', end: r.querySelector('.ct-end').value ? new Date(r.querySelector('.ct-end').value).toISOString() : '' })).filter((t) => t.name);
@@ -3621,7 +3680,7 @@ async function ctAdmLoadRewards() {
   const box = document.getElementById('ct-adm-rewards');
   if (!d.players.length) { box.innerHTML = '<div class="hint">還沒有可結算的獎勵(賽道需「已截止」或「已公布」)</div>'; return; }
   let ex = 0, lo = 0; d.players.forEach((p) => { ex += p.exch; lo += p.lottery; });
-  box.innerHTML = '<div class="hint" style="margin-bottom:4px">待發放合計:兌換卷 <b>' + ex + '</b>、抽獎卷 <b>' + lo + '</b>(' + d.players.filter((p) => p.exch || p.lottery).length + ' 位玩家)</div><table><thead><tr><th>玩家</th><th>待發 兌換卷</th><th>待發 抽獎卷</th><th>明細</th></tr></thead><tbody>' + d.players.map((p) => '<tr><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.exch + '</b>' + (p.exchDone ? '<div class="hint">已發 ' + p.exchDone + '</div>' : '') + '</td><td><b>' + p.lottery + '</b>' + (p.lotteryDone ? '<div class="hint">已發 ' + p.lotteryDone + '</div>' : '') + '</td><td style="font-size:12px">' + p.items.map((i) => (i.granted ? '<s>' : '') + ctEsc_(i.label) + ' ' + i.exch + '/' + i.lottery + (i.granted ? '</s>' : '')).join('<br>') + '</td></tr>').join('') + '</tbody></table>';
+  box.innerHTML = '<div class="hint" style="margin-bottom:4px">待發放合計:兌換卷 <b>' + ex + '</b>、抽獎卷 <b>' + lo + '</b>(' + d.players.filter((p) => p.exch || p.lottery).length + ' 位玩家)</div><div class="ct-tw"><table><thead><tr><th>玩家</th><th>待發 兌換卷</th><th>待發 抽獎卷</th><th>明細</th></tr></thead><tbody>' + d.players.map((p) => '<tr><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.exch + '</b>' + (p.exchDone ? '<div class="hint">已發 ' + p.exchDone + '</div>' : '') + '</td><td><b>' + p.lottery + '</b>' + (p.lotteryDone ? '<div class="hint">已發 ' + p.lotteryDone + '</div>' : '') + '</td><td style="font-size:12px">' + p.items.map((i) => (i.granted ? '<s>' : '') + ctEsc_(i.label) + ' ' + i.exch + '/' + i.lottery + (i.granted ? '</s>' : '')).join('<br>') + '</td></tr>').join('') + '</tbody></table></div>';
 }
 async function ctAdmGrantRewards() {
   await ctAdmLoadRewards();
