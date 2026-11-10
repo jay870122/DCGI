@@ -263,7 +263,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.122</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.123</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1218,8 +1218,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div style="margin:8px 0 18px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ctAdmAddTrack()">➕ 新增賽道</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveTracks()">💾 儲存賽道</button></div>
         <h3 style="margin:10px 0 6px">新增 / 編輯作品</h3>
         <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 16px;margin-bottom:10px">
-          <div class="field"><label>賽道</label><select id="ctw-track"></select></div>
-          <div class="field"><label>參賽者 Discord ID</label><input id="ctw-user" inputmode="numeric" placeholder="例:123456789012345678"></div>
+          <div class="field"><label>賽道</label><select id="ctw-track" onchange="ctAdmRenderPicker_()"></select></div>
+          <div class="field" style="grid-column:1/-1"><label>參賽者 <span class="hint">勾選一位玩家(可搜尋名稱/ID);已在該賽道有作品的會標示。名單裡沒有的人,可在下面直接填 ID</span></label>
+            <input id="ctw-search" placeholder="🔍 搜尋玩家名稱或 ID" oninput="ctAdmRenderPicker_()" style="margin-bottom:6px">
+            <div id="ctw-picker" style="max-height:200px;overflow:auto;border:1px solid var(--bd);border-radius:var(--r);padding:6px;background:var(--s2)"><span class="hint">載入玩家名單中…</span></div>
+            <input id="ctw-user" inputmode="numeric" placeholder="或直接填 Discord ID" style="margin-top:6px" oninput="ctAdmRenderPicker_()"></div>
           <div class="field"><label>參賽者名稱 <span class="hint">留空=自動抓玩家名稱</span></label><input id="ctw-name"></div>
           <div class="field"><label>Talesbook 截圖網址</label><input id="ctw-url1" placeholder="https://..."></div>
           <div class="field"><label>遊戲截圖網址</label><input id="ctw-url2" placeholder="https://..."></div>
@@ -3563,7 +3566,7 @@ function ctEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;
 async function loadContestAdmin() {
   const d = await stockAdminCall_('adminContestGetWorker');
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
-  ctAdm_ = d; ctAdmRender_();
+  ctAdm_ = d; ctAdmRender_(); ctAdmLoadPlayers_().then(ctAdmRenderPicker_);
 }
 function ctIsoLocal_(iso) { const t = iso ? new Date(iso) : null; if (!t || isNaN(t)) return ''; const p = (n) => String(n).padStart(2, '0'); return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()) + 'T' + p(t.getHours()) + ':' + p(t.getMinutes()); }
 function ctAdmTrackRow_(t) {
@@ -3621,12 +3624,32 @@ async function ctAdmGrantRewards() {
   toast('🎁 已發放給 ' + todo.length + ' 位玩家' + (m && m.status === 'success' ? '' : '(但「已發放」記錄寫入失敗,請勿重複發放!)'), !!(m && m.status === 'success'));
   ctAdmLoadRewards();
 }
-function ctAdmResetForm() { ['ctw-id', 'ctw-user', 'ctw-name', 'ctw-url1', 'ctw-url2', 'ctw-text'].forEach((i) => { document.getElementById(i).value = ''; }); document.getElementById('ctw-save').textContent = '➕ 新增作品'; }
+let ctPlayers_ = null;
+async function ctAdmLoadPlayers_() {
+  if (ctPlayers_) return;
+  const d = await apiWorkerRead('adminPlayersCurrency', {}, { action: 'adminGetAllPlayersCurrency' });
+  ctPlayers_ = (d && d.status === 'success' && d.players) ? d.players.map((p) => ({ id: p.discordId, name: p.nickname || p.discordId })) : [];
+  if (!ctPlayers_.length) document.getElementById('ctw-picker').innerHTML = '<span class="hint">讀不到玩家名單,請直接在下面填 Discord ID</span>';
+}
+function ctAdmRenderPicker_() {
+  const box = document.getElementById('ctw-picker'); if (!box || !ctPlayers_) return;
+  const q = (document.getElementById('ctw-search').value || '').trim().toLowerCase(), cur = (document.getElementById('ctw-user').value || '').trim();
+  const track = document.getElementById('ctw-track').value, editing = document.getElementById('ctw-id').value;
+  const taken = {}; ((ctAdm_ && ctAdm_.works) || []).forEach((w) => { if (w.track === track && w.id !== editing) taken[w.user] = true; });
+  const list = ctPlayers_.filter((p) => !q || (p.name || '').toLowerCase().includes(q) || (p.id || '').includes(q)).slice(0, 200);
+  box.innerHTML = list.map((p) => '<label style="display:flex;gap:8px;align-items:center;padding:3px 4px;cursor:pointer;border-radius:4px' + (p.id === cur ? ';background:rgba(88,101,242,.25)' : '') + '"><input type="checkbox" style="width:auto" ' + (p.id === cur ? 'checked ' : '') + (taken[p.id] ? 'disabled ' : '') + 'onchange="ctAdmPick_(\'' + ctEsc_(p.id) + '\',this.checked)"><span>' + ctEsc_(p.name) + '</span><span class="hint">' + ctEsc_(p.id) + (taken[p.id] ? ' · 此賽道已有作品' : '') + '</span></label>').join('') || '<span class="hint">沒有符合的玩家</span>';
+}
+function ctAdmPick_(id, on) {
+  document.getElementById('ctw-user').value = on ? id : '';
+  if (on) { const p = (ctPlayers_ || []).find((x) => x.id === id); if (p && !document.getElementById('ctw-name').value) document.getElementById('ctw-name').value = p.name; }
+  ctAdmRenderPicker_();
+}
+function ctAdmResetForm() { ['ctw-id', 'ctw-user', 'ctw-name', 'ctw-url1', 'ctw-url2', 'ctw-text'].forEach((i) => { document.getElementById(i).value = ''; }); document.getElementById('ctw-save').textContent = '➕ 新增作品'; try { ctAdmRenderPicker_(); } catch (e) {} }
 function ctAdmEditWork(id) {
   const w = (ctAdm_ && ctAdm_.works || []).find((x) => x.id === id); if (!w) return;
   document.getElementById('ctw-id').value = w.id; document.getElementById('ctw-track').value = w.track; document.getElementById('ctw-user').value = w.user; document.getElementById('ctw-name').value = w.name;
   document.getElementById('ctw-url1').value = w.url1; document.getElementById('ctw-url2').value = w.url2; document.getElementById('ctw-text').value = w.text;
-  document.getElementById('ctw-save').textContent = '💾 更新作品'; document.getElementById('ctw-user').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('ctw-save').textContent = '💾 更新作品'; ctAdmRenderPicker_(); document.getElementById('ctw-user').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 async function ctAdmSaveWork() {
   const body = { id: document.getElementById('ctw-id').value, track: document.getElementById('ctw-track').value, user: document.getElementById('ctw-user').value, name: document.getElementById('ctw-name').value, url1: document.getElementById('ctw-url1').value, url2: document.getElementById('ctw-url2').value, text: document.getElementById('ctw-text').value };
