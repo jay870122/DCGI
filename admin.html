@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.87</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.88</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -312,6 +312,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <option value="">全部狀態</option>
               <option value="ACTIVE">🟢 上架中</option>
               <option value="DRAFT">📝 草稿</option>
+              <option value="ARCHIVED">📦 封存區</option>
             </select>
             <button class="btn btn-edit" id="shop-reorder-toggle" onclick="toggleShopReorderMode()">🔀 排序模式</button>
             <button class="btn-save" id="shop-reorder-save" style="display:none" onclick="saveShopReorderInline()">💾 儲存順序</button>
@@ -322,6 +323,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <span class="hint">已勾選 <b id="shop-selected-count">0</b> 項：</span>
           <button class="btn btn-edit" onclick="batchSetShopStatus('ACTIVE')">📤 上架</button>
           <button class="btn btn-edit" onclick="batchSetShopStatus('DRAFT')">📥 下架</button>
+          <button class="btn btn-edit" onclick="batchArchiveShop(true)">📦 封存</button>
+          <button class="btn btn-edit" onclick="batchArchiveShop(false)">♻️ 從封存區還原</button>
           <button class="btn btn-close" onclick="batchDrawShopRaffles()">🎰 開獎(僅限抽獎商品)</button>
           <button class="btn btn-edit" onclick="batchMoveShopSort('top')">⬆️ 移到最前</button>
           <button class="btn btn-edit" onclick="batchMoveShopSort('bottom')">⬇️ 移到最後</button>
@@ -3806,6 +3809,8 @@ async function loadShopItems() {
   const d = await apiWorkerRead('adminShopItems', {}, {action:'adminGetShopItems'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   shopItems = d.items;
+  // 📦 封存區:封存名單存在 Worker(商品封存分頁),封存的商品一定是草稿(玩家看不到),列表預設不顯示,要選「📦 封存區」才看得到
+  try { const ar = await stockAdminCall_('adminShopArchiveListWorker'); const set = new Set((ar && ar.status === 'success' ? ar.ids : []).map(String)); shopItems.forEach(i => { i.archived = set.has(String(i.itemId)); }); } catch (e) {}
   // 🌟🔧 分類下拉選單每次載入商品都依「目前真的有的商品」重建(原本只在登入時抓一次,後來新增的分類要重新登入才會出現)
   try {
     const sel = document.getElementById('shop-cat-filter'), keep = sel.value, cats = [];
@@ -3822,6 +3827,7 @@ async function loadShopItems() {
 let shopSort = { key: null, dir: 1 };
 // 狀態排序:要跟表格上實際顯示的標籤一致(草稿/已開獎/已公布結果 也算進去),順序=上架中→未開始→草稿→已結束/已開獎/已公布
 function shopStateRank_(i) {
+  if (i.archived) return 5;
   if (i.status === 'DRAFT') return 2;
   if ((i.isRaffle && i.raffleResult) || (i.isGambling && i.gamblingResult)) return 3.5;
   const m = { available: 0, not_started: 1, ended: 3 }; return m[i.state] !== undefined ? m[i.state] : 4;
@@ -3845,7 +3851,7 @@ function toggleShopReorderMode() {
   if (!shopReorderMode) {
     const cat = document.getElementById('shop-cat-filter').value;
     if (!cat) { toast('請先在上面選一個分類,才能排序(排序只能對同一分類內的商品進行)', false); return; }
-    shopReorderList = shopItems.filter(i => i.category === cat).slice()
+    shopReorderList = shopItems.filter(i => i.category === cat && !i.archived).slice()
       .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
     shopReorderMode = true;
   } else {
@@ -3873,7 +3879,7 @@ async function saveShopReorderInline() {
     toast('✅ ' + d.message);
     await loadShopItems();
     const cat = document.getElementById('shop-cat-filter').value;
-    shopReorderList = shopItems.filter(i => i.category === cat).slice()
+    shopReorderList = shopItems.filter(i => i.category === cat && !i.archived).slice()
       .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
     renderShopTable();
   } else toast('❌ ' + d.message, false);
@@ -3910,7 +3916,7 @@ function renderShopTable() {
   const q = document.getElementById('shop-search').value.toLowerCase();
   const cat = document.getElementById('shop-cat-filter').value;
   const statusFilter = document.getElementById('shop-status-filter').value;
-  let items = shopItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!cat || i.category === cat));
+  let items = shopItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!cat || i.category === cat) && (statusFilter === 'ARCHIVED' ? !!i.archived : !i.archived));
   if (statusFilter === 'DRAFT') items = items.filter(i => i.status === 'DRAFT');
   else if (statusFilter === 'ACTIVE') items = items.filter(i => i.status !== 'DRAFT');
 
@@ -3943,10 +3949,11 @@ function renderShopTable() {
       <td data-label="分類">${i.category||'—'}</td>
       <td data-label="價格">${i.price}</td>
       <td data-label="庫存">${i.stock||'無限'}</td>
-      <td data-label="狀態">${i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (i.isRaffle && i.raffleResult ? '<span class="status status-ended">🏆 已開獎</span>' : (i.isGambling && i.gamblingResult ? '<span class="status status-ended">🎲 已公布結果</span>' : (stateLabel[i.state]||'')))}</td>
+      <td data-label="狀態">${i.archived ? '<span class="status status-ended">📦 已封存</span>' : i.status==='DRAFT' ? '<span class="status status-draft">📝 草稿</span>' : (i.isRaffle && i.raffleResult ? '<span class="status status-ended">🏆 已開獎</span>' : (i.isGambling && i.gamblingResult ? '<span class="status status-ended">🎲 已公布結果</span>' : (stateLabel[i.state]||'')))}</td>
       <td class="cell-id" data-label="ID">${i.itemId||'—'}</td>
       <td class="cell-actions" data-label="操作"><div class="btn-row">
-        ${i.status==='DRAFT' ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
+        ${i.status==='DRAFT' && !i.archived ? `<button class="btn btn-edit" onclick="publishShopItem('${i.itemId}')">🚀 上架</button>` : ''}
+        ${i.archived ? `<button class="btn btn-edit" onclick="archiveShopOne('${i.itemId}', false)">♻️ 還原</button>` : `<button class="btn btn-edit" onclick="archiveShopOne('${i.itemId}', true)">📦 封存</button>`}
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         ${i.isRaffle ? `<button class="btn btn-edit" onclick="showRaffleParticipants('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看名單</button>` : ''}
         ${i.isRaffle && !i.raffleResult && i.raffleManualDraw ? `<button class="btn btn-close" onclick="openRaffleDrawModal('${i.itemId}')">🎯 開獎控制台(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
@@ -4004,6 +4011,24 @@ async function batchSetShopStatus(status) {
   if (d.status === 'success') { toast('✅ ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
   else toast('❌ ' + d.message, false);
 }
+
+// 📦 封存:先下架(變草稿,玩家看不到)再記進封存名單;還原=只從名單移除,商品維持草稿,要再按「上架」才會給玩家看
+async function archiveShopIds_(ids, archive) {
+  if (!ids.length) return;
+  if (archive) {
+    const st = await api({ action: 'adminBatchSetShopItemStatus', itemIds: JSON.stringify(ids), status: 'DRAFT' });
+    if (!st || st.status !== 'success') { toast('❌ 下架失敗:' + ((st && st.message) || ''), false); return; }
+  }
+  const d = await apiCraftWrite_('adminShopArchiveSet', { itemIds: ids, archive });
+  if (d && d.status === 'success') { toast('✅ ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
+  else toast('❌ ' + ((d && d.message) || '失敗'), false);
+}
+async function batchArchiveShop(archive) {
+  if (shopSelectedIds.size === 0) return;
+  if (!confirm(archive ? `確定要把已勾選的 ${shopSelectedIds.size} 個商品封存嗎?(會先下架,玩家看不到;之後可在「📦 封存區」還原)` : `確定要把已勾選的 ${shopSelectedIds.size} 個商品移出封存區嗎?(還原後是草稿狀態)`)) return;
+  await archiveShopIds_(Array.from(shopSelectedIds), archive);
+}
+async function archiveShopOne(id, archive) { await archiveShopIds_([id], archive); }
 
 async function batchDrawShopRaffles() {
   if (shopSelectedIds.size === 0) return;
