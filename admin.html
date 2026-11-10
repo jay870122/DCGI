@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.126</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.127</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1264,7 +1264,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="ct-card">
           <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">(總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍):冠軍 25/15、其餘前 10% 名額 25/5、參與獎 15/2、投票獎 5/1〔該賽道至少投 1 票〕、投票神預測獎 10/2;貨幣=「穿搭大賽兌換卷 / 穿搭大賽抽獎卷」,要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」)</div></div>
-            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div></div>
+            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards(true)">🧪 試算(假設全部公布)</button><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div></div>
           <div id="ct-adm-rewards"></div>
         </div>
 
@@ -3673,14 +3673,15 @@ async function ctAdmSaveTracks() {
   toast(d.message); loadContestAdmin();
 }
 let ctRew_ = null;
-async function ctAdmLoadRewards() {
-  const d = await stockAdminCall_('adminContestRewardsWorker');
+async function ctAdmLoadRewards(sim) {
+  const d = await stockAdminCall_('adminContestRewardsWorker', sim ? { sim: '1' } : {});
   if (!d || d.status !== 'success') { toast('計算失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
-  ctRew_ = d;
+  if (!sim) ctRew_ = d;
   const box = document.getElementById('ct-adm-rewards');
   if (!d.players.length) { box.innerHTML = '<div class="hint">還沒有可結算的獎勵(賽道需「已截止」或「已公布」)</div>'; return; }
-  let ex = 0, lo = 0; d.players.forEach((p) => { ex += p.exch; lo += p.lottery; });
-  box.innerHTML = '<div class="hint" style="margin-bottom:4px">待發放合計:兌換卷 <b>' + ex + '</b>、抽獎卷 <b>' + lo + '</b>(' + d.players.filter((p) => p.exch || p.lottery).length + ' 位玩家)</div><div class="ct-tw"><table><thead><tr><th>玩家</th><th>待發 兌換卷</th><th>待發 抽獎卷</th><th>明細</th></tr></thead><tbody>' + d.players.map((p) => '<tr><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.exch + '</b>' + (p.exchDone ? '<div class="hint">已發 ' + p.exchDone + '</div>' : '') + '</td><td><b>' + p.lottery + '</b>' + (p.lotteryDone ? '<div class="hint">已發 ' + p.lotteryDone + '</div>' : '') + '</td><td style="font-size:12px">' + p.items.map((i) => (i.granted ? '<s>' : '') + ctEsc_(i.label) + ' ' + i.exch + '/' + i.lottery + (i.granted ? '</s>' : '')).join('<br>') + '</td></tr>').join('') + '</tbody></table></div>';
+  let ex = 0, lo = 0; d.players.forEach((p) => { ex += p.exch + (sim ? p.exchDone : 0); lo += p.lottery + (sim ? p.lotteryDone : 0); });
+  const banner = sim ? '<div style="background:rgba(250,166,26,0.15);border:1px solid var(--gold);border-radius:var(--r);padding:8px 12px;margin-bottom:8px;font-size:13px">🧪 <b>試算結果(不會發放)</b>:假設所有賽道都已公布,用目前票數計算' + ((d.pending || []).length ? '。尚未公布的賽道:' + d.pending.map((t) => ctEsc_(t.name) + '(' + ctEsc_(t.status) + ')').join('、') : '') + '。正式發放請按「計算獎勵」或「發放」。</div>' : '';
+  box.innerHTML = banner + '<div class="hint" style="margin-bottom:4px">' + (sim ? '預估合計' : '待發放合計') + ':兌換卷 <b>' + ex + '</b>、抽獎卷 <b>' + lo + '</b>(' + d.players.filter((p) => p.exch || p.lottery || (sim && (p.exchDone || p.lotteryDone))).length + ' 位玩家)</div><div class="ct-tw"><table><thead><tr><th>玩家</th><th>' + (sim ? '預估' : '待發') + ' 兌換卷</th><th>' + (sim ? '預估' : '待發') + ' 抽獎卷</th><th>明細</th></tr></thead><tbody>' + d.players.map((p) => '<tr><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + (sim ? p.exch + p.exchDone : p.exch) + '</b>' + (!sim && p.exchDone ? '<div class="hint">已發 ' + p.exchDone + '</div>' : '') + '</td><td><b>' + (sim ? p.lottery + p.lotteryDone : p.lottery) + '</b>' + (!sim && p.lotteryDone ? '<div class="hint">已發 ' + p.lotteryDone + '</div>' : '') + '</td><td style="font-size:12px">' + p.items.map((i) => (i.granted && !sim ? '<s>' : '') + ctEsc_(i.label) + ' ' + i.exch + '/' + i.lottery + (i.granted && !sim ? '</s>' : '')).join('<br>') + '</td></tr>').join('') + '</tbody></table></div>';
 }
 async function ctAdmGrantRewards() {
   await ctAdmLoadRewards();
