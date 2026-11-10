@@ -863,7 +863,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.168</div>
+    <div class="version-tag">系統版本：v5.4.169</div>
   </div>
 
   <script>
@@ -899,6 +899,9 @@
         t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/~~([^~\n]+)~~/g, '<s>$1</s>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
         t = t.replace(/\[size=(\d{1,2})\]([\s\S]*?)\[\/size\]/g, (m, n, x) => '<span style="font-size:' + Math.max(10, Math.min(48, parseInt(n, 10))) + 'px">' + x + '</span>');
         t = t.replace(/\[特大\]([\s\S]*?)\[\/特大\]/g, '<span style="font-size:28px">$1</span>').replace(/\[大\]([\s\S]*?)\[\/大\]/g, '<span style="font-size:20px">$1</span>').replace(/\[小\]([\s\S]*?)\[\/小\]/g, '<span style="font-size:12px">$1</span>');
+        t = t.replace(/\[u\]([\s\S]*?)\[\/u\]/g, '<u>$1</u>');
+        t = t.replace(/\[font=(sans|kai|ming|mono)\]([\s\S]*?)\[\/font\]/g, (m, f, x) => '<span style="font-family:' + ({ sans: "'Microsoft JhengHei',sans-serif", kai: "DFKai-SB,BiauKai,'標楷體',serif", ming: "PMingLiU,'新細明體',serif", mono: 'Consolas,monospace' })[f] + '">' + x + '</span>');
+        t = t.replace(/\[(center|right|left)\]([\s\S]*?)\[\/\1\]/g, '<span style="display:block;text-align:$1">$2</span>');
         t = t.replace(/\[color=(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})\]([\s\S]*?)\[\/color\]/g, '<span style="color:$1">$2</span>');
         t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
         return t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);

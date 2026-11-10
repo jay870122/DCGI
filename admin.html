@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.92</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.93</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1841,7 +1841,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal" style="max-width:760px">
     <div class="modal-header"><h3>📝 資訊卡片(非兌換用的文字卡)</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
     <div class="form-grid">
-      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>寬度</b>:1/6~6/6(共 6 格,6/6=整行、3/6=半行、2/6=一行放 3 張)。相鄰的小卡會排在同一行;合併的卡片以第一張的寬度為準;手機上窄卡會自動變成半行/整行。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>。</span></div>
+      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>寬度</b>:1/6~6/6(共 6 格,6/6=整行、3/6=半行、2/6=一行放 3 張)。相鄰的小卡會排在同一行;合併的卡片以第一張的寬度為準;手機上窄卡會自動變成半行/整行。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>、<code>[u]底線[/u]</code>、<code>[font=kai]標楷體[/font]</code>(sans/kai/ming/mono)、<code>[center]置中[/center]</code>(left/right)。<br>· <b>編輯工具列</b>:每張卡的內文框上方有字體、大小、粗體/斜體/底線/刪除線、顏色、對齊、表情、圖片、連結、標題、清單、引用、程式碼、分隔線按鈕,先<b>選取文字</b>再按按鈕就會套用語法,下方預覽即時更新。</span></div>
       <div class="field full"><div id="ic-rows"></div>
         <button class="btn" onclick="icAddRow_()" style="margin-top:6px">➕ 新增卡片</button>
         <button class="btn" onclick="icMerge_(true)" style="margin-top:6px">🔗 合併已勾選</button>
@@ -3567,6 +3567,9 @@ async function saveCurExp() {
         t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/~~([^~\n]+)~~/g, '<s>$1</s>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
         t = t.replace(/\[size=(\d{1,2})\]([\s\S]*?)\[\/size\]/g, (m, n, x) => '<span style="font-size:' + Math.max(10, Math.min(48, parseInt(n, 10))) + 'px">' + x + '</span>');
         t = t.replace(/\[特大\]([\s\S]*?)\[\/特大\]/g, '<span style="font-size:28px">$1</span>').replace(/\[大\]([\s\S]*?)\[\/大\]/g, '<span style="font-size:20px">$1</span>').replace(/\[小\]([\s\S]*?)\[\/小\]/g, '<span style="font-size:12px">$1</span>');
+        t = t.replace(/\[u\]([\s\S]*?)\[\/u\]/g, '<u>$1</u>');
+        t = t.replace(/\[font=(sans|kai|ming|mono)\]([\s\S]*?)\[\/font\]/g, (m, f, x) => '<span style="font-family:' + ({ sans: "'Microsoft JhengHei',sans-serif", kai: "DFKai-SB,BiauKai,'標楷體',serif", ming: "PMingLiU,'新細明體',serif", mono: 'Consolas,monospace' })[f] + '">' + x + '</span>');
+        t = t.replace(/\[(center|right|left)\]([\s\S]*?)\[\/\1\]/g, '<span style="display:block;text-align:$1">$2</span>');
         t = t.replace(/\[color=(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})\]([\s\S]*?)\[\/color\]/g, '<span style="color:$1">$2</span>');
         t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
         return t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
@@ -3586,6 +3589,52 @@ async function saveCurExp() {
       close(); return out.join('');
     }
 
+
+const IC_TB_HTML_ = `<div class="ic-tb" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;background:#4E5058;padding:4px 6px;border-radius:6px">
+<select data-act="font" title="字體"><option value="">字體</option><option value="sans">微軟正黑體</option><option value="kai">標楷體</option><option value="ming">新細明體</option><option value="mono">等寬字</option></select>
+<select data-act="size" title="文字大小"><option value="">大小</option>${[12,14,16,18,20,24,28,32,40,48].map(n => '<option value="' + n + '">' + n + '</option>').join('')}</select>
+<button type="button" class="btn" data-act="wrap" data-o="**" data-c="**" data-p="粗體" title="粗體"><b>B</b></button>
+<button type="button" class="btn" data-act="wrap" data-o="*" data-c="*" data-p="斜體" title="斜體"><i>I</i></button>
+<button type="button" class="btn" data-act="wrap" data-o="[u]" data-c="[/u]" data-p="底線" title="底線"><u>U</u></button>
+<button type="button" class="btn" data-act="wrap" data-o="~~" data-c="~~" data-p="刪除線" title="刪除線"><s>S</s></button>
+<input type="color" data-act="color" value="#ff5555" title="文字顏色(先選取文字,再選顏色)" style="width:28px;height:24px;padding:0;border:0;background:none">
+<button type="button" class="btn" data-act="wrap" data-o="[left]" data-c="[/left]" data-p="靠左" title="靠左">⬅</button>
+<button type="button" class="btn" data-act="wrap" data-o="[center]" data-c="[/center]" data-p="置中" title="置中">↔</button>
+<button type="button" class="btn" data-act="wrap" data-o="[right]" data-c="[/right]" data-p="靠右" title="靠右">➡</button>
+<button type="button" class="btn" data-act="emoji" title="插入表情">😀</button>
+<button type="button" class="btn" data-act="image" title="插入圖片">🖼️</button>
+<button type="button" class="btn" data-act="link" title="插入連結">🔗</button>
+<button type="button" class="btn" data-act="line" data-o="## " title="標題">H</button>
+<button type="button" class="btn" data-act="line" data-o="- " title="清單">•≡</button>
+<button type="button" class="btn" data-act="line" data-o="> " title="引用">❝</button>
+<button type="button" class="btn" data-act="wrap" data-o="\`" data-c="\`" data-p="code" title="程式碼">&lt;&gt;</button>
+<button type="button" class="btn" data-act="ins" data-o="\n---\n" title="分隔線">―</button>
+</div><div class="ic-emo" style="display:none;flex-wrap:wrap;gap:2px;background:#2B2D31;padding:6px;border-radius:6px;font-size:20px;cursor:pointer">${'😀 😁 😂 🤣 😊 😍 😎 🤔 😢 😭 😡 👍 👎 👏 🙏 💪 🎉 🎁 🎮 🏆 ⭐ 🔥 💎 ✨ ❤️ 💯 ✅ ❌ ⚠️ 📢 📌 🕒'.split(' ').map(e => '<span data-act="emo" data-o="' + e + '">' + e + '</span>').join('')}</div>`;
+function icTa_(el) { return el.closest('.ic-row').querySelector('.ic-text'); }
+function icInsert_(ta, before, after, ph) {
+  const st = ta.selectionStart, en = ta.selectionEnd, sel = ta.value.slice(st, en) || ph || '';
+  ta.value = ta.value.slice(0, st) + before + sel + after + ta.value.slice(en);
+  ta.focus(); ta.setSelectionRange(st + before.length, st + before.length + sel.length);
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function icToolbarAct_(el) {
+  const ta = icTa_(el), act = el.dataset.act, row = el.closest('.ic-row');
+  if (act === 'wrap') icInsert_(ta, el.dataset.o, el.dataset.c, el.dataset.p);
+  else if (act === 'ins' || act === 'emo') icInsert_(ta, el.dataset.o.replace(/\\n/g, '\n'), '', '');
+  else if (act === 'line') { const st = ta.selectionStart, ls = ta.value.lastIndexOf('\n', st - 1) + 1; ta.value = ta.value.slice(0, ls) + el.dataset.o + ta.value.slice(ls); ta.focus(); ta.dispatchEvent(new Event('input', { bubbles: true })); }
+  else if (act === 'emoji') { const e = row.querySelector('.ic-emo'); e.style.display = e.style.display === 'none' ? 'flex' : 'none'; }
+  else if (act === 'image') { const u = prompt('圖片網址(https://…)'); if (!u) return; const w = prompt('寬度(像素,留空=自動縮到卡片寬)', ''); icInsert_(ta, '![圖片](' + u.trim() + (w && /^\d+$/.test(w.trim()) ? ' =' + w.trim() : '') + ')', '', ''); }
+  else if (act === 'link') { const u = prompt('連結網址(https://…)'); if (!u) return; icInsert_(ta, '[', '](' + u.trim() + ')', '連結文字'); }
+}
+document.addEventListener('click', (ev) => { const b = ev.target.closest && ev.target.closest('.ic-tb [data-act], .ic-emo [data-act]'); if (b && !['font', 'size', 'color'].includes(b.dataset.act)) icToolbarAct_(b); });
+document.addEventListener('change', (ev) => {
+  const el = ev.target; if (!el.closest || !el.closest('.ic-tb')) return;
+  const ta = icTa_(el);
+  if (el.dataset.act === 'font' && el.value) icInsert_(ta, '[font=' + el.value + ']', '[/font]', '文字');
+  else if (el.dataset.act === 'size' && el.value) icInsert_(ta, '[size=' + el.value + ']', '[/size]', '文字');
+  else if (el.dataset.act === 'color') icInsert_(ta, '[color=' + el.value + ']', '[/color]', '文字');
+  if (el.tagName === 'SELECT') el.value = '';
+});
 function icPreview_(row) {
   const t = row.querySelector('.ic-title').value, box = row.querySelector('.ic-prev');
   box.innerHTML = (t ? '<div style="font-weight:bold;font-size:15px;color:#fff;margin-bottom:6px">' + icEsc_(t) + '</div>' : '') + '<div>' + infoMd_(row.querySelector('.ic-text').value) + '</div>';
@@ -3604,6 +3653,7 @@ function icAddRow_(c) {
     + '<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-show"' + (c.show === false ? '' : ' checked') + '>顯示</label> '
     + '<span class="ic-grp hint"></span><input type="hidden" class="ic-group" value="' + icEsc_(c.group) + '">'
     + '<button class="btn btn-del" onclick="this.closest(\'.ic-row\').remove()">刪除</button></div>'
+    + IC_TB_HTML_
     + '<textarea class="ic-text" rows="3" placeholder="內文(支援 Markdown:# 標題、**粗體**、![圖](網址)、[size=24]大字[/size])" style="width:100%">' + icEsc_(c.text) + '</textarea>'
     + '<div class="hint">👀 預覽(前台實際顯示的樣子)</div><div class="ic-prev" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:24px"></div>';
   d.addEventListener('input', () => icPreview_(d));
