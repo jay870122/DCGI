@@ -92,6 +92,10 @@
     .ic-cm-item:last-child { border-bottom: 0; }
     .ic-cm-item .cm-h { color: #949BA4; font-size: 12px; margin-bottom: 2px; }
     .ic-cm-item .cm-h b { color: #fff; font-size: 13px; margin-right: 6px; }
+    .ic-cm-item .cm-ed { cursor: pointer; margin-left: 8px; color: #B5BAC1; }
+    .ic-cm-item i { font-style: normal; color: #6D6F78; }
+    .cm-edit-ta { width: 100%; box-sizing: border-box; min-height: 50px; background: #1E1F22; color: #fff; border: 1px solid #4E5058; border-radius: 6px; padding: 6px; }
+    .ic-cm-item.cm-hl { outline: 2px solid #FEE75C; border-radius: 6px; }
     .ic-cm-item .cm-del { cursor: pointer; margin-left: 8px; color: #ED4245; }
     .ic-cm-item .cm-rp { cursor: pointer; margin-left: 8px; color: #00A8FC; }
     .ic-cm-reply { margin-left: 18px; padding-left: 10px; border-left: 2px solid #3F4147; }
@@ -884,7 +888,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.180</div>
+    <div class="version-tag">系統版本：v5.4.181</div>
   </div>
 
   <script>
@@ -977,7 +981,8 @@
     window.addEventListener('resize', () => { try { layoutInfoCards_(); } catch (e) {} });
     // 💬 資訊卡片留言(公開討論串):卡片開放留言才會出現「💬 留言」按鈕,點開看所有人的留言、可發言、可回覆(被回覆的人會收到私訊通知);
     //   自己的留言可刪除。板面開著時會每 N 秒(後台每張卡可設)自動刷新。
-    const icCmOpen_ = new Set(), icCmData_ = {}, icCmDraft_ = {}, icCmReply_ = {}, icCmTimers_ = {};
+    const icCmOpen_ = new Set(), icCmData_ = {}, icCmDraft_ = {}, icCmReply_ = {}, icCmTimers_ = {}, icCmNext_ = {}, icCmEdit_ = {};
+    setInterval(() => { document.querySelectorAll('.cm-cd[data-id]').forEach((el) => { const n = icCmNext_[el.dataset.id]; el.textContent = n ? ('🔄 ' + Math.max(0, Math.ceil((n - Date.now()) / 1000)) + ' 秒後自動刷新') : '自動刷新:關閉'; }); }, 1000);
     function icCmEsc_(t) { return (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function icCmBox_(id) { return Array.from(document.querySelectorAll('.ic-cm-box')).find((b) => b.dataset.id === id) || null; }
     function icCmSetCount_(id, n) {
@@ -986,17 +991,19 @@
     }
     async function icCmLoad_(id) {
       const d = await chamberCall_('infoCardCommentsWorker', { card: id });
-      if (d && d.status === 'success') { icCmData_[id] = { list: d.comments || [], isAdmin: !!d.isAdmin }; icCmSetCount_(id, icCmData_[id].list.length); }
+      if (d && d.status === 'success') { icCmData_[id] = { list: d.comments || [], isAdmin: !!d.isAdmin, adminOnly: !!d.adminOnly }; if (!(d.adminOnly && !d.isAdmin)) icCmSetCount_(id, icCmData_[id].list.length); }
       else if (!icCmData_[id]) icCmData_[id] = { list: [], isAdmin: false, err: (d && d.message) || '載入失敗,請稍後再試' };
     }
-    function icCmSig_(id) { const d = icCmData_[id]; return d ? d.list.map((m) => m.id).join(',') + '|' + (d.err || '') : ''; }
-    function icCmStopTimer_(id) { if (icCmTimers_[id]) { clearInterval(icCmTimers_[id]); delete icCmTimers_[id]; } }
+    function icCmSig_(id) { const d = icCmData_[id]; return d ? d.list.map((m) => m.id + ':' + (m.edited || '') + ':' + (m.text || '').length).join(',') + '|' + (d.err || '') : ''; }
+    function icCmStopTimer_(id) { if (icCmTimers_[id]) { clearInterval(icCmTimers_[id]); delete icCmTimers_[id]; } delete icCmNext_[id]; }
     function icCmStartTimer_(id) {
       icCmStopTimer_(id);
       const card = (infoCards_ || []).find((c) => c.id === id) || {}, sec = card.cmRefresh === undefined ? 15 : card.cmRefresh;
-      if (!(sec > 0)) return;
+      if (!(sec > 0)) { delete icCmNext_[id]; return; }
+      icCmNext_[id] = Date.now() + sec * 1000;
       icCmTimers_[id] = setInterval(async () => {
         if (!icCmOpen_.has(id)) { icCmStopTimer_(id); return; }
+        icCmNext_[id] = Date.now() + sec * 1000;
         if (document.hidden || !icCmBox_(id)) return;
         const before = icCmSig_(id); await icCmLoad_(id);
         if (icCmSig_(id) !== before) icCmRender_(id);
@@ -1013,26 +1020,40 @@
       const d = icCmData_[id]; if (!d) return;
       const card = (infoCards_ || []).find((c) => c.id === id) || {}, max = card.cmMax || 200;
       const old = box.querySelector('textarea'); let hadFocus = false, selS = 0, selE = 0;
+      const oldEd = box.querySelector('.cm-edit-ta'); if (oldEd && icCmEdit_[id]) icCmEdit_[id].text = oldEd.value;
       if (old) { icCmDraft_[id] = old.value; hadFocus = (old === document.activeElement); selS = old.selectionStart; selE = old.selectionEnd; }
       const fmt = (iso) => { const t = new Date(iso); return isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); };
       const ids = new Set(d.list.map((m) => m.id)), kids = {}, tops = [];
       d.list.forEach((m) => { if (m.parent && ids.has(m.parent)) (kids[m.parent] = kids[m.parent] || []).push(m); else tops.push(m); });
-      const one = (m, isReply) => '<div class="ic-cm-item' + (isReply ? ' ic-cm-reply' : '') + '"><div class="cm-h"><b>' + icCmEsc_(m.name) + '</b>' + fmt(m.at)
+      const ed = icCmEdit_[id];
+      const one = (m, isReply) => '<div class="ic-cm-item' + (isReply ? ' ic-cm-reply' : '') + '" data-mid="' + icCmEsc_(m.id) + '"><div class="cm-h"><b>' + icCmEsc_(m.name) + '</b>' + fmt(m.at) + (m.edited ? ' <i title="' + icCmEsc_(fmt(m.edited)) + '">(已編輯)</i>' : '')
         + '<span class="cm-rp" data-mid="' + icCmEsc_(m.id) + '" data-nm="' + icCmEsc_(m.name) + '">↩ 回覆</span>'
-        + ((m.mine || d.isAdmin) ? '<span class="cm-del" data-mid="' + icCmEsc_(m.id) + '">🗑 刪除</span>' : '') + '</div><div class="cm-t">'
-        + (isReply && m.replyTo ? '<span class="cm-to">↩ @' + icCmEsc_(m.replyTo) + '</span> ' : '') + icCmEsc_(m.text) + '</div></div>';
+        + (m.mine ? '<span class="cm-ed" data-mid="' + icCmEsc_(m.id) + '">✏ 編輯</span>' : '')
+        + ((m.mine || d.isAdmin) ? '<span class="cm-del" data-mid="' + icCmEsc_(m.id) + '">🗑 刪除</span>' : '') + '</div>'
+        + ((ed && ed.mid === m.id)
+          ? '<textarea class="cm-edit-ta" maxlength="' + max + '">' + icCmEsc_(ed.text) + '</textarea><div class="ic-cm-foot"><span></span><span><button type="button" class="ic-cm-btn cm-edx">取消</button> <button type="button" class="ic-cm-btn cm-eds">儲存</button></span></div>'
+          : '<div class="cm-t">' + (isReply && m.replyTo ? '<span class="cm-to">↩ @' + icCmEsc_(m.replyTo) + '</span> ' : '') + icCmEsc_(m.text) + '</div>') + '</div>';
       const items = tops.map((m) => one(m, false) + (kids[m.id] || []).map((k) => one(k, true)).join('')).join('');
       const rp = icCmReply_[id];
       box.style.display = 'block';
-      box.innerHTML = (d.err ? '<div style="color:#ED4245;font-size:13px">' + icCmEsc_(d.err) + '</div>' : '') + (items || '<div style="color:#949BA4;font-size:13px">還沒有留言,來當第一個吧!</div>')
+      box.innerHTML = (d.err ? '<div style="color:#ED4245;font-size:13px">' + icCmEsc_(d.err) + '</div>' : '') + (d.adminOnly ? '<div style="color:#FEE75C;font-size:12px;margin-bottom:4px">🔒 ' + (d.isAdmin ? '這張卡的留言僅管理員可見(玩家只看得到自己的留言與你的回覆)' : '留言僅管理員可見,你只會看到自己的留言與管理員給你的回覆') + '</div>' : '') + (items || '<div style="color:#949BA4;font-size:13px">' + (d.adminOnly && !d.isAdmin ? '還沒有你的留言' : '還沒有留言,來當第一個吧!') + '</div>')
         + (rp ? '<div class="cm-rpbar">↩ 回覆 <b>@' + icCmEsc_(rp.name) + '</b><span class="cm-rpx">✕ 取消回覆</span></div>' : '')
-        + '<textarea maxlength="' + max + '" placeholder="' + (rp ? '回覆 @' + icCmEsc_(rp.name) + '…(對方會收到私訊通知)' : '寫下你的留言…') + '"></textarea><div class="ic-cm-foot"><span class="cm-cnt">0 / ' + max + '</span><button type="button" class="ic-cm-btn cm-send">' + (rp ? '送出回覆' : '送出留言') + '</button></div>';
+        + '<textarea maxlength="' + max + '" placeholder="' + (rp ? '回覆 @' + icCmEsc_(rp.name) + '…(對方會收到私訊通知)' : '寫下你的留言…') + '"></textarea><div class="ic-cm-foot"><span class="cm-cnt">0 / ' + max + '</span><span class="cm-cd" data-id="' + icCmEsc_(id) + '" style="color:#949BA4;font-size:12px"></span><button type="button" class="ic-cm-btn cm-send">' + (rp ? '送出回覆' : '送出留言') + '</button></div>';
       const ta = box.querySelector('textarea'), cnt = box.querySelector('.cm-cnt'), btn = box.querySelector('.cm-send');
       ta.value = icCmDraft_[id] || ''; cnt.textContent = ta.value.length + ' / ' + max;
       if (hadFocus) { ta.focus(); try { ta.setSelectionRange(selS, selE); } catch (e) {} }
       ta.addEventListener('input', () => { icCmDraft_[id] = ta.value; cnt.textContent = ta.value.length + ' / ' + max; });
       box.querySelectorAll('.cm-del').forEach((el) => el.addEventListener('click', () => icCmDel_(id, el.dataset.mid)));
       box.querySelectorAll('.cm-rp').forEach((el) => el.addEventListener('click', () => { icCmReply_[id] = { mid: el.dataset.mid, name: el.dataset.nm }; icCmRender_(id); const t2 = box.querySelector('textarea'); if (t2) t2.focus(); }));
+      box.querySelectorAll('.cm-ed').forEach((el) => el.addEventListener('click', () => { const m = d.list.find((x) => x.id === el.dataset.mid); if (!m) return; icCmEdit_[id] = { mid: m.id, text: m.text }; icCmRender_(id); const t3 = box.querySelector('.cm-edit-ta'); if (t3) t3.focus(); }));
+      const edx = box.querySelector('.cm-edx'); if (edx) edx.addEventListener('click', () => { delete icCmEdit_[id]; icCmRender_(id); });
+      const eds = box.querySelector('.cm-eds'); if (eds) eds.addEventListener('click', async () => {
+        const t4 = box.querySelector('.cm-edit-ta'), v = t4 ? t4.value.trim() : ''; if (!v) { toast_('請輸入留言內容'); return; }
+        eds.disabled = true; eds.textContent = '儲存中…';
+        const r = await chamberCall_('infoCardCommentEditWorker', { id: icCmEdit_[id].mid, text: v });
+        if (r && r.status === 'success') { delete icCmEdit_[id]; toast_('✅ 已更新留言'); await icCmLoad_(id); icCmRender_(id); }
+        else { toast_((r && r.message) || '儲存失敗'); eds.disabled = false; eds.textContent = '儲存'; }
+      });
       const rx = box.querySelector('.cm-rpx'); if (rx) rx.addEventListener('click', () => { delete icCmReply_[id]; icCmRender_(id); });
       btn.addEventListener('click', async () => {
         const text = ta.value.trim(); if (!text) { toast_('請輸入留言內容'); return; }
@@ -1055,8 +1076,27 @@
       document.addEventListener('click', (e) => { const im = e.target && e.target.closest && e.target.closest('.info-card img'); if (!im) return; e.preventDefault(); const b = box(); b.querySelector('img').src = im.currentSrc || im.src; b.classList.add('open'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const b = document.getElementById('img-zoom'); if (b) b.classList.remove('open'); } });
     })();
+    // 🔗 DC 通知附的留言連結 ?card=卡片ID&cm=留言ID:先記起來(登入跳轉會丟掉網址參數),卡片與商店都載入後自動切分類、展開留言並捲動到該則
+    (function () { try { const q = new URLSearchParams(location.search), c = q.get('card'); if (c) { localStorage.setItem('ic_link_target', JSON.stringify({ card: c, cm: q.get('cm') || '', t: Date.now() })); history.replaceState(null, '', location.pathname + location.hash); } } catch (e) {} })();
+    let icLinkCards_ = false, icLinkShop_ = false;
+    async function icLinkTry_() {
+      if (!(icLinkCards_ && icLinkShop_)) return;
+      let t = null; try { t = JSON.parse(localStorage.getItem('ic_link_target') || 'null'); } catch (e) {}
+      if (!t) return;
+      try { localStorage.removeItem('ic_link_target'); } catch (e) {}
+      if (Date.now() - (t.t || 0) > 3600000) return;
+      const c = (infoCards_ || []).find((x) => x.id === t.card); if (!c) { toast_('找不到這張卡片(可能已被移除)'); return; }
+      if (c.category && c.category !== currentCategory) { try { selectCategory(c.category); } catch (e) {} }
+      await new Promise((r) => setTimeout(r, 300));
+      if (!icCmOpen_.has(c.id)) await icCmToggle_(c.id);
+      const box = icCmBox_(c.id); if (!box) return;
+      let el = t.cm ? box.querySelector('.ic-cm-item[data-mid="' + t.cm.replace(/"/g, '') + '"]') : null;
+      (el || box).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (el) { el.classList.add('cm-hl'); setTimeout(() => el.classList.remove('cm-hl'), 4000); } else if (t.cm) toast_('找不到該則留言(可能已被刪除或你看不到)');
+    }
     async function loadInfoCards_() {
       try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { renderSidebar(); } catch (e) {} try { renderShop(); } catch (e) {} } } catch (e) {}
+      icLinkCards_ = true; try { icLinkTry_(); } catch (e) {}
     }
     // 🌟 [連結限定]商品機制:預設對所有玩家隱藏,只有(1)管理員 或 (2)透過分享連結直接指名要看這個商品
     // 才會顯示。isAdminUser在載入商店資料時會被設定;linkOnlyRevealedIds記錄「這次瀏覽期間,透過分享連結
@@ -6794,6 +6834,7 @@ function fetchScoresAndShop(discordId, callback = null) {
           applyShopAccordion(currentCategory);
           renderSidebar(); 
           renderShop();    
+          icLinkShop_ = true; try { icLinkTry_(); } catch (e) {}
           document.getElementById('loading').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
         }
