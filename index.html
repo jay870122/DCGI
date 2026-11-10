@@ -888,7 +888,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.181</div>
+    <div class="version-tag">系統版本：v5.4.182</div>
   </div>
 
   <script>
@@ -1019,7 +1019,7 @@
       if (!icCmOpen_.has(id)) { box.style.display = 'none'; return; }
       const d = icCmData_[id]; if (!d) return;
       const card = (infoCards_ || []).find((c) => c.id === id) || {}, max = card.cmMax || 200;
-      const old = box.querySelector('textarea'); let hadFocus = false, selS = 0, selE = 0;
+      const old = box.querySelector('textarea:not(.cm-edit-ta)'); let hadFocus = false, selS = 0, selE = 0;
       const oldEd = box.querySelector('.cm-edit-ta'); if (oldEd && icCmEdit_[id]) icCmEdit_[id].text = oldEd.value;
       if (old) { icCmDraft_[id] = old.value; hadFocus = (old === document.activeElement); selS = old.selectionStart; selE = old.selectionEnd; }
       const fmt = (iso) => { const t = new Date(iso); return isNaN(t) ? '' : (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); };
@@ -1039,12 +1039,12 @@
       box.innerHTML = (d.err ? '<div style="color:#ED4245;font-size:13px">' + icCmEsc_(d.err) + '</div>' : '') + (d.adminOnly ? '<div style="color:#FEE75C;font-size:12px;margin-bottom:4px">🔒 ' + (d.isAdmin ? '這張卡的留言僅管理員可見(玩家只看得到自己的留言與你的回覆)' : '留言僅管理員可見,你只會看到自己的留言與管理員給你的回覆') + '</div>' : '') + (items || '<div style="color:#949BA4;font-size:13px">' + (d.adminOnly && !d.isAdmin ? '還沒有你的留言' : '還沒有留言,來當第一個吧!') + '</div>')
         + (rp ? '<div class="cm-rpbar">↩ 回覆 <b>@' + icCmEsc_(rp.name) + '</b><span class="cm-rpx">✕ 取消回覆</span></div>' : '')
         + '<textarea maxlength="' + max + '" placeholder="' + (rp ? '回覆 @' + icCmEsc_(rp.name) + '…(對方會收到私訊通知)' : '寫下你的留言…') + '"></textarea><div class="ic-cm-foot"><span class="cm-cnt">0 / ' + max + '</span><span class="cm-cd" data-id="' + icCmEsc_(id) + '" style="color:#949BA4;font-size:12px"></span><button type="button" class="ic-cm-btn cm-send">' + (rp ? '送出回覆' : '送出留言') + '</button></div>';
-      const ta = box.querySelector('textarea'), cnt = box.querySelector('.cm-cnt'), btn = box.querySelector('.cm-send');
+      const ta = box.querySelector('textarea:not(.cm-edit-ta)'), cnt = box.querySelector('.cm-cnt'), btn = box.querySelector('.cm-send');
       ta.value = icCmDraft_[id] || ''; cnt.textContent = ta.value.length + ' / ' + max;
       if (hadFocus) { ta.focus(); try { ta.setSelectionRange(selS, selE); } catch (e) {} }
       ta.addEventListener('input', () => { icCmDraft_[id] = ta.value; cnt.textContent = ta.value.length + ' / ' + max; });
       box.querySelectorAll('.cm-del').forEach((el) => el.addEventListener('click', () => icCmDel_(id, el.dataset.mid)));
-      box.querySelectorAll('.cm-rp').forEach((el) => el.addEventListener('click', () => { icCmReply_[id] = { mid: el.dataset.mid, name: el.dataset.nm }; icCmRender_(id); const t2 = box.querySelector('textarea'); if (t2) t2.focus(); }));
+      box.querySelectorAll('.cm-rp').forEach((el) => el.addEventListener('click', () => { icCmReply_[id] = { mid: el.dataset.mid, name: el.dataset.nm }; icCmRender_(id); const t2 = box.querySelector('textarea:not(.cm-edit-ta)'); if (t2) t2.focus(); }));
       box.querySelectorAll('.cm-ed').forEach((el) => el.addEventListener('click', () => { const m = d.list.find((x) => x.id === el.dataset.mid); if (!m) return; icCmEdit_[id] = { mid: m.id, text: m.text }; icCmRender_(id); const t3 = box.querySelector('.cm-edit-ta'); if (t3) t3.focus(); }));
       const edx = box.querySelector('.cm-edx'); if (edx) edx.addEventListener('click', () => { delete icCmEdit_[id]; icCmRender_(id); });
       const eds = box.querySelector('.cm-eds'); if (eds) eds.addEventListener('click', async () => {
@@ -1060,7 +1060,7 @@
         btn.disabled = true; btn.textContent = '送出中…';
         const params = { card: id, text }; if (rp) params.parent = rp.mid;
         const r = await chamberCall_('infoCardCommentPostWorker', params);
-        if (r && r.status === 'success') { icCmDraft_[id] = ''; delete icCmReply_[id]; toast_(rp ? '✅ 已送出回覆' : '✅ 已送出留言'); await icCmLoad_(id); icCmRender_(id); }
+        if (r && r.status === 'success') { ta.value = ''; icCmDraft_[id] = ''; delete icCmReply_[id]; toast_(rp ? '✅ 已送出回覆' : '✅ 已送出留言'); await icCmLoad_(id); icCmRender_(id); }
         else { toast_((r && r.message) || '送出失敗,請稍後再試'); btn.disabled = false; btn.textContent = rp ? '送出回覆' : '送出留言'; }
       });
     }
