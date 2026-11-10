@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.100</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.102</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -318,7 +318,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="btn btn-edit" onclick="openInfoCards()">📝 資訊卡片</button>
             <button class="btn btn-edit" id="shop-reorder-toggle" onclick="toggleShopReorderMode()">🔀 排序模式</button>
             <button class="btn-save" id="shop-reorder-save" style="display:none" onclick="saveShopReorderInline()">💾 儲存順序</button>
-            <button class="fab" onclick="navTo('add-shop')">➕ 新增商品</button>
+            <span style="position:relative;display:inline-block"><button class="fab" onclick="toggleAddMenu_(event)">➕ 新增 ▾</button>
+              <div id="add-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:6px;background:#2B2D31;border:1px solid #4E5058;border-radius:8px;min-width:170px;z-index:50;overflow:hidden">
+                <div style="padding:10px 14px;cursor:pointer" onclick="addMenuPick_('shop')">🛍️ 新增商品</div>
+                <div style="padding:10px 14px;cursor:pointer;border-top:1px solid #3F4147" onclick="addMenuPick_('card')">📝 新增資訊卡片</div>
+              </div></span>
           </div>
         </div>
         <div class="toolbar" id="shop-batch-toolbar" style="display:none;padding:10px 0;gap:8px;flex-wrap:wrap;align-items:center">
@@ -3591,6 +3595,26 @@ async function saveCurExp() {
       close(); return out.join('');
     }
 
+const IC_TB_HTML_ = `<div class="ic-tb" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;background:#4E5058;padding:4px 6px;border-radius:6px">
+<select data-act="font" title="字體"><option value="">字體</option><option value="sans">微軟正黑體</option><option value="kai">標楷體</option><option value="ming">新細明體</option><option value="mono">等寬字</option></select>
+<select data-act="size" title="文字大小"><option value="">大小</option>${[12,14,16,18,20,24,28,32,40,48].map(n => '<option value="' + n + '">' + n + '</option>').join('')}</select>
+<button type="button" class="btn" data-act="wrap" data-o="**" data-c="**" data-p="粗體" title="粗體"><b>B</b></button>
+<button type="button" class="btn" data-act="wrap" data-o="*" data-c="*" data-p="斜體" title="斜體"><i>I</i></button>
+<button type="button" class="btn" data-act="wrap" data-o="[u]" data-c="[/u]" data-p="底線" title="底線"><u>U</u></button>
+<button type="button" class="btn" data-act="wrap" data-o="~~" data-c="~~" data-p="刪除線" title="刪除線"><s>S</s></button>
+<input type="color" data-act="color" value="#ff5555" title="文字顏色(先選取文字,再選顏色)" style="width:28px;height:24px;padding:0;border:0;background:none">
+<button type="button" class="btn" data-act="wrap" data-o="[left]" data-c="[/left]" data-p="靠左" title="靠左">⬅</button>
+<button type="button" class="btn" data-act="wrap" data-o="[center]" data-c="[/center]" data-p="置中" title="置中">↔</button>
+<button type="button" class="btn" data-act="wrap" data-o="[right]" data-c="[/right]" data-p="靠右" title="靠右">➡</button>
+<button type="button" class="btn" data-act="emoji" title="插入表情">😀</button>
+<button type="button" class="btn" data-act="image" title="插入圖片">🖼️</button>
+<button type="button" class="btn" data-act="link" title="插入連結">🔗</button>
+<button type="button" class="btn" data-act="line" data-o="## " title="標題">H</button>
+<button type="button" class="btn" data-act="line" data-o="- " title="清單">•≡</button>
+<button type="button" class="btn" data-act="line" data-o="> " title="引用">❝</button>
+<button type="button" class="btn" data-act="wrap" data-o="\`" data-c="\`" data-p="code" title="程式碼">&lt;&gt;</button>
+<button type="button" class="btn" data-act="ins" data-o="\n---\n" title="分隔線">―</button>
+</div><div class="ic-emo" style="display:none;flex-wrap:wrap;gap:2px;background:#2B2D31;padding:6px;border-radius:6px;font-size:20px;cursor:pointer">${'😀 😁 😂 🤣 😊 😍 😎 🤔 😢 😭 😡 👍 👎 👏 🙏 💪 🎉 🎁 🎮 🏆 ⭐ 🔥 💎 ✨ ❤️ 💯 ✅ ❌ ⚠️ 📢 📌 🕒'.split(' ').map(e => '<span data-act="emo" data-o="' + e + '">' + e + '</span>').join('')}</div>`;
 function icTa_(el) { return el.closest('.ic-row').querySelector('.ic-text'); }
 function icInsert_(ta, before, after, ph) {
   const st = ta.selectionStart, en = ta.selectionEnd, sel = ta.value.slice(st, en) || ph || '';
@@ -3758,12 +3782,29 @@ function icMerge_(merge) {
   sel.forEach(r => { r.querySelector('.ic-group').value = g; r.querySelector('.ic-sel').checked = false; });
   icRefreshGroups_();
 }
-async function openInfoCards() {
+function toggleAddMenu_(ev) { ev.stopPropagation(); const m = document.getElementById('add-menu'); m.style.display = m.style.display === 'none' ? 'block' : 'none'; }
+document.addEventListener('click', () => { const m = document.getElementById('add-menu'); if (m) m.style.display = 'none'; });
+function addMenuPick_(t) { document.getElementById('add-menu').style.display = 'none'; if (t === 'shop') navTo('add-shop'); else openInfoCards(null, true); }
+// 資訊卡片當成商品列表的一列:編輯/刪除
+async function deleteInfoCard_(id) {
+  const c = (icAll_ || []).find(x => x.id === id); if (!c) return;
+  if (!confirm('確定要刪除這張資訊卡片嗎?\n' + (c.title || (c.text || '').slice(0, 30)))) return;
+  const rest = icAll_.filter(x => x.id !== id);
+  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: rest });
+  if (d && d.status === 'success') { toast('✅ 已刪除'); await loadShopItems(); } else toast('❌ ' + ((d && d.message) || '失敗'), false);
+}
+async function openInfoCards(focusId, newCard) {
   const d = await stockAdminCall_('adminInfoCardsListWorker');
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   document.getElementById('ic-rows').innerHTML = '';
   (d.cards || []).forEach(icAddRow_);
+  if (newCard) icAddRow_({ category: (document.getElementById('shop-cat-filter') || {}).value || '', show: true, size: 6, order: (d.cards || []).length + 1 });
   document.getElementById('infocard-modal').classList.add('open');
+  setTimeout(() => {
+    const rows = Array.from(document.querySelectorAll('#ic-rows .ic-row'));
+    const t = newCard ? rows[rows.length - 1] : rows.find(r => r.dataset.id === focusId);
+    if (t) { t.scrollIntoView({ block: 'center' }); t.style.boxShadow = '0 0 0 2px #F0B232'; const ti = t.querySelector('.ic-title'); if (newCard && ti) ti.focus(); }
+  }, 50);
 }
 async function saveInfoCards() {
   const btn = document.getElementById('ic-save-btn');
@@ -4056,6 +4097,7 @@ async function loadShopItems() {
     const sc = document.getElementById('sc-list');
     if (sc) { const have = Array.from(sc.children).map(o => o.value); shopItems.forEach(i => { const c = (i.category || '').toString().trim(); if (c && have.indexOf(c) === -1) { have.push(c); const o = document.createElement('option'); o.value = c; sc.appendChild(o); } }); }
   } catch (e) {}
+  try { const ic = await stockAdminCall_('adminInfoCardsListWorker'); icAll_ = (ic && ic.status === 'success') ? (ic.cards || []) : []; } catch (e) {}
   rebuildShopCats_();
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   renderShopTable();
@@ -4212,7 +4254,17 @@ function renderShopTable() {
 
   const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
-  document.getElementById('shop-tbody').innerHTML = items.length === 0
+  const cardRows_ = (statusFilter === 'ARCHIVED' ? [] : (icAll_ || []).filter(c => (!q || ((c.title || '') + (c.text || '')).toLowerCase().includes(q)) && (!cat || (c.category || '') === cat) && (statusFilter === 'DRAFT' ? c.show === false : statusFilter === 'ACTIVE' ? c.show !== false : true)))
+    .map(c => `<tr>
+      <td></td>
+      <td class="cell-name" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${c.group ? '(合併組)' : ''}</span>${((c.title || (c.text || '').slice(0, 30) || '(無標題)') + '').replace(/</g, '&lt;')}</td>
+      <td data-label="分類">${c.category || '(全部分類)'}</td>
+      <td data-label="價格">—</td><td data-label="庫存">—</td>
+      <td data-label="狀態">${c.show === false ? '<span class="status status-draft">隱藏中</span>' : '<span class="status status-open">● 顯示中</span>'}</td>
+      <td class="cell-id" data-label="ID">${c.id}</td>
+      <td class="cell-actions" data-label="操作"><div class="btn-row"><button class="btn btn-edit" onclick="openInfoCards('${c.id}')">編輯</button><button class="btn btn-del" onclick="deleteInfoCard_('${c.id}')">刪除</button></div></td>
+    </tr>`).join('');
+  document.getElementById('shop-tbody').innerHTML = (items.length === 0 && !cardRows_)
     ? '<tr><td colspan="9" class="empty">沒有符合條件的商品</td></tr>'
     : items.map(i => `<tr>
       <td><input type="checkbox" class="shop-row-check" data-id="${i.itemId}" ${shopSelectedIds.has(i.itemId)?'checked':''} onchange="toggleShopItemSelect('${i.itemId}', this.checked)"></td>
@@ -4234,7 +4286,7 @@ function renderShopTable() {
         <button class="btn btn-edit" onclick="duplicateShopItem('${i.itemId}')">📋 複製</button>
         <button class="btn btn-del" onclick="delShopItem('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">刪除</button>
       </div></td>
-    </tr>`).join('');
+    </tr>`).join('') + cardRows_;
   updateShopBatchToolbar();
 }
 
