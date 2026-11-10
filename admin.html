@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.90</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.91</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3556,6 +3556,40 @@ async function saveCurExp() {
 // ============================================================
 // 📝 資訊卡片
 // ============================================================
+    function infoMd_(src) {
+      const esc = (t) => (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const okUrl = (u) => /^https?:\/\/[^\s"'<>]+$/i.test(u);
+      const inline = (t) => {
+        t = esc(t);
+        const keep = []; t = t.replace(/`([^`\n]+)`/g, (m, c) => { keep.push('<code style="background:#1E1F22;padding:1px 5px;border-radius:4px">' + c + '</code>'); return '\u0000' + (keep.length - 1) + '\u0000'; });
+        t = t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)(?:\s+=(\d{2,4}))?\)/g, (m, alt, u, w) => okUrl(u) ? '<img src="' + u + '" alt="' + alt + '" loading="lazy" style="max-width:100%;' + (w ? 'width:' + Math.min(parseInt(w, 10), 1200) + 'px;' : '') + 'height:auto;border-radius:8px;display:block;margin:6px 0">' : m);
+        t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m);
+        t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/~~([^~\n]+)~~/g, '<s>$1</s>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+        t = t.replace(/\[size=(\d{1,2})\]([\s\S]*?)\[\/size\]/g, (m, n, x) => '<span style="font-size:' + Math.max(10, Math.min(48, parseInt(n, 10))) + 'px">' + x + '</span>');
+        t = t.replace(/\[特大\]([\s\S]*?)\[\/特大\]/g, '<span style="font-size:28px">$1</span>').replace(/\[大\]([\s\S]*?)\[\/大\]/g, '<span style="font-size:20px">$1</span>').replace(/\[小\]([\s\S]*?)\[\/小\]/g, '<span style="font-size:12px">$1</span>');
+        t = t.replace(/\[color=(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})\]([\s\S]*?)\[\/color\]/g, '<span style="color:$1">$2</span>');
+        t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
+        return t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
+      };
+      const lines = (src || '').toString().replace(/\r/g, '').split('\n'), out = []; let list = null;
+      const close = () => { if (list) { out.push('</' + list + '>'); list = null; } };
+      lines.forEach((ln) => {
+        let m;
+        if ((m = ln.match(/^(#{1,3})\s+(.*)$/))) { close(); out.push('<div style="font-weight:bold;color:#fff;font-size:' + ({ 1: 22, 2: 18, 3: 16 })[m[1].length] + 'px;margin:6px 0 2px">' + inline(m[2]) + '</div>'); }
+        else if (/^\s*(---+|\*\*\*+)\s*$/.test(ln)) { close(); out.push('<hr style="border:0;border-top:1px solid #4E5058;margin:8px 0">'); }
+        else if ((m = ln.match(/^>\s?(.*)$/))) { close(); out.push('<div style="border-left:3px solid #4E5058;padding-left:10px;color:#B9BBBE">' + inline(m[1]) + '</div>'); }
+        else if ((m = ln.match(/^\s*[-*]\s+(.*)$/))) { if (list !== 'ul') { close(); out.push('<ul style="margin:4px 0;padding-left:22px">'); list = 'ul'; } out.push('<li>' + inline(m[1]) + '</li>'); }
+        else if ((m = ln.match(/^\s*\d+[.)]\s+(.*)$/))) { if (list !== 'ol') { close(); out.push('<ol style="margin:4px 0;padding-left:22px">'); list = 'ol'; } out.push('<li>' + inline(m[1]) + '</li>'); }
+        else if (!ln.trim()) { close(); out.push('<div style="height:8px"></div>'); }
+        else { close(); out.push('<div>' + inline(ln) + '</div>'); }
+      });
+      close(); return out.join('');
+    }
+
+function icPreview_(row) {
+  const t = row.querySelector('.ic-title').value, box = row.querySelector('.ic-prev');
+  box.innerHTML = (t ? '<div style="font-weight:bold;font-size:15px;color:#fff;margin-bottom:6px">' + icEsc_(t) + '</div>' : '') + '<div>' + infoMd_(row.querySelector('.ic-text').value) + '</div>';
+}
 function icEsc_(t) { return (t || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 function icAddRow_(c) {
   c = c || {};
@@ -3569,8 +3603,11 @@ function icAddRow_(c) {
     + '<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-show"' + (c.show === false ? '' : ' checked') + '>顯示</label> '
     + '<span class="ic-grp hint"></span><input type="hidden" class="ic-group" value="' + icEsc_(c.group) + '">'
     + '<button class="btn btn-del" onclick="this.closest(\'.ic-row\').remove()">刪除</button></div>'
-    + '<textarea class="ic-text" rows="3" placeholder="內文(支援 Markdown:# 標題、**粗體**、![圖](網址)、[size=24]大字[/size])" style="width:100%">' + icEsc_(c.text) + '</textarea>';
+    + '<textarea class="ic-text" rows="3" placeholder="內文(支援 Markdown:# 標題、**粗體**、![圖](網址)、[size=24]大字[/size])" style="width:100%">' + icEsc_(c.text) + '</textarea>'
+    + '<div class="hint">👀 預覽(前台實際顯示的樣子)</div><div class="ic-prev" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:24px"></div>';
+  d.addEventListener('input', () => icPreview_(d));
   document.getElementById('ic-rows').appendChild(d);
+  icPreview_(d);
   icRefreshGroups_();
 }
 function icRefreshGroups_() {
