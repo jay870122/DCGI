@@ -97,6 +97,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 /* modal */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
 .overlay.open{display:flex}
+.ic-prev img{max-width:100% !important;height:auto !important;box-sizing:border-box}
 .modal{background:var(--s);border:1px solid var(--bd);border-radius:12px;width:100%;max-width:700px;margin:auto}
 .modal.as-page{max-width:1200px!important;width:100%;margin:0 0 24px 0}
 .modal.as-page .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px 20px;padding:20px 24px}
@@ -260,7 +261,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.110</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.111</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3777,7 +3778,7 @@ function icAddRow_(c) {
     + IC_TB_HTML_
     + '<label style="display:flex;gap:4px;align-items:center;margin:6px 0 4px" class="hint"><input type="checkbox" class="ic-code-toggle">&lt;/&gt; 顯示程式碼(Markdown 原始碼)</label>'
     + '<textarea class="ic-text" rows="6" placeholder="Markdown 原始碼" style="width:100%;display:none;font-family:Consolas,monospace">' + icEsc_(c.text) + '</textarea>'
-    + '<div class="ic-prev" contenteditable="true" spellcheck="false" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:120px;outline:none;margin-top:4px"></div></div>'
+    + '<div class="ic-prev" contenteditable="true" spellcheck="false" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:120px;max-height:60vh;overflow:auto;outline:none;margin-top:4px"></div></div>'
     + '<div class="field full"><details><summary class="hint" style="cursor:pointer">ℹ️ 語法說明(點開)</summary><div class="hint" style="line-height:1.7;margin-top:6px">'
     + '· <b>Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code> <code>[文字](網址)</code><br>'
     + '· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,指定寬度加 <code>=300</code><br>'
