@@ -82,7 +82,11 @@
     .info-card .ic-title { font-weight: bold; font-size: 15px; color: #fff; margin-bottom: 6px; }
     .info-card .ic-sec + .ic-sec { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #4E5058; }
     .info-card b, .info-card strong { color: inherit; }
-    .info-card img { max-width: 100%; }
+    .info-card img { max-width: 100%; cursor: zoom-in; }
+    #img-zoom { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,.92); display: none; align-items: center; justify-content: center; padding: 10px; box-sizing: border-box; cursor: zoom-out; }
+    #img-zoom.open { display: flex; }
+    #img-zoom img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+    #img-zoom .iz-x { position: absolute; top: 10px; right: 14px; color: #fff; font-size: 34px; line-height: 1; }
     .shop-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; }
     .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px;
                       padding: 15px; display: flex; flex-direction: column; position: relative; overflow: hidden; height: 100%; box-sizing: border-box; }
@@ -862,7 +866,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.175</div>
+    <div class="version-tag">系統版本：v5.4.176</div>
   </div>
 
   <script>
@@ -952,6 +956,12 @@
       });
     }
     window.addEventListener('resize', () => { try { layoutInfoCards_(); } catch (e) {} });
+    // 🔍 資訊卡內的圖片:點一下全螢幕放大,再點一下(或按 Esc)關閉
+    (function () {
+      function box() { let b = document.getElementById('img-zoom'); if (!b) { b = document.createElement('div'); b.id = 'img-zoom'; b.innerHTML = '<span class="iz-x">×</span><img alt="">'; b.addEventListener('click', () => b.classList.remove('open')); document.body.appendChild(b); } return b; }
+      document.addEventListener('click', (e) => { const im = e.target && e.target.closest && e.target.closest('.info-card img'); if (!im) return; e.preventDefault(); const b = box(); b.querySelector('img').src = im.currentSrc || im.src; b.classList.add('open'); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const b = document.getElementById('img-zoom'); if (b) b.classList.remove('open'); } });
+    })();
     async function loadInfoCards_() {
       try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { renderShop(); } catch (e) {} } } catch (e) {}
     }
