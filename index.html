@@ -878,7 +878,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.177</div>
+    <div class="version-tag">系統版本：v5.4.178</div>
   </div>
 
   <script>
@@ -1018,7 +1018,7 @@
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const b = document.getElementById('img-zoom'); if (b) b.classList.remove('open'); } });
     })();
     async function loadInfoCards_() {
-      try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { renderShop(); } catch (e) {} } } catch (e) {}
+      try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { renderSidebar(); } catch (e) {} try { renderShop(); } catch (e) {} } } catch (e) {}
     }
     // 🌟 [連結限定]商品機制:預設對所有玩家隱藏,只有(1)管理員 或 (2)透過分享連結直接指名要看這個商品
     // 才會顯示。isAdminUser在載入商店資料時會被設定;linkOnlyRevealedIds記錄「這次瀏覽期間,透過分享連結
@@ -1226,7 +1226,7 @@
       // 🌟 [連結限定]商品沒被揭露的話,連分類清單、分類數量都不該算進去,不然側邊欄會透露出「這裡有個
       // 看不到的東西」,失去隱藏的意義
       const visibleShopItems = currentShopItems.filter(shouldShowLinkOnlyItem);
-      const categories = Array.from(new Set(visibleShopItems.map(item => item.category)));
+      const categories = Array.from(new Set(visibleShopItems.map(item => item.category).concat((infoCards_ || []).map(c => c.category).filter(Boolean)))); // 只有資訊卡片、沒有商品的分類也要列出
       const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const sidebar = document.getElementById('category-sidebar');
 
@@ -1260,7 +1260,8 @@
         const isHideFromSidebar = locked && (!sample.categoryLockVisibility || sample.categoryLockVisibility === '') && sample.categoryLockShowHint === 'HIDE';
         if (isHideFromSidebar && currentCategory !== cat) return '';
 
-        const count = visibleShopItems.filter(i => i.category === cat).length;
+        const itemCnt_ = visibleShopItems.filter(i => i.category === cat).length;
+        const count = itemCnt_ || (infoCards_ || []).filter(c => c.category === cat).length; // 沒商品時顯示資訊卡片數
         const icon = iconOverride || (locked ? '🔒' : '🏷️');
         return `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" style="${indent ? 'padding-left:32px' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
                    <span>${icon} ${displayLabel}</span>
@@ -8497,7 +8498,7 @@ function fetchScoresAndShop(discordId, callback = null) {
     // 這樣滑動切換到的下一個分類,一定是使用者在側邊欄上實際看得到、點得到的那個,不會滑進被完全隱藏的分類。
     function getOrderedShopCategories() {
       const visibleShopItems = currentShopItems.filter(shouldShowLinkOnlyItem);
-      const categories = Array.from(new Set(visibleShopItems.map(item => item.category)));
+      const categories = Array.from(new Set(visibleShopItems.map(item => item.category).concat((infoCards_ || []).map(c => c.category).filter(Boolean)))); // 只有資訊卡片、沒有商品的分類也要列出
       const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const groups = buildCategoryGroups(categories, getOrderIndex);
       const flat = [];
