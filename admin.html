@@ -263,7 +263,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.118</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.119</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1210,8 +1210,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
       <div id="page-contest" style="display:none">
         <div class="page-header"><div class="page-title">🎽 角色穿搭大賽(匿名交叉投票)</div><div class="toolbar"><button class="btn btn-edit" onclick="loadContestAdmin()">🔄 重新整理</button></div></div>
-        <div class="hint" style="margin-bottom:12px">流程:①先在「賽道」設好狀態(未開放=玩家看不到、投票中=開放投票、已截止=停止投票、已公布=顯示名次/分數/參賽者);②在「新增作品」替玩家建檔(玩家不能自己上傳);③到時間把賽道改「投票中」→「已截止」→「已公布」,最後全部賽道都公布才會顯示總排名。規則:每賽道每人支持票上限=作品數×40%(無條件進位)、優異票上限=作品數×40%(暫定,1 張計 2 票)、不可投自己;賽道得分=得票÷最高票×70 + (人數−名次+1)÷人數×30;總排名=同一人最高的兩個賽道相加。</div>
+        <div class="hint" style="margin-bottom:12px">流程:①先在「賽道」設好狀態(未開放=玩家看不到、投票中=開放投票、已截止=停止投票、已公布=顯示名次/分數/參賽者);②在「新增作品」替玩家建檔(玩家不能自己上傳);③到時間把賽道改「投票中」→「已截止」→「已公布」,最後全部賽道都公布才會顯示總排名。規則:每賽道每人支持票上限=作品數×40%(無條件進位)、優異票上限=作品數×15%(1 張計 2 票)、不可投自己;賽道得分=得票÷最高票×70 + (人數−名次+1)÷人數×30;總排名=同一人最高的兩個賽道相加。</div>
         <h3 style="margin:10px 0 6px">賽道</h3>
+        <div class="hint" style="margin-bottom:6px">可設「投票開始/結束時間」自動切換(未開放→投票中→已截止);兩個時間都留空=只看下面「狀態」手動切。「已公布」永遠以手動為準(到時間你再改成已公布)。</div>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer;margin-bottom:8px"><input type="checkbox" id="ct-testmode" style="width:auto"> 🧪 測試模式:只有管理員看得到大賽入口、也只有管理員能投票(正式開放前勾起來測試,測完取消)</label>
         <div id="ct-adm-tracks"></div>
         <div style="margin:8px 0 18px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ctAdmAddTrack()">➕ 新增賽道</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveTracks()">💾 儲存賽道</button></div>
         <h3 style="margin:10px 0 6px">新增 / 編輯作品</h3>
@@ -1226,6 +1228,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap"><input type="hidden" id="ctw-id"><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveWork()" id="ctw-save">➕ 新增作品</button><button class="btn btn-close" onclick="ctAdmResetForm()">清空表單</button></div>
         <h3 style="margin:10px 0 6px">作品與即時成績 <span class="hint">(後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到)</span></h3>
         <div id="ct-adm-works"></div>
+        <h3 style="margin:18px 0 6px">🔮 投票神預測 <span class="hint">(優異票投中「優異獎作品」的人;優異獎作品=該賽道優異票數最多的前 K 件〔K=每人優異票上限,同票併計〕,賽道「已截止」後才計入)</span></h3>
+        <div id="ct-adm-prophets"></div>
         <h3 style="margin:18px 0 6px">總排名 <span class="hint">(取每人最高的兩個賽道;同分比單一賽道得票率、再比總得票)</span></h3>
         <div id="ct-adm-overall"></div>
       </div>
@@ -3558,28 +3562,31 @@ async function loadContestAdmin() {
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   ctAdm_ = d; ctAdmRender_();
 }
+function ctIsoLocal_(iso) { const t = iso ? new Date(iso) : null; if (!t || isNaN(t)) return ''; const p = (n) => String(n).padStart(2, '0'); return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()) + 'T' + p(t.getHours()) + ':' + p(t.getMinutes()); }
 function ctAdmTrackRow_(t) {
-  const sts = ['未開放', '投票中', '已截止', '已公布'];
-  return '<div class="ct-trow" data-id="' + ctEsc_(t.id) + '" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><input class="ct-name" value="' + ctEsc_(t.name) + '" placeholder="賽道名稱" style="flex:2;min-width:120px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px 10px"> <span class="hint">輪次</span><input class="ct-round" type="number" min="1" max="9" value="' + (t.round || 1) + '" style="width:60px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px"> <select class="ct-status" style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px">' + sts.map((x) => '<option' + (x === t.status ? ' selected' : '') + '>' + x + '</option>').join('') + '</select><button class="btn btn-del" onclick="this.parentNode.remove()">移除</button></div>';
+  const sts = ['未開放', '投票中', '已截止', '已公布'], inp = 'background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px';
+  return '<div class="ct-trow" data-id="' + ctEsc_(t.id) + '" style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><input class="ct-name" value="' + ctEsc_(t.name) + '" placeholder="賽道名稱" style="flex:2;min-width:110px;' + inp + '"> <span class="hint">輪次</span><input class="ct-round" type="number" min="1" max="9" value="' + (t.round || 1) + '" style="width:56px;' + inp + '"> <select class="ct-status" style="' + inp + '">' + sts.map((x) => '<option' + (x === t.status ? ' selected' : '') + '>' + x + '</option>').join('') + '</select> <span class="hint">開始</span><input class="ct-start" type="datetime-local" value="' + ctIsoLocal_(t.start) + '" style="' + inp + '"> <span class="hint">結束</span><input class="ct-end" type="datetime-local" value="' + ctIsoLocal_(t.end) + '" style="' + inp + '">' + (t.effStatus && t.effStatus !== t.status ? ' <span class="hint" style="color:var(--gold)">目前實際:' + ctEsc_(t.effStatus) + '</span>' : '') + '<button class="btn btn-del" onclick="this.parentNode.remove()">移除</button></div>';
 }
 function ctAdmAddTrack() { document.getElementById('ct-adm-tracks').insertAdjacentHTML('beforeend', ctAdmTrackRow_({ id: '', name: '', round: 1, status: '未開放' })); }
 function ctAdmRender_() {
   const d = ctAdm_; if (!d) return;
   document.getElementById('ct-adm-tracks').innerHTML = d.tracks.map(ctAdmTrackRow_).join('');
+  document.getElementById('ct-testmode').checked = !!d.testMode;
   const sel = document.getElementById('ctw-track'), cur = sel.value;
   sel.innerHTML = d.tracks.map((t) => '<option value="' + ctEsc_(t.id) + '">' + ctEsc_(t.name) + '</option>').join(''); if (cur) sel.value = cur;
   const byT = {}; d.works.forEach((w) => { (byT[w.track] = byT[w.track] || []).push(w); });
   document.getElementById('ct-adm-works').innerHTML = d.tracks.map((t) => {
     const ws = (byT[t.id] || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99));
-    return '<div style="margin-bottom:14px"><b>' + ctEsc_(t.name) + '</b> <span class="hint">第' + t.round + '輪 · ' + ctEsc_(t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票</span>'
-      + (ws.length ? '<table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1, w.url2].filter(Boolean).map((u, i) => '<a href="' + ctEsc_(u) + '" target="_blank" rel="noopener">圖' + (i + 1) + '</a>').join(' ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有作品</div>') + '</div>';
+    return '<div style="margin-bottom:14px"><b>' + ctEsc_(t.name) + '</b> <span class="hint">第' + t.round + '輪 · ' + ctEsc_(t.effStatus || t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票</span>'
+      + (ws.length ? '<table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.awarded ? ' <span title="優異獎作品">🏅</span>' : '') + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1, w.url2].filter(Boolean).map((u, i) => '<a href="' + ctEsc_(u) + '" target="_blank" rel="noopener">圖' + (i + 1) + '</a>').join(' ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有作品</div>') + '</div>';
   }).join('') || '<div class="hint">還沒有賽道</div>';
   const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
+  document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<table><thead><tr><th>#</th><th>玩家</th><th>命中優異作品</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table>' : '<div class="hint">賽道截止後才會有資料</div>';
   document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有成績</div>';
 }
 async function ctAdmSaveTracks() {
-  const rows = Array.from(document.querySelectorAll('#ct-adm-tracks .ct-trow')).map((r) => ({ id: r.dataset.id, name: r.querySelector('.ct-name').value.trim(), round: r.querySelector('.ct-round').value, status: r.querySelector('.ct-status').value })).filter((t) => t.name);
-  const d = await apiCraftWrite_('adminContestSaveTracks', { tracks: rows });
+  const rows = Array.from(document.querySelectorAll('#ct-adm-tracks .ct-trow')).map((r) => ({ id: r.dataset.id, name: r.querySelector('.ct-name').value.trim(), round: r.querySelector('.ct-round').value, status: r.querySelector('.ct-status').value, start: r.querySelector('.ct-start').value ? new Date(r.querySelector('.ct-start').value).toISOString() : '', end: r.querySelector('.ct-end').value ? new Date(r.querySelector('.ct-end').value).toISOString() : '' })).filter((t) => t.name);
+  const d = await apiCraftWrite_('adminContestSaveTracks', { tracks: rows, testMode: document.getElementById('ct-testmode').checked });
   if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   toast(d.message); loadContestAdmin();
 }
