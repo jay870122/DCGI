@@ -555,6 +555,22 @@
     </div>
   </div>
 
+  <!-- 🎽 角色穿搭大賽(匿名交叉投票) -->
+  <div id="contest-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 760px;">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeContest()">×</span>
+        <h2 style="margin:0;">🎽 角色穿搭大賽</h2>
+      </div>
+      <div class="modal-body">
+        <div id="ct-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+        <div id="ct-info" style="font-size:13px;color:#B9BBBE;margin-bottom:10px"></div>
+        <div id="ct-works"></div>
+        <div id="ct-overall"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 📈 台股模擬(虛擬貨幣買賣台股,Worker專屬) -->
   <div id="stock-modal" class="modal-overlay">
     <div class="dual-wrap">
@@ -888,7 +904,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.182</div>
+    <div class="version-tag">系統版本：v5.4.183</div>
   </div>
 
   <script>
@@ -1073,7 +1089,7 @@
     // 🔍 資訊卡內的圖片:點一下全螢幕放大,再點一下(或按 Esc)關閉
     (function () {
       function box() { let b = document.getElementById('img-zoom'); if (!b) { b = document.createElement('div'); b.id = 'img-zoom'; b.innerHTML = '<span class="iz-x">×</span><img alt="">'; b.addEventListener('click', () => b.classList.remove('open')); document.body.appendChild(b); } return b; }
-      document.addEventListener('click', (e) => { const im = e.target && e.target.closest && e.target.closest('.info-card img'); if (!im) return; e.preventDefault(); const b = box(); b.querySelector('img').src = im.currentSrc || im.src; b.classList.add('open'); });
+      document.addEventListener('click', (e) => { const im = e.target && e.target.closest && e.target.closest('.info-card img, .ct-img'); if (!im) return; e.preventDefault(); const b = box(); b.querySelector('img').src = im.currentSrc || im.src; b.classList.add('open'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const b = document.getElementById('img-zoom'); if (b) b.classList.remove('open'); } });
     })();
     // 🔗 DC 通知附的留言連結 ?card=卡片ID&cm=留言ID:先記起來(登入跳轉會丟掉網址參數),卡片與商店都載入後自動切分類、展開留言並捲動到該則
@@ -1183,6 +1199,7 @@
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
           checkStockAvailability_();
+          checkContestAvailability_();
           checkCryptoAvailability_();
           checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
@@ -1298,6 +1315,7 @@
 
     let cryptoAvailable = false;
     let stockAvailable = false; // 📈 台股模擬有沒有開放
+    let contestAvailable = false; // 🎽 穿搭大賽有沒有賽道開放
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
     function renderSidebar() {
@@ -1314,6 +1332,12 @@
       if (bingoAvailable) {
         bingoEntryHtml = `<div class="cat-item" style="background:linear-gradient(90deg,#EB459E,#F0B232)" onclick="showBingo()">
                    <span>🎰 BINGO 賓果</span>
+                 </div>`;
+      }
+
+      if (contestAvailable) {
+        bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#5865F2,#EB459E)" onclick="openContest()">
+                   <span>🎽 角色穿搭大賽</span>
                  </div>`;
       }
 
@@ -4826,6 +4850,59 @@
 
 
     // ============================================================
+    // 🎽 角色穿搭大賽:匿名作品、每賽道每人支持票(作品數×40%)+優異票(×15%,計2票),不可投自己;公布後顯示名次與分數
+    let ctState_ = null, ctTrack_ = null, ctBusy_ = false;
+    async function checkContestAvailability_() {
+      try { const d = await chamberCall_('contestStateWorker'); if (d && d.status === 'success' && (d.tracks || []).length) { contestAvailable = true; renderSidebar(); } } catch (e) {}
+    }
+    async function openContest() {
+      document.getElementById('contest-modal').style.display = 'flex';
+      document.getElementById('ct-works').innerHTML = '<div style="color:#949BA4">載入中…</div>';
+      await loadContest_(true);
+    }
+    function closeContest() { document.getElementById('contest-modal').style.display = 'none'; }
+    async function loadContest_(first) {
+      const d = await chamberCall_('contestStateWorker');
+      if (!d || d.status !== 'success') { document.getElementById('ct-works').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
+      ctState_ = d;
+      if (!ctTrack_ || !d.tracks.some((t) => t.id === ctTrack_)) ctTrack_ = d.tracks.length ? d.tracks[0].id : null;
+      renderContest_();
+    }
+    function ctVote_(work, type) {
+      if (ctBusy_) return; ctBusy_ = true;
+      chamberCall_('contestVoteWorker', { work, type }).then(async (r) => {
+        toast_((r && r.message) || '操作失敗');
+        if (r && r.status === 'success') await loadContest_();
+      }).finally(() => { ctBusy_ = false; });
+    }
+    function renderContest_() {
+      const d = ctState_; if (!d) return;
+      const E = escapeHtml_;
+      document.getElementById('ct-tabs').innerHTML = d.tracks.map((t) => '<button type="button" class="btn" style="padding:5px 12px;' + (t.id === ctTrack_ ? 'background:#5865F2' : 'background:#4E5058') + '" onclick="ctTrack_=\'' + E(t.id) + '\';renderContest_()">' + E(t.name) + '<span style="font-size:11px;opacity:.8"> · ' + E(t.status) + '</span></button>').join('');
+      const t = d.tracks.find((x) => x.id === ctTrack_);
+      const ov = document.getElementById('ct-overall'); ov.innerHTML = '';
+      if (!t) { document.getElementById('ct-info').textContent = ''; document.getElementById('ct-works').innerHTML = '<div style="color:#949BA4">目前沒有開放的賽道</div>'; return; }
+      const open = t.status === '投票中', pub = t.status === '已公布';
+      document.getElementById('ct-info').innerHTML = '第 ' + t.round + ' 輪 · ' + E(t.name) + '(共 ' + t.works.length + ' 件作品)'
+        + (open ? '<br>🗳️ 你的票:支持票 <b style="color:#fff">' + t.used.support + ' / ' + t.limits.support + '</b>、⭐ 優異票(計 2 票)<b style="color:#fff">' + t.used.excellent + ' / ' + t.limits.excellent + '</b>。不可投自己的作品,投票期間可隨時收回改投。'
+          : pub ? '🏆 成績已公布' : t.status === '已截止' ? '⏹️ 投票已截止,等待公布成績' : '尚未開放投票');
+      document.getElementById('ct-works').innerHTML = t.works.map((w) => {
+        const imgs = [w.url1, w.url2].filter(Boolean).map((u) => '<img class="ct-img" src="' + E(u) + '" loading="lazy" style="max-width:48%;max-height:240px;border-radius:6px;cursor:zoom-in;object-fit:contain;background:#1E1F22">').join(' ');
+        let btns = '';
+        if (open) {
+          if (w.mine) btns = '<span style="color:#949BA4;font-size:12px">這是你的作品(不可投自己)</span>';
+          else btns = '<button type="button" class="btn" style="padding:4px 12px;background:' + (w.myVote === 'support' ? '#3BA55D' : '#4E5058') + '" onclick="ctVote_(\'' + E(w.id) + '\',\'' + (w.myVote === 'support' ? 'none' : 'support') + '\')">' + (w.myVote === 'support' ? '✅ 已投支持(點擊收回)' : '👍 支持') + '</button> '
+            + '<button type="button" class="btn" style="padding:4px 12px;background:' + (w.myVote === 'excellent' ? '#F0B232;color:#000' : '#4E5058') + '" onclick="ctVote_(\'' + E(w.id) + '\',\'' + (w.myVote === 'excellent' ? 'none' : 'excellent') + '\')">' + (w.myVote === 'excellent' ? '⭐ 已投優異(點擊收回)' : '⭐ 優異') + '</button>';
+        }
+        const head = pub ? '<b style="color:#fff">#' + w.rank + ' ' + E(w.name) + '</b> <span style="color:#F0B232">' + (w.score != null ? w.score + ' 分' : '') + '</span> <span style="color:#949BA4;font-size:12px">(支持 ' + w.support + ' · 優異 ' + w.excellent + ' · 計 ' + w.raw + ' 票)</span>' : '<b style="color:#fff">作品 #' + w.no + '</b>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '');
+        return '<div style="background:#2F3136;border-radius:8px;padding:10px;margin-bottom:10px"><div style="margin-bottom:6px">' + head + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' + imgs + '</div>'
+          + (w.text ? '<div style="font-size:13px;color:#DBDEE1;white-space:pre-wrap;margin-bottom:6px">' + E(w.text) + '</div>' : '') + (btns ? '<div>' + btns + '</div>' : '') + '</div>';
+      }).join('') || '<div style="color:#949BA4">這個賽道還沒有作品</div>';
+      if (d.overall && d.overall.length) {
+        ov.innerHTML = '<h3 style="color:#fff;margin:14px 0 6px">🏆 總排名(取最高的兩個賽道相加)</h3>' + d.overall.map((o) => '<div style="font-size:14px;color:#DBDEE1;padding:3px 0">#' + o.rank + ' <b style="color:#fff">' + E(o.name) + '</b> — ' + o.total + ' 分 <span style="color:#949BA4;font-size:12px">(' + o.best.map((b) => E((d.trackNames || {})[b] || b)).join('、') + ')</span></div>').join('');
+      }
+    }
+
     // 📈 台股模擬(只有Worker版)。紅漲綠跌(台股慣例)。
     // ============================================================
     let stockState_ = null, stockTimer_ = null, stockQuote_ = null, stockBusy_ = false, stockLoading_ = false;

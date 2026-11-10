@@ -263,7 +263,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.116</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.117</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -285,6 +285,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
       <div class="nav-item" onclick="navTo('cur-exp')">⏳ 貨幣有效期</div>
       <div class="nav-item" onclick="navTo('cur-mon')">📊 貨幣獲得/消耗統計</div>
+      <div class="nav-item" onclick="navTo('contest')">🎽 穿搭大賽</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('bingo')">🎰 BINGO 賓果卡</div>
       <div class="nav-item" onclick="navTo('item-templates')">🎁 道具模板管理</div>
@@ -1207,6 +1208,27 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="page-stock-cfg" style="display:none"><div class="page-header"><div class="page-title">📈 台股設定</div></div><div class="pg-host" data-modal="stock-cfg-modal"></div></div>
       <div id="page-crypto-cfg" style="display:none"><div class="page-header"><div class="page-title">₿ 加密貨幣設定</div></div><div class="pg-host" data-modal="crypto-cfg-modal"></div></div>
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
+      <div id="page-contest" style="display:none">
+        <div class="page-header"><div class="page-title">🎽 角色穿搭大賽(匿名交叉投票)</div><div class="toolbar"><button class="btn btn-edit" onclick="loadContestAdmin()">🔄 重新整理</button></div></div>
+        <div class="hint" style="margin-bottom:12px">流程:①先在「賽道」設好狀態(未開放=玩家看不到、投票中=開放投票、已截止=停止投票、已公布=顯示名次/分數/參賽者);②在「新增作品」替玩家建檔(玩家不能自己上傳);③到時間把賽道改「投票中」→「已截止」→「已公布」,最後全部賽道都公布才會顯示總排名。規則:每賽道每人支持票上限=作品數×40%(無條件進位)、優異票上限=×15%(計 2 票)、不可投自己;賽道得分=得票÷最高票×70 + (人數−名次+1)÷人數×30;總排名=同一人最高的兩個賽道相加。</div>
+        <h3 style="margin:10px 0 6px">賽道</h3>
+        <div id="ct-adm-tracks"></div>
+        <div style="margin:8px 0 18px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ctAdmAddTrack()">➕ 新增賽道</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveTracks()">💾 儲存賽道</button></div>
+        <h3 style="margin:10px 0 6px">新增 / 編輯作品</h3>
+        <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 16px;margin-bottom:10px">
+          <div class="field"><label>賽道</label><select id="ctw-track"></select></div>
+          <div class="field"><label>參賽者 Discord ID</label><input id="ctw-user" inputmode="numeric" placeholder="例:123456789012345678"></div>
+          <div class="field"><label>參賽者名稱 <span class="hint">留空=自動抓玩家名稱</span></label><input id="ctw-name"></div>
+          <div class="field"><label>Talesbook 截圖網址</label><input id="ctw-url1" placeholder="https://..."></div>
+          <div class="field"><label>遊戲截圖網址</label><input id="ctw-url2" placeholder="https://..."></div>
+          <div class="field" style="grid-column:1/-1"><label>創意說明</label><textarea id="ctw-text" rows="3"></textarea></div>
+        </div>
+        <div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap"><input type="hidden" id="ctw-id"><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveWork()" id="ctw-save">➕ 新增作品</button><button class="btn btn-close" onclick="ctAdmResetForm()">清空表單</button></div>
+        <h3 style="margin:10px 0 6px">作品與即時成績 <span class="hint">(後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到)</span></h3>
+        <div id="ct-adm-works"></div>
+        <h3 style="margin:18px 0 6px">總排名 <span class="hint">(取每人最高的兩個賽道;同分比單一賽道得票率、再比總得票)</span></h3>
+        <div id="ct-adm-overall"></div>
+      </div>
       <div id="page-cur-mon" style="display:none"><div class="page-header"><div class="page-title">📊 貨幣獲得/消耗統計</div></div><div class="pg-host" data-modal="curmon-modal"></div></div>
       <div id="page-lock-settings" style="display:none">
         <div class="page-header"><div class="page-title">🔒 密碼鎖定管理</div></div>
@@ -3323,7 +3345,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3345,6 +3367,7 @@ function navTo(p) {
   if (p==='crypto-cfg') openCryptoConfig();
   if (p==='cur-exp') openCurExp();
   if (p==='cur-mon') openCurMonthly();
+  if (p==='contest') loadContestAdmin();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
   if (p==='auction-bids') {
@@ -3525,6 +3548,61 @@ async function saveStockConfig() {
 }
 
 // ============================================================
+// ============================================================
+// 🎽 角色穿搭大賽(匿名交叉投票)後台
+// ============================================================
+let ctAdm_ = null;
+function ctEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+async function loadContestAdmin() {
+  const d = await stockAdminCall_('adminContestGetWorker');
+  if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  ctAdm_ = d; ctAdmRender_();
+}
+function ctAdmTrackRow_(t) {
+  const sts = ['未開放', '投票中', '已截止', '已公布'];
+  return '<div class="ct-trow" data-id="' + ctEsc_(t.id) + '" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><input class="ct-name" value="' + ctEsc_(t.name) + '" placeholder="賽道名稱" style="flex:2;min-width:120px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px 10px"> <span class="hint">輪次</span><input class="ct-round" type="number" min="1" max="9" value="' + (t.round || 1) + '" style="width:60px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px"> <select class="ct-status" style="background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px">' + sts.map((x) => '<option' + (x === t.status ? ' selected' : '') + '>' + x + '</option>').join('') + '</select><button class="btn btn-del" onclick="this.parentNode.remove()">移除</button></div>';
+}
+function ctAdmAddTrack() { document.getElementById('ct-adm-tracks').insertAdjacentHTML('beforeend', ctAdmTrackRow_({ id: '', name: '', round: 1, status: '未開放' })); }
+function ctAdmRender_() {
+  const d = ctAdm_; if (!d) return;
+  document.getElementById('ct-adm-tracks').innerHTML = d.tracks.map(ctAdmTrackRow_).join('');
+  const sel = document.getElementById('ctw-track'), cur = sel.value;
+  sel.innerHTML = d.tracks.map((t) => '<option value="' + ctEsc_(t.id) + '">' + ctEsc_(t.name) + '</option>').join(''); if (cur) sel.value = cur;
+  const byT = {}; d.works.forEach((w) => { (byT[w.track] = byT[w.track] || []).push(w); });
+  document.getElementById('ct-adm-works').innerHTML = d.tracks.map((t) => {
+    const ws = (byT[t.id] || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99));
+    return '<div style="margin-bottom:14px"><b>' + ctEsc_(t.name) + '</b> <span class="hint">第' + t.round + '輪 · ' + ctEsc_(t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票</span>'
+      + (ws.length ? '<table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1, w.url2].filter(Boolean).map((u, i) => '<a href="' + ctEsc_(u) + '" target="_blank" rel="noopener">圖' + (i + 1) + '</a>').join(' ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有作品</div>') + '</div>';
+  }).join('') || '<div class="hint">還沒有賽道</div>';
+  const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
+  document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有成績</div>';
+}
+async function ctAdmSaveTracks() {
+  const rows = Array.from(document.querySelectorAll('#ct-adm-tracks .ct-trow')).map((r) => ({ id: r.dataset.id, name: r.querySelector('.ct-name').value.trim(), round: r.querySelector('.ct-round').value, status: r.querySelector('.ct-status').value })).filter((t) => t.name);
+  const d = await apiCraftWrite_('adminContestSaveTracks', { tracks: rows });
+  if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  toast(d.message); loadContestAdmin();
+}
+function ctAdmResetForm() { ['ctw-id', 'ctw-user', 'ctw-name', 'ctw-url1', 'ctw-url2', 'ctw-text'].forEach((i) => { document.getElementById(i).value = ''; }); document.getElementById('ctw-save').textContent = '➕ 新增作品'; }
+function ctAdmEditWork(id) {
+  const w = (ctAdm_ && ctAdm_.works || []).find((x) => x.id === id); if (!w) return;
+  document.getElementById('ctw-id').value = w.id; document.getElementById('ctw-track').value = w.track; document.getElementById('ctw-user').value = w.user; document.getElementById('ctw-name').value = w.name;
+  document.getElementById('ctw-url1').value = w.url1; document.getElementById('ctw-url2').value = w.url2; document.getElementById('ctw-text').value = w.text;
+  document.getElementById('ctw-save').textContent = '💾 更新作品'; document.getElementById('ctw-user').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+async function ctAdmSaveWork() {
+  const body = { id: document.getElementById('ctw-id').value, track: document.getElementById('ctw-track').value, user: document.getElementById('ctw-user').value, name: document.getElementById('ctw-name').value, url1: document.getElementById('ctw-url1').value, url2: document.getElementById('ctw-url2').value, text: document.getElementById('ctw-text').value };
+  const d = await apiCraftWrite_('adminContestSaveWork', body);
+  if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  toast(d.message); ctAdmResetForm(); loadContestAdmin();
+}
+async function ctAdmDelWork(id) {
+  if (!confirm('確定要移除這件作品嗎?(已收到的票不會計入)')) return;
+  const d = await apiCraftWrite_('adminContestDeleteWork', { id });
+  if (!d || d.status !== 'success') { toast('移除失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  toast(d.message); loadContestAdmin();
+}
+
 // ⏳ 貨幣有效期(過期制度)
 // ============================================================
 function ceAddRow_(cur, days, remind, unit, bind, rate, reserve) {
