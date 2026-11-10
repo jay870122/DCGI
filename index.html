@@ -563,7 +563,7 @@
         <h2 style="margin:0;">🎽 角色穿搭大賽</h2>
       </div>
       <div class="modal-body">
-        <div id="ct-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+        <div id="ct-tabs" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:10px"></div>
         <div id="ct-info" style="font-size:13px;color:#B9BBBE;margin-bottom:10px"></div>
         <div id="ct-works"></div>
         <div id="ct-overall"></div>
@@ -904,7 +904,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.185</div>
+    <div class="version-tag">系統版本：v5.4.186</div>
   </div>
 
   <script>
@@ -4878,7 +4878,7 @@
     function renderContest_() {
       const d = ctState_; if (!d) return;
       const E = escapeHtml_;
-      document.getElementById('ct-tabs').innerHTML = d.tracks.map((t) => '<button type="button" class="btn" style="padding:5px 12px;' + (t.id === ctTrack_ ? 'background:#5865F2' : 'background:#4E5058') + '" onclick="ctTrack_=\'' + E(t.id) + '\';renderContest_()">' + E(t.name) + '<span style="font-size:11px;opacity:.8"> · ' + E(t.status) + '</span></button>').join('');
+      document.getElementById('ct-tabs').innerHTML = d.tracks.map((t) => '<button type="button" class="btn" style="padding:6px 4px;width:100%;margin:0;font-size:13px;' + (t.id === ctTrack_ ? 'background:#5865F2' : 'background:#4E5058') + '" onclick="ctTrack_=\'' + E(t.id) + '\';renderContest_()">' + E(t.name) + '<br><span style="font-size:11px;opacity:.8">' + E(t.status) + '</span></button>').join('');
       const t = d.tracks.find((x) => x.id === ctTrack_);
       const ov = document.getElementById('ct-overall'); ov.innerHTML = '';
       if (!t) { document.getElementById('ct-info').textContent = ''; document.getElementById('ct-works').innerHTML = '<div style="color:#949BA4">目前沒有開放的賽道</div>'; return; }
