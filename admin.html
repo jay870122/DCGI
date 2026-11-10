@@ -263,7 +263,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.119</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.120</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1228,8 +1228,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap"><input type="hidden" id="ctw-id"><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveWork()" id="ctw-save">➕ 新增作品</button><button class="btn btn-close" onclick="ctAdmResetForm()">清空表單</button></div>
         <h3 style="margin:10px 0 6px">作品與即時成績 <span class="hint">(後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到)</span></h3>
         <div id="ct-adm-works"></div>
-        <h3 style="margin:18px 0 6px">🔮 投票神預測 <span class="hint">(優異票投中「優異獎作品」的人;優異獎作品=該賽道優異票數最多的前 K 件〔K=每人優異票上限,同票併計〕,賽道「已截止」後才計入)</span></h3>
+        <h3 style="margin:18px 0 6px">🔮 投票神預測獎 <span class="hint">(把優異票投給「該賽道冠軍(得票最高)」的人;賽道「已截止」後才計入)</span></h3>
         <div id="ct-adm-prophets"></div>
+        <h3 style="margin:18px 0 6px">🎁 獎勵結算與發放 <span class="hint">(總排名獎看每人最高兩賽道總分;各賽道:優異獎最高票 25/15、前10% 25/5、參與獎 15/2、投票獎 5/1〔該賽道至少投 1 票〕、投票神預測獎 10/2;貨幣=「穿搭大賽兌換卷 / 穿搭大賽抽獎卷」,要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」)</span></h3>
+        <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div>
+        <div id="ct-adm-rewards"></div>
         <h3 style="margin:18px 0 6px">總排名 <span class="hint">(取每人最高的兩個賽道;同分比單一賽道得票率、再比總得票)</span></h3>
         <div id="ct-adm-overall"></div>
       </div>
@@ -3578,10 +3581,10 @@ function ctAdmRender_() {
   document.getElementById('ct-adm-works').innerHTML = d.tracks.map((t) => {
     const ws = (byT[t.id] || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99));
     return '<div style="margin-bottom:14px"><b>' + ctEsc_(t.name) + '</b> <span class="hint">第' + t.round + '輪 · ' + ctEsc_(t.effStatus || t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票</span>'
-      + (ws.length ? '<table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.awarded ? ' <span title="優異獎作品">🏅</span>' : '') + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1, w.url2].filter(Boolean).map((u, i) => '<a href="' + ctEsc_(u) + '" target="_blank" rel="noopener">圖' + (i + 1) + '</a>').join(' ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有作品</div>') + '</div>';
+      + (ws.length ? '<table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.award ? ' <span title="優異獎(' + w.award + ')">🏅' + ctEsc_(w.award) + '</span>' : '') + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1, w.url2].filter(Boolean).map((u, i) => '<a href="' + ctEsc_(u) + '" target="_blank" rel="noopener">圖' + (i + 1) + '</a>').join(' ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有作品</div>') + '</div>';
   }).join('') || '<div class="hint">還沒有賽道</div>';
   const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
-  document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<table><thead><tr><th>#</th><th>玩家</th><th>命中優異作品</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table>' : '<div class="hint">賽道截止後才會有資料</div>';
+  document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<table><thead><tr><th>#</th><th>玩家</th><th>命中冠軍(賽道數)</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table>' : '<div class="hint">賽道截止後才會有資料</div>';
   document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table>' : '<div class="hint">還沒有成績</div>';
 }
 async function ctAdmSaveTracks() {
@@ -3589,6 +3592,34 @@ async function ctAdmSaveTracks() {
   const d = await apiCraftWrite_('adminContestSaveTracks', { tracks: rows, testMode: document.getElementById('ct-testmode').checked });
   if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   toast(d.message); loadContestAdmin();
+}
+let ctRew_ = null;
+async function ctAdmLoadRewards() {
+  const d = await stockAdminCall_('adminContestRewardsWorker');
+  if (!d || d.status !== 'success') { toast('計算失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  ctRew_ = d;
+  const box = document.getElementById('ct-adm-rewards');
+  if (!d.players.length) { box.innerHTML = '<div class="hint">還沒有可結算的獎勵(賽道需「已截止」或「已公布」)</div>'; return; }
+  let ex = 0, lo = 0; d.players.forEach((p) => { ex += p.exch; lo += p.lottery; });
+  box.innerHTML = '<div class="hint" style="margin-bottom:4px">待發放合計:兌換卷 <b>' + ex + '</b>、抽獎卷 <b>' + lo + '</b>(' + d.players.filter((p) => p.exch || p.lottery).length + ' 位玩家)</div><table><thead><tr><th>玩家</th><th>待發 兌換卷</th><th>待發 抽獎卷</th><th>明細</th></tr></thead><tbody>' + d.players.map((p) => '<tr><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.exch + '</b>' + (p.exchDone ? '<div class="hint">已發 ' + p.exchDone + '</div>' : '') + '</td><td><b>' + p.lottery + '</b>' + (p.lotteryDone ? '<div class="hint">已發 ' + p.lotteryDone + '</div>' : '') + '</td><td style="font-size:12px">' + p.items.map((i) => (i.granted ? '<s>' : '') + ctEsc_(i.label) + ' ' + i.exch + '/' + i.lottery + (i.granted ? '</s>' : '')).join('<br>') + '</td></tr>').join('') + '</tbody></table>';
+}
+async function ctAdmGrantRewards() {
+  await ctAdmLoadRewards();
+  const d = ctRew_; if (!d) return;
+  const todo = d.players.filter((p) => p.exch || p.lottery); if (!todo.length) { toast('沒有待發放的獎勵'); return; }
+  if (!pcCurrencyFields || !pcCurrencyFields.length) await loadPlayerCurrency();
+  const find = (nm) => (pcCurrencyFields || []).find((f) => (f.display || '').trim() === nm);
+  const cx = find(d.currencies[0]), cl = find(d.currencies[1]);
+  if (!cx || !cl) { toast('找不到貨幣「' + (!cx ? d.currencies[0] : d.currencies[1]) + '」,請先到貨幣設定建立這兩種貨幣(顯示名稱要完全一樣)', false); return; }
+  if (!confirm('確定要發放獎勵給 ' + todo.length + ' 位玩家嗎?(兌換卷合計 ' + todo.reduce((s, p) => s + p.exch, 0) + '、抽獎卷合計 ' + todo.reduce((s, p) => s + p.lottery, 0) + ')\n會私訊通知玩家,此動作無法復原!')) return;
+  const adj = {};
+  todo.forEach((p) => { const a = []; if (p.exch) a.push({ internal: cx.internal, display: cx.display, mode: 'ADD', amount: p.exch }); if (p.lottery) a.push({ internal: cl.internal, display: cl.display, mode: 'ADD', amount: p.lottery }); adj[p.user] = a; });
+  const r = await api({ action: 'adminAdjustPlayerCurrency', playerAdjustments: JSON.stringify(adj), playerItemGrants: '{}', notify: true, broadcast: false, reason: '角色穿搭大賽獎勵', serialKeyNames: '[]', serialTargetIds: '[]', serialNotify: false });
+  if (!r || r.status !== 'success') { toast('發放失敗: ' + ((r && r.message) || '未知錯誤'), false); return; }
+  const awards = []; todo.forEach((p) => p.items.filter((i) => !i.granted).forEach((i) => awards.push({ key: i.key, user: p.user, label: i.label, exch: i.exch, lottery: i.lottery })));
+  const m = await apiCraftWrite_('adminContestMarkGranted', { awards });
+  toast('🎁 已發放給 ' + todo.length + ' 位玩家' + (m && m.status === 'success' ? '' : '(但「已發放」記錄寫入失敗,請勿重複發放!)'), !!(m && m.status === 'success'));
+  ctAdmLoadRewards();
 }
 function ctAdmResetForm() { ['ctw-id', 'ctw-user', 'ctw-name', 'ctw-url1', 'ctw-url2', 'ctw-text'].forEach((i) => { document.getElementById(i).value = ''; }); document.getElementById('ctw-save').textContent = '➕ 新增作品'; }
 function ctAdmEditWork(id) {
