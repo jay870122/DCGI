@@ -341,6 +341,22 @@
     .cart-line .cart-qty { width: 64px; padding: 4px; text-align: center; }
     .btn-cart { background-color: #5865F2; padding: 6px 8px; width: auto; flex: 0 0 auto !important; white-space: nowrap; font-size: 12px; }
     .btn-cart:hover { background-color: #4752C4; }
+.ct-vb{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.ct-vbtn{position:relative;overflow:hidden;width:100%;margin:0;border:2px solid var(--c);background:var(--bg0);color:var(--c);border-radius:10px;padding:9px 6px;font-size:15px;font-weight:700;line-height:1.25;cursor:pointer;font-family:inherit;transition:transform .12s ease,box-shadow .2s ease,background .2s ease,color .2s ease;-webkit-tap-highlight-color:transparent}
+.ct-vbtn small{display:block;font-size:11px;font-weight:400;opacity:.85}
+.ct-vbtn.sup{--c:#3BA55D;--bg0:rgba(59,165,93,.12);--bgh:rgba(59,165,93,.28)}
+.ct-vbtn.exc{--c:#F0B232;--bg0:rgba(240,178,50,.12);--bgh:rgba(240,178,50,.28)}
+.ct-vbtn:hover{background:var(--bgh);box-shadow:0 4px 14px rgba(0,0,0,.35);transform:translateY(-1px)}
+.ct-vbtn:active{transform:scale(.93);box-shadow:none}
+.ct-vbtn.on{background:var(--c);color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.08)}
+.ct-vbtn.exc.on{color:#1E1F22}
+.ct-vbtn.pop{animation:ctPop .45s ease}
+.ct-vbtn.busy{pointer-events:none;opacity:.75;animation:ctBusy .7s ease-in-out infinite}
+.ct-vbtn::after{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 60%);opacity:0;transform:scale(.3);pointer-events:none}
+.ct-vbtn.pop::after{animation:ctRipple .55s ease-out}
+@keyframes ctPop{0%{transform:scale(.88)}45%{transform:scale(1.1)}100%{transform:scale(1)}}
+@keyframes ctRipple{0%{opacity:.9;transform:scale(.3)}100%{opacity:0;transform:scale(1.6)}}
+@keyframes ctBusy{0%,100%{transform:scale(1)}50%{transform:scale(.96)}}
 </style>
 </head>
 <body>
@@ -904,7 +920,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.186</div>
+    <div class="version-tag">系統版本：v5.4.187</div>
   </div>
 
   <script>
@@ -4868,12 +4884,14 @@
       if (!ctTrack_ || !d.tracks.some((t) => t.id === ctTrack_)) ctTrack_ = d.tracks.length ? d.tracks[0].id : null;
       renderContest_();
     }
-    function ctVote_(work, type) {
+    let ctPop_ = '';
+    function ctVote_(work, type, el) {
       if (ctBusy_) return; ctBusy_ = true;
+      if (el && el.classList) el.classList.add('busy');
       chamberCall_('contestVoteWorker', { work, type }).then(async (r) => {
         toast_((r && r.message) || '操作失敗');
-        if (r && r.status === 'success') await loadContest_();
-      }).finally(() => { ctBusy_ = false; });
+        if (r && r.status === 'success') { ctPop_ = type === 'none' ? '' : work + '|' + type; await loadContest_(); }
+      }).finally(() => { ctBusy_ = false; ctPop_ = ''; if (el && el.classList) el.classList.remove('busy'); });
     }
     function renderContest_() {
       const d = ctState_; if (!d) return;
@@ -4892,8 +4910,10 @@
         let btns = '';
         if (open) {
           if (w.mine) btns = '<span style="color:#949BA4;font-size:12px">這是你的作品(不可投自己)</span>';
-          else btns = '<button type="button" class="btn" style="padding:4px 12px;background:' + (w.myVote === 'support' ? '#3BA55D' : '#4E5058') + '" onclick="ctVote_(\'' + E(w.id) + '\',\'' + (w.myVote === 'support' ? 'none' : 'support') + '\')">' + (w.myVote === 'support' ? '✅ 已投支持(點擊收回)' : '👍 支持') + '</button> '
-            + '<button type="button" class="btn" style="padding:4px 12px;background:' + (w.myVote === 'excellent' ? '#F0B232;color:#000' : '#4E5058') + '" onclick="ctVote_(\'' + E(w.id) + '\',\'' + (w.myVote === 'excellent' ? 'none' : 'excellent') + '\')">' + (w.myVote === 'excellent' ? '⭐ 已投優異(點擊收回)' : '⭐ 優異') + '</button>';
+          else {
+            const vb = (type, cls, label, onLabel, hint) => { const on = w.myVote === type; return '<button type="button" class="ct-vbtn ' + cls + (on ? ' on' : '') + (ctPop_ === w.id + '|' + type ? ' pop' : '') + '" onclick="ctVote_(\'' + E(w.id) + '\',\'' + (on ? 'none' : type) + '\',this)">' + (on ? onLabel + '<small>點擊收回</small>' : label + '<small>' + hint + '</small>') + '</button>'; };
+            btns = '<div class="ct-vb">' + vb('support', 'sup', '👍 支持', '✅ 已支持', '計 1 票') + vb('excellent', 'exc', '⭐ 優異', '🌟 已優異', '計 2 票') + '</div>';
+          }
         }
         const head = pub ? '<b style="color:#fff">#' + w.rank + ' ' + E(w.name) + '</b> <span style="color:#F0B232">' + (w.score != null ? w.score + ' 分' : '') + '</span> <span style="color:#949BA4;font-size:12px">(支持 ' + w.support + ' · 優異 ' + w.excellent + ' · 計 ' + w.raw + ' 票)</span>' : '<b style="color:#fff">作品 #' + w.no + '</b>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '');
         return '<div style="background:#2F3136;border-radius:8px;padding:10px;margin-bottom:10px"><div style="margin-bottom:6px">' + head + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' + imgs + '</div>'
