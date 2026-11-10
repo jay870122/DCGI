@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.89</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.90</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1841,7 +1841,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal" style="max-width:760px">
     <div class="modal-header"><h3>📝 資訊卡片(非兌換用的文字卡)</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
     <div class="form-grid">
-      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 內文可換行;<code>**粗體**</code>會變黃色粗體;網址會自動變連結。取消「顯示」=暫時隱藏。</span></div>
+      <div class="field full"><span class="hint">在商店頁面放「純文字」卡片(像頁面介紹),不能兌換。<br>· <b>分類</b>:填分類名稱=只在那個分類顯示;留空=每個分類都顯示。<br>· <b>排序</b>:數字小的在前面(卡片永遠排在商品卡片上方)。<br>· <b>合併</b>:勾選多張 → 按「🔗 合併已勾選」,它們會變成<b>同一張卡片</b>(各自的標題/內文上下排列,中間有分隔線);按「✂️ 拆開」還原成單張。<br>· 取消「顯示」=暫時隱藏。<br>· <b>內文支援 Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code>(分隔線) <code>[文字](網址)</code>;網址會自動變連結。<br>· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,想指定寬度:<code>![說明](https://圖片網址 =300)</code>(單位 px,預設縮到卡片寬)。<br>· <b>文字大小/顏色</b>:<code>[size=24]放大[/size]</code>(10~48)、<code>[特大]…[/特大]</code> <code>[大]…[/大]</code> <code>[小]…[/小]</code>、<code>[color=#ff0000]紅字[/color]</code>。</span></div>
       <div class="field full"><div id="ic-rows"></div>
         <button class="btn" onclick="icAddRow_()" style="margin-top:6px">➕ 新增卡片</button>
         <button class="btn" onclick="icMerge_(true)" style="margin-top:6px">🔗 合併已勾選</button>
@@ -3569,7 +3569,7 @@ function icAddRow_(c) {
     + '<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" class="ic-show"' + (c.show === false ? '' : ' checked') + '>顯示</label> '
     + '<span class="ic-grp hint"></span><input type="hidden" class="ic-group" value="' + icEsc_(c.group) + '">'
     + '<button class="btn btn-del" onclick="this.closest(\'.ic-row\').remove()">刪除</button></div>'
-    + '<textarea class="ic-text" rows="3" placeholder="想顯示的文字內容(可換行、**粗體**)" style="width:100%">' + icEsc_(c.text) + '</textarea>';
+    + '<textarea class="ic-text" rows="3" placeholder="內文(支援 Markdown:# 標題、**粗體**、![圖](網址)、[size=24]大字[/size])" style="width:100%">' + icEsc_(c.text) + '</textarea>';
   document.getElementById('ic-rows').appendChild(d);
   icRefreshGroups_();
 }
