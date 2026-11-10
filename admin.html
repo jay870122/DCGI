@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.96</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.97</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2724,6 +2724,7 @@ async function apiWorkerRead(workerAction, extraParams, gasParams) {
       action: workerAction,
       discordId: (ME && ME.id) || '',
       accessToken: localStorage.getItem('admin_dc_access_token') || '',
+      fresh: 'true', // 後台讀取一律跳過 Worker 的 4 秒快取,剛存檔重讀才看得到最新
       ...(extraParams || {}),
     });
     // 🌟🔧 修正bug:原本這裡沒有設定逾時,Worker那端如果剛好遇到Google Sheets API變慢(配額限流、
@@ -3476,7 +3477,7 @@ async function saveChamberConfig() {
 // 📈 台股模擬設定(Worker專屬,沒有GAS備援)
 // ============================================================
 async function stockAdminCall_(action, extra) {
-  const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '', ...(extra || {}) });
+  const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '', fresh: 'true', ...(extra || {}) });
   try {
     const ac = new AbortController(); const tid = setTimeout(() => ac.abort(), 20000);
     try { const res = await fetch(`${DASHBOARD_WORKER_URL}?${qs}`, { signal: ac.signal }); return await res.json(); } finally { clearTimeout(tid); }
