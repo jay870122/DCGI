@@ -260,7 +260,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.107</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.108</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3691,7 +3691,8 @@ function icToolbarAct_(el) {
   if (act === 'colorset' || act === 'colorapply') {
     const v = act === 'colorset' ? el.dataset.v : row.querySelector('.ic-cp-in').value;
     if (code) icInsert_(row.querySelector('.ic-text'), '[color=' + v + ']', '[/color]', '文字');
-    else icWysHtml_(row, '<span style="color:' + v + '">' + icWysEsc_(icSelText_(row) || '文字') + '</span>');
+    else if (icSelText_(row)) icWysCmd_(row, 'foreColor', v); // 直接對選取範圍上色,保留原有粗體/斜體等格式
+    else icWysHtml_(row, '<span style="color:' + v + '">文字</span>');
     row.querySelector('.ic-cp').style.display = 'none'; return;
   }
   if (act === 'emoji') { const e = row.querySelector('.ic-emo'); e.style.display = e.style.display === 'none' ? 'flex' : 'none'; return; }
