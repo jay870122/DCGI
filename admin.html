@@ -263,7 +263,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.117</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.118</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1210,7 +1210,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
       <div id="page-contest" style="display:none">
         <div class="page-header"><div class="page-title">🎽 角色穿搭大賽(匿名交叉投票)</div><div class="toolbar"><button class="btn btn-edit" onclick="loadContestAdmin()">🔄 重新整理</button></div></div>
-        <div class="hint" style="margin-bottom:12px">流程:①先在「賽道」設好狀態(未開放=玩家看不到、投票中=開放投票、已截止=停止投票、已公布=顯示名次/分數/參賽者);②在「新增作品」替玩家建檔(玩家不能自己上傳);③到時間把賽道改「投票中」→「已截止」→「已公布」,最後全部賽道都公布才會顯示總排名。規則:每賽道每人支持票上限=作品數×40%(無條件進位)、優異票上限=×15%(計 2 票)、不可投自己;賽道得分=得票÷最高票×70 + (人數−名次+1)÷人數×30;總排名=同一人最高的兩個賽道相加。</div>
+        <div class="hint" style="margin-bottom:12px">流程:①先在「賽道」設好狀態(未開放=玩家看不到、投票中=開放投票、已截止=停止投票、已公布=顯示名次/分數/參賽者);②在「新增作品」替玩家建檔(玩家不能自己上傳);③到時間把賽道改「投票中」→「已截止」→「已公布」,最後全部賽道都公布才會顯示總排名。規則:每賽道每人支持票上限=作品數×40%(無條件進位)、優異票上限=作品數×40%(暫定,1 張計 2 票)、不可投自己;賽道得分=得票÷最高票×70 + (人數−名次+1)÷人數×30;總排名=同一人最高的兩個賽道相加。</div>
         <h3 style="margin:10px 0 6px">賽道</h3>
         <div id="ct-adm-tracks"></div>
         <div style="margin:8px 0 18px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ctAdmAddTrack()">➕ 新增賽道</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmSaveTracks()">💾 儲存賽道</button></div>

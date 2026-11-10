@@ -904,7 +904,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.183</div>
+    <div class="version-tag">系統版本：v5.4.184</div>
   </div>
 
   <script>
@@ -4850,7 +4850,7 @@
 
 
     // ============================================================
-    // 🎽 角色穿搭大賽:匿名作品、每賽道每人支持票(作品數×40%)+優異票(×15%,計2票),不可投自己;公布後顯示名次與分數
+    // 🎽 角色穿搭大賽:匿名作品、每賽道每人支持票(作品數×40%)+優異票(×40%暫定,計2票),不可投自己;公布後顯示名次與分數
     let ctState_ = null, ctTrack_ = null, ctBusy_ = false;
     async function checkContestAvailability_() {
       try { const d = await chamberCall_('contestStateWorker'); if (d && d.status === 'success' && (d.tracks || []).length) { contestAvailable = true; renderSidebar(); } } catch (e) {}
