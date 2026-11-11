@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.139</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.140</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5173,13 +5173,25 @@ function rsInitReels() {
   });
 }
 function rsProfile(fromFast) {
-  const j = a => (Math.random() - 0.5) * a;
-  const t = [0, .14 + j(.06), .34 + j(.08), .52 + j(.08), .70 + j(.06), .86 + j(.04), 1];
-  // 速度關鍵點(相對值):隨機忽快忽慢,中途可能突然慢下來再加速,最後爬行到停
-  const m = [fromFast ? 1.9 : 0.12, 1.3 + Math.random() * 1.2, .25 + Math.random() * .8, 1.0 + Math.random() * 1.3, .25 + Math.random() * .3, .04 + Math.random() * .1, 0];
+  const R = a => Math.random() * a;
+  // 速度曲線(相對值):忽快忽慢 → 隨機 0~2 次「假停」(幾乎停住,然後突然暴衝加速)→ 最後緩慢爬行到停
+  const segs = [{ d: .12, m: 1.3 + R(1.2) }, { d: .14, m: .5 + R(.5) }];
+  const rr = Math.random(), fakes = rr < .15 ? 0 : (rr < .65 ? 1 : 2);
+  for (let k = 0; k < fakes; k++) {
+    segs.push({ d: .08 + R(.06), m: .02 + R(.04) });   // 快停下
+    segs.push({ d: .03 + R(.07), m: .02 + R(.03) });   // 停住不動一下(長短隨機)
+    segs.push({ d: .04 + R(.03), m: 2.0 + R(1.4) });   // 突然加速
+    segs.push({ d: .08 + R(.06), m: .6 + R(.6) });     // 衝完又慢下來
+  }
+  segs.push({ d: .10, m: 1.0 + R(1.0) });
+  segs.push({ d: .14, m: .25 + R(.2) }, { d: .12, m: .05 + R(.07) }, { d: .14, m: 0 });
+  const sum = segs.reduce((a, x) => a + x.d, 0);
+  const t = [0], m = [fromFast ? 1.9 : 0.12];
+  segs.forEach(x => { t.push(t[t.length - 1] + x.d / sum); m.push(x.m); });
+  t[t.length - 1] = 1;
   const G = [0];
   for (let i = 1; i < t.length; i++) G[i] = G[i - 1] + (m[i - 1] + m[i]) / 2 * (t[i] - t[i - 1]);
-  return { t, m, G, tot: G[G.length - 1] };
+  return { t, m, G, tot: G[G.length - 1], fakes };
 }
 function rsProfG(p, u) {
   if (u >= 1) return 1;
@@ -5193,6 +5205,8 @@ function rsReelLand(r, id, T, fromFast) {
     if (!cands.length) { r.mode = 'idle'; resolve(); return; }
     const frac = 0.2 + Math.random() * 0.6;
     const cur = ((r.x % r.loop) + r.loop) % r.loop;
+    const prof = rsProfile(fromFast);
+    T = T * (1 + 0.28 * prof.fakes); // 每多一次「假停再暴衝」就多演一點時間
     const desired = (fromFast ? 1300 : 750) * T;
     let D = null;
     cands.forEach(jx => {
@@ -5202,7 +5216,7 @@ function rsReelLand(r, id, T, fromFast) {
       if (D === null || Math.abs(d - desired) < Math.abs(D - desired)) D = d;
     });
     if (fromFast && D > desired * 1.8) { r.x = r.x + D - desired; D = desired; } // 高速模糊中直接位移,避免跑太遠
-    r.land = { t0: performance.now(), T: T * 1000, x0: r.x, D, p: rsProfile(fromFast), resolve };
+    r.land = { t0: performance.now(), T: T * 1000, x0: r.x, D, p: prof, resolve };
     r.mode = 'land';
   });
 }
@@ -5236,13 +5250,15 @@ async function rsWallLand(pool, id, quick) {
   const mine = chips.filter(c => c.getAttribute('data-id') === String(id) && !c.classList.contains('hit'));
   const target = mine.length ? mine[Math.floor(Math.random() * mine.length)] : null;
   const steps = quick ? 12 : 20; let prev = null;
+  const fakeAt = Math.random() < .65 ? steps - 6 - Math.floor(Math.random() * 3) : -9; // 隨機「假停」:停頓一下再突然快跳幾下
   for (let i = 0; i < steps; i++) {
     const c = (i === steps - 1 && target) ? target : chips[Math.floor(Math.random() * chips.length)];
     if (prev) prev.classList.remove('hot');
     c.classList.add('hot'); prev = c;
     pool.scrollTop = c.offsetTop - pool.clientHeight / 2;
     rsBeep(500 + i * 20, 0.03, 0.03);
-    await rsSleep(50 + Math.pow(i / steps, 2.2) * 450 + Math.random() * 40);
+    if (i === fakeAt) await rsSleep(900 + Math.random() * 500);
+    await rsSleep(i > fakeAt && i <= fakeAt + 3 ? 40 : 50 + Math.pow(i / steps, 2.2) * 450 + Math.random() * 40);
   }
 }
 // 一輪揭曉前的「落定動畫」(超過 6 輪就不再演,直接揭曉避免拖太久)
