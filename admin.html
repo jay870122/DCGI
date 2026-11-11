@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.152</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.153</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1289,12 +1289,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍)、參與獎、投票獎、投票神預測獎;金額在上面「獎勵設定」調整;貨幣要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」</div></div>
             <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards(true)">🧪 試算(假設全部公布)</button><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div></div>
           <div id="ct-adm-rewards"></div>
-        </div>
-
-        <div class="ct-card">
-          <div class="ct-h"><div><h3>📦 獎品發放統計</h3><div class="hint" style="line-height:1.6">統計所有「用穿搭大賽兌換卷 / 抽獎卷標價」的商店商品:兌換商店每項已兌換幾份(取自兌換紀錄)、抽獎獎池每個獎項已抽出幾份。可複製文字或下載 CSV 回報主辦方。商品的「貨幣種類」要設成這兩種卷才會被統計。</div></div>
-            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadPrizeStats()">🔄 統計</button><button class="btn btn-edit" onclick="ctPrizeCopy()">📋 複製文字</button><button class="btn btn-edit" onclick="ctPrizeCsv()">⬇️ 下載 CSV</button></div></div>
-          <div id="ct-adm-prize"></div>
         </div>
 
         <div class="ct-card">
@@ -3865,38 +3859,6 @@ function statCsv() {
   d.groups.forEach((g) => g.items.forEach((x) => rows.push([g.name, x.name, x.qty, x.times, x.users])));
   const blob = new Blob(['\ufeff' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = '獎品統計_' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-}
-let ctPrize_ = null;
-async function ctAdmLoadPrizeStats() {
-  const box = document.getElementById('ct-adm-prize'); box.innerHTML = '<div class="hint">統計中…(要讀整份兌換紀錄,稍等一下)</div>';
-  const d = await stockAdminCall_('adminContestPrizeStatsWorker');
-  if (!d || d.status !== 'success') { box.innerHTML = '<div class="hint" style="color:var(--red)">統計失敗:' + ctEsc_((d && d.message) || '未知錯誤') + '</div>'; return; }
-  ctPrize_ = d; const E = ctEsc_;
-  let h = '<div class="hint" style="margin-bottom:6px">統計時間 ' + E(new Date(d.at).toLocaleString('zh-TW', { hour12: false })) + ' · 貨幣:' + E(d.names.join(' / ')) + '</div>';
-  h += '<h4 style="margin:8px 0 4px">🏪 兌換商店(' + E(d.names[0]) + ')</h4>';
-  h += d.exchange.length ? '<div class="ct-tw"><table><thead><tr><th>獎品</th><th>單價</th><th>已兌換份數</th><th>兌換人數</th><th>目前庫存</th><th>每人限量</th><th>花費兌換卷</th></tr></thead><tbody>' + d.exchange.map((x) => '<tr><td>' + E(x.name) + '</td><td>' + x.price + '</td><td><b>' + x.qty + '</b></td><td>' + x.buyerCount + '</td><td>' + (x.stock === null ? '無限' : x.stock) + '</td><td>' + (x.limit === null ? '無限' : x.limit) + '</td><td>' + x.spend + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有商品使用「' + E(d.names[0]) + '」標價</div>';
-  h += '<h4 style="margin:12px 0 4px">🎰 抽獎獎池</h4>';
-  h += d.raffles.length ? d.raffles.map((x) => '<div style="margin-bottom:10px"><b>' + E(x.name) + '</b> <span class="hint">(' + E(x.currency) + ' · 投入 ' + x.qty + ' 張 / ' + x.buyerCount + ' 人 · 已抽出 ' + x.winners + ' / ' + x.slots + ' 位' + (x.drawn ? ' · 已開獎' : ' · 未開獎/進行中') + ')</span><div class="ct-tw"><table><thead><tr><th>獎項</th><th>共抽出份數</th><th>已抽出</th><th>剩餘</th></tr></thead><tbody>' + x.prizes.map((pz) => '<tr><td>' + E(pz.name) + '</td><td>' + (pz.total === null ? '不限' : pz.total) + '</td><td><b>' + pz.given + '</b></td><td>' + (pz.total === null ? '—' : Math.max(0, pz.total - pz.given)) + '</td></tr>').join('') + '</tbody></table></div></div>').join('') : '<div class="hint">還沒有抽獎商品使用「' + E(d.names[1]) + '」標價</div>';
-  box.innerHTML = h;
-}
-function ctPrizeLines_() {
-  const d = ctPrize_; if (!d) return null; const L = [];
-  L.push('Garbled 角色穿搭大賽 獎品發放統計(' + new Date(d.at).toLocaleString('zh-TW', { hour12: false }) + ')', '', '【兌換商店】獎品|已兌換份數|兌換人數|目前庫存|每人限量');
-  d.exchange.forEach((x) => L.push(x.name + '|' + x.qty + '|' + x.buyerCount + '|' + (x.stock === null ? '無限' : x.stock) + '|' + (x.limit === null ? '無限' : x.limit)));
-  d.raffles.forEach((x) => { L.push('', '【抽獎】' + x.name + '(投入 ' + x.qty + ' 張,已抽出 ' + x.winners + '/' + x.slots + ' 位)', '獎項|共抽出份數|已抽出'); x.prizes.forEach((pz) => L.push(pz.name + '|' + (pz.total === null ? '不限' : pz.total) + '|' + pz.given)); });
-  return L;
-}
-async function ctPrizeCopy() {
-  const L = ctPrizeLines_(); if (!L) { toast('請先按「統計」', false); return; }
-  try { await navigator.clipboard.writeText(L.join('\n')); toast('✅ 已複製統計文字'); } catch (e) { toast('複製失敗,請改用下載 CSV', false); }
-}
-function ctPrizeCsv() {
-  const d = ctPrize_; if (!d) { toast('請先按「統計」', false); return; }
-  const q = (v) => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"', rows = [['類別', '獎品/商品', '獎項', '單價', '已兌換/已抽出份數', '兌換人數', '目前庫存', '每人限量', '共抽出份數(獎池)', '剩餘']];
-  d.exchange.forEach((x) => rows.push(['兌換商店', x.name, '', x.price, x.qty, x.buyerCount, x.stock === null ? '無限' : x.stock, x.limit === null ? '無限' : x.limit, '', '']));
-  d.raffles.forEach((x) => x.prizes.forEach((pz) => rows.push(['抽獎獎池', x.name, pz.name, '', pz.given, '', '', '', pz.total === null ? '不限' : pz.total, pz.total === null ? '' : Math.max(0, pz.total - pz.given)])));
-  const blob = new Blob(['\ufeff' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = '穿搭大賽獎品統計_' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 let ctRew_ = null;
 async function ctAdmLoadRewards(sim) {
