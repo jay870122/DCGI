@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.134</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.135</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1845,9 +1845,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   animation:rsTwinkle 4s ease-in-out infinite alternate}
 @keyframes rsTwinkle{from{opacity:.15}to{opacity:.5}}
 .rs-top{position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:14px 22px;flex-wrap:wrap}
-.rs-title{flex:1;min-width:200px;font-size:clamp(22px,3.4vw,44px);font-weight:800;letter-spacing:2px;text-shadow:0 0 24px #a78bfa88}
+.rs-title{flex:1;min-width:160px;font-size:clamp(20px,2.8vw,38px);font-weight:800;letter-spacing:2px;text-shadow:0 0 24px #a78bfa88}
 .rs-prog{font-size:clamp(14px,1.6vw,20px);background:#ffffff1a;border:1px solid #ffffff33;border-radius:999px;padding:6px 16px;white-space:nowrap}
-.rs-tbtn{background:#ffffff1a;border:1px solid #ffffff33;color:#fff;border-radius:10px;padding:7px 12px;cursor:pointer;font-size:14px}
+.rs-tbtn{background:#ffffff1a;border:1px solid #ffffff33;color:#fff;border-radius:10px;padding:6px 9px;cursor:pointer;font-size:13px}
 .rs-tbtn:hover{background:#ffffff33}.rs-tbtn.off{opacity:.55}
 .rs-board{position:relative;z-index:2;flex:1;overflow:auto;padding:8px 22px 24px;display:grid;gap:18px;align-content:start;
   grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
@@ -1870,6 +1870,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-chip{font-size:13px;padding:3px 9px;border-radius:999px;background:#ffffff1a;border:1px solid #ffffff2a;color:#ddd6fe}
 .rs-chip.hot{background:#fbbf24;color:#1a1440;border-color:#fde68a;transform:scale(1.15);box-shadow:0 0 14px #fbbf24}
 .rs-chip.hit{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border-color:#fde68a;font-weight:800;transform:scale(1.12);box-shadow:0 0 14px #f59e0baa}
+.rs-ribbon{position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:8;display:none;background:#0ea5e9;color:#fff;font-size:13px;font-weight:700;padding:3px 18px;border-radius:0 0 12px 12px;box-shadow:0 4px 16px #0006;pointer-events:none}
+.rs-ribbon.show{display:block}
 .rs-reel{position:relative;margin-top:12px;height:74px;overflow:hidden;background:#0007;border:1px solid #ffffff2a;border-radius:12px}
 .rs-reel::before,.rs-reel::after{content:"";position:absolute;top:0;bottom:0;width:56px;z-index:2;pointer-events:none}
 .rs-reel::before{left:0;background:linear-gradient(90deg,#0b0a1e,transparent)}
@@ -1904,12 +1906,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <canvas id="rs-fx"></canvas>
   <div class="rs-banner" id="rs-banner"></div>
   <div class="rs-toast" id="rs-toast"></div>
+  <div class="rs-ribbon" id="rs-ribbon">🧪 測試模式:只看動畫,不發獎、不發 Discord 公告、不寫入</div>
   <div class="rs-top">
     <div class="rs-title" id="rs-title">🎬 開獎</div>
     <div class="rs-prog" id="rs-prog"></div>
     <button class="rs-tbtn" id="rs-b-anim" onclick="rsToggle('anim')">✨ 動畫:開</button>
     <button class="rs-tbtn" id="rs-b-snd" onclick="rsToggle('snd')">🔊 音效:開</button>
     <button class="rs-tbtn" id="rs-b-pool" onclick="rsToggle('pool')">👥 參與者:顯示</button>
+    <button class="rs-tbtn" id="rs-b-test" onclick="rsToggleTest()">🧪 測試模式:關</button>
     <button class="rs-tbtn" onclick="rsToggleBar()" title="快捷鍵 H">🙈 隱藏控制列</button>
     <button class="rs-tbtn" onclick="rsFull()" title="快捷鍵 F">⛶ 全螢幕</button>
     <button class="rs-tbtn" onclick="closeRaffleStage()">✕ 關閉</button>
@@ -4686,6 +4690,7 @@ function renderShopTable() {
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         ${i.isRaffle ? `<button class="btn btn-edit" onclick="showRaffleParticipants('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看名單</button>` : ''}
         ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleStage('${i.itemId}')">🎬 直播開獎(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
+        ${i.isRaffle && i.raffleResult && i.raffleStage ? `<button class="btn btn-edit" onclick="openRaffleStage('${i.itemId}', true)">🧪 開獎動畫(測試)</button>` : ''}
         ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && !i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleDrawModal('${i.itemId}')">🎯 開獎控制台(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
         ${i.isRaffle && !i.raffleResult && !i.raffleManualDraw ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
         ${i.isGambling ? `<button class="btn btn-edit" onclick="showGamblingBets('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看下注</button>` : ''}
@@ -4954,14 +4959,14 @@ async function drawShopRaffleStep(itemId, prizeName, count) {
 // 直播方式:開這個畫面 → 用 Discord 螢幕分享 / OBS 視窗擷取;「隱藏控制列」後畫面只剩獎項與得獎者,觀眾看不到操作按鈕。
 // ============================================================
 const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:{}, busy:false, done:false,
-  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[] };
+  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[], test:false, sim:[], simOver:false, realTiers:null, drawnReal:false, mode:'ALLOW' };
 const rsEl = id => document.getElementById(id);
 const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const rsSleep = ms => new Promise(r => setTimeout(r, ms));
 try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; } catch (e) {}
 
-async function openRaffleStage(itemId) {
-  RS.id = itemId; RS.busy = false; RS.sel = {}; RS.cnt = {}; RS.randN = 1;
+async function openRaffleStage(itemId, forceTest) {
+  RS.id = itemId; RS.busy = false; RS.test = !!forceTest; RS.sim = []; RS.simOver = false; RS.realTiers = null; RS.sel = {}; RS.cnt = {}; RS.randN = 1;
   rsEl('rs').classList.add('open');
   document.addEventListener('keydown', rsKey);
   rsEl('rs-board').innerHTML = '<div style="padding:40px;font-size:22px;opacity:.8">讀取開獎資料中…</div>';
@@ -4977,7 +4982,7 @@ function closeRaffleStage() {
   rsEl('rs').classList.remove('open');
   document.removeEventListener('keydown', rsKey);
   if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} }
-  RS.busy = false;
+  RS.busy = false; RS.test = false; RS.sim = [];
   if (typeof loadShopItems === 'function') loadShopItems();
 }
 function rsKey(e) {
@@ -5002,6 +5007,9 @@ function rsSyncToggles() {
   rsEl('rs-b-snd').classList.toggle('off', !RS.snd);
   rsEl('rs-b-pool').textContent = '👥 參與者:' + (RS.pool ? '顯示' : '隱藏');
   rsEl('rs-b-pool').classList.toggle('off', !RS.pool);
+  rsEl('rs-b-test').textContent = '🧪 測試模式:' + (RS.test ? '開' : '關');
+  rsEl('rs-b-test').classList.toggle('off', !RS.test);
+  rsEl('rs-ribbon').classList.toggle('show', RS.test);
 }
 function rsToggleBar() {
   RS.barHidden = !RS.barHidden;
@@ -5016,11 +5024,13 @@ function rsFull() {
 
 // 重新讀取商品(獎項剩餘份數)+ 投票名單(轉盤名字 / 已開出的得獎者)
 async function rsRefresh(first) {
+  if (RS.test && !first && RS.realTiers) { rsApplyTest(); rsRender(); rsRenderBar(); return true; }
   const [, d] = await Promise.all([ loadShopItems(), api({ action: 'getRaffleParticipants', itemId: RS.id }) ]);
   const item = (typeof shopItems !== 'undefined' ? shopItems : []).find(x => x.itemId === RS.id);
   if (!item) { toast('找不到這個商品', false); return false; }
   if (!d || d.status !== 'success') { toast('讀取名單失敗:' + (d && d.message || ''), false); return false; }
   RS.name = item.name; RS.total = item.stock || 1; RS.tiers = item.raffleTierStatus || [];
+  RS.realTiers = RS.tiers; RS.mode = (item.raffleRepeatWinMode || 'ALLOW').toString().toUpperCase();
   RS.voters = d.list || [];
   RS.entries = rsEntries();
   RS.nameOf = {};
@@ -5029,6 +5039,10 @@ async function rsRefresh(first) {
   base.forEach(w => { if (w.name) RS.nameOf[w.discordId] = w.name; });
   RS.winners = base.map(w => ({ discordId: w.discordId, prize: w.prize, name: w.name || RS.nameOf[w.discordId] || w.discordId }));
   RS.done = !!item.raffleResult || !!d.drawn;
+  RS.drawnReal = RS.done;
+  if (RS.drawnReal && first) RS.test = true; // 已經開獎的場次只能用測試模式看動畫
+  if (RS.test) rsApplyTest();
+  rsSyncToggles();
   rsRender(); rsRenderBar();
   return true;
 }
@@ -5046,11 +5060,60 @@ function rsArm(key) {
   rsRenderBar();
   return false;
 }
+// ---------- 🧪 測試模式:完全在瀏覽器模擬,不呼叫後端 → 不會發獎、不會發 Discord 公告、不會寫入任何資料 ----------
+function rsApplyTest() {
+  const cnt = {}; RS.sim.forEach(w => { cnt[w.prize] = (cnt[w.prize] || 0) + 1; });
+  RS.tiers = (RS.realTiers || []).map(t => ({ name: t.name, totalStock: t.totalStock, remaining: t.totalStock === null ? null : Math.max(0, t.totalStock - (cnt[t.name] || 0)) }));
+  RS.winners = RS.sim.map(w => ({ discordId: w.discordId, prize: w.prize, name: RS.nameOf[w.discordId] || w.discordId }));
+  RS.done = RS.simOver || RS.sim.length >= RS.total;
+}
+async function rsToggleTest() {
+  if (RS.busy) return;
+  if (RS.test && RS.drawnReal) { rsToast('這場已經開獎,只能用測試模式看動畫', false); return; }
+  RS.test = !RS.test; RS.sim = []; RS.simOver = false;
+  rsSyncToggles();
+  await rsRefresh(true);
+}
+function rsResetSim() { RS.sim = []; RS.simOver = false; rsApplyTest(); rsRender(); rsRenderBar(); }
+function rsSimWin(ent, id, mode) {
+  const i = ent.findIndex(e => e.id === id); if (i < 0) return;
+  if (mode === 'REMOVE_ALL') ent.splice(i, 1);
+  else if (mode === 'DEDUCT') { ent[i].w -= 1; if (ent[i].w <= 0) ent.splice(i, 1); }
+}
+// 模擬後端 adminDrawShopRaffleOneSlot:依票數加權抽人,可指定獎項(不指定=依剩餘份數隨機挑),重複中獎規則比照該商品設定
+async function rsDraw(prizeName, count) {
+  if (!RS.test) return await api({ action: 'adminDrawShopRaffleOneSlot', itemId: RS.id, prizeName: prizeName || '', count });
+  await rsSleep(150);
+  const ent = RS.voters.map(v => ({ id: String(v.discordId), w: parseFloat(v.weighted) || 1 }));
+  RS.sim.forEach(w => rsSimWin(ent, String(w.discordId), RS.mode));
+  const nw = []; let n = Math.min(parseInt(count, 10) || 1, RS.total - RS.sim.length);
+  for (let k = 0; k < n; k++) {
+    if (!ent.length) { RS.simOver = true; break; }
+    const given = {}; RS.sim.concat(nw).forEach(w => { given[w.prize] = (given[w.prize] || 0) + 1; });
+    const open = RS.realTiers.filter(t => t.totalStock === null || t.totalStock - (given[t.name] || 0) > 0);
+    let tier;
+    if (prizeName) { tier = open.find(t => t.name === prizeName); if (!tier) break; }
+    else {
+      if (!open.length) { RS.simOver = true; break; }
+      const wts = open.map(t => t.totalStock === null ? 1 : t.totalStock - (given[t.name] || 0));
+      let roll = Math.random() * wts.reduce((a, b) => a + b, 0), idx = 0;
+      for (; idx < wts.length - 1; idx++) { roll -= wts[idx]; if (roll <= 0) break; }
+      tier = open[idx];
+    }
+    const tot = ent.reduce((a, e) => a + e.w, 0); let r = Math.random() * tot, wi = ent.length - 1;
+    for (let e = 0; e < ent.length; e++) { r -= ent[e].w; if (r <= 0) { wi = e; break; } }
+    const w = { discordId: ent[wi].id, prize: tier.name };
+    nw.push(w); rsSimWin(ent, w.discordId, RS.mode);
+  }
+  RS.sim.push(...nw);
+  const done = RS.simOver || RS.sim.length >= RS.total || !ent.length;
+  return { status: 'success', done, newWinners: nw, winners: RS.sim };
+}
 function rsRemainTotal() { return Math.max(0, RS.total - RS.winners.length); }
 
 function rsRender() {
   rsEl('rs-title').textContent = '🎬 ' + RS.name;
-  rsEl('rs-prog').textContent = RS.done ? '🏆 已開獎完畢' : ('進度 ' + RS.winners.length + ' / ' + RS.total);
+  rsEl('rs-prog').textContent = RS.done ? (RS.test ? '🧪 測試完畢' : '🏆 已開獎完畢') : ((RS.test ? '🧪 測試 ' : '進度 ') + RS.winners.length + ' / ' + RS.total);
   const byPrize = {};
   RS.winners.forEach(w => { (byPrize[w.prize] = byPrize[w.prize] || []).push(w); });
   const known = new Set(RS.tiers.map(t => t.name));
@@ -5193,7 +5256,8 @@ async function rsRoundLand(items, r) {
 
 function rsRenderBar() {
   const bar = rsEl('rs-bar');
-  if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢。可按右上「✕ 關閉」返回後台(要重抽某位得獎者請到「📋 查看名單」)。</div>'; return; }
+  if (RS.done && RS.test) { bar.innerHTML = '<div class="rs-note">🧪 測試結束(沒有發獎、沒有發 Discord 公告、沒有寫入)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsResetSim()">🔁 重新測試</button>' + (RS.drawnReal ? '' : '<button class="rs-sec" onclick="rsToggleTest()">離開測試模式</button>') + '</div>'; return; }
+  if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢。可按右上「✕ 關閉」返回後台(要重抽某位得獎者請到「📋 查看名單」)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsToggleTest()">🧪 用測試模式再看一次動畫</button></div>'; return; }
   const left = rsRemainTotal();
   let h = '<div class="rs-note">整場還剩 <b>' + left + '</b> 個名額。勾選要「同時開獎」的獎項、填每項要開幾位,按 🎬 一起開(快捷鍵 空白鍵;H=隱藏控制列,F=全螢幕)。</div><div class="rs-tiers">';
   RS.tiers.forEach((t, ti) => {
@@ -5336,7 +5400,7 @@ async function rsStartSelected() {
   // 2) 依序呼叫後端(同一把鎖,必須一項一項來),結果先收集
   let err = '';
   for (const g of groups) {
-    const d = await api({ action: 'adminDrawShopRaffleOneSlot', itemId: RS.id, prizeName: g.p.prize, count: g.p.count });
+    const d = await rsDraw(g.p.prize, g.p.count);
     if (d.status !== 'success') { err = d.message || '未知錯誤'; break; }
     g.got = d.newWinners || [];
     if (d.done) RS.done = true;
@@ -5358,7 +5422,7 @@ async function rsStartSelected() {
   // 沒被抽滿的轉盤位退回空位
   groups.forEach(g => g.slots.forEach((el, i) => { if (!g.got[i]) { el.className = 'rs-slot empty'; el.textContent = '？'; } }));
   if (err) rsToast('❌ ' + err, false);
-  else if (total > 0) rsToast('🎉 已開獎並發獎、公告');
+  else if (total > 0) rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : '🎉 已開獎並發獎、公告');
   if (RS.anim) await rsSleep(900);
   RS.busy = false;
   await rsFinish();
@@ -5382,7 +5446,7 @@ async function rsStartRandom(all) {
   rsInitReels();
   const rpool = tmp.querySelector('.rs-pool, .rs-reel');
   if (RS.anim) rsStartSpin(slots, [rpool]);
-  const d = await api({ action: 'adminDrawShopRaffleOneSlot', itemId: RS.id, prizeName: '', count: n });
+  const d = await rsDraw('', n);
   if (RS.anim) { const wait = 3200 - (Date.now() - t0); if (wait > 0) await rsSleep(wait); }
   rsStopSpin();
   if (d.status !== 'success') { rsToast('❌ ' + (d.message || ''), false); tmp.remove(); RS.busy = false; await rsFinish(); return; }
@@ -5395,7 +5459,7 @@ async function rsStartRandom(all) {
     rsReveal(slots[i], (RS.nameOf[w.discordId] || w.discordId) + ' → ' + w.prize, rpool, w.discordId);
     if (RS.anim) await rsSleep(i < 6 ? 700 : 250);
   }
-  rsToast('🎉 已開獎並發獎、公告');
+  rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : '🎉 已開獎並發獎、公告');
   if (RS.anim) await rsSleep(1500);
   RS.busy = false;
   await rsFinish();
@@ -5405,7 +5469,7 @@ async function rsFinish() {
   document.querySelectorAll('#rs-board .rs-card').forEach(c => c.classList.remove('rs-active'));
   if (RS.done) {
     const b = rsEl('rs-banner');
-    b.innerHTML = '🎉 開獎完畢 🎉';
+    b.innerHTML = RS.test ? '🧪 測試完畢 🧪' : '🎉 開獎完畢 🎉';
     b.classList.add('show');
     rsDing(); setTimeout(rsDing, 300);
     if (RS.anim) for (let i = 0; i < 8; i++) setTimeout(() => rsConfetti(Math.random() * innerWidth, innerHeight * 0.3, 60), i * 260);
