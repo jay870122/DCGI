@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.164</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.165</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1870,6 +1870,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   background-image:radial-gradient(2px 2px at 20% 30%,#fff8 50%,transparent),radial-gradient(2px 2px at 70% 20%,#fff6 50%,transparent),radial-gradient(1.5px 1.5px at 40% 70%,#fff6 50%,transparent),radial-gradient(2px 2px at 85% 65%,#fff7 50%,transparent),radial-gradient(1.5px 1.5px at 10% 85%,#fff5 50%,transparent);
   animation:rsTwinkle 4s ease-in-out infinite alternate}
 @keyframes rsTwinkle{from{opacity:.15}to{opacity:.5}}
+.rs-set{display:none}.rs-set.open{display:contents}
 .rs-top{position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:14px 22px;flex-wrap:wrap}
 .rs-title{flex:1;min-width:160px;font-size:clamp(20px,2.8vw,38px);font-weight:800;letter-spacing:2px;text-shadow:0 0 24px #a78bfa88}
 .rs-prog{font-size:clamp(14px,1.6vw,20px);background:#ffffff1a;border:1px solid #ffffff33;border-radius:999px;padding:6px 16px;white-space:nowrap}
@@ -1944,6 +1945,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="rs-top">
     <div class="rs-title" id="rs-title">🎬 開獎</div>
     <div class="rs-prog" id="rs-prog"></div>
+    <button class="rs-tbtn" id="rs-b-set" onclick="rsToggleSet()" title="展開/收合設定">⚙ 設定 ▸</button>
+    <div class="rs-set" id="rs-set">
     <button class="rs-tbtn" id="rs-b-anim" onclick="rsToggle('anim')">✨ 動畫:開</button>
     <button class="rs-tbtn" id="rs-b-snd" onclick="rsToggle('snd')">🔊 音效:開</button>
     <button class="rs-tbtn" id="rs-b-pool" onclick="rsToggle('pool')">👥 參與者:顯示</button>
@@ -1959,6 +1962,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <select class="rs-tbtn" id="rs-cols" onchange="rsSetCols(this.value)" title="每一排放幾個商品/獎項卡片">
       <option value="0">排列:自動</option><option value="1">每排 1 個</option><option value="2">每排 2 個</option><option value="3">每排 3 個</option><option value="4">每排 4 個</option><option value="5">每排 5 個</option><option value="6">每排 6 個</option>
     </select>
+    </div>
     <button class="rs-tbtn" id="rs-b-test" onclick="rsToggleTest()">🧪 測試模式:關</button>
     <button class="rs-tbtn" onclick="rsToggleBar()" title="快捷鍵 H">🙈 隱藏控制列</button>
     <button class="rs-tbtn" onclick="rsFull()" title="快捷鍵 F">⛶ 全螢幕</button>
@@ -5124,7 +5128,7 @@ function rsSyncToggles() {
   rsEl('rs-b-snd').classList.toggle('off', !RS.snd);
   rsEl('rs-b-pool').textContent = '👥 參與者:' + (RS.pool ? '顯示' : '隱藏');
   rsEl('rs-b-pool').classList.toggle('off', !RS.pool);
-  rsEl('rs-cols').value = String(RS.cols || 0); rsEl('rs-sc').value = String(RS.sc || 1); rsEl('rs-fk').value = String(RS.fk === undefined ? 85 : RS.fk); rsEl('rs-fks').value = String(RS.fkStep || 0); rsApplyScale();
+  rsEl('rs-cols').value = String(RS.cols || 0); rsEl('rs-sc').value = String(RS.sc || 1); rsEl('rs-fk').value = String(RS.fk === undefined ? 85 : RS.fk); if (!RS._setInit) { RS._setInit = true; let o = false; try { o = localStorage.getItem('rs_setopen') === '1'; } catch (e) {} rsToggleSet(o); } rsEl('rs-fks').value = String(RS.fkStep || 0); rsApplyScale();
   rsEl('rs-b-test').textContent = '🧪 測試模式:' + (RS.test ? '開' : '關');
   rsEl('rs-b-test').classList.toggle('off', !RS.test);
   rsEl('rs-ribbon').classList.toggle('show', RS.test);
@@ -5305,6 +5309,12 @@ function rsCardHtml(ti, prize, winners, empties, countTxt) {
 }
 // 該獎項同時列出所有參與者:依票數重複出現(總數上限 300,超過按比例縮),名字 ≤24 個用名牌牆,超過用 CS:GO 開箱式跑馬燈
 const RS_WALL_MAX = 24; let RS_IT_W = 120;
+function rsToggleSet(force) {
+  const el = rsEl('rs-set'), b = rsEl('rs-b-set'); if (!el) return;
+  const open = force === undefined ? !el.classList.contains('open') : !!force;
+  el.classList.toggle('open', open); if (b) b.textContent = open ? '⚙ 設定 ▾' : '⚙ 設定 ▸';
+  try { localStorage.setItem('rs_setopen', open ? '1' : '0'); } catch (e) {}
+}
 function rsSetFake() {
   RS.fk = parseInt(rsEl('rs-fk').value, 10); RS.fkStep = parseInt(rsEl('rs-fks').value, 10) || 0;
   if (isNaN(RS.fk)) RS.fk = 85;
