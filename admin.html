@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.137</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.138</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5166,7 +5166,7 @@ function rsInitReels() {
     for (let r = 0; r < reps; r++) base.forEach(e => { html += '<div class="rs-it" data-id="' + rsEsc(e.id) + '" style="border-bottom-color:hsl(' + rsHue(e.id) + ' 70% 58%)">' + rsEsc(e.name) + '</div>'; });
     const strip = el.querySelector('.rs-strip'); strip.innerHTML = html; strip.style.width = (reps * loop) + 'px';
     const T = Math.min(10, Math.max(5, N * 0.1)); // 約 5~10 秒轉完一輪
-    el._reel = { el, strip, base, N, loop, vw, x: Math.random() * loop, v: 0, idleV: Math.min(900, loop / T), mode: 'idle', land: null };
+    el._reel = { el, strip, base, N, loop, vw, x: Math.random() * loop, v: 0, idleV: 220, mode: 'idle', land: null };
     RS.reels.push(el._reel);
   });
 }
@@ -5191,7 +5191,7 @@ function rsReelLand(r, id, T, fromFast) {
     if (!cands.length) { r.mode = 'idle'; resolve(); return; }
     const frac = 0.2 + Math.random() * 0.6;
     const cur = ((r.x % r.loop) + r.loop) % r.loop;
-    const desired = (fromFast ? 2000 : 1100) * T;
+    const desired = (fromFast ? 1300 : 750) * T;
     let D = null;
     cands.forEach(jx => {
       const tg = jx * RS_IT_W + frac * RS_IT_W - r.vw / 2;
@@ -5210,7 +5210,7 @@ function rsTick(ts) {
   RS.reels = RS.reels.filter(r => r.el.isConnected);
   RS.reels.forEach(r => {
     if (r.mode === 'idle') { r.v += (r.idleV - r.v) * Math.min(1, dt * 3); r.x += r.v * dt; }
-    else if (r.mode === 'spin') { r.v += (2600 - r.v) * Math.min(1, dt * 2.5); r.x += r.v * dt; }
+    else if (r.mode === 'spin') { r.v += (1500 - r.v) * Math.min(1, dt * 2.5); r.x += r.v * dt; }
     else if (r.mode === 'land' && r.land) {
       const L = r.land, u = Math.min(1, (ts - L.t0) / L.T);
       r.x = L.x0 + L.D * rsProfG(L.p, u);
@@ -5246,7 +5246,7 @@ async function rsWallLand(pool, id, quick) {
 // 一輪揭曉前的「落定動畫」(超過 6 輪就不再演,直接揭曉避免拖太久)
 async function rsRoundLand(items, r) {
   if (!RS.anim || r >= 6) return;
-  const fast = r === 0, T = fast ? 6 : 3.2;
+  const fast = r === 0, T = fast ? 7 : 3.6;
   await Promise.all(items.map(it => {
     if (!it.pool) return null;
     if (it.pool._reel) return rsReelLand(it.pool._reel, it.id, T, fast);
