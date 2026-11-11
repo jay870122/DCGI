@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.145</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.146</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4975,7 +4975,7 @@ async function drawShopRaffleStep(itemId, prizeName, count) {
 // 直播方式:開這個畫面 → 用 Discord 螢幕分享 / OBS 視窗擷取;「隱藏控制列」後畫面只剩獎項與得獎者,觀眾看不到操作按鈕。
 // ============================================================
 const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:{}, busy:false, done:false,
-  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[], queue:[], simMap:{}, testPref:false, test:false, sim:[], simOver:false, realTiers:null, drawnReal:false, mode:'ALLOW' };
+  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[], merged:false, mi:[], msel:{}, mcnt:{}, queue:[], simMap:{}, testPref:false, test:false, sim:[], simOver:false, realTiers:null, drawnReal:false, mode:'ALLOW' };
 const rsEl = id => document.getElementById(id);
 const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const rsSleep = ms => new Promise(r => setTimeout(r, ms));
@@ -4990,6 +4990,8 @@ async function openRaffleStage(itemId, forceTest, queueIds) {
   rsEl('rs-bar').innerHTML = '';
   rsSyncToggles();
   rsStartTick();
+  RS.merged = false; RS.mi = [];
+  if (rsMergedEligible()) { await rsEnterMerged(); return; }
   const ok = await rsRefresh(true);
   if (!ok) closeRaffleStage();
 }
@@ -4999,7 +5001,7 @@ function closeRaffleStage() {
   rsEl('rs').classList.remove('open');
   document.removeEventListener('keydown', rsKey);
   if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} }
-  RS.busy = false; RS.test = false; RS.sim = []; RS.queue = []; RS.simMap = {};
+  RS.busy = false; RS.test = false; RS.sim = []; RS.queue = []; RS.simMap = {}; RS.merged = false; RS.mi = [];
   if (typeof loadShopItems === 'function') loadShopItems();
 }
 function rsKey(e) {
@@ -5009,7 +5011,7 @@ function rsKey(e) {
   if (e.key === 'h' || e.key === 'H') rsToggleBar();
   else if (e.key === 'f' || e.key === 'F') rsFull();
   else if (e.key === 'Escape' && !document.fullscreenElement) closeRaffleStage();
-  else if ((e.key === ' ' || e.key === 'Enter') && !RS.barHidden && !RS.busy && !RS.done) { e.preventDefault(); rsStartSelected(); }
+  else if ((e.key === ' ' || e.key === 'Enter') && !RS.barHidden && !RS.busy && (RS.merged || !RS.done)) { e.preventDefault(); if (RS.merged) rsMergedStart(rsMPlan()); else rsStartSelected(); }
 }
 function rsToggle(k) {
   RS[k] = !RS[k];
@@ -5089,29 +5091,33 @@ async function rsToggleTest() {
   if (RS.test && RS.drawnReal) { rsToast('這場已經開獎,只能用測試模式看動畫', false); return; }
   RS.test = !RS.test; RS.testPref = RS.test; RS.sim = []; RS.simOver = false;
   rsSyncToggles();
-  await rsRefresh(true);
+  if (RS.merged) { RS.simMap = {}; await rsEnterMerged(); } else await rsRefresh(true);
 }
-function rsResetSim() { RS.sim = []; RS.simOver = false; rsApplyTest(); rsRender(); rsRenderBar(); }
+function rsResetSim() {
+  if (RS.merged) { RS.mi.forEach(x => { x.sim = []; x.simOver = false; rsApplyM(x); }); rsRenderM(); rsRenderMBar(); return; }
+  RS.sim = []; RS.simOver = false; rsApplyTest(); rsRender(); rsRenderBar();
+}
 function rsSimWin(ent, id, mode) {
   const i = ent.findIndex(e => e.id === id); if (i < 0) return;
   if (mode === 'REMOVE_ALL') ent.splice(i, 1);
   else if (mode === 'DEDUCT') { ent[i].w -= 1; if (ent[i].w <= 0) ent.splice(i, 1); }
 }
 // 模擬後端 adminDrawShopRaffleOneSlot:依票數加權抽人,可指定獎項(不指定=依剩餘份數隨機挑),重複中獎規則比照該商品設定
-async function rsDraw(prizeName, count) {
-  if (!RS.test) return await api({ action: 'adminDrawShopRaffleOneSlot', itemId: RS.id, prizeName: prizeName || '', count });
+async function rsDraw(prizeName, count, st) {
+  st = st || RS;
+  if (!RS.test) return await api({ action: 'adminDrawShopRaffleOneSlot', itemId: st.id, prizeName: prizeName || '', count });
   await rsSleep(150);
-  const ent = RS.voters.map(v => ({ id: String(v.discordId), w: parseFloat(v.weighted) || 1 }));
-  RS.sim.forEach(w => rsSimWin(ent, String(w.discordId), RS.mode));
-  const nw = []; let n = Math.min(parseInt(count, 10) || 1, RS.total - RS.sim.length);
+  const ent = st.voters.map(v => ({ id: String(v.discordId), w: parseFloat(v.weighted) || 1 }));
+  st.sim.forEach(w => rsSimWin(ent, String(w.discordId), st.mode));
+  const nw = []; let n = Math.min(parseInt(count, 10) || 1, st.total - st.sim.length);
   for (let k = 0; k < n; k++) {
-    if (!ent.length) { RS.simOver = true; break; }
-    const given = {}; RS.sim.concat(nw).forEach(w => { given[w.prize] = (given[w.prize] || 0) + 1; });
-    const open = RS.realTiers.filter(t => t.totalStock === null || t.totalStock - (given[t.name] || 0) > 0);
+    if (!ent.length) { st.simOver = true; break; }
+    const given = {}; st.sim.concat(nw).forEach(w => { given[w.prize] = (given[w.prize] || 0) + 1; });
+    const open = st.realTiers.filter(t => t.totalStock === null || t.totalStock - (given[t.name] || 0) > 0);
     let tier;
     if (prizeName) { tier = open.find(t => t.name === prizeName); if (!tier) break; }
     else {
-      if (!open.length) { RS.simOver = true; break; }
+      if (!open.length) { st.simOver = true; break; }
       const wts = open.map(t => t.totalStock === null ? 1 : t.totalStock - (given[t.name] || 0));
       let roll = Math.random() * wts.reduce((a, b) => a + b, 0), idx = 0;
       for (; idx < wts.length - 1; idx++) { roll -= wts[idx]; if (roll <= 0) break; }
@@ -5120,11 +5126,11 @@ async function rsDraw(prizeName, count) {
     const tot = ent.reduce((a, e) => a + e.w, 0); let r = Math.random() * tot, wi = ent.length - 1;
     for (let e = 0; e < ent.length; e++) { r -= ent[e].w; if (r <= 0) { wi = e; break; } }
     const w = { discordId: ent[wi].id, prize: tier.name };
-    nw.push(w); rsSimWin(ent, w.discordId, RS.mode);
+    nw.push(w); rsSimWin(ent, w.discordId, st.mode);
   }
-  RS.sim.push(...nw);
-  const done = RS.simOver || RS.sim.length >= RS.total || !ent.length;
-  return { status: 'success', done, newWinners: nw, winners: RS.sim };
+  st.sim.push(...nw);
+  const done = st.simOver || st.sim.length >= st.total || !ent.length;
+  return { status: 'success', done, newWinners: nw, winners: st.sim };
 }
 function rsRemainTotal() { return Math.max(0, RS.total - RS.winners.length); }
 
@@ -5134,15 +5140,16 @@ function rsRenderTabs() {
   if (!box) return;
   if (RS.queue.length < 2) { box.classList.remove('show'); box.innerHTML = ''; return; }
   box.classList.add('show');
-  box.innerHTML = RS.queue.map(id => {
+  box.innerHTML = (rsMergedEligible() ? '<button class="rs-tab' + (RS.merged ? ' on' : '') + '" onclick="rsEnterMerged()">📑 同頁(' + RS.queue.length + ' 個商品)</button>' : '') + RS.queue.map(id => {
     const it = (typeof shopItems !== 'undefined' ? shopItems : []).find(x => x.itemId === id);
     const nm = it ? it.name : id, done = it && it.raffleResult;
-    return '<button class="rs-tab' + (id === RS.id ? ' on' : '') + '" title="' + rsEsc(nm) + '" onclick="rsSwitch(\'' + rsEsc(id) + '\')">' + (done ? '✅ ' : '') + rsEsc(nm) + '</button>';
+    return '<button class="rs-tab' + (id === RS.id && !RS.merged ? ' on' : '') + '" title="' + rsEsc(nm) + '" onclick="rsSwitch(\'' + rsEsc(id) + '\')">' + (done ? '✅ ' : '') + rsEsc(nm) + '</button>';
   }).join('');
 }
 async function rsSwitch(id) {
-  if (RS.busy || id === RS.id) { if (RS.busy) rsToast('開獎進行中,請稍後再切換', false); return; }
-  RS.simMap[RS.id] = { sim: RS.sim, over: RS.simOver };
+  if (RS.busy || (id === RS.id && !RS.merged)) { if (RS.busy) rsToast('開獎進行中,請稍後再切換', false); return; }
+  if (RS.merged) { RS.mi.forEach(x => { RS.simMap[x.id] = { sim: x.sim, over: x.simOver }; }); RS.merged = false; }
+  else RS.simMap[RS.id] = { sim: RS.sim, over: RS.simOver };
   RS.id = id;
   const m = RS.simMap[id]; RS.sim = m ? m.sim : []; RS.simOver = m ? m.over : false;
   RS.realTiers = null; RS.cnt = {}; RS.sel = {}; RS.randN = 1; RS.armed = null;
@@ -5179,8 +5186,8 @@ function rsCardHtml(ti, prize, winners, empties, countTxt) {
 }
 // 該獎項同時列出所有參與者:依票數重複出現(總數上限 300,超過按比例縮),名字 ≤24 個用名牌牆,超過用 CS:GO 開箱式跑馬燈
 const RS_WALL_MAX = 24, RS_IT_W = 120;
-function rsEntries() {
-  const v = RS.voters || [];
+function rsEntries(voters) {
+  const v = voters || RS.voters || [];
   const cnt = x => Math.max(1, Math.round(parseFloat(x.weighted) || parseFloat(x.raw) || 1));
   const total = v.reduce((a, x) => a + cnt(x), 0);
   const f = total > 300 ? 300 / total : 1;
@@ -5189,11 +5196,12 @@ function rsEntries() {
   return out;
 }
 function rsShuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function rsPoolHtml(hitIds) {
-  if (!RS.pool || !RS.entries.length) return '';
-  if (RS.entries.length > RS_WALL_MAX) return '<div class="rs-reel"><div class="rs-reel-mark"></div><div class="rs-strip"></div></div>';
+function rsPoolHtml(hitIds, ents, mi) {
+  const E = ents || RS.entries;
+  if (!RS.pool || !E.length) return '';
+  if (E.length > RS_WALL_MAX) return '<div class="rs-reel"' + (mi !== undefined ? ' data-mi="' + mi + '"' : '') + '><div class="rs-reel-mark"></div><div class="rs-strip"></div></div>';
   const need = {}; (hitIds || []).forEach(id => { need[id] = 1; });
-  return '<div class="rs-pool">' + RS.entries.map(e => {
+  return '<div class="rs-pool">' + E.map(e => {
     const hit = need[e.id]; if (hit) need[e.id] = 0;
     return '<span class="rs-chip' + (hit ? ' hit' : '') + '" data-id="' + rsEsc(e.id) + '">' + rsEsc(e.name) + '</span>';
   }).join('') + '</div>';
@@ -5202,7 +5210,8 @@ function rsHue(id) { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 
 function rsInitReels() {
   document.querySelectorAll('#rs-board .rs-reel').forEach(el => {
     if (el._reel) return;
-    const base = rsShuffle(RS.entries.slice()), N = base.length, loop = N * RS_IT_W;
+    const ents = (RS.merged && el.getAttribute('data-mi') !== null && RS.mi[+el.getAttribute('data-mi')]) ? RS.mi[+el.getAttribute('data-mi')].entries : RS.entries;
+    const base = rsShuffle(ents.slice()), N = base.length, loop = N * RS_IT_W;
     const vw = el.clientWidth || 360, reps = Math.ceil(vw / loop) + 2;
     let html = '';
     for (let r = 0; r < reps; r++) base.forEach(e => { html += '<div class="rs-it" data-id="' + rsEsc(e.id) + '" style="border-bottom-color:hsl(' + rsHue(e.id) + ' 70% 58%)">' + rsEsc(e.name) + '</div>'; });
@@ -5542,6 +5551,173 @@ async function rsFinish() {
     const b = rsEl('rs-banner');
     b.innerHTML = RS.test ? '🧪 測試完畢 🧪' : '🎉 開獎完畢 🎉';
     b.classList.add('show');
+    rsDing(); setTimeout(rsDing, 300);
+    if (RS.anim) for (let i = 0; i < 8; i++) setTimeout(() => rsConfetti(Math.random() * innerWidth, innerHeight * 0.3, 60), i * 260);
+    setTimeout(() => b.classList.remove('show'), 3500);
+  }
+}
+
+
+// ============================================================
+// 📑 同頁模式:勾選多個商品、而且每個商品都只有「一個獎項」(可多位得獎者)時,全部商品擺在同一頁一起開獎
+// (每個商品一張卡片,有各自的參與者名單/跑馬燈;「全部同時開獎」會把所有勾選的商品一起轉、一起落定)
+// ============================================================
+function rsMergedEligible() {
+  if (RS.queue.length < 2 || typeof shopItems === 'undefined') return false;
+  return RS.queue.every(id => { const it = shopItems.find(x => x.itemId === id); return it && (it.raffleTierStatus || []).length === 1; });
+}
+async function rsLoadState(id) {
+  const item = shopItems.find(x => x.itemId === id);
+  const d = await api({ action: 'getRaffleParticipants', itemId: id });
+  if (!item || !d || d.status !== 'success') return null;
+  const st = { id, name: item.name, total: item.stock || 1, realTiers: item.raffleTierStatus || [], mode: (item.raffleRepeatWinMode || 'ALLOW').toString().toUpperCase(),
+    voters: d.list || [], nameOf: {}, sim: [], simOver: false, tiers: [], winners: [], done: false };
+  st.voters.forEach(v => { st.nameOf[v.discordId] = v.name; });
+  const base = d.drawn ? (d.winners || []) : (d.draftWinners || []);
+  base.forEach(w => { if (w.name) st.nameOf[w.discordId] = w.name; });
+  st.realWinners = base.map(w => ({ discordId: w.discordId, prize: w.prize, name: w.name || st.nameOf[w.discordId] || w.discordId }));
+  st.drawnReal = !!item.raffleResult || !!d.drawn;
+  st.entries = rsEntries(st.voters);
+  return st;
+}
+function rsApplyM(st) {
+  if (RS.test) {
+    const cnt = {}; st.sim.forEach(w => { cnt[w.prize] = (cnt[w.prize] || 0) + 1; });
+    st.tiers = st.realTiers.map(t => ({ name: t.name, totalStock: t.totalStock, remaining: t.totalStock === null ? null : Math.max(0, t.totalStock - (cnt[t.name] || 0)) }));
+    st.winners = st.sim.map(w => ({ discordId: w.discordId, prize: w.prize, name: st.nameOf[w.discordId] || w.discordId }));
+    st.done = st.simOver || st.sim.length >= st.total;
+  } else { st.tiers = st.realTiers; st.winners = st.realWinners; st.done = st.drawnReal; }
+}
+async function rsEnterMerged() {
+  if (RS.busy) return;
+  RS.merged = true; RS.msel = {}; RS.mcnt = {};
+  rsEl('rs-board').innerHTML = '<div style="padding:40px;font-size:22px;opacity:.8">讀取 ' + RS.queue.length + ' 個商品的資料中…</div>';
+  rsEl('rs-bar').innerHTML = '';
+  await loadShopItems();
+  const sts = (await Promise.all(RS.queue.map(rsLoadState))).filter(Boolean);
+  if (!sts.length) { toast('讀取失敗', false); RS.merged = false; return; }
+  RS.mi = sts;
+  RS.drawnReal = sts.some(x => x.drawnReal);
+  RS.test = RS.testPref || RS.drawnReal;
+  sts.forEach(x => { const m = RS.simMap[x.id]; if (m) { x.sim = m.sim; x.simOver = m.over; } rsApplyM(x); });
+  rsSyncToggles(); rsRenderM(); rsRenderMBar();
+}
+function rsMCardHtml(x, i) {
+  const t = x.tiers[0] || { name: '(無獎項)', remaining: 0 };
+  const left = Math.max(0, x.total - x.winners.length);
+  const empties = x.done ? 0 : Math.min(t.remaining === null ? left : Math.min(t.remaining, left), 60);
+  let slots = x.winners.map(w => '<div class="rs-slot win"' + (rsFitSize(w.name) ? ' style="font-size:' + rsFitSize(w.name) + '"' : '') + '>' + rsEsc(w.name) + '</div>').join('');
+  for (let k = 0; k < empties; k++) slots += '<div class="rs-slot empty" title="點一下抽出這個商品的一位" onclick="rsMClick(' + i + ')">？</div>';
+  return '<div class="rs-card" data-mi="' + i + '"><div class="rs-ph">🎁 ' + rsEsc(x.name) + '</div><div class="rs-pc">' + rsEsc(t.name) + ' · ' + x.winners.length + ' / ' + x.total + ' 位</div><div class="rs-slots">' + slots + '</div>' +
+    (empties > 0 ? rsPoolHtml(x.winners.map(w => w.discordId), x.entries, i) : '') + '</div>';
+}
+function rsRenderM() {
+  rsRenderTabs();
+  rsEl('rs-title').textContent = '🎬 同頁開獎 · ' + RS.mi.length + ' 個商品';
+  const all = RS.mi.every(x => x.done), dn = RS.mi.reduce((a, x) => a + x.winners.length, 0), tt = RS.mi.reduce((a, x) => a + x.total, 0);
+  rsEl('rs-prog').textContent = all ? (RS.test ? '🧪 測試完畢' : '🏆 已開獎完畢') : ((RS.test ? '🧪 測試 ' : '進度 ') + dn + ' / ' + tt);
+  rsEl('rs-board').innerHTML = RS.mi.map(rsMCardHtml).join('');
+  rsInitReels();
+}
+function rsMPlan() {
+  const plan = [];
+  RS.mi.forEach((x, i) => {
+    if (x.done || RS.msel[i] === false) return;
+    const t = x.tiers[0]; if (!t) return;
+    const left = Math.max(0, x.total - x.winners.length);
+    let n = RS.mcnt[i] || (t.remaining === null ? left : Math.min(t.remaining, left));
+    n = Math.min(n, left); if (t.remaining !== null) n = Math.min(n, t.remaining);
+    if (n > 0) plan.push({ x, i, prize: t.name, count: n });
+  });
+  return plan;
+}
+function rsRenderMBar() {
+  const bar = rsEl('rs-bar');
+  if (RS.mi.every(x => x.done)) {
+    bar.innerHTML = RS.test
+      ? '<div class="rs-note">🧪 測試結束(沒有發獎、沒有發 Discord 公告、沒有寫入)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsResetSim()">🔁 重新測試</button>' + (RS.drawnReal ? '' : '<button class="rs-sec" onclick="rsToggleTest()">離開測試模式</button>') + '</div>'
+      : '<div class="rs-note">🏆 這些抽獎都已經開獎完畢。可按右上「✕ 關閉」返回後台。</div><div class="rs-acts"><button class="rs-sec" onclick="rsToggleTest()">🧪 用測試模式再看一次動畫</button></div>';
+    return;
+  }
+  let h = '<div class="rs-note">同頁模式:勾選要一起開的商品、填每個商品要開幾位,按「全部同時開獎」一起轉、一起落定(空白鍵)。也可以直接點卡片上的「？」,點一個抽一個。</div><div class="rs-tiers">';
+  RS.mi.forEach((x, i) => {
+    if (x.done) return;
+    const t = x.tiers[0]; if (!t) return;
+    const left = Math.max(0, x.total - x.winners.length);
+    if (RS.msel[i] === undefined) RS.msel[i] = true;
+    if (RS.mcnt[i] === undefined) RS.mcnt[i] = t.remaining === null ? left : Math.min(t.remaining, left);
+    h += '<label class="rs-tier"><input type="checkbox" ' + (RS.msel[i] ? 'checked' : '') + ' onchange="RS.msel[' + i + ']=this.checked;rsUpdateMGo()"> ' + rsEsc(x.name) +
+      ' <span class="rs-note">剩' + left + '</span> 開 <input type="number" min="1" max="' + left + '" value="' + RS.mcnt[i] + '" onchange="RS.mcnt[' + i + ']=Math.max(1,parseInt(this.value,10)||1);rsUpdateMGo()"> 位</label>';
+  });
+  h += '</div><div class="rs-acts"><button class="rs-go" id="rs-go" onclick="rsMergedStart(rsMPlan())">🎬 全部同時開獎!</button></div>';
+  bar.innerHTML = h;
+  rsUpdateMGo();
+}
+function rsUpdateMGo() {
+  const go = rsEl('rs-go'); if (!go) return;
+  const plan = rsMPlan(), n = plan.reduce((a, p) => a + p.count, 0);
+  go.textContent = !plan.length ? '請先勾選商品' : (RS.armed === 'mgo' ? '⚠️ 再按一次確認開獎(' + n + ' 位)' : '🎬 全部同時開獎!(' + plan.length + ' 個商品 / 共 ' + n + ' 位)');
+  go.disabled = !plan.length || RS.busy;
+}
+function rsMClick(i) {
+  if (RS.busy) return;
+  const x = RS.mi[i]; if (!x || x.done || !x.tiers[0]) return;
+  const t = x.tiers[0];
+  if ((t.remaining !== null && t.remaining <= 0) || x.winners.length >= x.total) return;
+  rsMergedStart([{ x, i, prize: t.name, count: 1 }], true);
+}
+async function rsMergedStart(plan, noArm) {
+  if (RS.busy) return;
+  if (!plan || !plan.length) { rsToast('請先勾選要開的商品', false); return; }
+  if (!noArm) {
+    if (RS.armed !== 'mgo') { RS.armed = 'mgo'; clearTimeout(RS.armT); RS.armT = setTimeout(() => { RS.armed = null; if (!RS.busy) rsUpdateMGo(); }, 4000); rsUpdateMGo(); return; }
+    RS.armed = null; clearTimeout(RS.armT);
+  }
+  RS.busy = true; rsUpdateMGo();
+  const groups = plan.map(p => {
+    const card = document.querySelector('#rs-board .rs-card[data-mi="' + p.i + '"]');
+    const slots = card ? Array.from(card.querySelectorAll('.rs-slot.empty')).slice(0, p.count) : [];
+    if (card) card.classList.add('rs-active');
+    return { p, card, slots, got: [], pool: card ? card.querySelector('.rs-pool, .rs-reel') : null };
+  });
+  const t0 = Date.now();
+  if (RS.anim) rsStartSpin([].concat(...groups.map(g => g.slots)), groups.map(g => g.pool));
+  let err = '';
+  for (const g of groups) {
+    const d = await rsDraw(g.p.prize, g.p.count, g.p.x);
+    if (d.status !== 'success') { err = (g.p.x.name + ':' + (d.message || '未知錯誤')); continue; }
+    g.got = d.newWinners || [];
+  }
+  if (RS.anim) { const wait = 3200 - (Date.now() - t0); if (wait > 0) await rsSleep(wait); }
+  rsStopSpin();
+  const rounds = Math.max(0, ...groups.map(g => g.got.length));
+  for (let r = 0; r < rounds; r++) {
+    await rsRoundLand(groups.filter(g => g.got[r]).map(g => ({ pool: g.pool, id: g.got[r].discordId })), r);
+    groups.forEach(g => {
+      const w = g.got[r], el = g.slots[r];
+      if (w && el) rsReveal(el, g.p.x.nameOf[w.discordId] || w.discordId, g.pool, w.discordId);
+    });
+    if (RS.anim && r < rounds - 1) await rsSleep(r < 6 ? 700 : 250);
+  }
+  groups.forEach(g => g.slots.forEach((el, k) => { if (!g.got[k]) { el.className = 'rs-slot empty'; el.textContent = '？'; } }));
+  if (err) rsToast('❌ ' + err, false);
+  else rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : '🎉 已開獎並發獎、公告');
+  if (RS.anim) await rsSleep(900);
+  RS.busy = false;
+  await rsMFinish();
+}
+async function rsMFinish() {
+  if (RS.test) RS.mi.forEach(rsApplyM);
+  else {
+    await loadShopItems();
+    RS.mi = await Promise.all(RS.mi.map(async x => (await rsLoadState(x.id)) || x));
+    RS.mi.forEach(rsApplyM);
+  }
+  document.querySelectorAll('#rs-board .rs-card').forEach(c => c.classList.remove('rs-active'));
+  rsRenderM(); rsRenderMBar();
+  if (RS.mi.every(x => x.done)) {
+    const b = rsEl('rs-banner');
+    b.innerHTML = RS.test ? '🧪 測試完畢 🧪' : '🎉 開獎完畢 🎉'; b.classList.add('show');
     rsDing(); setTimeout(rsDing, 300);
     if (RS.anim) for (let i = 0; i < 8; i++) setTimeout(() => rsConfetti(Math.random() * innerWidth, innerHeight * 0.3, 60), i * 260);
     setTimeout(() => b.classList.remove('show'), 3500);
