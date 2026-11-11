@@ -926,7 +926,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.199</div>
+    <div class="version-tag">系統版本：v5.4.200</div>
   </div>
 
   <script>
@@ -4953,8 +4953,8 @@
           }
         }
         const head = pub ? '<b style="color:#fff">#' + w.rank + ' ' + E(w.name) + '</b> <span style="color:#F0B232">' + (w.score != null ? w.score + ' 分' : '') + '</span> <span style="color:#949BA4;font-size:12px">(支持 ' + w.support + ' · 優異 ' + w.excellent + ' · 計 ' + w.raw + ' 票)</span>' : '<b style="color:#fff">作品 #' + w.no + '</b>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '');
-        return '<div style="background:#2F3136;border-radius:10px;padding:14px;margin-bottom:14px"><div style="margin-bottom:10px;font-size:16px">' + head + '</div>' + (imgs ? '<div class="ct-imgs">' + imgs + '</div>' : '')
-          + (w.text ? '<div class="ct-desc">' + E(w.text) + '</div>' : '') + (btns ? '<div>' + btns + '</div>' : '') + '</div>';
+        return '<div style="background:#3A3C43;border:1px solid #5865F2aa;border-radius:12px;padding:14px;margin-bottom:30px;box-shadow:0 4px 14px rgba(0,0,0,.35)"><div style="margin:-14px -14px 12px;padding:10px 14px;background:#4752C4;border-radius:11px 11px 0 0;font-size:16px">' + head + '</div>' + (imgs ? '<div class="ct-imgs">' + imgs + '</div>' : '')
+          + (w.text ? '<div class="ct-desc">' + E(w.text) + '</div>' : '') + (btns ? '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #ffffff33"><div style="font-size:12px;color:#B9BBBE;margin-bottom:6px">▼ 以下按鈕是投給上面的「作品 #' + w.no + '」</div>' + btns + '</div>' : '') + '</div>';
       }).join('') || (t.hidden ? '<div style="color:#949BA4;padding:18px 0;text-align:center">🔒 這個賽道尚未開放,作品將在開放後顯示' + (Date.parse(t.start) > Date.now() ? '<div style="margin-top:10px;font-size:15px;color:#F0B232">⏳ 開放倒數 <b id="ct-cd" data-t="' + Date.parse(t.start) + '" style="font-variant-numeric:tabular-nums"></b><div style="font-size:12px;color:#949BA4;margin-top:2px">(' + fmtT(t.start) + ' 開放)</div></div>' : '') + '</div>' : '<div style="color:#949BA4">這個賽道還沒有作品</div>');
       if (document.getElementById('ct-cd')) { ctCdTick_(); if (!ctCdTimer_) ctCdTimer_ = setInterval(ctCdTick_, 1000); }
       if (d.overall && d.overall.length) {
