@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.171</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.172</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1308,6 +1308,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="btn btn-edit" onclick="statCopy()">📋 複製文字</button><button class="btn btn-edit" onclick="statCsv()">⬇️ 下載 CSV</button>
             <span class="hint" style="margin-left:8px">官方格式(目前分頁的群組):</span><button class="btn btn-edit" onclick="statOfficialCopy()">📋 官方格式複製</button><button class="btn btn-edit" onclick="statOfficialCsv()">⬇️ 官方格式 CSV</button></div>
           <div id="stat-tabs" class="ct-act" style="margin:6px 0;flex-wrap:wrap;gap:6px"></div>
+          <div class="ct-act" style="margin:6px 0;flex-wrap:wrap;gap:6px;align-items:center"><span class="hint">✏️ 手動增減:</span>
+            <input id="stat-m-grp" list="stat-m-grps" placeholder="群組" style="width:110px"><datalist id="stat-m-grps"></datalist>
+            <input id="stat-m-name" list="stat-m-names" placeholder="獎品名稱" style="width:170px"><datalist id="stat-m-names"></datalist>
+            <input id="stat-m-pl" placeholder="玩家ID(可空)" style="width:170px">
+            <input id="stat-m-qty" type="number" value="1" style="width:80px" title="正數=增加,負數=減少">
+            <button class="btn btn-edit" onclick="statManual(1)">➕ 增加</button><button class="btn btn-edit" onclick="statManual(-1)">➖ 減少</button>
+            <span class="hint">只改統計數字,不會發放/收回任何獎品;玩家ID留空 = 只加總數</span></div>
           <div id="stat-adm-tables"><div class="hint">按「重新整理」載入</div></div>
         </div>
 
@@ -3914,12 +3921,24 @@ function statRender_() {
   if (bs) bs.style.outline = statView_ === 'sum' ? '2px solid var(--gold)' : ''; if (bd) bd.style.outline = statView_ === 'det' ? '2px solid var(--gold)' : '';
   if (!d.groups.length) { const tb0 = document.getElementById('stat-tabs'); if (tb0) tb0.innerHTML = ''; box.innerHTML = '<div class="hint">還沒有任何統計資料。把 <code>[統計:群組]</code> 加到盲盒獎項名稱前,有人抽到/兌換就會出現。</div>'; return; }
   if (!d.groups.some((g) => g.name === statGrp_)) statGrp_ = d.groups[0].name;
+  { const gl = document.getElementById('stat-m-grps'), nl = document.getElementById('stat-m-names'), gi = document.getElementById('stat-m-grp'); const cg = d.groups.find((g) => g.name === statGrp_);
+    if (gl) gl.innerHTML = d.groups.map((g) => '<option value="' + ctEsc_(g.name) + '">').join(''); if (nl) nl.innerHTML = (cg ? cg.items : []).map((x) => '<option value="' + ctEsc_(x.name) + '">').join(''); if (gi && !gi.value) gi.value = statGrp_; }
   const tabs = document.getElementById('stat-tabs');
   if (tabs) tabs.innerHTML = d.groups.map((g) => '<button class="btn btn-edit" style="' + (g.name === statGrp_ ? 'outline:2px solid var(--gold)' : '') + '" onclick="statSetGrp(this.dataset.g)" data-g="' + E(g.name) + '">📁 ' + E(g.name) + ' <span class="hint">(' + g.items.length + ')</span></button>').join('');
   box.innerHTML = d.groups.filter((g) => g.name === statGrp_).map((g) => {
     if (statView_ === 'sum') return '<div style="margin-bottom:12px"><h4 style="margin:6px 0 4px">' + E(g.name) + ' <span class="hint">合計 ' + g.total + '</span></h4><div class="ct-tw"><table><thead><tr><th>獎品</th><th>總數</th><th>發放次數</th><th>人數</th></tr></thead><tbody>' + g.items.map((x) => '<tr><td>' + E(x.name) + '</td><td><b>' + x.qty + '</b></td><td>' + x.times + '</td><td>' + x.users + '</td></tr>').join('') + '</tbody></table></div></div>';
     return '<div style="margin-bottom:14px"><h4 style="margin:6px 0 4px">' + E(g.name) + ' <span class="hint">合計 ' + g.total + '</span></h4>' + g.items.map((x) => '<div class="ct-tw" style="margin-bottom:8px"><table><thead><tr><th colspan="3" style="text-align:left">' + E(x.name) + ' <span class="hint">總數量 <b>' + x.qty + '</b> · 總兌換次數 <b>' + x.times + '</b></span></th></tr><tr><th>玩家</th><th>數量</th><th>兌換次數</th></tr></thead><tbody>' + (x.players || []).map((u) => '<tr><td>' + E(statDisp_(u.id)) + '</td><td><b>' + u.qty + '</b></td><td>' + u.times + '</td></tr>').join('') + '</tbody></table></div>').join('') + '</div>';
   }).join('');
+}
+async function statManual(sign) {
+  const g = document.getElementById('stat-m-grp').value.trim(), n = document.getElementById('stat-m-name').value.trim(); let pl = document.getElementById('stat-m-pl').value.trim();
+  const q = Math.abs(parseInt(document.getElementById('stat-m-qty').value, 10)) * sign;
+  if (!g || !n) { toast('請填群組與獎品名稱', false); return; } if (!q) { toast('數量要是非 0 整數', false); return; }
+  if (pl && !/^\d+$/.test(pl)) { const f = (ctPlayers_ || []).find((x) => x.name === pl || String(x.name).indexOf(pl) >= 0); if (!f) { toast('找不到這個玩家,請填 Discord ID', false); return; } pl = f.id; }
+  if (!confirm('確定在「' + g + '」的「' + n + '」' + (q > 0 ? '增加 ' : '減少 ') + Math.abs(q) + (pl ? '(玩家 ' + pl + ')' : '') + '?\n只改統計,不發放/收回獎品。')) return;
+  const d = await stockAdminCall_('adminPrizeStatAdjustWorker', { group: g, name: n, qty: String(q), player: pl });
+  if (!d || d.status !== 'success') { toast('失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  toast('✅ ' + d.message); statGrp_ = g; statLoadTables();
 }
 async function statLoadTables() {
   const box = document.getElementById('stat-adm-tables'); if (!box) return; box.innerHTML = '<div class="hint">載入中…</div>';
