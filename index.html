@@ -942,7 +942,7 @@
                 <option value="price-low">💰 價格 低 ~ 高</option>
                 <option value="price-high">💰 價格 高 ~ 低</option>
               </select>
-              <select id="shop-layout" class="shop-input" onchange="shopSetLayout_(this.value)" title="商品排列方式">
+              <select id="shop-layout" class="shop-input" onchange="shopSetLayout_(this.value)" title="商品排列方式(每個分類各自記住)">
                 <option value="auto">📐 排列:自動</option>
                 <option value="1">1排1個(完整)</option>
                 <option value="2">1排2個(精簡)</option>
@@ -956,7 +956,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.207</div>
+    <div class="version-tag">系統版本：v5.4.208</div>
   </div>
 
   <script>
@@ -7070,16 +7070,19 @@ function fetchScoresAndShop(discordId, callback = null) {
       }
     }
     // 🌟 商店排列(自動:手機且商品多時用「1排2個精簡」;選擇存在本機)
+    function shopLayoutGet_() { // 每個分類各自記住排列(存在本機);沒設過的分類用「自動」
+      let m = 'auto'; try { const o = JSON.parse(localStorage.getItem('shop_layout_cat') || '{}'); m = o[(typeof currentCategory !== 'undefined' && currentCategory) || '__all__'] || 'auto'; } catch (e) {} return m;
+    }
     function shopLayoutMode_() {
-      let m = 'auto'; try { m = localStorage.getItem('shop_layout') || 'auto'; } catch (e) {}
+      let m = shopLayoutGet_();
       const box = document.getElementById('shop-list'); const n = box ? box.querySelectorAll('.shop-item-card').length : 0;
       if (m === 'auto') return (window.innerWidth <= 600 && n >= 7) ? '2' : 'def';
       return m;
     }
-    function shopSetLayout_(v) { try { localStorage.setItem('shop_layout', v); } catch (e) {} shopApplyLayout_(); }
+    function shopSetLayout_(v) { try { const o = JSON.parse(localStorage.getItem('shop_layout_cat') || '{}'); const k = (typeof currentCategory !== 'undefined' && currentCategory) || '__all__'; if (v === 'auto') delete o[k]; else o[k] = v; localStorage.setItem('shop_layout_cat', JSON.stringify(o)); } catch (e) {} shopApplyLayout_(); }
     function shopApplyLayout_() {
       const box = document.getElementById('shop-list'); if (!box) return;
-      const sel = document.getElementById('shop-layout'); try { if (sel) sel.value = localStorage.getItem('shop_layout') || 'auto'; } catch (e) {}
+      const sel = document.getElementById('shop-layout'); try { if (sel) sel.value = shopLayoutGet_(); } catch (e) {}
       const m = shopLayoutMode_(); box.classList.remove('sc-1', 'sc-2', 'sc-list', 'sc-def'); box.classList.add('sc-' + m); // sc-def = 原本的自動欄數(電腦版約 3 欄)
       box.querySelectorAll('.shop-item-card').forEach((c) => {
         const compact = m === '2' || m === 'list';
