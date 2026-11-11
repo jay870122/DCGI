@@ -926,7 +926,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.196</div>
+    <div class="version-tag">系統版本：v5.4.197</div>
   </div>
 
   <script>
@@ -4893,6 +4893,12 @@
       renderContest_();
     }
     let ctPop_ = '', ctCdTimer_ = null;
+    // 圖片載入失敗(網址不是直接圖片連結/被擋外連/手機網路)→ 顯示可點開的連結,不要一片空白
+    function ctImgFail_(im) {
+      const u = im.getAttribute('src') || '', box = im.parentNode; if (!box || box.getAttribute('data-fail')) return;
+      box.setAttribute('data-fail', '1'); im.style.display = 'none';
+      box.insertAdjacentHTML('beforeend', '<a href="' + escapeHtml_(u) + '" target="_blank" rel="noopener noreferrer" style="color:#00A8FC;font-size:13px;padding:12px;text-align:center;word-break:break-all">🖼️ 圖片無法顯示,點此開啟原圖</a>');
+    }
     // ⏳ 未開放賽道的開放倒數(有填投票開始時間才會出現);歸零時自動重新讀取
     function ctCdTick_() {
       const el = document.getElementById('ct-cd');
@@ -4936,7 +4942,7 @@
           + (d.prophetReward ? '<div style="margin-top:8px;background:rgba(240,178,50,.10);border:1px solid rgba(240,178,50,.45);border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.7;color:#DBDEE1">⭐ <b style="color:#F0B232">優異票 = 2 票</b>(支持票 = 1 票)<br>🔮 <b style="color:#F0B232">投票神預測</b>:你的優異票若投給該賽道最後獲得「優異獎」的作品(最高票,或前 10% 名額),賽道結算後可獲得 <b style="color:#fff">' + d.prophetReward.exch + ' ' + E(d.prophetReward.names[0]) + ' + ' + d.prophetReward.lottery + ' ' + E(d.prophetReward.names[1]) + '</b>' + '</div>' : '')
           : pub ? '🏆 成績已公布' : t.status === '已截止' ? '⏹️ 投票已截止,等待公布成績' : '尚未開放投票');
       document.getElementById('ct-works').innerHTML = t.works.map((w) => {
-        const imgs = [w.url1, w.url2].filter(Boolean).map((u) => '<div class="ct-imgbox"><img class="ct-img" src="' + E(u) + '" loading="lazy"></div>').join('');
+        const imgs = [w.url1, w.url2].filter(Boolean).map((u) => '<div class="ct-imgbox"><img class="ct-img" src="' + E(u) + '" referrerpolicy="no-referrer" decoding="async" onerror="ctImgFail_(this)"></div>').join('');
         let btns = '';
         if (open) {
           if (w.mine) btns = '<span style="color:#949BA4;font-size:12px">這是你的作品(不可投自己)</span>';
