@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.172</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.173</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1315,6 +1315,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <input id="stat-m-qty" type="number" value="1" style="width:80px" title="正數=增加,負數=減少">
             <button class="btn btn-edit" onclick="statManual(1)">➕ 增加</button><button class="btn btn-edit" onclick="statManual(-1)">➖ 減少</button>
             <span class="hint">只改統計數字,不會發放/收回任何獎品;玩家ID留空 = 只加總數</span></div>
+          <details style="margin:4px 0 8px"><summary class="hint" style="cursor:pointer">📋 批量增減(多玩家、多獎品一次貼上)</summary>
+            <div class="hint" style="margin:4px 0;line-height:1.6">每行一筆:<code>獎品名稱 | 玩家ID或暱稱 | 數量</code>(可用 | 、Tab 或逗號分隔;數量可省略=1,負數=減少;玩家可留空)。群組用上面「群組」欄。例:<br><code>七大罪的箱子×1 | 123456789 | 2</code><br><code>海浪之箱×1 | 小明 | -1</code></div>
+            <textarea id="stat-b-text" rows="6" style="width:100%;box-sizing:border-box" placeholder="獎品名稱 | 玩家ID | 數量"></textarea>
+            <div style="margin-top:6px"><button class="btn btn-edit" onclick="statBatch()">✅ 套用批量增減</button> <span class="hint" id="stat-b-msg"></span></div></details>
           <div id="stat-adm-tables"><div class="hint">按「重新整理」載入</div></div>
         </div>
 
@@ -3939,6 +3943,27 @@ async function statManual(sign) {
   const d = await stockAdminCall_('adminPrizeStatAdjustWorker', { group: g, name: n, qty: String(q), player: pl });
   if (!d || d.status !== 'success') { toast('失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   toast('✅ ' + d.message); statGrp_ = g; statLoadTables();
+}
+async function statBatch() {
+  const g = document.getElementById('stat-m-grp').value.trim(), msg = document.getElementById('stat-b-msg'); if (!g) { toast('請先填上面的「群組」', false); return; }
+  const rows = [], errs = [];
+  document.getElementById('stat-b-text').value.split(/\r?\n/).forEach((ln, i) => {
+    ln = ln.trim(); if (!ln) return; const p = ln.split(/\t|\||,|，/).map((x) => x.trim()); const name = p[0]; let pl = p[1] || '', q = p.length > 2 ? p[2] : '1';
+    if (p.length === 2 && /^-?\d+$/.test(p[1]) && p[1].length < 6) { q = p[1]; pl = ''; }
+    if (!name) { errs.push('第' + (i + 1) + '行缺名稱'); return; }
+    if (pl && !/^\d+$/.test(pl)) { const f = (ctPlayers_ || []).find((x) => x.name === pl) || (ctPlayers_ || []).find((x) => String(x.name).indexOf(pl) >= 0); if (!f) { errs.push('第' + (i + 1) + '行找不到玩家「' + pl + '」'); return; } pl = f.id; }
+    const qty = parseInt(q, 10); if (!qty) { errs.push('第' + (i + 1) + '行數量無效'); return; }
+    rows.push({ name, player: pl, qty });
+  });
+  if (errs.length) { msg.textContent = '❌ ' + errs.join('、'); toast('有錯誤,全部未送出', false); return; }
+  if (!rows.length) { toast('沒有內容', false); return; }
+  const plus = rows.filter((r) => r.qty > 0).length;
+  if (!confirm('在「' + g + '」套用 ' + rows.length + ' 筆(增加 ' + plus + '、減少 ' + (rows.length - plus) + ')?\n只改統計,不發放/收回獎品。')) return;
+  for (let i = 0; i < rows.length; i += 60) {
+    const d = await stockAdminCall_('adminPrizeStatAdjustWorker', { group: g, rows: JSON.stringify(rows.slice(i, i + 60)) });
+    if (!d || d.status !== 'success') { msg.textContent = '❌ ' + ((d && d.message) || '失敗') + (i ? '(前 ' + i + ' 筆已寫入)' : ''); toast('失敗', false); return; }
+  }
+  msg.textContent = '✅ 已套用 ' + rows.length + ' 筆'; document.getElementById('stat-b-text').value = ''; toast('✅ 已套用 ' + rows.length + ' 筆'); statGrp_ = g; statLoadTables();
 }
 async function statLoadTables() {
   const box = document.getElementById('stat-adm-tables'); if (!box) return; box.innerHTML = '<div class="hint">載入中…</div>';
