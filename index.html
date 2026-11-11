@@ -82,7 +82,7 @@
     .info-card .ic-title { font-weight: bold; font-size: 15px; color: #fff; margin-bottom: 6px; }
     .info-card .ic-sec + .ic-sec { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #4E5058; }
     .info-card b, .info-card strong { color: inherit; }
-    .info-card img { max-width: 100%; cursor: zoom-in; }
+    .info-card img { max-width: 100%; max-height: min(360px, 55vh); width: auto; height: auto; object-fit: contain; cursor: zoom-in; } /* 🌟 資訊卡圖片自動限高(點圖可放大看原圖) */
     .ic-cm { margin-top: 10px; }
     .ic-cm-btn { background: #3F4147; color: #DBDEE1; border: 0; border-radius: 6px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
     .ic-cm-btn:hover { background: #4E5058; }
@@ -956,7 +956,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.208</div>
+    <div class="version-tag">系統版本：v5.4.209</div>
   </div>
 
   <script>
