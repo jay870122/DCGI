@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.142</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.143</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1857,12 +1857,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-ph{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:#fde68a;margin-bottom:2px;word-break:break-word}
 .rs-pc{font-size:13px;color:#c4b5fd;margin-bottom:12px}
 .rs-slots{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
-.rs-slot{min-height:clamp(54px,7vh,76px);border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 8px;
+.rs-slot{box-sizing:border-box;min-height:clamp(54px,7vh,76px);border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 8px;
   font-size:clamp(16px,1.9vw,24px);font-weight:700;line-height:1.15;word-break:break-all;overflow:hidden;
   background:#0006;border:1px dashed #ffffff40;color:#ffffff66}
 .rs-slot.empty[onclick]{cursor:pointer;transition:all .15s}
 .rs-slot.empty[onclick]:hover{border-color:#fbbf24;color:#fde68a;background:#fbbf2422;transform:translateY(-2px)}
-.rs-slot.spin{background:linear-gradient(180deg,#312e81,#1e1b4b);border:1px solid #a78bfa;color:#e9d5ff;
+.rs-slot.spin{display:block;box-sizing:border-box;height:clamp(54px,7vh,76px);line-height:calc(clamp(54px,7vh,76px) - 10px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:clamp(16px,1.9vw,24px);background:linear-gradient(180deg,#312e81,#1e1b4b);border:1px solid #a78bfa;color:#e9d5ff;
   box-shadow:inset 0 0 18px #7c3aed88,0 0 14px #7c3aed66;animation:rsShake .12s linear infinite}
 @keyframes rsShake{0%{transform:translateY(-1px)}50%{transform:translateY(1px)}100%{transform:translateY(-1px)}}
 .rs-slot.win{background:linear-gradient(160deg,#f59e0b,#ef4444);border:1px solid #fde68a;color:#fff;text-shadow:0 2px 6px #0006;box-shadow:0 0 24px #f59e0baa}
