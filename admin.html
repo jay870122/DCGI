@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.129</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.130</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4711,6 +4711,16 @@ async function batchMoveShopSort(position) {
 }
 
 // 🌟 抽獎商品:查看目前投票名單(誰投了幾張、機率多少),管理員/玩家前台共用同一支 API
+let raffleRedrawMsg_ = '';
+async function redrawRaffleWinner(itemId, itemName, idx, expectId, winnerName, prize) {
+  if (!confirm(`確定要重抽第 ${idx + 1} 位得獎者嗎?\n\n原得獎者:${winnerName}(${expectId})\n獎品:${prize}\n\n他的得獎會作廢,系統會從投票名單(照票數機率)再抽一位頂替,並把「${prize}」發給新得獎者。\n⚠️ 原得獎者已經拿到的獎勵不會自動收回,要自己處理。`)) return;
+  const d = await api({action:'adminRedrawShopRaffleWinner', itemId, index: idx, expectId});
+  if (d.status !== 'success') { toast('❌ ' + d.message, false); return; }
+  toast('🔄 已重抽,新得獎者已發獎');
+  raffleRedrawMsg_ = d.message;
+  loadShopItems();
+  showRaffleParticipants(itemId, itemName);
+}
 async function showRaffleParticipants(itemId, name) {
   document.getElementById('raffle-participants-title').textContent = '🎫 投票名單：' + name;
   document.getElementById('raffle-participants-modal').classList.add('open');
@@ -4721,7 +4731,9 @@ async function showRaffleParticipants(itemId, name) {
   // 🌟🔧 修正bug:跟Code_real.gs的getRaffleParticipants同步修正——已經開獎的話,除了得獎名單,後台
   // 還要看得到完整投票總名單(管理員反應「後臺沒總名單」,之前開獎後直接return,投票名單就看不到了)。
   // 這裡改成兩段都組,開獎過的話得獎名單在上面、投票總名單接在下面,沒開獎就只顯示投票總名單。
+  const jsq = v => (v == null ? '' : String(v)).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;');
   let html = '';
+  if (raffleRedrawMsg_) { html += `<div style="background:rgba(250,166,26,0.15);border:1px solid var(--gold);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;white-space:pre-wrap">${raffleRedrawMsg_.replace(/</g,'&lt;')}</div>`; raffleRedrawMsg_ = ''; }
   if (d.drawn) {
     document.getElementById('raffle-participants-title').textContent = '🏆 得獎名單：' + name;
     if (!d.winners || d.winners.length === 0) {
@@ -4734,14 +4746,16 @@ async function showRaffleParticipants(itemId, name) {
             <th style="text-align:left;padding:6px 4px">玩家</th>
             <th style="text-align:left;padding:6px 4px">DiscordID</th>
             <th style="text-align:right;padding:6px 4px">得獎內容</th>
+            <th style="text-align:right;padding:6px 4px"></th>
           </tr></thead>
           <tbody>
             ${d.winners.map((w, idx) => `
               <tr style="border-bottom:1px solid var(--bd)">
                 <td style="padding:6px 4px">#${idx+1}</td>
-                <td style="padding:6px 4px">${w.name}</td>
+                <td style="padding:6px 4px">${w.name}${(w.redrawFrom && w.redrawFrom.length) ? `<div class="hint" style="color:#F0B232">🔄 重抽替補,原得獎者:${w.redrawFrom.map(o => o.name + '(' + o.discordId + ')').join('、')}</div>` : ''}</td>
                 <td class="cell-id" style="padding:6px 4px">${w.discordId}</td>
                 <td style="padding:6px 4px;text-align:right">${w.prize}</td>
+                <td style="padding:6px 4px;text-align:right"><button class="btn btn-close" onclick="redrawRaffleWinner('${itemId}','${jsq(name)}',${idx},'${w.discordId}','${jsq(w.name)}','${jsq(w.prize)}')">🔄 重抽</button></td>
               </tr>`).join('')}
           </tbody>
         </table>`;
