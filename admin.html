@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.136</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.137</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5120,7 +5120,7 @@ function rsRender() {
   const cards = [];
   RS.tiers.forEach((t, ti) => {
     const ws = byPrize[t.name] || [];
-    const empties = RS.done ? 0 : (t.remaining === null ? 0 : Math.min(t.remaining, 60));
+    const empties = RS.done ? 0 : (t.remaining === null ? Math.min(rsRemainTotal(), 60) : Math.min(t.remaining, 60)); // 不限量(保底)獎項:空位數 = 整場剩餘名額
     cards.push(rsCardHtml(ti, t.name, ws, empties, t.totalStock === null ? '∞ 保底' : (ws.length + ' / ' + (ws.length + (t.remaining || 0)) + ' 份')));
   });
   Object.keys(byPrize).filter(p => !known.has(p)).forEach(p => {
