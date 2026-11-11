@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.178</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.179</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5458,6 +5458,7 @@ async function rsRefresh(first) {
   RS.winners = base.map(w => ({ discordId: w.discordId, prize: w.prize, name: w.name || RS.nameOf[w.discordId] || w.discordId }));
   RS.done = !!item.raffleResult || !!d.drawn;
   RS.drawnReal = RS.done;
+  RS.realWin = d.drawn ? (d.winners || []).map(w => ({ discordId: w.discordId, prize: w.prize, name: w.name || RS.nameOf[w.discordId] || w.discordId })) : null;
   if (first) RS.test = RS.testPref || RS.drawnReal; // 已經開獎的場次只能用測試模式看動畫
   if (RS.test) rsApplyTest();
   rsSyncToggles();
@@ -5773,10 +5774,34 @@ async function rsRoundLand(items, r) {
   }));
 }
 
+// 🔄 開獎後在舞台上重抽某位得獎者(真實結果,不是測試動畫):呼叫 adminRedrawShopRaffleWinner,二段確認
+function rsRedrawPanel_() {
+  if (!RS.drawnReal || !RS.realWin || !RS.realWin.length) return '';
+  return '<div class="rs-note" style="margin-top:10px">🔄 重抽得獎者(真實結果;原得獎者作廢、從票池依機率再抽一位並發獎,Discord 會公告「(重抽)」;原得獎者已拿到的獎勵不會自動收回):</div><div class="rs-acts" style="flex-wrap:wrap">' +
+    RS.realWin.map((w, i) => '<button class="rs-sec" onclick="rsRedraw(' + i + ')">' + (RS.armed === 'rd' + i ? '⚠️ 再按一次確認重抽' : '🔄 ' + rsEsc(w.prize) + ' → ' + rsEsc(w.name)) + '</button>').join('') + '</div>';
+}
+async function rsRedraw(i) {
+  const w = RS.realWin && RS.realWin[i]; if (!w || RS.busy) return;
+  if (!rsArm('rd' + i)) return;
+  RS.busy = true;
+  try {
+    const d = await api({ action: 'adminRedrawShopRaffleWinner', itemId: RS.id, index: i, expectId: w.discordId });
+    if (!d || d.status !== 'success') { rsToast('❌ ' + (d && d.message || '重抽失敗'), false); return; }
+    rsToast('🔄 已重抽,新得獎者已發獎');
+    const r = await api({ action: 'getRaffleParticipants', itemId: RS.id });
+    if (r && r.status === 'success' && r.drawn) {
+      (r.list || []).forEach(v => { RS.nameOf[v.discordId] = v.name; });
+      (r.winners || []).forEach(x => { if (x.name) RS.nameOf[x.discordId] = x.name; });
+      RS.realWin = (r.winners || []).map(x => ({ discordId: x.discordId, prize: x.prize, name: x.name || RS.nameOf[x.discordId] || x.discordId }));
+      if (!RS.test) { RS.winners = RS.realWin.slice(); rsRender(); }
+    }
+  } catch (e) { rsToast('❌ 重抽失敗', false); }
+  finally { RS.busy = false; rsRenderBar(); }
+}
 function rsRenderBar() {
   const bar = rsEl('rs-bar');
-  if (RS.done && RS.test) { bar.innerHTML = '<div class="rs-note">🧪 測試結束(沒有發獎、沒有發 Discord 公告、沒有寫入)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsResetSim()">🔁 重新測試</button>' + (RS.drawnReal ? '' : '<button class="rs-sec" onclick="rsToggleTest()">離開測試模式</button>') + '</div>'; return; }
-  if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢。可按右上「✕ 關閉」返回後台(要重抽某位得獎者請到「📋 查看名單」)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsToggleTest()">🧪 用測試模式再看一次動畫</button></div>'; return; }
+  if (RS.done && RS.test) { bar.innerHTML = '<div class="rs-note">🧪 測試結束(沒有發獎、沒有發 Discord 公告、沒有寫入)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsResetSim()">🔁 重新測試</button>' + (RS.drawnReal ? '' : '<button class="rs-sec" onclick="rsToggleTest()">離開測試模式</button>') + '</div>' + rsRedrawPanel_(); return; }
+  if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢。可按右上「✕ 關閉」返回後台(下方可直接重抽某位得獎者)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsToggleTest()">🧪 用測試模式再看一次動畫</button></div>' + rsRedrawPanel_(); return; }
   const left = rsRemainTotal();
   let h = '<div class="rs-note">整場還剩 <b>' + left + '</b> 個名額。勾選要「同時開獎」的獎項、填每項要開幾位,按 🎬 一起開(快捷鍵 空白鍵;H=隱藏控制列,F=全螢幕)。也可以直接點卡片上的「？」,點一個抽一個。</div><div class="rs-tiers">';
   RS.tiers.forEach((t, ti) => {
