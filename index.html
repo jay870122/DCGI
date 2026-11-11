@@ -926,7 +926,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.197</div>
+    <div class="version-tag">系統版本：v5.4.198</div>
   </div>
 
   <script>
@@ -4895,7 +4895,8 @@
     let ctPop_ = '', ctCdTimer_ = null;
     // 圖片載入失敗(網址不是直接圖片連結/被擋外連/手機網路)→ 顯示可點開的連結,不要一片空白
     function ctImgFail_(im) {
-      const u = im.getAttribute('src') || '', box = im.parentNode; if (!box || box.getAttribute('data-fail')) return;
+      const u = im.getAttribute('data-orig') || im.getAttribute('src') || '', box = im.parentNode; if (!box || box.getAttribute('data-fail')) return;
+      if (!im.getAttribute('data-px') && /^https?:\/\//i.test(u)) { im.setAttribute('data-px', '1'); im.setAttribute('data-orig', u); im.src = DASHBOARD_WORKER_URL.replace(/\/?$/, '/') + 'ctimg?u=' + encodeURIComponent(u); return; } // 先改走 Worker 代抓再試一次
       box.setAttribute('data-fail', '1'); im.style.display = 'none';
       box.insertAdjacentHTML('beforeend', '<a href="' + escapeHtml_(u) + '" target="_blank" rel="noopener noreferrer" style="color:#00A8FC;font-size:13px;padding:12px;text-align:center;word-break:break-all">🖼️ 圖片無法顯示,點此開啟原圖</a>');
     }
