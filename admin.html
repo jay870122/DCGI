@@ -93,6 +93,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 .type-low{background:rgba(230,126,34,0.2);color:var(--orange)}
 /* action buttons */
 .btn-row{display:flex;gap:6px}
+td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換行,不要被表格右邊切掉 */
 .btn{padding:5px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
 .btn-edit{background:rgba(88,101,242,0.2);color:var(--blue)}
 .btn-edit:hover{background:rgba(88,101,242,0.35)}
@@ -274,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.158</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.159</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
