@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.140</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.141</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5240,6 +5240,12 @@ function rsTick(ts) {
     }
     const xm = ((r.x % r.loop) + r.loop) % r.loop;
     r.strip.style.transform = 'translateX(' + (-xm) + 'px)';
+    // 喀喀聲:轉動/落定時,每有一格經過中間指標線就「喀」一下(越快越密,越慢越清楚,像開箱的棘輪聲);待機不出聲
+    const idx = Math.floor((r.x + r.vw / 2) / RS_IT_W);
+    if ((r.mode === 'spin' || r.mode === 'land') && idx !== r.lastIdx && r.lastIdx !== undefined && ts - (RS.lastClick || 0) > 32) {
+      RS.lastClick = ts; rsBeep(1000 + Math.random() * 220, 0.022, 0.05);
+    }
+    r.lastIdx = idx;
   });
   requestAnimationFrame(rsTick);
 }
@@ -5333,7 +5339,7 @@ function rsStartSpin(slotEls, pools) {
   slotEls.forEach(s => { s.className = 'rs-slot spin'; });
   (pools || []).forEach(p => { if (p && p._reel) p._reel.mode = 'spin'; });
   RS.spinTimer = setInterval(() => { slotEls.forEach(s => { if (s.classList.contains('spin')) s.textContent = rsRandName(); }); }, 70);
-  RS._spinSnd = setInterval(() => rsBeep(520 + Math.random() * 300, 0.03, 0.025), 140);
+  RS._spinSnd = setInterval(() => { if (!RS.reels.length) rsBeep(520 + Math.random() * 300, 0.03, 0.025); }, 140);
   RS._hop = setInterval(() => (pools || []).forEach(p => {
     if (!p || p._reel || !p.children.length) return;
     const prev = p.querySelector('.rs-chip.hot'); if (prev) prev.classList.remove('hot');
