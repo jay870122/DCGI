@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.141</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.142</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1857,7 +1857,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-ph{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:#fde68a;margin-bottom:2px;word-break:break-word}
 .rs-pc{font-size:13px;color:#c4b5fd;margin-bottom:12px}
 .rs-slots{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
-.rs-slot{height:clamp(54px,7vh,76px);border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 8px;
+.rs-slot{min-height:clamp(54px,7vh,76px);border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 8px;
   font-size:clamp(16px,1.9vw,24px);font-weight:700;line-height:1.15;word-break:break-all;overflow:hidden;
   background:#0006;border:1px dashed #ffffff40;color:#ffffff66}
 .rs-slot.empty[onclick]{cursor:pointer;transition:all .15s}
@@ -5131,8 +5131,10 @@ function rsRender() {
   rsEl('rs-board').innerHTML = cards.join('') || '<div style="padding:40px;font-size:20px;opacity:.8">這場抽獎沒有設定獎項</div>';
   rsInitReels();
 }
+// 名字太長時自動縮小字體,並讓格子自動長高,避免被切掉
+function rsFitSize(txt) { const n = Array.from(txt || '').length; return n <= 7 ? '' : (n <= 11 ? '18px' : (n <= 18 ? '15px' : '13px')); }
 function rsCardHtml(ti, prize, winners, empties, countTxt) {
-  let slots = winners.map(w => '<div class="rs-slot win">' + rsEsc(w.name) + '</div>').join('');
+  let slots = winners.map(w => '<div class="rs-slot win"' + (rsFitSize(w.name) ? ' style="font-size:' + rsFitSize(w.name) + '"' : '') + '>' + rsEsc(w.name) + '</div>').join('');
   for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty" title="點一下抽出這個獎項的一位" onclick="rsClickSlot(' + ti + ')">？</div>';
   return '<div class="rs-card" data-ti="' + ti + '"><div class="rs-ph">🎁 ' + rsEsc(prize) + '</div><div class="rs-pc">' + rsEsc(countTxt) + '</div><div class="rs-slots">' + slots + '</div>' +
     (empties > 0 ? rsPoolHtml(winners.map(w => w.discordId)) : '') + '</div>';
@@ -5401,6 +5403,7 @@ function rsBurstAt(el, n) {
 function rsReveal(el, name, pool, id) {
   el.className = 'rs-slot win pop';
   el.textContent = name;
+  el.style.fontSize = rsFitSize(name);
   if (pool && id != null && !pool._reel) {
     const chip = Array.from(pool.children).find(c => c.getAttribute('data-id') === String(id) && !c.classList.contains('hit'));
     if (chip) { chip.classList.add('hit'); pool.scrollTop = chip.offsetTop - pool.clientHeight / 2; }
