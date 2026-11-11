@@ -113,6 +113,20 @@
     .shop-item-card { background-color: #2F3136; border: 1px solid #4F545C; border-radius: 8px;
                       padding: 15px; display: flex; flex-direction: column; position: relative; overflow: hidden; height: 100%; box-sizing: border-box; }
     .shop-item-card.disabled { }
+
+    /* 🌟 商店排列:sc-2 = 1排2個(精簡)、sc-list = 清單(1排1個精簡);精簡卡片只顯示標題/狀態/價格,點標題展開詳情與購買 */
+    .shop-list-container.sc-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .shop-list-container.sc-list { grid-template-columns: 1fr; gap: 6px; }
+    .shop-list-container.sc-1 { grid-template-columns: 1fr; }
+    .shop-list-container.sc-2 .shop-item-card, .shop-list-container.sc-list .shop-item-card { padding: 10px; height: auto; align-self: start; }
+    .shop-list-container.sc-2 .shop-item-card.sc-open { grid-column: 1 / -1; }
+    .shop-item-card.sc-col .item-header { cursor: pointer; margin-bottom: 4px; border-bottom: none; padding-bottom: 0; }
+    .shop-item-card.sc-col .item-name { font-size: 14px; }
+    .shop-item-card.sc-col .btn-share { display: none; }
+    .shop-item-card.sc-col .sc-sum { font-size: 12px; color: #B9BBBE; display: flex; justify-content: space-between; gap: 6px; cursor: pointer; }
+    .shop-item-card.sc-col:not(.sc-open) > :not(.item-header):not(.sc-sum) { display: none !important; }
+    .shop-item-card.sc-col.sc-open .btn-share { display: inline; }
+    .shop-item-card.sc-col.sc-open .sc-sum { margin-bottom: 8px; border-bottom: 1px solid #40444B; padding-bottom: 6px; }
     
     /* 🌟 圖片樣式更新：加入游標與 hover 放大提示效果 */
     .item-image { 
@@ -923,6 +937,12 @@
                 <option value="price-low">💰 價格 低 ~ 高</option>
                 <option value="price-high">💰 價格 高 ~ 低</option>
               </select>
+              <select id="shop-layout" class="shop-input" onchange="shopSetLayout_(this.value)" title="商品排列方式">
+                <option value="auto">📐 排列:自動</option>
+                <option value="1">1排1個(完整)</option>
+                <option value="2">1排2個(精簡)</option>
+                <option value="list">清單(精簡)</option>
+              </select>
               <button id="btn-refresh" class="btn-action" onclick="refreshData()">🔄 重整庫存</button>
             </div>
           </div>
@@ -931,7 +951,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.202</div>
+    <div class="version-tag">系統版本：v5.4.203</div>
   </div>
 
   <script>
@@ -7044,6 +7064,40 @@ function fetchScoresAndShop(discordId, callback = null) {
         }).catch(() => { holdingsExtra_ = { at: Date.now(), map: {}, loading: false }; });
       }
     }
+    // 🌟 商店排列(自動:手機且商品多時用「1排2個精簡」;選擇存在本機)
+    function shopLayoutMode_() {
+      let m = 'auto'; try { m = localStorage.getItem('shop_layout') || 'auto'; } catch (e) {}
+      const box = document.getElementById('shop-list'); const n = box ? box.querySelectorAll('.shop-item-card').length : 0;
+      if (m === 'auto') return (window.innerWidth <= 600 && n >= 7) ? '2' : '1';
+      return m;
+    }
+    function shopSetLayout_(v) { try { localStorage.setItem('shop_layout', v); } catch (e) {} shopApplyLayout_(); }
+    function shopApplyLayout_() {
+      const box = document.getElementById('shop-list'); if (!box) return;
+      const sel = document.getElementById('shop-layout'); try { if (sel) sel.value = localStorage.getItem('shop_layout') || 'auto'; } catch (e) {}
+      const m = shopLayoutMode_(); box.classList.remove('sc-1', 'sc-2', 'sc-list'); box.classList.add('sc-' + m);
+      box.querySelectorAll('.shop-item-card').forEach((c) => {
+        const compact = m === '2' || m === 'list';
+        c.classList.toggle('sc-col', compact); if (!compact) { c.classList.remove('sc-open'); }
+        let sm = c.querySelector(':scope > .sc-sum');
+        if (compact && !sm) {
+          const pr = c.querySelector('.item-price'); const st = c.querySelector('.item-badge');
+          sm = document.createElement('div'); sm.className = 'sc-sum';
+          sm.innerHTML = '<span>' + (pr ? '💰 ' + pr.textContent.trim().slice(0, 40) : '點開看詳情') + '</span><span class="sc-arr">▼ 詳情/購買</span>';
+          const hd = c.querySelector(':scope > .item-header'); if (hd) hd.after(sm); else c.prepend(sm);
+        }
+        if (sm) sm.style.display = compact ? '' : 'none';
+        if (!c.dataset.scb) {
+          c.dataset.scb = '1';
+          c.addEventListener('click', (e) => {
+            if (!c.classList.contains('sc-col')) return;
+            const hit = e.target.closest('.item-header, .sc-sum'); if (!hit || e.target.closest('.btn-share')) return;
+            c.classList.toggle('sc-open'); const ar = c.querySelector('.sc-arr'); if (ar) ar.textContent = c.classList.contains('sc-open') ? '▲ 收合' : '▼ 詳情/購買';
+          });
+        }
+      });
+    }
+    (function () { try { const box = document.getElementById('shop-list'); if (box && window.MutationObserver) new MutationObserver(() => { try { shopApplyLayout_(); } catch (e) {} }).observe(box, { childList: true }); window.addEventListener('resize', () => { try { shopApplyLayout_(); } catch (e) {} }); } catch (e) {} })();
     function renderShop() {
       setTimeout(() => { try { fillCondCurrent_(); } catch (e) {} }, 0);
       const container = document.getElementById('shop-list');
