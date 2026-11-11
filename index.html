@@ -139,6 +139,9 @@
     /* 🌟 備註內的超連結樣式 */
     .item-remark a { color: #00AFF4; text-decoration: none; word-break: break-all; }
     .item-remark a:hover { text-decoration: underline; }
+    .item-remark.rc-collapsed { max-height: 112px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+    .rc-btn { font-size: 12px; color: #00AFF4; cursor: pointer; text-align: center; margin: -6px 0 10px; padding: 3px; user-select: none; }
+    .rc-btn:hover { text-decoration: underline; }
 
     /* 🌟 商品倒數計時區塊樣式 */
     .item-time-info { font-size: 13px; color: #99AAB5; margin-bottom: 12px; padding: 10px; background-color: #202225; border-radius: 6px; border: 1px solid #40444B; line-height: 1.5; }
@@ -926,7 +929,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.200</div>
+    <div class="version-tag">系統版本：v5.4.201</div>
   </div>
 
   <script>
@@ -8888,6 +8891,21 @@ setInterval(cdTick_, 1000);
   }
   setTimeout(check, 1500); setInterval(check, 300000);
 })();
+
+// 🌟 商品說明太長時自動摺疊(超過約 8 行→只顯示前面幾行 + 「▼ 展開說明」),玩家按一下展開/收合
+setInterval(function () {
+  try {
+    document.querySelectorAll('.item-remark:not([data-rc])').forEach(function (el) {
+      if (!el.offsetParent) return; // 還沒顯示(被隱藏的分頁/彈窗)就先跳過,下次再看
+      el.setAttribute('data-rc', '1');
+      if (el.scrollHeight <= 150) return;
+      el.classList.add('rc-collapsed');
+      var b = document.createElement('div'); b.className = 'rc-btn'; b.textContent = '▼ 展開說明';
+      b.onclick = function (e) { e.stopPropagation(); var c = el.classList.toggle('rc-collapsed'); b.textContent = c ? '▼ 展開說明' : '▲ 收合說明'; };
+      el.parentNode.insertBefore(b, el.nextSibling);
+    });
+  } catch (e) {}
+}, 1200);
 </script>
 </body>
 </html>
