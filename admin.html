@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.143</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.144</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -345,6 +345,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <button class="btn btn-edit" onclick="batchSetShopStatus('DRAFT')">📥 下架</button>
           <button class="btn btn-edit" onclick="batchArchiveShop(true)">📦 封存</button>
           <button class="btn btn-edit" onclick="batchArchiveShop(false)">♻️ 從封存區還原</button>
+          <button class="btn btn-close" onclick="batchOpenStage(false)" title="只能勾選 1 個抽獎商品">🎬 直播開獎舞台</button>
+          <button class="btn btn-edit" onclick="batchOpenStage(true)" title="只能勾選 1 個抽獎商品;只看動畫,不發獎、不發 Discord 公告">🧪 測試開獎</button>
           <button class="btn btn-close" onclick="batchDrawShopRaffles()">🎰 開獎(僅限抽獎商品)</button>
           <button class="btn btn-edit" onclick="batchMoveShopSort('top')">⬆️ 移到最前</button>
           <button class="btn btn-edit" onclick="batchMoveShopSort('bottom')">⬇️ 移到最後</button>
@@ -4780,6 +4782,12 @@ async function archiveShopOne(id, archive) {
   await archiveShopIds_([id], archive);
 }
 
+// 批次工具列:對「已勾選的 1 個抽獎商品」開直播開獎舞台 / 測試開獎(舞台一次只處理一個商品)
+function batchOpenStage(test) {
+  const picked = shopItems.filter(i => shopSelectedIds.has(i.itemId) && i.isRaffle);
+  if (picked.length !== 1) { toast('請只勾選 1 個抽獎商品(目前勾到 ' + picked.length + ' 個抽獎商品)', false); return; }
+  openRaffleStage(picked[0].itemId, !!test || !!picked[0].raffleResult);
+}
 async function batchDrawShopRaffles() {
   if (shopSelectedIds.size === 0) return;
   if (!confirm(`確定要對已勾選的 ${shopSelectedIds.size} 個商品執行開獎嗎？(不是抽獎模式、或已經開過獎的商品會自動跳過)`)) return;
