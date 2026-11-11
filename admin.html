@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.154</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.155</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1298,7 +1298,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div id="page-prize-stat" style="display:none"><div class="page-header"><div class="page-title">📊 獎品統計區</div></div>
         <div class="ct-card">
-          <div class="ct-h"><div><h3>📊 統計區(盲盒 [統計:群組] 標籤)</h3><div class="hint" style="line-height:1.6">盲盒/獎勵規則裡寫 <code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>,每次發出就自動記到「獎品統計」分頁。可切換「依獎品彙總」或「獎品→玩家明細」兩種表格;官方格式 = 每欄一種獎品(名稱+每人個數),欄下面列出領獎玩家,暱稱有括號時只取括號內 ID。</div></div>
+          <div class="ct-h"><div><h3>📊 統計區(盲盒 [統計:群組] 標籤)</h3><div class="hint" style="line-height:1.6">盲盒/獎勵規則裡寫 <code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>,每次發出就自動記到「獎品統計」分頁。可切換「依獎品彙總」或「獎品→玩家明細」兩種表格;官方格式 = 每欄一種獎品,欄下面一人一列、拿幾個就重複寫幾次玩家 ID,暱稱有括號時只取括號內 ID。</div></div>
             <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="statLoadTables()">🔄 重新整理</button></div></div>
           <div class="ct-act" style="margin:6px 0;flex-wrap:wrap;gap:6px"><span class="hint">檢視:</span>
             <button class="btn btn-edit" id="stat-v-sum" onclick="statSetView('sum')">📊 依獎品彙總</button><button class="btn btn-edit" id="stat-v-det" onclick="statSetView('det')">👥 獎品→玩家明細</button>
@@ -3891,12 +3891,11 @@ function statCsv() {
   d.groups.forEach((g) => g.items.forEach((x) => { if (statView_ === 'sum') rows.push([g.name, x.name, x.qty, x.times, x.users]); else (x.players || []).forEach((u) => rows.push([g.name, x.name, statDisp_(u.id), u.qty, u.times])); }));
   statDownload_(rows, statView_ === 'sum' ? '獎品統計' : '獎品統計_玩家明細');
 }
-// 官方格式:欄=獎品名稱+每人個數,欄下面列出領獎玩家(暱稱有括號只取括號內ID)
+// 官方格式:欄=獎品名稱,欄下面一人一列,數量幾個就重複寫幾次玩家ID(暱稱有括號只取括號內ID)
 function statOfficialGrid_() {
   const d = statTb_, sel = document.getElementById('stat-grp'); if (!d || !sel || !sel.value) return null;
   const g = d.groups.find((x) => x.name === sel.value); if (!g) return null;
-  const cols = [];
-  g.items.forEach((x) => { const by = {}; (x.players || []).forEach((u) => { (by[u.qty] = by[u.qty] || []).push(statOfficialId_(u.id)); }); Object.keys(by).map(Number).sort((a, b) => a - b).forEach((n) => cols.push({ head: x.name + ' ' + n + '個', ids: by[n] })); });
+  const cols = g.items.map((x) => { const ids = []; (x.players || []).forEach((u) => { for (let k = 0; k < u.qty; k++) ids.push(statOfficialId_(u.id)); }); return { head: x.name, ids }; });
   const n = Math.max.apply(null, [0].concat(cols.map((c) => c.ids.length))), rows = [cols.map((c) => c.head)];
   for (let i = 0; i < n; i++) rows.push(cols.map((c) => c.ids[i] || ''));
   return rows;
