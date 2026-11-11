@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.162</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.163</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1906,13 +1906,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-chip.hit{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border-color:#fde68a;font-weight:800;transform:scale(1.12);box-shadow:0 0 14px #f59e0baa}
 .rs-ribbon{position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:8;display:none;background:#0ea5e9;color:#fff;font-size:13px;font-weight:700;padding:3px 18px;border-radius:0 0 12px 12px;box-shadow:0 4px 16px #0006;pointer-events:none}
 .rs-ribbon.show{display:block}
-.rs-reel{position:relative;margin-top:12px;height:74px;overflow:hidden;background:#0007;border:1px solid #ffffff2a;border-radius:12px;contain:strict;width:100%;box-sizing:border-box}
+.rs-reel{position:relative;margin-top:12px;height:var(--rs-reelh,74px);overflow:hidden;background:#0007;border:1px solid #ffffff2a;border-radius:12px;contain:strict;width:100%;box-sizing:border-box}
 .rs-reel::before,.rs-reel::after{content:"";position:absolute;top:0;bottom:0;width:56px;z-index:2;pointer-events:none}
 .rs-reel::before{left:0;background:linear-gradient(90deg,#0b0a1e,transparent)}
 .rs-reel::after{right:0;background:linear-gradient(270deg,#0b0a1e,transparent)}
 .rs-reel-mark{position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#fbbf24;z-index:3;box-shadow:0 0 12px #fbbf24,0 0 24px #fbbf2488}
 .rs-strip{display:flex;height:100%;will-change:transform;backface-visibility:hidden}
-.rs-it{flex:0 0 120px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 6px;font-size:15px;font-weight:700;color:#ddd6fe;
+.rs-it{flex:0 0 var(--rs-itw,120px);box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 6px;font-size:var(--rs-itf,15px);font-weight:700;color:#ddd6fe;
   background:#ffffff0c;border-right:1px solid #ffffff14;border-bottom:4px solid #6366f1;overflow:hidden;word-break:break-all;line-height:1.1}
 .rs-it.hit{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;text-shadow:0 1px 4px #0008}
 .rs-bar{position:relative;z-index:3;background:#0b0a1ee6;border-top:1px solid #ffffff2a;padding:12px 22px;display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto}
@@ -1947,6 +1947,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <button class="rs-tbtn" id="rs-b-anim" onclick="rsToggle('anim')">✨ 動畫:開</button>
     <button class="rs-tbtn" id="rs-b-snd" onclick="rsToggle('snd')">🔊 音效:開</button>
     <button class="rs-tbtn" id="rs-b-pool" onclick="rsToggle('pool')">👥 參與者:顯示</button>
+    <select class="rs-tbtn" id="rs-sc" onchange="rsSetScale(this.value)" title="跑馬燈名牌的大小">
+      <option value="0.7">跑馬燈:特小</option><option value="0.85">跑馬燈:小</option><option value="1">跑馬燈:中</option><option value="1.3">跑馬燈:大</option><option value="1.7">跑馬燈:特大</option><option value="2.2">跑馬燈:超大</option>
+    </select>
     <select class="rs-tbtn" id="rs-cols" onchange="rsSetCols(this.value)" title="每一排放幾個商品/獎項卡片">
       <option value="0">排列:自動</option><option value="1">每排 1 個</option><option value="2">每排 2 個</option><option value="3">每排 3 個</option><option value="4">每排 4 個</option><option value="5">每排 5 個</option><option value="6">每排 6 個</option>
     </select>
@@ -5068,7 +5071,7 @@ const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:
 const rsEl = id => document.getElementById(id);
 const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const rsSleep = ms => new Promise(r => setTimeout(r, ms));
-try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; RS.cols = parseInt(localStorage.getItem('rs_cols'), 10) || 0; } catch (e) {}
+try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; RS.cols = parseInt(localStorage.getItem('rs_cols'), 10) || 0; RS.sc = parseFloat(localStorage.getItem('rs_sc')) || 1; } catch (e) {}
 
 async function openRaffleStage(itemId, forceTest, queueIds) {
   RS.queue = (queueIds && queueIds.length > 1) ? queueIds.slice() : []; RS.simMap = {}; RS.testPref = !!forceTest;
@@ -5115,7 +5118,7 @@ function rsSyncToggles() {
   rsEl('rs-b-snd').classList.toggle('off', !RS.snd);
   rsEl('rs-b-pool').textContent = '👥 參與者:' + (RS.pool ? '顯示' : '隱藏');
   rsEl('rs-b-pool').classList.toggle('off', !RS.pool);
-  rsEl('rs-cols').value = String(RS.cols || 0);
+  rsEl('rs-cols').value = String(RS.cols || 0); rsEl('rs-sc').value = String(RS.sc || 1); rsApplyScale();
   rsEl('rs-b-test').textContent = '🧪 測試模式:' + (RS.test ? '開' : '關');
   rsEl('rs-b-test').classList.toggle('off', !RS.test);
   rsEl('rs-ribbon').classList.toggle('show', RS.test);
@@ -5294,7 +5297,17 @@ function rsCardHtml(ti, prize, winners, empties, countTxt) {
     (empties > 0 ? rsPoolHtml(winners.map(w => w.discordId)) : '') + '</div>';
 }
 // 該獎項同時列出所有參與者:依票數重複出現(總數上限 300,超過按比例縮),名字 ≤24 個用名牌牆,超過用 CS:GO 開箱式跑馬燈
-const RS_WALL_MAX = 24, RS_IT_W = 120;
+const RS_WALL_MAX = 24; let RS_IT_W = 120;
+function rsApplyScale() {
+  const sc = RS.sc || 1, el = rsEl('rs'); RS_IT_W = Math.round(120 * sc);
+  if (el) { el.style.setProperty('--rs-itw', RS_IT_W + 'px'); el.style.setProperty('--rs-reelh', Math.round(74 * sc) + 'px'); el.style.setProperty('--rs-itf', Math.round(15 * Math.max(1, sc * 0.95)) + 'px'); }
+}
+function rsSetScale(v) {
+  if (RS.busy) { rsEl('rs-sc').value = String(RS.sc || 1); rsToast('開獎進行中,結束後再調整大小', false); return; }
+  RS.sc = parseFloat(v) || 1; try { localStorage.setItem('rs_sc', String(RS.sc)); } catch (e) {}
+  rsApplyScale();
+  if (RS.merged && RS.mi.length) rsRenderM(); else if (RS.tiers && RS.tiers.length) rsRender();
+}
 function rsEntries(voters) {
   const v = voters || RS.voters || [];
   const cnt = x => Math.max(1, Math.round(parseFloat(x.weighted) || parseFloat(x.raw) || 1));
