@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.132</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.133</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1866,6 +1866,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-slot.win{background:linear-gradient(160deg,#f59e0b,#ef4444);border:1px solid #fde68a;color:#fff;text-shadow:0 2px 6px #0006;box-shadow:0 0 24px #f59e0baa}
 .rs-slot.pop{animation:rsPop .7s cubic-bezier(.2,1.6,.4,1)}
 @keyframes rsPop{0%{transform:scale(.4) rotateX(90deg);opacity:0}60%{transform:scale(1.18) rotateX(0)}100%{transform:scale(1);opacity:1}}
+.rs-pool{position:relative;margin-top:12px;max-height:128px;overflow:auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#0005;border:1px solid #ffffff22;border-radius:12px}
+.rs-chip{font-size:13px;padding:3px 9px;border-radius:999px;background:#ffffff1a;border:1px solid #ffffff2a;color:#ddd6fe}
+.rs-chip.hot{background:#fbbf24;color:#1a1440;border-color:#fde68a;transform:scale(1.15);box-shadow:0 0 14px #fbbf24}
+.rs-chip.hit{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border-color:#fde68a;font-weight:800;transform:scale(1.12);box-shadow:0 0 14px #f59e0baa}
 .rs-bar{position:relative;z-index:3;background:#0b0a1ee6;border-top:1px solid #ffffff2a;padding:12px 22px;display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto}
 .rs-bar.hide{display:none}
 .rs-tiers{display:flex;flex-wrap:wrap;gap:8px}
@@ -1896,6 +1900,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="rs-prog" id="rs-prog"></div>
     <button class="rs-tbtn" id="rs-b-anim" onclick="rsToggle('anim')">✨ 動畫:開</button>
     <button class="rs-tbtn" id="rs-b-snd" onclick="rsToggle('snd')">🔊 音效:開</button>
+    <button class="rs-tbtn" id="rs-b-pool" onclick="rsToggle('pool')">👥 參與者:顯示</button>
     <button class="rs-tbtn" onclick="rsToggleBar()" title="快捷鍵 H">🙈 隱藏控制列</button>
     <button class="rs-tbtn" onclick="rsFull()" title="快捷鍵 F">⛶ 全螢幕</button>
     <button class="rs-tbtn" onclick="closeRaffleStage()">✕ 關閉</button>
@@ -4940,11 +4945,11 @@ async function drawShopRaffleStep(itemId, prizeName, count) {
 // 直播方式:開這個畫面 → 用 Discord 螢幕分享 / OBS 視窗擷取;「隱藏控制列」後畫面只剩獎項與得獎者,觀眾看不到操作按鈕。
 // ============================================================
 const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:{}, busy:false, done:false,
-  anim:true, snd:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null };
+  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null };
 const rsEl = id => document.getElementById(id);
 const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const rsSleep = ms => new Promise(r => setTimeout(r, ms));
-try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; } catch (e) {}
+try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; } catch (e) {}
 
 async function openRaffleStage(itemId) {
   RS.id = itemId; RS.busy = false; RS.sel = {}; RS.cnt = {}; RS.randN = 1;
@@ -4978,12 +4983,15 @@ function rsToggle(k) {
   RS[k] = !RS[k];
   try { localStorage.setItem('rs_' + k, RS[k] ? '1' : '0'); } catch (e) {}
   rsSyncToggles();
+  if (k === 'pool' && !RS.busy && rsEl('rs-board').children.length) rsRender();
 }
 function rsSyncToggles() {
   rsEl('rs-b-anim').textContent = '✨ 動畫:' + (RS.anim ? '開' : '關');
   rsEl('rs-b-anim').classList.toggle('off', !RS.anim);
   rsEl('rs-b-snd').textContent = '🔊 音效:' + (RS.snd ? '開' : '關');
   rsEl('rs-b-snd').classList.toggle('off', !RS.snd);
+  rsEl('rs-b-pool').textContent = '👥 參與者:' + (RS.pool ? '顯示' : '隱藏');
+  rsEl('rs-b-pool').classList.toggle('off', !RS.pool);
 }
 function rsToggleBar() {
   RS.barHidden = !RS.barHidden;
@@ -5049,7 +5057,14 @@ function rsRender() {
 function rsCardHtml(ti, prize, winners, empties, countTxt) {
   let slots = winners.map(w => '<div class="rs-slot win">' + rsEsc(w.name) + '</div>').join('');
   for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty">？</div>';
-  return '<div class="rs-card" data-ti="' + ti + '"><div class="rs-ph">🎁 ' + rsEsc(prize) + '</div><div class="rs-pc">' + rsEsc(countTxt) + '</div><div class="rs-slots">' + slots + '</div></div>';
+  return '<div class="rs-card" data-ti="' + ti + '"><div class="rs-ph">🎁 ' + rsEsc(prize) + '</div><div class="rs-pc">' + rsEsc(countTxt) + '</div><div class="rs-slots">' + slots + '</div>' +
+    (empties > 0 ? rsPoolHtml(winners.map(w => w.discordId)) : '') + '</div>';
+}
+// 該獎項同時列出所有參與者(開獎時會在這些名字上隨機跳動,最後停在抽中的人)
+function rsPoolHtml(hitIds) {
+  if (!RS.pool || !RS.voters.length) return '';
+  const hs = new Set(hitIds || []);
+  return '<div class="rs-pool">' + RS.voters.map(v => '<span class="rs-chip' + (hs.has(v.discordId) ? ' hit' : '') + '" data-id="' + rsEsc(v.discordId) + '">' + rsEsc(v.name) + '</span>').join('') + '</div>';
 }
 
 function rsRenderBar() {
@@ -5101,16 +5116,24 @@ function rsRandName() {
   const v = RS.voters;
   return v.length ? v[Math.floor(Math.random() * v.length)].name : '…';
 }
-function rsStartSpin(slotEls) {
+function rsStartSpin(slotEls, pools) {
   rsStopSpin();
   slotEls.forEach(s => { s.className = 'rs-slot spin'; });
   RS.spinTimer = setInterval(() => { slotEls.forEach(s => { if (s.classList.contains('spin')) s.textContent = rsRandName(); }); }, 70);
   RS._spinSnd = setInterval(() => rsBeep(520 + Math.random() * 300, 0.03, 0.025), 140);
+  RS._hop = setInterval(() => (pools || []).forEach(p => {
+    if (!p || !p.children.length) return;
+    const prev = p.querySelector('.rs-chip.hot'); if (prev) prev.classList.remove('hot');
+    const c = p.children[Math.floor(Math.random() * p.children.length)];
+    c.classList.add('hot'); p.scrollTop = c.offsetTop - p.clientHeight / 2;
+  }), 70);
 }
 function rsStopSpin() {
   if (RS.spinTimer) clearInterval(RS.spinTimer);
   if (RS._spinSnd) clearInterval(RS._spinSnd);
-  RS.spinTimer = null; RS._spinSnd = null;
+  if (RS._hop) clearInterval(RS._hop);
+  RS._hop = null; RS.spinTimer = null; RS._spinSnd = null;
+  document.querySelectorAll('#rs-board .rs-chip.hot').forEach(c => c.classList.remove('hot'));
 }
 function rsBeep(freq, dur, vol) {
   if (!RS.snd) return;
@@ -5154,9 +5177,13 @@ function rsBurstAt(el, n) {
   const r = el.getBoundingClientRect();
   rsConfetti(r.left + r.width / 2, r.top + r.height / 2, n || 36);
 }
-function rsReveal(el, name) {
+function rsReveal(el, name, pool, id) {
   el.className = 'rs-slot win pop';
   el.textContent = name;
+  if (pool && id != null) {
+    const chip = Array.from(pool.children).find(c => c.getAttribute('data-id') === String(id));
+    if (chip) { chip.classList.add('hit'); pool.scrollTop = chip.offsetTop - pool.clientHeight / 2; }
+  }
   rsDing();
   rsBurstAt(el, 40);
 }
@@ -5174,11 +5201,11 @@ async function rsStartSelected() {
     const card = document.querySelector('#rs-board .rs-card[data-ti="' + p.ti + '"]');
     const empties = card ? Array.from(card.querySelectorAll('.rs-slot.empty')).slice(0, p.count) : [];
     if (card) card.classList.add('rs-active');
-    return { p, card, slots: empties, got: [] };
+    return { p, card, slots: empties, got: [], pool: card ? card.querySelector('.rs-pool') : null };
   });
   const allSlots = [].concat(...groups.map(g => g.slots));
   const t0 = Date.now();
-  if (RS.anim) rsStartSpin(allSlots);
+  if (RS.anim) rsStartSpin(allSlots, groups.map(g => g.pool));
   // 2) 依序呼叫後端(同一把鎖,必須一項一項來),結果先收集
   let err = '';
   for (const g of groups) {
@@ -5196,7 +5223,7 @@ async function rsStartSelected() {
       const w = g.got[r], el = g.slots[r];
       if (!w) return;
       const nm = RS.nameOf[w.discordId] || w.discordId;
-      if (el) rsReveal(el, nm);
+      if (el) rsReveal(el, nm, g.pool, w.discordId);
     });
     if (RS.anim && r < rounds - 1) await rsSleep(900);
   }
@@ -5220,11 +5247,12 @@ async function rsStartRandom(all) {
   const tmp = document.createElement('div');
   tmp.className = 'rs-card rs-active'; tmp.style.gridColumn = '1 / -1';
   tmp.innerHTML = '<div class="rs-ph">🎲 隨機開獎</div><div class="rs-pc">共 ' + n + ' 位</div><div class="rs-slots">' +
-    Array.from({ length: Math.min(n, 60) }).map(() => '<div class="rs-slot empty">？</div>').join('') + '</div>';
+    Array.from({ length: Math.min(n, 60) }).map(() => '<div class="rs-slot empty">？</div>').join('') + '</div>' + rsPoolHtml([]);
   board.insertBefore(tmp, board.firstChild);
   const slots = Array.from(tmp.querySelectorAll('.rs-slot'));
   const t0 = Date.now();
-  if (RS.anim) rsStartSpin(slots);
+  const rpool = tmp.querySelector('.rs-pool');
+  if (RS.anim) rsStartSpin(slots, [rpool]);
   const d = await api({ action: 'adminDrawShopRaffleOneSlot', itemId: RS.id, prizeName: '', count: n });
   if (RS.anim) { const wait = 3200 - (Date.now() - t0); if (wait > 0) await rsSleep(wait); }
   rsStopSpin();
@@ -5234,7 +5262,7 @@ async function rsStartRandom(all) {
   for (let i = 0; i < slots.length; i++) {
     const w = got[i];
     if (!w) { slots[i].className = 'rs-slot empty'; slots[i].textContent = '？'; continue; }
-    rsReveal(slots[i], (RS.nameOf[w.discordId] || w.discordId) + ' → ' + w.prize);
+    rsReveal(slots[i], (RS.nameOf[w.discordId] || w.discordId) + ' → ' + w.prize, rpool, w.discordId);
     if (RS.anim) await rsSleep(got.length > 12 ? 250 : 700);
   }
   rsToast('🎉 已開獎並發獎、公告');
