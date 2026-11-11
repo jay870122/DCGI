@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.160</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.161</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5282,7 +5282,8 @@ function rsRender() {
   rsInitReels();
 }
 // 名字太長時自動縮小字體,並讓格子自動長高,避免被切掉
-function rsFitSize(txt) { const n = Array.from(txt || '').length; return n <= 7 ? '' : (n <= 11 ? '18px' : (n <= 18 ? '15px' : '13px')); }
+function rsFitSize(txt) { const n = Array.from(txt || '').length; return n <= 7 ? '' : (n <= 11 ? '18px' : (n <= 18 ? '15px' : (n <= 26 ? '12px' : '10px'))); }
+function rsSpinText_(e) { const n = rsRandName(); e.textContent = n; e.style.fontSize = rsFitSize(n); } // 跳動中的名字也依長度縮字,長暱稱不會被切成「米小桃(…」
 function rsCardHtml(ti, prize, winners, empties, countTxt) {
   let slots = winners.map(w => '<div class="rs-slot win"' + (rsFitSize(w.name) ? ' style="font-size:' + rsFitSize(w.name) + '"' : '') + '>' + rsEsc(w.name) + '</div>').join('');
   for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty" title="點一下抽出這個獎項的一位" onclick="rsClickSlot(' + ti + ')">？</div>';
@@ -5492,7 +5493,7 @@ function rsStartSpin(slotEls, pools) {
   rsStopSpin(); if (RS._slotCyc) { clearInterval(RS._slotCyc); RS._slotCyc = null; }
   slotEls.forEach(s => { s.className = 'rs-slot spin'; });
   (pools || []).forEach(p => { if (p && p._reel) p._reel.mode = 'spin'; });
-  RS.spinTimer = setInterval(() => { slotEls.forEach(s => { if (s.classList.contains('spin')) s.textContent = rsRandName(); }); }, 70);
+  RS.spinTimer = setInterval(() => { slotEls.forEach(s => { if (s.classList.contains('spin')) rsSpinText_(s); }); }, 70);
   RS._spinSnd = setInterval(() => { if (!RS.reels.length) rsBeep(520 + Math.random() * 300, 0.03, 0.025); }, 140);
   RS._hop = setInterval(() => (pools || []).forEach(p => {
     if (!p || p._reel || !p.children.length) return;
@@ -5516,7 +5517,7 @@ function rsStopSpin() {
     RS._slotCyc = setInterval(() => {
       const els = document.querySelectorAll('#rs-board .rs-slot.spin');
       if (!els.length || !rsEl('rs').classList.contains('open')) { clearInterval(RS._slotCyc); RS._slotCyc = null; return; }
-      els.forEach(e => { e.textContent = rsRandName(); });
+      els.forEach(rsSpinText_);
     }, 90);
   } else document.querySelectorAll('#rs-board .rs-slot.spin').forEach(e => { e.textContent = '…'; });
 }
@@ -5615,7 +5616,7 @@ async function rsStartSelected(planOverride) {
     if (RS.anim && r < rounds - 1) await rsSleep(r < 6 ? 700 : 250);
   }
   // 沒被抽滿的轉盤位退回空位
-  groups.forEach(g => g.slots.forEach((el, i) => { if (!g.got[i]) { el.className = 'rs-slot empty'; el.textContent = '？'; } }));
+  groups.forEach(g => g.slots.forEach((el, i) => { if (!g.got[i]) { el.className = 'rs-slot empty'; el.textContent = '？'; el.style.fontSize = ''; } }));
   let relOk = true; if (!RS.test) relOk = await rsRelease(RS.id);
   if (err) rsToast('❌ ' + err, false);
   else if (total > 0) rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : (relOk ? '🎉 已開獎並發獎、公告' : '⚠️ 已開獎,但 Discord 公告尚未送出(重開舞台會自動補送)'));
@@ -5650,7 +5651,7 @@ async function rsStartRandom(all) {
   const got = d.newWinners || [];
   for (let i = 0; i < slots.length; i++) {
     const w = got[i];
-    if (!w) { slots[i].className = 'rs-slot empty'; slots[i].textContent = '？'; continue; }
+    if (!w) { slots[i].className = 'rs-slot empty'; slots[i].textContent = '？'; slots[i].style.fontSize = ''; continue; }
     await rsRoundLand([{ pool: rpool, id: w.discordId }], i);
     rsReveal(slots[i], (RS.nameOf[w.discordId] || w.discordId) + ' → ' + w.prize, rpool, w.discordId);
     if (RS.anim) await rsSleep(i < 6 ? 700 : 250);
@@ -5818,7 +5819,7 @@ async function rsMergedStart(plan, noArm) {
     });
     if (RS.anim && r < rounds - 1) await rsSleep(r < 6 ? 700 : 250);
   }
-  groups.forEach(g => g.slots.forEach((el, k) => { if (!g.got[k]) { el.className = 'rs-slot empty'; el.textContent = '？'; } }));
+  groups.forEach(g => g.slots.forEach((el, k) => { if (!g.got[k]) { el.className = 'rs-slot empty'; el.textContent = '？'; el.style.fontSize = ''; } }));
   let relOk3 = true;
   if (!RS.test) { const rids = Array.from(new Set(plan.map(p => p.x.id))); for (const rid of rids) { if (!(await rsRelease(rid))) relOk3 = false; } }
   if (err) rsToast('❌ ' + err, false);
