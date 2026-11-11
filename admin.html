@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.170</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.171</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1983,7 +1983,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 <div class="overlay" id="bulk-patch-modal">
   <div class="modal" style="max-width:640px">
     <div class="modal-header"><h3>✏️ 批量修改商品</h3><button class="modal-close" onclick="closeModal('bulk-patch-modal')">×</button></div>
-    <div class="modal-body">
+    <div class="modal-body" style="display:block">
       <div class="hint" style="line-height:1.7;margin-bottom:8px">要修改已勾選的 <b id="bp-count">0</b> 個商品。<b>只有打勾的欄位</b>會被改,沒勾的完全不動。勾了但留空 = 把這個欄位清空(例如清掉結束時間)。</div>
       <div id="bp-fields"></div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button class="btn-save" id="bp-go" onclick="bulkPatchRun()">✅ 套用到已勾選商品</button><span class="hint" id="bp-prog"></span></div>
@@ -1995,7 +1995,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 <div class="overlay" id="bulk-shop-modal">
   <div class="modal" style="max-width:860px">
     <div class="modal-header"><h3>📥 批次新增商品</h3><button class="modal-close" onclick="closeModal('bulk-shop-modal')">×</button></div>
-    <div class="modal-body">
+    <div class="modal-body" style="display:block">
       <div class="hint" style="line-height:1.7;margin-bottom:8px">從試算表(Excel / Google 試算表)整列複製貼上,或用 <code>|</code> 分隔。<b>每行一個商品</b>,欄位順序:<br>
         <code>名稱 ｜ 價格 ｜ 庫存 ｜ 獲得變數 ｜ 獎勵數量/盲盒規則 ｜ 備註 ｜ 圖片網址 ｜ 每人終身限購 ｜ 貨幣 ｜ 分類</code><br>
         只有「名稱」「價格」必填,後面的欄位可省略或留空(貨幣/分類留空 = 用下面的預設)。盲盒規則或備註要換行請寫 <code>\n</code>。第一行如果是標題列(名稱/價格…)會自動略過。<br>
@@ -4332,7 +4332,7 @@ function bulkFieldsRender_(px) {
     let inp = f.t === 'textarea' ? '<textarea id="' + id + '" rows="2" style="width:100%;box-sizing:border-box" disabled></textarea>'
       : f.t === 'select' ? '<select id="' + id + '" disabled><option value="DRAFT">📝 草稿(下架)</option><option value="">🚀 上架</option></select>'
       : '<input id="' + id + '" type="' + f.t + '"' + (f.list ? ' list="' + f.list + '"' : '') + ' style="width:100%;box-sizing:border-box" disabled>';
-    return '<div class="field" style="margin:0"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="' + id + '-on" onchange="document.getElementById(\'' + id + '\').disabled=!this.checked"> ' + f.label + '</label>' + inp + '</div>';
+    return '<div class="field" style="margin:0"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none"><input type="checkbox" style="width:auto;padding:0;margin:0;flex:none" id="' + id + '-on" onchange="document.getElementById(\'' + id + '\').disabled=!this.checked"> ' + f.label + '</label>' + inp + '</div>';
   }).join('') + '</div>';
 }
 function bulkFieldsCollect_(px) {
