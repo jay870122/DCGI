@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.165</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.166</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1950,10 +1950,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <button class="rs-tbtn" id="rs-b-anim" onclick="rsToggle('anim')">✨ 動畫:開</button>
     <button class="rs-tbtn" id="rs-b-snd" onclick="rsToggle('snd')">🔊 音效:開</button>
     <button class="rs-tbtn" id="rs-b-pool" onclick="rsToggle('pool')">👥 參與者:顯示</button>
-    <select class="rs-tbtn" id="rs-fk" onchange="rsSetFake()" title="跑馬燈快停下時「假停」(幾乎停住又突然衝)的機率">
-      <option value="0">假停:無</option><option value="20">假停 20%</option><option value="40">假停 40%</option><option value="60">假停 60%</option><option value="85">假停 85%(預設)</option><option value="100">假停 100%</option>
+    <select class="rs-tbtn" id="rs-fk" onchange="rsSetFake()" title="跑馬燈快停下前「假停」(幾乎停住又突然衝)最多 5 次,這裡是每一次發生的機率">
+      <option value="-1">假停:預設(隨機 0~2 次)</option><option value="0">假停:無</option><option value="20">假停 20%(約 1 次)</option><option value="40">假停 40%(約 2 次)</option><option value="60">假停 60%(約 3 次)</option><option value="80">假停 80%(約 4 次)</option><option value="100">假停 100%(必 5 次)</option>
     </select>
-    <select class="rs-tbtn" id="rs-fks" onchange="rsSetFake()" title="每正式停下(揭曉)一位,假停機率就再增加這麼多(上限 100%)">
+    <select class="rs-tbtn" id="rs-fks" onchange="rsSetFake()" title="每正式停下(揭曉)一位,假停機率就再增加這麼多(上限 100%);選「預設」時以 40% 起算">
       <option value="0">每次停下:不變</option><option value="5">每次停下 +5%</option><option value="10">每次停下 +10%</option><option value="20">每次停下 +20%</option><option value="30">每次停下 +30%</option>
     </select>
     <select class="rs-tbtn" id="rs-sc" onchange="rsSetScale(this.value)" title="跑馬燈名牌的大小">
@@ -5081,7 +5081,7 @@ const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:
 const rsEl = id => document.getElementById(id);
 const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const rsSleep = ms => new Promise(r => setTimeout(r, ms));
-try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; RS.cols = parseInt(localStorage.getItem('rs_cols'), 10) || 0; RS.sc = parseFloat(localStorage.getItem('rs_sc')) || 1; const fk0 = parseInt(localStorage.getItem('rs_fk'), 10); RS.fk = isNaN(fk0) ? 85 : fk0; RS.fkStep = parseInt(localStorage.getItem('rs_fks'), 10) || 0; } catch (e) {}
+try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; RS.cols = parseInt(localStorage.getItem('rs_cols'), 10) || 0; RS.sc = parseFloat(localStorage.getItem('rs_sc')) || 1; const fk0 = parseInt(localStorage.getItem('rs_fk'), 10); RS.fk = (isNaN(fk0) || fk0 === 85) ? -1 : fk0; RS.fkStep = parseInt(localStorage.getItem('rs_fks'), 10) || 0; } catch (e) {}
 
 async function openRaffleStage(itemId, forceTest, queueIds) {
   RS.queue = (queueIds && queueIds.length > 1) ? queueIds.slice() : []; RS.simMap = {}; RS.testPref = !!forceTest;
@@ -5128,7 +5128,7 @@ function rsSyncToggles() {
   rsEl('rs-b-snd').classList.toggle('off', !RS.snd);
   rsEl('rs-b-pool').textContent = '👥 參與者:' + (RS.pool ? '顯示' : '隱藏');
   rsEl('rs-b-pool').classList.toggle('off', !RS.pool);
-  rsEl('rs-cols').value = String(RS.cols || 0); rsEl('rs-sc').value = String(RS.sc || 1); rsEl('rs-fk').value = String(RS.fk === undefined ? 85 : RS.fk); if (!RS._setInit) { RS._setInit = true; let o = false; try { o = localStorage.getItem('rs_setopen') === '1'; } catch (e) {} rsToggleSet(o); } rsEl('rs-fks').value = String(RS.fkStep || 0); rsApplyScale();
+  rsEl('rs-cols').value = String(RS.cols || 0); rsEl('rs-sc').value = String(RS.sc || 1); rsEl('rs-fk').value = String(RS.fk === undefined ? -1 : RS.fk); if (!RS._setInit) { RS._setInit = true; let o = false; try { o = localStorage.getItem('rs_setopen') === '1'; } catch (e) {} rsToggleSet(o); } rsEl('rs-fks').value = String(RS.fkStep || 0); rsApplyScale();
   rsEl('rs-b-test').textContent = '🧪 測試模式:' + (RS.test ? '開' : '關');
   rsEl('rs-b-test').classList.toggle('off', !RS.test);
   rsEl('rs-ribbon').classList.toggle('show', RS.test);
@@ -5317,7 +5317,7 @@ function rsToggleSet(force) {
 }
 function rsSetFake() {
   RS.fk = parseInt(rsEl('rs-fk').value, 10); RS.fkStep = parseInt(rsEl('rs-fks').value, 10) || 0;
-  if (isNaN(RS.fk)) RS.fk = 85;
+  if (isNaN(RS.fk)) RS.fk = -1;
   try { localStorage.setItem('rs_fk', String(RS.fk)); localStorage.setItem('rs_fks', String(RS.fkStep)); } catch (e) {}
 }
 function rsApplyScale() {
@@ -5370,8 +5370,10 @@ function rsProfile(fromFast, fakeP) {
   // 速度曲線(相對值):忽快忽慢 → 隨機 0~2 次「假停」(幾乎停住,然後突然暴衝加速)→ 最後緩慢爬行到停
   const segs = [{ d: .12, m: 1.3 + R(1.2) }, { d: .14, m: .5 + R(.5) }];
   const rr = Math.random();
-  // fakeP(0~1)= 這次出現「假停」的機率(有假停時 ~41% 會連假停兩次);沒傳=原本的預設分布(15% 無 / 50% 一次 / 35% 兩次)
-  const fakes = fakeP === undefined ? (rr < .15 ? 0 : (rr < .65 ? 1 : 2)) : (Math.random() >= fakeP ? 0 : (rr < .41 ? 2 : 1));
+  // fakeP(0~1)= 每一次「假停」發生的機率(最多 5 次,期望 5×fakeP 次);沒傳=原本的預設分布(15% 無 / 50% 一次 / 35% 兩次)
+  let fakes = 0;
+  if (fakeP === undefined) fakes = rr < .15 ? 0 : (rr < .65 ? 1 : 2);
+  else for (let k = 0; k < 5; k++) if (Math.random() < fakeP) fakes++; // 有設定機率:最多 5 次假停,每次各自以這個機率發生(100% = 必定假停 5 次)
   for (let k = 0; k < fakes; k++) {
     segs.push({ d: .08 + R(.06), m: .02 + R(.04) });   // 快停下
     segs.push({ d: .03 + R(.07), m: .02 + R(.03) });   // 停住不動一下(長短隨機)
@@ -5476,7 +5478,8 @@ async function rsRoundLand(items, r) {
   if (!RS.anim || r >= 6) return;
   const fast = r === 0, T = fast ? 7 : 3.6;
   // 假停機率 = 基礎機率 + 每次「正式停下」(揭曉一位)累加的遞增值,上限 100%
-  const fakeP = Math.min(1, Math.max(0, (RS.fk === undefined ? 85 : RS.fk) + (RS.fkStep || 0) * (RS.stopN || 0)) / 100);
+  const fk0 = (RS.fk === undefined || RS.fk < 0) ? -1 : RS.fk;
+  const fakeP = (fk0 < 0 && !(RS.fkStep > 0)) ? undefined : Math.min(1, Math.max(0, (fk0 < 0 ? 40 : fk0) + (RS.fkStep || 0) * (RS.stopN || 0)) / 100);
   RS.stopN = (RS.stopN || 0) + 1;
   await Promise.all(items.map(it => {
     if (!it.pool) return null;
