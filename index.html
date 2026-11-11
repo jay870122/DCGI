@@ -961,7 +961,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.217</div>
+    <div class="version-tag">系統版本：v5.4.218</div>
   </div>
 
   <script>
@@ -1043,6 +1043,8 @@
     // size(1~6,代表佔一整行的幾/6)→ 換算成目前網格欄數的跨欄數;6=整行,其餘至少 1 欄
     function layoutInfoCards_() {
       const box = document.getElementById('shop-list'); if (!box) return;
+      // 先清掉舊的跨欄,否則舊的 span 3 會撐出「隱含欄」,量到的欄數一直是 3(清單模式就會變成 1 窄欄 + 2 寬欄)
+      const ics = box.querySelectorAll('.info-card[data-ics]'); ics.forEach((el) => { el.style.gridColumn = ''; });
       const cols = Math.max(1, (getComputedStyle(box).gridTemplateColumns || '').split(' ').filter(Boolean).length);
       box.querySelectorAll('.info-card[data-ics]').forEach((el) => {
         const sz = parseInt(el.dataset.ics, 10) || 6;
