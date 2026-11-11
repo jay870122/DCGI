@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.161</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.162</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5283,7 +5283,10 @@ function rsRender() {
 }
 // 名字太長時自動縮小字體,並讓格子自動長高,避免被切掉
 function rsFitSize(txt) { const n = Array.from(txt || '').length; return n <= 7 ? '' : (n <= 11 ? '18px' : (n <= 18 ? '15px' : (n <= 26 ? '12px' : '10px'))); }
-function rsSpinText_(e) { const n = rsRandName(); e.textContent = n; e.style.fontSize = rsFitSize(n); } // 跳動中的名字也依長度縮字,長暱稱不會被切成「米小桃(…」
+// 有跑馬燈的卡片:第一個還在跳的格子改成「跟著指標線下的名字」跳(不再亂數),讓格子跟跑馬燈同步
+function rsFollowSlot_(e) { const c = e.closest && e.closest('.rs-card'); return !!(c && c.querySelector('.rs-reel') && c.querySelector('.rs-slot.spin') === e); }
+function rsSetSlotText_(e, n) { if (e.textContent !== n) { e.textContent = n; e.style.fontSize = rsFitSize(n); } }
+function rsSpinText_(e) { if (rsFollowSlot_(e)) return; rsSetSlotText_(e, rsRandName()); }
 function rsCardHtml(ti, prize, winners, empties, countTxt) {
   let slots = winners.map(w => '<div class="rs-slot win"' + (rsFitSize(w.name) ? ' style="font-size:' + rsFitSize(w.name) + '"' : '') + '>' + rsEsc(w.name) + '</div>').join('');
   for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty" title="點一下抽出這個獎項的一位" onclick="rsClickSlot(' + ti + ')">？</div>';
@@ -5401,6 +5404,15 @@ function rsTick(ts) {
       RS.lastClick = ts; rsBeep(1000 + Math.random() * 220, 0.022, 0.05);
     }
     r.lastIdx = idx;
+    // 轉動/落定中:該卡片第一個還在跳的格子 = 指標線正下方那一格的名字(跟跑馬燈同步)
+    if (r.mode === 'spin' || r.mode === 'land') {
+      const xm2 = ((r.x % r.loop) + r.loop) % r.loop, ix = Math.floor((xm2 + r.vw / 2) / RS_IT_W);
+      if (ix !== r.lastSlotIdx) {
+        r.lastSlotIdx = ix;
+        const it = r.strip.children[ix], card = r.el.closest('.rs-card'), sl = card && card.querySelector('.rs-slot.spin');
+        if (it && sl) rsSetSlotText_(sl, it.textContent);
+      }
+    }
   });
   requestAnimationFrame(rsTick);
 }
