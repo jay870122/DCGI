@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.135</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.136</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4690,7 +4690,7 @@ function renderShopTable() {
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         ${i.isRaffle ? `<button class="btn btn-edit" onclick="showRaffleParticipants('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看名單</button>` : ''}
         ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleStage('${i.itemId}')">🎬 直播開獎(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
-        ${i.isRaffle && i.raffleResult && i.raffleStage ? `<button class="btn btn-edit" onclick="openRaffleStage('${i.itemId}', true)">🧪 開獎動畫(測試)</button>` : ''}
+        ${i.isRaffle && (i.raffleResult || !(i.raffleManualDraw && i.raffleStage)) ? `<button class="btn btn-edit" onclick="openRaffleStage('${i.itemId}', true)">🧪 開獎動畫(測試)</button>` : ''}
         ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && !i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleDrawModal('${i.itemId}')">🎯 開獎控制台(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
         ${i.isRaffle && !i.raffleResult && !i.raffleManualDraw ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
         ${i.isGambling ? `<button class="btn btn-edit" onclick="showGamblingBets('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看下注</button>` : ''}
