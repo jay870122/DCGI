@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.151</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.152</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -296,6 +296,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
       <div class="nav-item" onclick="navTo('cur-exp')">⏳ 貨幣有效期</div>
       <div class="nav-item" onclick="navTo('cur-mon')">📊 貨幣獲得/消耗統計</div>
+      <div class="nav-item" onclick="navTo('prize-stat')">🎁 獎品統計區</div>
       <div class="nav-item" onclick="navTo('contest')">🎽 穿搭大賽</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('bingo')">🎰 BINGO 賓果卡</div>
@@ -488,7 +489,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
               🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
               📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
-              💬 <b>[留言:提示:字數:次數:修改期限] 中獎後讓玩家填一段話給處理人員</b>:跟 <code>[非即時]</code> 一樣是盲盒獎項標籤。玩家中獎/購買後前台會自動跳出「💬 我的留言」,看到提示、輸入文字送出,<b>送出與每次修改都會私訊非即時處理人員</b>(內含建立時間、最後修改時間、修改次數)。<br>
+              📊 <b>[統計:群組]獎品名 自動統計發出數量</b>:加在盲盒/獎勵規則的變數名前面,每次發出就記到「獎品統計」分頁,後台「統計區」依群組出表格、可複製/下載 CSV。<br>
+        　　・範例:<code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>(只計數,不發任何東西,實際獎品另外處理)<br>
+        　　・要同時發東西:用 <code>+</code> 串接,例如 <code>[統計:服裝大賽][非即時]七大罪箱子:1+金幣:100</code><br>
+        　　・群組省略(<code>[統計]</code>)則歸到「統計」群組<br>
+        💬 <b>[留言:提示:字數:次數:修改期限] 中獎後讓玩家填一段話給處理人員</b>:跟 <code>[非即時]</code> 一樣是盲盒獎項標籤。玩家中獎/購買後前台會自動跳出「💬 我的留言」,看到提示、輸入文字送出,<b>送出與每次修改都會私訊非即時處理人員</b>(內含建立時間、最後修改時間、修改次數)。<br>
               　　・<b>提示</b>(必填):顯示給玩家看的填寫說明,不能含 <code>]</code>,逗號用全形「,」,冒號用全形「:」<br>
               　　・<b>字數</b>(選填,預設 200,最大 1000):單則留言字數上限<br>
               　　・<b>次數</b>(選填,預設 20,最大 100):第一次送出後<u>還能再修改幾次</u>,填 0 = 送出後不能改<br>
@@ -1297,6 +1302,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div id="ct-adm-overall"></div>
         </div>
       </div>
+      <div id="page-prize-stat" style="display:none"><div class="page-header"><div class="page-title">📊 獎品統計區</div></div>
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>📊 統計區(盲盒 [統計:群組] 標籤)</h3><div class="hint" style="line-height:1.6">盲盒/獎勵規則裡寫 <code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>,每次發出就會自動記到「獎品統計」分頁,這裡依群組列出表格(例:服裝大賽 → 各獎品總數)。可複製文字或下載 CSV 回報主辦方。</div></div>
+            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="statLoadTables()">🔄 重新整理</button><button class="btn btn-edit" onclick="statCopy()">📋 複製文字</button><button class="btn btn-edit" onclick="statCsv()">⬇️ 下載 CSV</button></div></div>
+          <div id="stat-adm-tables"><div class="hint">按「重新整理」載入</div></div>
+        </div>
+
+      </div>
       <div id="page-cur-mon" style="display:none"><div class="page-header"><div class="page-title">📊 貨幣獲得/消耗統計</div></div><div class="pg-host" data-modal="curmon-modal"></div></div>
       <div id="page-lock-settings" style="display:none">
         <div class="page-header"><div class="page-title">🔒 密碼鎖定管理</div></div>
@@ -1450,6 +1463,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
         🛡️ <b>保底獎</b>：一行如果<b>沒有寫機率、也沒有寫份數</b>,系統會把它當成保底獎——其他獎項都沒中/庫存都抽完時,就一定會開出這個獎項。這種保底行建議放在<b>最後一行</b>,方便閱讀跟維護。<br>
         📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
+        📊 <b>[統計:群組]獎品名 自動統計發出數量</b>:加在盲盒/獎勵規則的變數名前面,每次發出就記到「獎品統計」分頁,後台「統計區」依群組出表格、可複製/下載 CSV。<br>
+        　　・範例:<code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>(只計數,不發任何東西,實際獎品另外處理)<br>
+        　　・要同時發東西:用 <code>+</code> 串接,例如 <code>[統計:服裝大賽][非即時]七大罪箱子:1+金幣:100</code><br>
+        　　・群組省略(<code>[統計]</code>)則歸到「統計」群組<br>
         💬 <b>[留言:提示:字數:次數:修改期限] 中獎後讓玩家填一段話給處理人員</b>:跟 <code>[非即時]</code> 一樣是盲盒獎項標籤。玩家中獎/購買後前台會自動跳出「💬 我的留言」,看到提示、輸入文字送出,<b>送出與每次修改都會私訊非即時處理人員</b>(內含建立時間、最後修改時間、修改次數)。<br>
         　　・<b>提示</b>(必填):顯示給玩家看的填寫說明,不能含 <code>]</code>,逗號用全形「,」,冒號用全形「:」<br>
         　　・<b>字數</b>(選填,預設 200,最大 1000):單則留言字數上限<br>
@@ -3528,7 +3545,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3551,6 +3568,7 @@ function navTo(p) {
   if (p==='cur-exp') openCurExp();
   if (p==='cur-mon') openCurMonthly();
   if (p==='contest') loadContestAdmin();
+  if (p==='prize-stat') statLoadTables();
   if (p==='history') loadHistory();
   if (p==='reward-keys') loadRewardKeys();
   if (p==='auction-bids') {
@@ -3830,6 +3848,23 @@ async function ctAdmSaveTracks() {
   const d = await apiCraftWrite_('adminContestSaveTracks', { tracks: rows, testMode: document.getElementById('ct-testmode').checked, entryAt: document.getElementById('ct-entry').value ? new Date(document.getElementById('ct-entry').value).toISOString() : '', shuffle: document.getElementById('ct-shuffle').value });
   if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   toast(d.message); loadContestAdmin();
+}
+let statTb_ = null;
+async function statLoadTables() {
+  const box = document.getElementById('stat-adm-tables'); if (!box) return; box.innerHTML = '<div class="hint">載入中…</div>';
+  const d = await stockAdminCall_('adminPrizeStatTablesWorker');
+  if (!d || d.status !== 'success') { box.innerHTML = '<div class="hint" style="color:var(--red)">載入失敗:' + ctEsc_((d && d.message) || '未知錯誤') + '</div>'; return; }
+  statTb_ = d; const E = ctEsc_;
+  box.innerHTML = d.groups.length ? d.groups.map((g) => '<div style="margin-bottom:12px"><h4 style="margin:6px 0 4px">' + E(g.name) + ' <span class="hint">合計 ' + g.total + '</span></h4><div class="ct-tw"><table><thead><tr><th>獎品</th><th>總數</th><th>發放次數</th><th>人數</th></tr></thead><tbody>' + g.items.map((x) => '<tr><td>' + E(x.name) + '</td><td><b>' + x.qty + '</b></td><td>' + x.times + '</td><td>' + x.users + '</td></tr>').join('') + '</tbody></table></div></div>').join('') : '<div class="hint">還沒有任何統計資料。把 <code>[統計:群組]</code> 加到盲盒獎項名稱前,有人抽到/兌換就會出現。</div>';
+}
+function statLines_() { const d = statTb_; if (!d) return null; const L = []; d.groups.forEach((g, i) => { if (i) L.push(''); L.push('【' + g.name + '】獎品|總數|發放次數|人數'); g.items.forEach((x) => L.push(x.name + '|' + x.qty + '|' + x.times + '|' + x.users)); }); return L; }
+async function statCopy() { const L = statLines_(); if (!L) { toast('請先按「重新整理」', false); return; } try { await navigator.clipboard.writeText(L.join('\n')); toast('✅ 已複製統計文字'); } catch (e) { toast('複製失敗,請改用下載 CSV', false); } }
+function statCsv() {
+  const d = statTb_; if (!d) { toast('請先按「重新整理」', false); return; }
+  const q = (v) => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"', rows = [['群組', '獎品', '總數', '發放次數', '人數']];
+  d.groups.forEach((g) => g.items.forEach((x) => rows.push([g.name, x.name, x.qty, x.times, x.users])));
+  const blob = new Blob(['\ufeff' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = '獎品統計_' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 let ctPrize_ = null;
 async function ctAdmLoadPrizeStats() {
