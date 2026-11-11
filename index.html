@@ -956,7 +956,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.206</div>
+    <div class="version-tag">系統版本：v5.4.207</div>
   </div>
 
   <script>
@@ -7101,6 +7101,7 @@ function fetchScoresAndShop(discordId, callback = null) {
           });
         }
       });
+      try { layoutInfoCards_(); } catch (e) {} // 排列(欄數)改變後,資訊卡跨欄數要重算,否則整排資訊卡會縮成 1 欄
     }
     (function () { try { const box = document.getElementById('shop-list'); if (box && window.MutationObserver) new MutationObserver(() => { try { shopApplyLayout_(); } catch (e) {} }).observe(box, { childList: true }); window.addEventListener('resize', () => { try { shopApplyLayout_(); } catch (e) {} }); } catch (e) {} })();
     function renderShop() {
