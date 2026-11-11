@@ -126,7 +126,10 @@
     .shop-item-card.sc-col .sc-sum { font-size: 12px; color: #B9BBBE; display: flex; justify-content: space-between; gap: 6px; cursor: pointer; }
     .shop-item-card.sc-col:not(.sc-open) > :not(.item-header):not(.sc-sum):not(.item-image) { display: none !important; }
     .shop-item-card.sc-col:not(.sc-open) > .item-image { height: 84px; margin-bottom: 6px; cursor: pointer; pointer-events: none; }
-    .shop-list-container.sc-list .shop-item-card.sc-col:not(.sc-open) > .item-image { height: 64px; }
+    .shop-list-container.sc-list .shop-item-card.sc-col.sc-hasimg:not(.sc-open) { display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+    .shop-list-container.sc-list .shop-item-card.sc-col.sc-hasimg:not(.sc-open) > .item-image { grid-column: 1; grid-row: 1 / span 2; width: 64px !important; height: 64px !important; max-height: 64px; object-fit: cover !important; margin: 0 !important; }
+    .shop-list-container.sc-list .shop-item-card.sc-col.sc-hasimg:not(.sc-open) > .item-header { grid-column: 2; grid-row: 1; align-self: end; }
+    .shop-list-container.sc-list .shop-item-card.sc-col.sc-hasimg:not(.sc-open) > .sc-sum { grid-column: 2; grid-row: 2; align-self: start; }
     .shop-item-card.sc-col.sc-open .btn-share { display: inline; }
     .shop-item-card.sc-col.sc-open .sc-sum { margin-bottom: 8px; border-bottom: 1px solid #40444B; padding-bottom: 6px; }
     
@@ -953,7 +956,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.205</div>
+    <div class="version-tag">系統版本：v5.4.206</div>
   </div>
 
   <script>
@@ -7080,7 +7083,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       const m = shopLayoutMode_(); box.classList.remove('sc-1', 'sc-2', 'sc-list', 'sc-def'); box.classList.add('sc-' + m); // sc-def = 原本的自動欄數(電腦版約 3 欄)
       box.querySelectorAll('.shop-item-card').forEach((c) => {
         const compact = m === '2' || m === 'list';
-        c.classList.toggle('sc-col', compact); if (!compact) { c.classList.remove('sc-open'); }
+        c.classList.toggle('sc-col', compact); c.classList.toggle('sc-hasimg', !!c.querySelector(':scope > .item-image')); if (!compact) { c.classList.remove('sc-open'); }
         let sm = c.querySelector(':scope > .sc-sum');
         if (compact && !sm) {
           const pr = c.querySelector('.item-price'); const st = c.querySelector('.item-badge');
