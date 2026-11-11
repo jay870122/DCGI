@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.148</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.149</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5061,6 +5061,7 @@ async function rsRefresh(first) {
   const item = (typeof shopItems !== 'undefined' ? shopItems : []).find(x => x.itemId === RS.id);
   if (!item) { toast('找不到這個商品', false); return false; }
   if (!d || d.status !== 'success') { toast('讀取名單失敗:' + (d && d.message || ''), false); return false; }
+  if (d.pendingReveal > 0 && !RS.busy) await rsRelease(RS.id); // 上次沒送出的公告補送
   RS.name = item.name; RS.total = item.stock || 1; RS.tiers = item.raffleTierStatus || [];
   RS.realTiers = RS.tiers; RS.mode = (item.raffleRepeatWinMode || 'ALLOW').toString().toUpperCase();
   RS.voters = d.list || [];
@@ -5116,9 +5117,13 @@ function rsSimWin(ent, id, mode) {
   else if (mode === 'DEDUCT') { ent[i].w -= 1; if (ent[i].w <= 0) ent.splice(i, 1); }
 }
 // 模擬後端 adminDrawShopRaffleOneSlot:依票數加權抽人,可指定獎項(不指定=依剩餘份數隨機挑),重複中獎規則比照該商品設定
+// 🌟 動畫播完後才把 Discord 公告/私訊送出(後端先暫存在「抽獎待揭曉」分頁)
+async function rsRelease(id) {
+  try { const d = await api({ action: 'adminRevealShopRaffle', itemId: id }); return !!(d && d.status === 'success'); } catch (e) { return false; }
+}
 async function rsDraw(prizeName, count, st) {
   st = st || RS;
-  if (!RS.test) return await api({ action: 'adminDrawShopRaffleOneSlot', itemId: st.id, prizeName: prizeName || '', count });
+  if (!RS.test) return await api({ action: 'adminDrawShopRaffleOneSlot', itemId: st.id, prizeName: prizeName || '', count, defer: 'TRUE' }); // defer:公告/私訊先扣住,動畫播完才由 rsRelease 送出
   await rsSleep(150);
   const ent = st.voters.map(v => ({ id: String(v.discordId), w: parseFloat(v.weighted) || 1 }));
   st.sim.forEach(w => rsSimWin(ent, String(w.discordId), st.mode));
@@ -5515,8 +5520,9 @@ async function rsStartSelected(planOverride) {
   }
   // 沒被抽滿的轉盤位退回空位
   groups.forEach(g => g.slots.forEach((el, i) => { if (!g.got[i]) { el.className = 'rs-slot empty'; el.textContent = '？'; } }));
+  let relOk = true; if (!RS.test) relOk = await rsRelease(RS.id);
   if (err) rsToast('❌ ' + err, false);
-  else if (total > 0) rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : '🎉 已開獎並發獎、公告');
+  else if (total > 0) rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : (relOk ? '🎉 已開獎並發獎、公告' : '⚠️ 已開獎,但 Discord 公告尚未送出(重開舞台會自動補送)'));
   if (RS.anim) await rsSleep(900);
   RS.busy = false;
   await rsFinish();
@@ -5543,7 +5549,7 @@ async function rsStartRandom(all) {
   const d = await rsDraw('', n);
   if (RS.anim) { const wait = 3200 - (Date.now() - t0); if (wait > 0) await rsSleep(wait); }
   rsStopSpin();
-  if (d.status !== 'success') { rsToast('❌ ' + (d.message || ''), false); tmp.remove(); RS.busy = false; await rsFinish(); return; }
+  if (d.status !== 'success') { rsToast('❌ ' + (d.message || ''), false); tmp.remove(); RS.busy = false; if (!RS.test) await rsRelease(RS.id); await rsFinish(); return; }
   if (d.done) RS.done = true;
   const got = d.newWinners || [];
   for (let i = 0; i < slots.length; i++) {
@@ -5553,7 +5559,8 @@ async function rsStartRandom(all) {
     rsReveal(slots[i], (RS.nameOf[w.discordId] || w.discordId) + ' → ' + w.prize, rpool, w.discordId);
     if (RS.anim) await rsSleep(i < 6 ? 700 : 250);
   }
-  rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : '🎉 已開獎並發獎、公告');
+  const relOk2 = RS.test ? true : await rsRelease(RS.id);
+  rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : (relOk2 ? '🎉 已開獎並發獎、公告' : '⚠️ 已開獎,但 Discord 公告尚未送出(重開舞台會自動補送)'));
   if (RS.anim) await rsSleep(1500);
   RS.busy = false;
   await rsFinish();
@@ -5582,7 +5589,8 @@ function rsMergedEligible() {
 }
 async function rsLoadState(id) {
   const item = shopItems.find(x => x.itemId === id);
-  const d = await api({ action: 'getRaffleParticipants', itemId: id });
+  let d = await api({ action: 'getRaffleParticipants', itemId: id });
+  if (d && d.status === 'success' && d.pendingReveal > 0) await rsRelease(id); // 上次沒送出的公告補送
   if (!item || !d || d.status !== 'success') return null;
   const st = { id, name: item.name, total: item.stock || 1, realTiers: item.raffleTierStatus || [], mode: (item.raffleRepeatWinMode || 'ALLOW').toString().toUpperCase(),
     voters: d.list || [], nameOf: {}, sim: [], simOver: false, tiers: [], winners: [], done: false };
@@ -5715,8 +5723,10 @@ async function rsMergedStart(plan, noArm) {
     if (RS.anim && r < rounds - 1) await rsSleep(r < 6 ? 700 : 250);
   }
   groups.forEach(g => g.slots.forEach((el, k) => { if (!g.got[k]) { el.className = 'rs-slot empty'; el.textContent = '？'; } }));
+  let relOk3 = true;
+  if (!RS.test) { const rids = Array.from(new Set(plan.map(p => p.x.id))); for (const rid of rids) { if (!(await rsRelease(rid))) relOk3 = false; } }
   if (err) rsToast('❌ ' + err, false);
-  else rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : '🎉 已開獎並發獎、公告');
+  else rsToast(RS.test ? '🧪 模擬完成:沒有發獎、沒有發 Discord 公告' : (relOk3 ? '🎉 已開獎並發獎、公告' : '⚠️ 已開獎,但部分 Discord 公告尚未送出(重開舞台會自動補送)'));
   if (RS.anim) await rsSleep(900);
   RS.busy = false;
   await rsMFinish();
