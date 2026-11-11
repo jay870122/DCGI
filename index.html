@@ -73,7 +73,7 @@
     }
     
     .main-area { flex-grow: 1; width: 100%; min-width: 0; }
-    .controls-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background-color: #2C2F33; padding: 10px 15px; border-radius: 8px; }
+    .controls-container { display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; align-items: center; margin-bottom: 15px; background-color: #2C2F33; padding: 10px 15px; border-radius: 8px; }
     .shop-input { padding: 8px 12px; border-radius: 5px; border: 1px solid #4F545C; background-color: #202225; color: white; font-size: 14px; outline: none; }
     
     /* 🌟 商品網格卡片 */
@@ -124,7 +124,9 @@
     .shop-item-card.sc-col .item-name { font-size: 14px; }
     .shop-item-card.sc-col .btn-share { display: none; }
     .shop-item-card.sc-col .sc-sum { font-size: 12px; color: #B9BBBE; display: flex; justify-content: space-between; gap: 6px; cursor: pointer; }
-    .shop-item-card.sc-col:not(.sc-open) > :not(.item-header):not(.sc-sum) { display: none !important; }
+    .shop-item-card.sc-col:not(.sc-open) > :not(.item-header):not(.sc-sum):not(.item-image) { display: none !important; }
+    .shop-item-card.sc-col:not(.sc-open) > .item-image { height: 84px; margin-bottom: 6px; cursor: pointer; pointer-events: none; }
+    .shop-list-container.sc-list .shop-item-card.sc-col:not(.sc-open) > .item-image { height: 64px; }
     .shop-item-card.sc-col.sc-open .btn-share { display: inline; }
     .shop-item-card.sc-col.sc-open .sc-sum { margin-bottom: 8px; border-bottom: 1px solid #40444B; padding-bottom: 6px; }
     
@@ -929,8 +931,8 @@
         
         <div class="main-area">
           <div class="controls-container">
-            <h3 style="margin: 0;">🛒 兌換商店</h3>
-            <div style="display: flex; gap: 10px; align-items: center;">
+            <h3 style="margin: 0; white-space: nowrap;">🛒 兌換商店</h3>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <select id="sort-items" class="shop-input" onchange="renderShop()">
                 <option value="avail-first">✅ 可用優先</option>
                 <option value="default">預設排序</option>
@@ -943,7 +945,7 @@
                 <option value="2">1排2個(精簡)</option>
                 <option value="list">清單(精簡)</option>
               </select>
-              <button id="btn-refresh" class="btn-action" onclick="refreshData()">🔄 重整庫存</button>
+              <button id="btn-refresh" class="btn-action" style="white-space: nowrap; flex-shrink: 0;" onclick="refreshData()">🔄 重整庫存</button>
             </div>
           </div>
           <div id="shop-list" class="shop-list-container"></div>
@@ -951,7 +953,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.203</div>
+    <div class="version-tag">系統版本：v5.4.204</div>
   </div>
 
   <script>
@@ -7083,7 +7085,7 @@ function fetchScoresAndShop(discordId, callback = null) {
         if (compact && !sm) {
           const pr = c.querySelector('.item-price'); const st = c.querySelector('.item-badge');
           sm = document.createElement('div'); sm.className = 'sc-sum';
-          sm.innerHTML = '<span>' + (pr ? '💰 ' + pr.textContent.trim().slice(0, 40) : '點開看詳情') + '</span><span class="sc-arr">▼ 詳情/購買</span>';
+          sm.innerHTML = '<span>' + (pr ? '💰 ' + pr.textContent.trim().slice(0, 40) : '點開看詳情') + '</span><span class="sc-arr">▼</span>';
           const hd = c.querySelector(':scope > .item-header'); if (hd) hd.after(sm); else c.prepend(sm);
         }
         if (sm) sm.style.display = compact ? '' : 'none';
@@ -7091,8 +7093,8 @@ function fetchScoresAndShop(discordId, callback = null) {
           c.dataset.scb = '1';
           c.addEventListener('click', (e) => {
             if (!c.classList.contains('sc-col')) return;
-            const hit = e.target.closest('.item-header, .sc-sum'); if (!hit || e.target.closest('.btn-share')) return;
-            c.classList.toggle('sc-open'); const ar = c.querySelector('.sc-arr'); if (ar) ar.textContent = c.classList.contains('sc-open') ? '▲ 收合' : '▼ 詳情/購買';
+            const hit = e.target === c || e.target.closest('.item-header, .sc-sum'); if (!hit || e.target.closest('.btn-share')) return;
+            if (e.target === c && c.classList.contains('sc-open')) return; c.classList.toggle('sc-open'); const ar = c.querySelector('.sc-arr'); if (ar) ar.textContent = c.classList.contains('sc-open') ? '▲' : '▼';
           });
         }
       });
