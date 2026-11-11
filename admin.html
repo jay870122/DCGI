@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.147</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.148</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1860,7 +1860,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-board{position:relative;z-index:2;flex:1;overflow:auto;padding:8px 22px 24px;display:grid;gap:18px;align-content:start;
   grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
 .rs-card{background:linear-gradient(160deg,#ffffff1f,#ffffff0a);border:1px solid #ffffff2e;border-radius:20px;padding:16px 16px 14px;
-  box-shadow:0 10px 40px #0006;backdrop-filter:blur(4px)}
+  box-shadow:0 6px 20px #0006;contain:layout style}
 .rs-card.rs-active{border-color:#fbbf24;box-shadow:0 0 0 2px #fbbf2466,0 0 40px #fbbf2455}
 .rs-ph{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:#fde68a;margin-bottom:2px;word-break:break-word}
 .rs-pc{font-size:13px;color:#c4b5fd;margin-bottom:12px}
@@ -1871,7 +1871,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-slot.empty[onclick]{cursor:pointer;transition:all .15s}
 .rs-slot.empty[onclick]:hover{border-color:#fbbf24;color:#fde68a;background:#fbbf2422;transform:translateY(-2px)}
 .rs-slot.spin{display:block;box-sizing:border-box;height:clamp(54px,7vh,76px);line-height:calc(clamp(54px,7vh,76px) - 10px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:clamp(16px,1.9vw,24px);background:linear-gradient(180deg,#312e81,#1e1b4b);border:1px solid #a78bfa;color:#e9d5ff;
-  box-shadow:inset 0 0 18px #7c3aed88,0 0 14px #7c3aed66;animation:rsShake .12s linear infinite}
+  box-shadow:inset 0 0 10px #7c3aed88;contain:layout paint}
 @keyframes rsShake{0%{transform:translateY(-1px)}50%{transform:translateY(1px)}100%{transform:translateY(-1px)}}
 .rs-slot.win{background:linear-gradient(160deg,#f59e0b,#ef4444);border:1px solid #fde68a;color:#fff;text-shadow:0 2px 6px #0006;box-shadow:0 0 24px #f59e0baa}
 .rs-slot.pop{animation:rsPop .7s cubic-bezier(.2,1.6,.4,1)}
@@ -1882,14 +1882,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-chip.hit{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border-color:#fde68a;font-weight:800;transform:scale(1.12);box-shadow:0 0 14px #f59e0baa}
 .rs-ribbon{position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:8;display:none;background:#0ea5e9;color:#fff;font-size:13px;font-weight:700;padding:3px 18px;border-radius:0 0 12px 12px;box-shadow:0 4px 16px #0006;pointer-events:none}
 .rs-ribbon.show{display:block}
-.rs-reel{position:relative;margin-top:12px;height:74px;overflow:hidden;background:#0007;border:1px solid #ffffff2a;border-radius:12px}
+.rs-reel{position:relative;margin-top:12px;height:74px;overflow:hidden;background:#0007;border:1px solid #ffffff2a;border-radius:12px;contain:strict;width:100%;box-sizing:border-box}
 .rs-reel::before,.rs-reel::after{content:"";position:absolute;top:0;bottom:0;width:56px;z-index:2;pointer-events:none}
 .rs-reel::before{left:0;background:linear-gradient(90deg,#0b0a1e,transparent)}
 .rs-reel::after{right:0;background:linear-gradient(270deg,#0b0a1e,transparent)}
 .rs-reel-mark{position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#fbbf24;z-index:3;box-shadow:0 0 12px #fbbf24,0 0 24px #fbbf2488}
-.rs-strip{display:flex;height:100%;will-change:transform}
+.rs-strip{display:flex;height:100%;will-change:transform;backface-visibility:hidden}
 .rs-it{flex:0 0 120px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 6px;font-size:15px;font-weight:700;color:#ddd6fe;
-  background:linear-gradient(180deg,#ffffff14,#ffffff05);border-right:1px solid #ffffff14;border-bottom:4px solid #6366f1;overflow:hidden;word-break:break-all;line-height:1.1}
+  background:#ffffff0c;border-right:1px solid #ffffff14;border-bottom:4px solid #6366f1;overflow:hidden;word-break:break-all;line-height:1.1}
 .rs-it.hit{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;text-shadow:0 1px 4px #0008}
 .rs-bar{position:relative;z-index:3;background:#0b0a1ee6;border-top:1px solid #ffffff2a;padding:12px 22px;display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto}
 .rs-bar.hide{display:none}
@@ -5301,8 +5301,8 @@ function rsTick(ts) {
         rsDing(); L.resolve();
       }
     }
-    const xm = ((r.x % r.loop) + r.loop) % r.loop;
-    r.strip.style.transform = 'translateX(' + (-xm) + 'px)';
+    const xm = Math.round((((r.x % r.loop) + r.loop) % r.loop) * 2) / 2;
+    if (xm !== r.lastXm) { r.lastXm = xm; r.strip.style.transform = 'translate3d(' + (-xm) + 'px,0,0)'; }
     // 喀喀聲:轉動/落定時,每有一格經過中間指標線就「喀」一下(越快越密,越慢越清楚,像開箱的棘輪聲);待機不出聲
     const idx = Math.floor((r.x + r.vw / 2) / RS_IT_W);
     if ((r.mode === 'spin' || r.mode === 'land') && idx !== r.lastIdx && r.lastIdx !== undefined && ts - (RS.lastClick || 0) > 32) {
