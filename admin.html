@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.146</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.147</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1850,6 +1850,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-title{flex:1;min-width:160px;font-size:clamp(20px,2.8vw,38px);font-weight:800;letter-spacing:2px;text-shadow:0 0 24px #a78bfa88}
 .rs-prog{font-size:clamp(14px,1.6vw,20px);background:#ffffff1a;border:1px solid #ffffff33;border-radius:999px;padding:6px 16px;white-space:nowrap}
 .rs-tbtn{background:#ffffff1a;border:1px solid #ffffff33;color:#fff;border-radius:10px;padding:6px 9px;cursor:pointer;font-size:13px}
+.rs-tbtn option{color:#111;background:#fff}
 .rs-tbtn:hover{background:#ffffff33}.rs-tbtn.off{opacity:.55}
 .rs-tabs{position:relative;z-index:2;display:none;gap:8px;padding:0 22px 6px;overflow-x:auto}
 .rs-tabs.show{display:flex}
@@ -1922,6 +1923,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <button class="rs-tbtn" id="rs-b-anim" onclick="rsToggle('anim')">✨ 動畫:開</button>
     <button class="rs-tbtn" id="rs-b-snd" onclick="rsToggle('snd')">🔊 音效:開</button>
     <button class="rs-tbtn" id="rs-b-pool" onclick="rsToggle('pool')">👥 參與者:顯示</button>
+    <select class="rs-tbtn" id="rs-cols" onchange="rsSetCols(this.value)" title="每一排放幾個商品/獎項卡片">
+      <option value="0">排列:自動</option><option value="1">每排 1 個</option><option value="2">每排 2 個</option><option value="3">每排 3 個</option><option value="4">每排 4 個</option><option value="5">每排 5 個</option><option value="6">每排 6 個</option>
+    </select>
     <button class="rs-tbtn" id="rs-b-test" onclick="rsToggleTest()">🧪 測試模式:關</button>
     <button class="rs-tbtn" onclick="rsToggleBar()" title="快捷鍵 H">🙈 隱藏控制列</button>
     <button class="rs-tbtn" onclick="rsFull()" title="快捷鍵 F">⛶ 全螢幕</button>
@@ -4975,11 +4979,11 @@ async function drawShopRaffleStep(itemId, prizeName, count) {
 // 直播方式:開這個畫面 → 用 Discord 螢幕分享 / OBS 視窗擷取;「隱藏控制列」後畫面只剩獎項與得獎者,觀眾看不到操作按鈕。
 // ============================================================
 const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:{}, busy:false, done:false,
-  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[], merged:false, mi:[], msel:{}, mcnt:{}, queue:[], simMap:{}, testPref:false, test:false, sim:[], simOver:false, realTiers:null, drawnReal:false, mode:'ALLOW' };
+  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[], cols:0, merged:false, mi:[], msel:{}, mcnt:{}, queue:[], simMap:{}, testPref:false, test:false, sim:[], simOver:false, realTiers:null, drawnReal:false, mode:'ALLOW' };
 const rsEl = id => document.getElementById(id);
 const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const rsSleep = ms => new Promise(r => setTimeout(r, ms));
-try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; } catch (e) {}
+try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; RS.cols = parseInt(localStorage.getItem('rs_cols'), 10) || 0; } catch (e) {}
 
 async function openRaffleStage(itemId, forceTest, queueIds) {
   RS.queue = (queueIds && queueIds.length > 1) ? queueIds.slice() : []; RS.simMap = {}; RS.testPref = !!forceTest;
@@ -5026,9 +5030,18 @@ function rsSyncToggles() {
   rsEl('rs-b-snd').classList.toggle('off', !RS.snd);
   rsEl('rs-b-pool').textContent = '👥 參與者:' + (RS.pool ? '顯示' : '隱藏');
   rsEl('rs-b-pool').classList.toggle('off', !RS.pool);
+  rsEl('rs-cols').value = String(RS.cols || 0);
   rsEl('rs-b-test').textContent = '🧪 測試模式:' + (RS.test ? '開' : '關');
   rsEl('rs-b-test').classList.toggle('off', !RS.test);
   rsEl('rs-ribbon').classList.toggle('show', RS.test);
+}
+// 排列方式:每排幾個卡片(0=自動依寬度)。套用後重畫目前畫面,跑馬燈會依新寬度重新量
+function rsApplyCols() { const b = rsEl('rs-board'); if (b) b.style.gridTemplateColumns = RS.cols ? 'repeat(' + RS.cols + ',minmax(0,1fr))' : ''; }
+function rsSetCols(v) {
+  RS.cols = parseInt(v, 10) || 0;
+  try { localStorage.setItem('rs_cols', String(RS.cols)); } catch (e) {}
+  if (RS.busy) { rsApplyCols(); return; }
+  if (RS.merged && RS.mi.length) rsRenderM(); else if (RS.tiers && RS.tiers.length) rsRender(); else rsApplyCols();
 }
 function rsToggleBar() {
   RS.barHidden = !RS.barHidden;
@@ -5174,6 +5187,7 @@ function rsRender() {
     cards.push(rsCardHtml(-1, p, byPrize[p], 0, byPrize[p].length + ' 位'));
   });
   rsEl('rs-board').innerHTML = cards.join('') || '<div style="padding:40px;font-size:20px;opacity:.8">這場抽獎沒有設定獎項</div>';
+  rsApplyCols();
   rsInitReels();
 }
 // 名字太長時自動縮小字體,並讓格子自動長高,避免被切掉
@@ -5617,6 +5631,7 @@ function rsRenderM() {
   const all = RS.mi.every(x => x.done), dn = RS.mi.reduce((a, x) => a + x.winners.length, 0), tt = RS.mi.reduce((a, x) => a + x.total, 0);
   rsEl('rs-prog').textContent = all ? (RS.test ? '🧪 測試完畢' : '🏆 已開獎完畢') : ((RS.test ? '🧪 測試 ' : '進度 ') + dn + ' / ' + tt);
   rsEl('rs-board').innerHTML = RS.mi.map(rsMCardHtml).join('');
+  rsApplyCols();
   rsInitReels();
 }
 function rsMPlan() {
