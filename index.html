@@ -925,7 +925,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.190</div>
+    <div class="version-tag">系統版本：v5.4.191</div>
   </div>
 
   <script>
@@ -7338,6 +7338,7 @@ function fetchScoresAndShop(discordId, callback = null) {
                 🎫 目前全場總票數(加權後)：${item.raffleTotalWeightedTickets}
                 ${item.raffleTotalWeightedTickets > 0 ? ` <span class="btn-share" onclick="showRaffleParticipants('${item.id}', '${item.name.replace(/'/g,"\\'")}')" title="查看投票名單">📋 查看名單</span>` : ''}<br>
                 🙋 我已投入：${item.raffleMyRawTickets} 張(加權後 ${item.raffleMyWeightedTickets} 張)<br>
+                ${item.raffleCanWithdraw ? `<span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0">↩️ 收回票數：<input type="number" id="rw-${safeId}" min="1" max="${item.raffleMyRawTickets}" value="1" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid #4F545C;background:#1E1F22;color:#fff"><button type="button" class="btn" style="padding:4px 10px;font-size:13px;background:#FAA61A;color:#000" onclick="raffleWithdraw('${item.id}','${item.name.replace(/'/g,"\\'")}','${safeId}',false)">收回</button><button type="button" class="btn" style="padding:4px 10px;font-size:13px;background:#4F545C" onclick="raffleWithdraw('${item.id}','${item.name.replace(/'/g,"\\'")}','${safeId}',true)">全部收回</button><span style="color:#B9BBBE;font-size:12px">投票結束前可收回,會退還當初花的貨幣</span></span><br>` : ''}
                 📊 我目前中獎機率：<b>${item.raffleOdds}%</b><br>
                 🏆 得獎名額：${item.limits.baseStock} 位
                 ${(typeof item.limits.baseStock === 'number' && item.limits.baseStock > 1) ? `<br><span style="color:#B9BBBE;font-size:12px">ℹ️ ${
@@ -8018,6 +8019,27 @@ function fetchScoresAndShop(discordId, callback = null) {
       renderCart_(); updateCartFab_();
     }
 
+    // ↩️ 抽獎:結束投票前收回/調整已投入的票(後端 raffleWithdraw → 退還當初花的貨幣)
+    let raffleWithdrawBusy_ = false;
+    async function raffleWithdraw(itemId, itemName, safeId, all) {
+      if (!currentUser || raffleWithdrawBusy_) return;
+      const inp = document.getElementById('rw-' + safeId);
+      const item = currentShopItems.find(it => it.id === itemId);
+      const mine = item ? (item.raffleMyRawTickets || 0) : 0;
+      const n = all ? mine : parseInt(inp ? inp.value : '', 10);
+      if (!n || n < 1) { alert('請輸入要收回的票數(至少 1 張)'); return; }
+      if (n > mine) { alert('你只有 ' + mine + ' 張,不能收回 ' + n + ' 張'); return; }
+      if (!confirm('確定要收回「' + itemName + '」的 ' + n + ' 張抽獎券嗎?\n會退還這些票當初花費的貨幣(依比例),收回後可以再重新投。')) return;
+      raffleWithdrawBusy_ = true;
+      try {
+        const res = await fetchWithTimeout_(`${GAS_API_URL}?action=raffleWithdraw&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&count=${all ? 'ALL' : n}&accessToken=${encodeURIComponent(getAccessToken())}`, 30000);
+        const data = await res.json();
+        if (data && data.status === 'success') { alert('✅ ' + data.message); refreshData(); }
+        else alert('❌ ' + ((data && data.message) || '收回失敗'));
+      } catch (e) {
+        alert('⚠️ 連線逾時或失敗,無法確認有沒有收回成功,請按「重整庫存」確認你的票數與餘額後再決定要不要重試。');
+      } finally { raffleWithdrawBusy_ = false; }
+    }
     function buyItem(itemId, itemName, safeId, maxQty, currencyName, unlockPasswordOverride) {
       if (!currentUser) return;
       const qtyInput = document.getElementById(`qty-${safeId}`);

@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.130</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.131</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -542,6 +542,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="ns-raffle-manual" style="width:auto">
                 手動開獎(時間到不自動開獎) <span class="hint">勾選後,「結束時間」只會擋投票(時間到就不能再買票投票),不會自動開獎,要在商品清單按「🎯 開獎控制台」才能開獎——可以隨機抽、也可以自選要開哪個獎品,一次抽1位或整批抽完都行,方便自己挑時間對著直播/語音通話開獎。留空=照舊,時間到系統自動開獎。</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" id="ns-raffle-withdraw" style="width:auto">
+                結束前可收回/調整票數 <span class="hint">勾選後,玩家在「結束投票前」可以把已投入的票收回(退還當初花的貨幣,含折抵的替代幣/額外費用,按收回張數比例退),想調整多少就收回多少再重新投。已經拿到的里程碑獎勵不會收回;功能上線前投的舊票沒有花費紀錄,會按目前單價退主要貨幣。開獎後不能收回。</span>
               </label>
             </div>
             <div class="gacha-guide" id="ns-raffle-guide" style="display:none;grid-column:span 2">
@@ -1490,6 +1494,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <input type="checkbox" id="em-raffle-manual" style="width:auto">
           手動開獎(時間到不自動開獎) <span class="hint">勾選後,「結束時間」只會擋投票(時間到就不能再買票投票),不會自動開獎,要在商品清單按「🎯 開獎控制台」才能開獎——可以隨機抽、也可以自選要開哪個獎品,一次抽1位或整批抽完都行,方便自己挑時間對著直播/語音通話開獎。留空=照舊,時間到系統自動開獎。</span>
         </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" id="em-raffle-withdraw" style="width:auto">
+                結束前可收回/調整票數 <span class="hint">勾選後,玩家在「結束投票前」可以把已投入的票收回(退還當初花的貨幣,含折抵的替代幣/額外費用,按收回張數比例退),想調整多少就收回多少再重新投。已經拿到的里程碑獎勵不會收回;功能上線前投的舊票沒有花費紀錄,會按目前單價退主要貨幣。開獎後不能收回。</span>
+              </label>
       </div>
       <div class="gacha-guide" id="em-raffle-guide" style="display:none;grid-column:span 2">
         🎰 勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池。玩家兌換 = 投票,時間到系統會自動抽出得獎者、自動發獎、自動公告(勾選「手動開獎」的話則改成要管理員自己按按鈕才會開獎)。
@@ -5037,6 +5045,7 @@ function openEditShop(itemId) {
   document.getElementById('em-raffle-notify').checked = i.raffleNotifyResult !== false;
   document.getElementById('em-raffle-repeat').value = i.raffleRepeatWinMode || 'ALLOW';
   document.getElementById('em-raffle-manual').checked = !!i.raffleManualDraw;
+  document.getElementById('em-raffle-withdraw').checked = !!i.raffleWithdraw;
   document.getElementById('em-raffle-drawn-hint').style.display = (i.isRaffle && i.raffleResult) ? '' : 'none';
   toggleRaffleFields('em');
   f('em-gambling').checked = !!i.isGambling;
@@ -5091,6 +5100,7 @@ async function saveShopItem() {
     isRaffle:document.getElementById('em-raffle').checked,raffleRoleWeights:f('em-raffle-weights'),
     raffleNotifyResult:document.getElementById('em-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('em-raffle-repeat').value,
     raffleManualDraw:document.getElementById('em-raffle-manual').checked,
+    raffleWithdraw:document.getElementById('em-raffle-withdraw').checked,
     isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
     gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
     gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked,
@@ -5430,6 +5440,7 @@ function resetAddShop() {
   renderItemOptions('ns');
   document.getElementById('ns-raffle').checked = false;
   document.getElementById('ns-raffle-manual').checked = false;
+  document.getElementById('ns-raffle-withdraw').checked = false;
   toggleRaffleFields('ns');
   document.getElementById('ns-gambling').checked = false;
   document.getElementById('ns-gambling-mode').value = 'FIXED';
@@ -5504,6 +5515,7 @@ async function submitAddShop(forceStatus) {
     isRaffle:document.getElementById('ns-raffle').checked,raffleRoleWeights:f('ns-raffle-weights'),
     raffleNotifyResult:document.getElementById('ns-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('ns-raffle-repeat').value,
     raffleManualDraw:document.getElementById('ns-raffle-manual').checked,
+    raffleWithdraw:document.getElementById('ns-raffle-withdraw').checked,
     isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
     gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked,
