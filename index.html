@@ -953,7 +953,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.204</div>
+    <div class="version-tag">系統版本：v5.4.205</div>
   </div>
 
   <script>
@@ -7070,14 +7070,14 @@ function fetchScoresAndShop(discordId, callback = null) {
     function shopLayoutMode_() {
       let m = 'auto'; try { m = localStorage.getItem('shop_layout') || 'auto'; } catch (e) {}
       const box = document.getElementById('shop-list'); const n = box ? box.querySelectorAll('.shop-item-card').length : 0;
-      if (m === 'auto') return (window.innerWidth <= 600 && n >= 7) ? '2' : '1';
+      if (m === 'auto') return (window.innerWidth <= 600 && n >= 7) ? '2' : 'def';
       return m;
     }
     function shopSetLayout_(v) { try { localStorage.setItem('shop_layout', v); } catch (e) {} shopApplyLayout_(); }
     function shopApplyLayout_() {
       const box = document.getElementById('shop-list'); if (!box) return;
       const sel = document.getElementById('shop-layout'); try { if (sel) sel.value = localStorage.getItem('shop_layout') || 'auto'; } catch (e) {}
-      const m = shopLayoutMode_(); box.classList.remove('sc-1', 'sc-2', 'sc-list'); box.classList.add('sc-' + m);
+      const m = shopLayoutMode_(); box.classList.remove('sc-1', 'sc-2', 'sc-list', 'sc-def'); box.classList.add('sc-' + m); // sc-def = 原本的自動欄數(電腦版約 3 欄)
       box.querySelectorAll('.shop-item-card').forEach((c) => {
         const compact = m === '2' || m === 'list';
         c.classList.toggle('sc-col', compact); if (!compact) { c.classList.remove('sc-open'); }
