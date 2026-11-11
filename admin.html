@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.179</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.180</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5557,7 +5557,7 @@ async function rsSwitch(id) {
   else RS.simMap[RS.id] = { sim: RS.sim, over: RS.simOver };
   RS.id = id;
   const m = RS.simMap[id]; RS.sim = m ? m.sim : []; RS.simOver = m ? m.over : false;
-  RS.realTiers = null; RS.cnt = {}; RS.sel = {}; RS.randN = 1; RS.armed = null;
+  RS.rdMode = false; RS.realTiers = null; RS.cnt = {}; RS.sel = {}; RS.randN = 1; RS.armed = null;
   rsEl('rs-board').innerHTML = '<div style="padding:40px;font-size:22px;opacity:.8">讀取中…</div>';
   rsEl('rs-bar').innerHTML = '';
   await rsRefresh(true);
@@ -5589,7 +5589,16 @@ function rsFollowSlot_(e) { const c = e.closest && e.closest('.rs-card'); return
 function rsSetSlotText_(e, n) { if (e.textContent !== n) { e.textContent = n; e.style.fontSize = rsFitSize(n); } }
 function rsSpinText_(e) { if (rsFollowSlot_(e)) return; rsSetSlotText_(e, rsRandName()); }
 function rsCardHtml(ti, prize, winners, empties, countTxt) {
-  let slots = winners.map(w => '<div class="rs-slot win"' + (rsFitSize(w.name) ? ' style="font-size:' + rsFitSize(w.name) + '"' : '') + '>' + rsEsc(w.name) + '</div>').join('');
+  const seen = {};
+  let slots = winners.map(w => {
+    let ex = '', txt = rsEsc(w.name);
+    if (RS.rdMode && RS.realWin) {
+      const key = w.discordId + '|' + w.prize; seen[key] = (seen[key] || 0) + 1;
+      let ri = -1, c = 0; RS.realWin.forEach((x, k) => { if (x.discordId === w.discordId && x.prize === w.prize && ++c === seen[key] && ri < 0) ri = k; });
+      if (ri >= 0) { ex = ' title="點一下重抽這位得獎者" style="cursor:pointer;outline:2px dashed #fde68a" onclick="rsRedraw(' + ri + ')"'; if (RS.armed === 'rd' + ri) txt = '⚠️ 再按一次確認重抽'; }
+    }
+    return '<div class="rs-slot win"' + (ex || (rsFitSize(w.name) ? ' style="font-size:' + rsFitSize(w.name) + '"' : '')) + '>' + txt + '</div>';
+  }).join('');
   for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty" title="點一下抽出這個獎項的一位" onclick="rsClickSlot(' + ti + ')">？</div>';
   return '<div class="rs-card" data-ti="' + ti + '"><div class="rs-ph">🎁 ' + rsEsc(prize) + '</div><div class="rs-pc">' + rsEsc(countTxt) + '</div><div class="rs-slots">' + slots + '</div>' +
     (empties > 0 ? rsPoolHtml(winners.map(w => w.discordId)) : '') + '</div>';
@@ -5777,12 +5786,18 @@ async function rsRoundLand(items, r) {
 // 🔄 開獎後在舞台上重抽某位得獎者(真實結果,不是測試動畫):呼叫 adminRedrawShopRaffleWinner,二段確認
 function rsRedrawPanel_() {
   if (!RS.drawnReal || !RS.realWin || !RS.realWin.length) return '';
-  return '<div class="rs-note" style="margin-top:10px">🔄 重抽得獎者(真實結果;原得獎者作廢、從票池依機率再抽一位並發獎,Discord 會公告「(重抽)」;原得獎者已拿到的獎勵不會自動收回):</div><div class="rs-acts" style="flex-wrap:wrap">' +
+  return '<div class="rs-acts" style="margin-top:10px"><button class="rs-sec" onclick="rsToggleRedraw()">' + (RS.rdMode ? '✅ 結束重抽模式' : '👆 重抽模式:直接點畫面上的得獎者') + '</button></div><div class="rs-note" style="margin-top:6px">🔄 重抽得獎者(真實結果;原得獎者作廢、從票池依機率再抽一位並發獎,Discord 會公告「(重抽)」;原得獎者已拿到的獎勵不會自動收回):</div><div class="rs-acts" style="flex-wrap:wrap">' +
     RS.realWin.map((w, i) => '<button class="rs-sec" onclick="rsRedraw(' + i + ')">' + (RS.armed === 'rd' + i ? '⚠️ 再按一次確認重抽' : '🔄 ' + rsEsc(w.prize) + ' → ' + rsEsc(w.name)) + '</button>').join('') + '</div>';
+}
+function rsToggleRedraw() {
+  if (!RS.drawnReal || !RS.realWin) return;
+  RS.rdMode = !RS.rdMode; RS.armed = null;
+  if (RS.rdMode) { RS.test = true; RS.sim = RS.realWin.map(w => ({ discordId: w.discordId, prize: w.prize })); RS.simOver = false; rsApplyTest(); rsRender(); rsRenderBar(); }
+  else { rsResetSim(); }
 }
 async function rsRedraw(i) {
   const w = RS.realWin && RS.realWin[i]; if (!w || RS.busy) return;
-  if (!rsArm('rd' + i)) return;
+  if (!rsArm('rd' + i)) { if (RS.rdMode) rsRender(); return; }
   RS.busy = true;
   try {
     const d = await api({ action: 'adminRedrawShopRaffleWinner', itemId: RS.id, index: i, expectId: w.discordId });
@@ -5793,7 +5808,8 @@ async function rsRedraw(i) {
       (r.list || []).forEach(v => { RS.nameOf[v.discordId] = v.name; });
       (r.winners || []).forEach(x => { if (x.name) RS.nameOf[x.discordId] = x.name; });
       RS.realWin = (r.winners || []).map(x => ({ discordId: x.discordId, prize: x.prize, name: x.name || RS.nameOf[x.discordId] || x.discordId }));
-      if (!RS.test) { RS.winners = RS.realWin.slice(); rsRender(); }
+      if (RS.rdMode) { RS.sim = RS.realWin.map(x => ({ discordId: x.discordId, prize: x.prize })); rsApplyTest(); }
+      rsRender();
     }
   } catch (e) { rsToast('❌ 重抽失敗', false); }
   finally { RS.busy = false; rsRenderBar(); }
