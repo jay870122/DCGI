@@ -961,7 +961,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.220</div>
+    <div class="version-tag">系統版本：v5.4.221</div>
   </div>
 
   <script>
@@ -4911,8 +4911,16 @@
     // ============================================================
     // 🎽 角色穿搭大賽:匿名作品、每賽道每人支持票(作品數×40%)+優異票(×15%,計2票),不可投自己;公布後顯示名次與分數
     let ctState_ = null, ctTrack_ = null, ctBusy_ = false;
+    // 👁 管理員用一般玩家畫面預覽(網址 ?ctPreview=1 或視窗內切換):後端照一般玩家權限回傳(入口時間/測試模式/未開放賽道都照玩家看到的)
+    let ctAsPlayer_ = false; try { ctAsPlayer_ = new URLSearchParams(location.search).get('ctPreview') === '1'; } catch (e) {}
+    const ctPreviewFromUrl_ = ctAsPlayer_;
+    function ctTogglePreview_() { ctAsPlayer_ = !ctAsPlayer_; loadContest_(); }
     async function checkContestAvailability_() {
       try { const d = await chamberCall_('contestStateWorker'); if (d && d.status === 'success' && (d.tracks || []).length) { contestAvailable = true; renderSidebar(); } } catch (e) {}
+      if (ctPreviewFromUrl_) { // 從後台按「一般玩家畫面預覽」進來 → 等確認是管理員(儀表板載完)後直接打開
+        for (let i = 0; i < 40 && !isAdminUser; i++) await new Promise((r) => setTimeout(r, 500));
+        if (isAdminUser && document.getElementById('contest-modal').style.display !== 'flex') openContest();
+      }
     }
     let ctSeed_ = Math.random().toString(36).slice(2, 10);
     async function openContest() {
@@ -4923,7 +4931,7 @@
     }
     function closeContest() { document.getElementById('contest-modal').style.display = 'none'; }
     async function loadContest_(first) {
-      const d = await chamberCall_('contestStateWorker', { seed: ctSeed_ });
+      const d = await chamberCall_('contestStateWorker', Object.assign({ seed: ctSeed_ }, (ctAsPlayer_ && isAdminUser) ? { asPlayer: '1' } : {}));
       if (!d || d.status !== 'success') { document.getElementById('ct-works').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
       ctState_ = d;
       if (!ctTrack_ || (!d.tracks.some((t) => t.id === ctTrack_) && !(ctTrack_ === '__mine' && d.mine))) ctTrack_ = d.tracks.length ? d.tracks[0].id : null;
@@ -4954,6 +4962,12 @@
         if (r && r.status === 'success') { ctPop_ = type === 'none' ? '' : work + '|' + type; await loadContest_(); }
       }).finally(() => { ctBusy_ = false; ctPop_ = ''; if (el && el.classList) el.classList.remove('busy'); });
     }
+    function ctPreviewBar_() {
+      if (!isAdminUser) return '';
+      return ctAsPlayer_
+        ? '<div style="background:rgba(254,231,92,.12);border:1px solid rgba(254,231,92,.5);border-radius:8px;padding:6px 10px;margin-bottom:8px;color:#FEE75C;display:flex;gap:8px;align-items:center;flex-wrap:wrap">👁 一般玩家畫面預覽中(只有管理員看得到這行;在這裡投票是真的投票) <button type="button" class="btn" style="padding:3px 10px;margin:0;font-size:12px;background:#4E5058" onclick="ctTogglePreview_()">結束預覽</button></div>'
+        : '<div style="margin-bottom:6px"><button type="button" class="btn" style="padding:3px 10px;margin:0;font-size:12px;background:#4E5058" onclick="ctTogglePreview_()">👁 用一般玩家畫面預覽</button> <span style="font-size:11px;color:#949BA4">(管理員才看得到)</span></div>';
+    }
     function renderContest_() {
       const d = ctState_; if (!d) return;
       const E = escapeHtml_;
@@ -4972,10 +4986,10 @@
           + '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #ffffff22;font-size:13px;color:#fff">合計:<b style="color:#F0B232">' + m.exch + '</b> ' + escapeHtml_(nm[0]) + '、<b style="color:#F0B232">' + m.lottery + '</b> ' + escapeHtml_(nm[1]) + (m.pendingTracks ? '<div style="font-size:12px;color:#949BA4;margin-top:3px">還有 ' + m.pendingTracks + ' 個賽道尚未公布,之後可能再增加(例如總排名獎)</div>' : '') + '</div></div>';
       })();
       if (ctTrack_ === '__mine') { document.getElementById('ct-info').textContent = ''; document.getElementById('ct-works').innerHTML = ''; return; }
-      if (!t) { document.getElementById('ct-info').textContent = ''; document.getElementById('ct-works').innerHTML = '<div style="color:#949BA4">目前沒有開放的賽道</div>'; return; }
+      if (!t) { document.getElementById('ct-info').innerHTML = ctPreviewBar_() + (ctAsPlayer_ && isAdminUser && !d.tracks.length ? '<div style="color:#FEE75C;margin-bottom:6px">一般玩家目前<b>看不到穿搭大賽入口</b>(入口開放時間未到、或開著測試模式)。</div>' : ''); document.getElementById('ct-works').innerHTML = '<div style="color:#949BA4">目前沒有開放的賽道</div>'; return; }
       const open = t.status === '投票中', pub = t.status === '已公布';
       const fmtT = (iso) => { const x = iso ? new Date(iso) : null; return x && !isNaN(x) ? (x.getMonth() + 1) + '/' + x.getDate() + ' ' + String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0') : ''; };
-      document.getElementById('ct-info').innerHTML = (d.testMode ? '<div style="color:#FEE75C">🧪 測試模式:只有管理員看得到這個頁面</div>' : '') + '第 ' + t.round + ' 輪 · ' + E(t.name) + (t.hidden ? '' : '(共 ' + t.works.length + ' 件作品)') + ((t.start || t.end) ? ' · 投票 ' + (fmtT(t.start) || '—') + ' ~ ' + (fmtT(t.end) || '—') : '') + (d.shuffle && !pub ? ' · 🔀 作品順序為隨機排列' : '')
+      document.getElementById('ct-info').innerHTML = ctPreviewBar_() + (d.testMode ? '<div style="color:#FEE75C">🧪 測試模式:只有管理員看得到這個頁面</div>' : '') + '第 ' + t.round + ' 輪 · ' + E(t.name) + (t.hidden ? '' : '(共 ' + t.works.length + ' 件作品)') + ((t.start || t.end) ? ' · 投票 ' + (fmtT(t.start) || '—') + ' ~ ' + (fmtT(t.end) || '—') : '') + (d.shuffle && !pub ? ' · 🔀 作品順序為隨機排列' : '')
         + (open ? '<br>🗳️ 你的票:支持票 <b style="color:#fff">' + t.used.support + ' / ' + t.limits.support + '</b>、⭐ 優異票(計 2 票)<b style="color:#fff">' + t.used.excellent + ' / ' + t.limits.excellent + '</b>。不可投自己的作品,投票期間可隨時收回改投。'
           + (d.prophetReward ? '<div style="margin-top:8px;background:rgba(240,178,50,.10);border:1px solid rgba(240,178,50,.45);border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.7;color:#DBDEE1">⭐ <b style="color:#F0B232">優異票 = 2 票</b>(支持票 = 1 票)<br>🔮 <b style="color:#F0B232">投票神預測</b>:你的優異票若投給該賽道最後獲得「優異獎」的作品(最高票,或前 10% 名額),賽道結算後可獲得 <b style="color:#fff">' + d.prophetReward.exch + ' ' + E(d.prophetReward.names[0]) + ' + ' + d.prophetReward.lottery + ' ' + E(d.prophetReward.names[1]) + '</b>' + '</div>' : '')
           : pub ? '🏆 成績已公布' : t.status === '已截止' ? '⏹️ 投票已截止,等待公布成績' : '尚未開放投票');
