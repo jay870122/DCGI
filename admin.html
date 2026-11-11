@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.131</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.132</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -546,6 +546,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
                 <input type="checkbox" id="ns-raffle-withdraw" style="width:auto">
                 結束前可收回/調整票數 <span class="hint">勾選後,玩家在「結束投票前」可以把已投入的票收回(退還當初花的貨幣,含折抵的替代幣/額外費用,按收回張數比例退),想調整多少就收回多少再重新投。已經拿到的里程碑獎勵不會收回;功能上線前投的舊票沒有花費紀錄,會按目前單價退主要貨幣。開獎後不能收回。</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" id="ns-raffle-stage" style="width:auto">
+                使用「🎬 直播開獎舞台」介面 <span class="hint">需搭配上面的「手動開獎」。勾選後商品清單的開獎按鈕會變成「🎬 直播開獎」:全螢幕乾淨畫面(可用 Discord 螢幕分享 / OBS 直播給別人看),有開獎動畫,多個獎項可以同時開獎。不勾=照舊使用簡易的「🎯 開獎控制台」。</span>
               </label>
             </div>
             <div class="gacha-guide" id="ns-raffle-guide" style="display:none;grid-column:span 2">
@@ -1498,6 +1502,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
                 <input type="checkbox" id="em-raffle-withdraw" style="width:auto">
                 結束前可收回/調整票數 <span class="hint">勾選後,玩家在「結束投票前」可以把已投入的票收回(退還當初花的貨幣,含折抵的替代幣/額外費用,按收回張數比例退),想調整多少就收回多少再重新投。已經拿到的里程碑獎勵不會收回;功能上線前投的舊票沒有花費紀錄,會按目前單價退主要貨幣。開獎後不能收回。</span>
               </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:8px">
+                <input type="checkbox" id="em-raffle-stage" style="width:auto">
+                使用「🎬 直播開獎舞台」介面 <span class="hint">需搭配上面的「手動開獎」。勾選後商品清單的開獎按鈕會變成「🎬 直播開獎」:全螢幕乾淨畫面(可用 Discord 螢幕分享 / OBS 直播給別人看),有開獎動畫,多個獎項可以同時開獎。不勾=照舊使用簡易的「🎯 開獎控制台」。</span>
+              </label>
       </div>
       <div class="gacha-guide" id="em-raffle-guide" style="display:none;grid-column:span 2">
         🎰 勾選後,上面的「結束時間」就是自動開獎時間,「獎勵數量/盲盒規則」變成開獎用的獎池。玩家兌換 = 投票,時間到系統會自動抽出得獎者、自動發獎、自動公告(勾選「手動開獎」的話則改成要管理員自己按按鈕才會開獎)。
@@ -1825,6 +1833,76 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="raffle-draw-container">讀取中...</div>
     </div>
   </div>
+</div>
+
+<!-- 🎬🆕 抽獎「直播開獎舞台」:全螢幕、乾淨畫面,可用螢幕分享/OBS 直播給別人看;多個獎項可同時開獎,有開獎動畫(可關) -->
+<style>
+.rs-overlay{position:fixed;inset:0;z-index:5000;display:none;flex-direction:column;color:#fff;font-family:inherit;
+  background:radial-gradient(ellipse at 50% 0%,#3b2a7a 0%,#1a1440 45%,#0b0a1e 100%);overflow:hidden}
+.rs-overlay.open{display:flex}
+.rs-overlay::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
+  background-image:radial-gradient(2px 2px at 20% 30%,#fff8 50%,transparent),radial-gradient(2px 2px at 70% 20%,#fff6 50%,transparent),radial-gradient(1.5px 1.5px at 40% 70%,#fff6 50%,transparent),radial-gradient(2px 2px at 85% 65%,#fff7 50%,transparent),radial-gradient(1.5px 1.5px at 10% 85%,#fff5 50%,transparent);
+  animation:rsTwinkle 4s ease-in-out infinite alternate}
+@keyframes rsTwinkle{from{opacity:.15}to{opacity:.5}}
+.rs-top{position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:14px 22px;flex-wrap:wrap}
+.rs-title{flex:1;min-width:200px;font-size:clamp(22px,3.4vw,44px);font-weight:800;letter-spacing:2px;text-shadow:0 0 24px #a78bfa88}
+.rs-prog{font-size:clamp(14px,1.6vw,20px);background:#ffffff1a;border:1px solid #ffffff33;border-radius:999px;padding:6px 16px;white-space:nowrap}
+.rs-tbtn{background:#ffffff1a;border:1px solid #ffffff33;color:#fff;border-radius:10px;padding:7px 12px;cursor:pointer;font-size:14px}
+.rs-tbtn:hover{background:#ffffff33}.rs-tbtn.off{opacity:.55}
+.rs-board{position:relative;z-index:2;flex:1;overflow:auto;padding:8px 22px 24px;display:grid;gap:18px;align-content:start;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.rs-card{background:linear-gradient(160deg,#ffffff1f,#ffffff0a);border:1px solid #ffffff2e;border-radius:20px;padding:16px 16px 14px;
+  box-shadow:0 10px 40px #0006;backdrop-filter:blur(4px)}
+.rs-card.rs-active{border-color:#fbbf24;box-shadow:0 0 0 2px #fbbf2466,0 0 40px #fbbf2455}
+.rs-ph{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:#fde68a;margin-bottom:2px;word-break:break-word}
+.rs-pc{font-size:13px;color:#c4b5fd;margin-bottom:12px}
+.rs-slots{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.rs-slot{height:clamp(54px,7vh,76px);border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 8px;
+  font-size:clamp(16px,1.9vw,24px);font-weight:700;line-height:1.15;word-break:break-all;overflow:hidden;
+  background:#0006;border:1px dashed #ffffff40;color:#ffffff66}
+.rs-slot.spin{background:linear-gradient(180deg,#312e81,#1e1b4b);border:1px solid #a78bfa;color:#e9d5ff;
+  box-shadow:inset 0 0 18px #7c3aed88,0 0 14px #7c3aed66;animation:rsShake .12s linear infinite}
+@keyframes rsShake{0%{transform:translateY(-1px)}50%{transform:translateY(1px)}100%{transform:translateY(-1px)}}
+.rs-slot.win{background:linear-gradient(160deg,#f59e0b,#ef4444);border:1px solid #fde68a;color:#fff;text-shadow:0 2px 6px #0006;box-shadow:0 0 24px #f59e0baa}
+.rs-slot.pop{animation:rsPop .7s cubic-bezier(.2,1.6,.4,1)}
+@keyframes rsPop{0%{transform:scale(.4) rotateX(90deg);opacity:0}60%{transform:scale(1.18) rotateX(0)}100%{transform:scale(1);opacity:1}}
+.rs-bar{position:relative;z-index:3;background:#0b0a1ee6;border-top:1px solid #ffffff2a;padding:12px 22px;display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto}
+.rs-bar.hide{display:none}
+.rs-tiers{display:flex;flex-wrap:wrap;gap:8px}
+.rs-tier{display:flex;align-items:center;gap:8px;background:#ffffff14;border:1px solid #ffffff2a;border-radius:12px;padding:6px 10px;font-size:14px}
+.rs-tier input[type=number]{width:60px;background:#0008;color:#fff;border:1px solid #ffffff44;border-radius:8px;padding:4px 6px;font-size:14px}
+.rs-tier input[type=checkbox]{width:auto}
+.rs-acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.rs-go{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border:0;border-radius:14px;padding:12px 26px;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 6px 24px #ef444466}
+.rs-go:disabled{opacity:.4;cursor:not-allowed}
+.rs-sec{background:#ffffff1f;color:#fff;border:1px solid #ffffff44;border-radius:12px;padding:9px 16px;font-size:15px;cursor:pointer}
+.rs-sec:disabled{opacity:.4;cursor:not-allowed}
+.rs-note{font-size:12px;color:#a5b4fc}
+.rs-float{position:absolute;right:14px;bottom:14px;z-index:4;display:none}
+.rs-float.show{display:block}
+.rs-toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);z-index:7;padding:10px 20px;border-radius:12px;font-weight:700;display:none}
+.rs-toast.show{display:block}
+.rs-banner{position:absolute;inset:0;z-index:6;display:none;align-items:center;justify-content:center;flex-direction:column;pointer-events:none;
+  font-size:clamp(40px,8vw,110px);font-weight:900;text-shadow:0 0 40px #fbbf24;animation:rsPop .9s}
+.rs-banner.show{display:flex}
+#rs-fx{position:absolute;inset:0;z-index:5;pointer-events:none;width:100%;height:100%}
+</style>
+<div class="rs-overlay" id="rs">
+  <canvas id="rs-fx"></canvas>
+  <div class="rs-banner" id="rs-banner"></div>
+  <div class="rs-toast" id="rs-toast"></div>
+  <div class="rs-top">
+    <div class="rs-title" id="rs-title">🎬 開獎</div>
+    <div class="rs-prog" id="rs-prog"></div>
+    <button class="rs-tbtn" id="rs-b-anim" onclick="rsToggle('anim')">✨ 動畫:開</button>
+    <button class="rs-tbtn" id="rs-b-snd" onclick="rsToggle('snd')">🔊 音效:開</button>
+    <button class="rs-tbtn" onclick="rsToggleBar()" title="快捷鍵 H">🙈 隱藏控制列</button>
+    <button class="rs-tbtn" onclick="rsFull()" title="快捷鍵 F">⛶ 全螢幕</button>
+    <button class="rs-tbtn" onclick="closeRaffleStage()">✕ 關閉</button>
+  </div>
+  <div class="rs-board" id="rs-board"></div>
+  <div class="rs-bar" id="rs-bar"></div>
+  <div class="rs-float" id="rs-float"><button class="rs-tbtn" onclick="rsToggleBar()">⚙ 顯示控制列(H)</button></div>
 </div>
 
 <!-- 賭博下注名單彈窗 -->
@@ -4593,7 +4671,8 @@ function renderShopTable() {
         ${i.archived ? `<button class="btn btn-edit" onclick="archiveShopOne('${i.itemId}', false)">♻️ 還原</button>` : `<button class="btn btn-edit" onclick="archiveShopOne('${i.itemId}', true)">📦 封存</button>`}
         <button class="btn btn-edit" onclick="openEditShop('${i.itemId}')">編輯</button>
         ${i.isRaffle ? `<button class="btn btn-edit" onclick="showRaffleParticipants('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看名單</button>` : ''}
-        ${i.isRaffle && !i.raffleResult && i.raffleManualDraw ? `<button class="btn btn-close" onclick="openRaffleDrawModal('${i.itemId}')">🎯 開獎控制台(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
+        ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleStage('${i.itemId}')">🎬 直播開獎(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
+        ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && !i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleDrawModal('${i.itemId}')">🎯 開獎控制台(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
         ${i.isRaffle && !i.raffleResult && !i.raffleManualDraw ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
         ${i.isGambling ? `<button class="btn btn-edit" onclick="showGamblingBets('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看下注</button>` : ''}
         ${i.isGambling && !i.gamblingResult ? `<button class="btn btn-close" onclick="openSettleGambling('${i.itemId}','${i.name.replace(/'/g,"\\'")}','${(i.gamblingOptions||'').replace(/'/g,"\\'")}')">🎲 公布結果</button>` : ''}
@@ -4856,6 +4935,326 @@ async function drawShopRaffleStep(itemId, prizeName, count) {
   }
 }
 
+// ============================================================
+// 🎬🆕 抽獎「直播開獎舞台」——全螢幕乾淨畫面,開獎動畫,多獎項可同時開(後端沿用 adminDrawShopRaffleOneSlot)
+// 直播方式:開這個畫面 → 用 Discord 螢幕分享 / OBS 視窗擷取;「隱藏控制列」後畫面只剩獎項與得獎者,觀眾看不到操作按鈕。
+// ============================================================
+const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:{}, busy:false, done:false,
+  anim:true, snd:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null };
+const rsEl = id => document.getElementById(id);
+const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const rsSleep = ms => new Promise(r => setTimeout(r, ms));
+try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; } catch (e) {}
+
+async function openRaffleStage(itemId) {
+  RS.id = itemId; RS.busy = false; RS.sel = {}; RS.cnt = {}; RS.randN = 1;
+  rsEl('rs').classList.add('open');
+  document.addEventListener('keydown', rsKey);
+  rsEl('rs-board').innerHTML = '<div style="padding:40px;font-size:22px;opacity:.8">讀取開獎資料中…</div>';
+  rsEl('rs-bar').innerHTML = '';
+  rsSyncToggles();
+  const ok = await rsRefresh(true);
+  if (!ok) closeRaffleStage();
+}
+function closeRaffleStage() {
+  if (RS.busy && !confirm('開獎進行中,確定要關閉嗎?(結果仍會寫入,重新開啟即可看到)')) return;
+  rsStopSpin();
+  rsEl('rs').classList.remove('open');
+  document.removeEventListener('keydown', rsKey);
+  if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} }
+  RS.busy = false;
+  if (typeof loadShopItems === 'function') loadShopItems();
+}
+function rsKey(e) {
+  if (!rsEl('rs').classList.contains('open')) return;
+  const t = (e.target && e.target.tagName) || '';
+  if (t === 'INPUT' || t === 'TEXTAREA') return;
+  if (e.key === 'h' || e.key === 'H') rsToggleBar();
+  else if (e.key === 'f' || e.key === 'F') rsFull();
+  else if (e.key === 'Escape' && !document.fullscreenElement) closeRaffleStage();
+  else if ((e.key === ' ' || e.key === 'Enter') && !RS.barHidden && !RS.busy && !RS.done) { e.preventDefault(); rsStartSelected(); }
+}
+function rsToggle(k) {
+  RS[k] = !RS[k];
+  try { localStorage.setItem('rs_' + k, RS[k] ? '1' : '0'); } catch (e) {}
+  rsSyncToggles();
+}
+function rsSyncToggles() {
+  rsEl('rs-b-anim').textContent = '✨ 動畫:' + (RS.anim ? '開' : '關');
+  rsEl('rs-b-anim').classList.toggle('off', !RS.anim);
+  rsEl('rs-b-snd').textContent = '🔊 音效:' + (RS.snd ? '開' : '關');
+  rsEl('rs-b-snd').classList.toggle('off', !RS.snd);
+}
+function rsToggleBar() {
+  RS.barHidden = !RS.barHidden;
+  rsEl('rs-bar').classList.toggle('hide', RS.barHidden);
+  rsEl('rs-float').classList.toggle('show', RS.barHidden);
+}
+function rsFull() {
+  const el = rsEl('rs');
+  if (document.fullscreenElement) { document.exitFullscreen(); return; }
+  if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('瀏覽器不允許全螢幕,可改用 F11', false));
+}
+
+// 重新讀取商品(獎項剩餘份數)+ 投票名單(轉盤名字 / 已開出的得獎者)
+async function rsRefresh(first) {
+  const [, d] = await Promise.all([ loadShopItems(), api({ action: 'getRaffleParticipants', itemId: RS.id }) ]);
+  const item = (typeof shopItems !== 'undefined' ? shopItems : []).find(x => x.itemId === RS.id);
+  if (!item) { toast('找不到這個商品', false); return false; }
+  if (!d || d.status !== 'success') { toast('讀取名單失敗:' + (d && d.message || ''), false); return false; }
+  RS.name = item.name; RS.total = item.stock || 1; RS.tiers = item.raffleTierStatus || [];
+  RS.voters = d.list || [];
+  RS.nameOf = {};
+  RS.voters.forEach(v => { RS.nameOf[v.discordId] = v.name; });
+  const base = d.drawn ? (d.winners || []) : (d.draftWinners || []);
+  base.forEach(w => { if (w.name) RS.nameOf[w.discordId] = w.name; });
+  RS.winners = base.map(w => ({ discordId: w.discordId, prize: w.prize, name: w.name || RS.nameOf[w.discordId] || w.discordId }));
+  RS.done = !!item.raffleResult || !!d.drawn;
+  rsRender(); rsRenderBar();
+  return true;
+}
+
+function rsToast(msg, ok) {
+  const t = rsEl('rs-toast'); if (!t) return;
+  t.textContent = msg; t.style.background = ok === false ? '#b91c1c' : '#15803d'; t.classList.add('show');
+  clearTimeout(RS._tt); RS._tt = setTimeout(() => t.classList.remove('show'), ok === false ? 6000 : 2500);
+}
+// 二段確認(直播畫面上不彈 confirm 視窗):第一下按鈕變成「再按一次確認」,4 秒內再按才真的執行
+function rsArm(key) {
+  if (RS.armed === key) { RS.armed = null; clearTimeout(RS.armT); return true; }
+  RS.armed = key; clearTimeout(RS.armT);
+  RS.armT = setTimeout(() => { RS.armed = null; if (!RS.busy) rsRenderBar(); }, 4000);
+  rsRenderBar();
+  return false;
+}
+function rsRemainTotal() { return Math.max(0, RS.total - RS.winners.length); }
+
+function rsRender() {
+  rsEl('rs-title').textContent = '🎬 ' + RS.name;
+  rsEl('rs-prog').textContent = RS.done ? '🏆 已開獎完畢' : ('進度 ' + RS.winners.length + ' / ' + RS.total);
+  const byPrize = {};
+  RS.winners.forEach(w => { (byPrize[w.prize] = byPrize[w.prize] || []).push(w); });
+  const known = new Set(RS.tiers.map(t => t.name));
+  const cards = [];
+  RS.tiers.forEach((t, ti) => {
+    const ws = byPrize[t.name] || [];
+    const empties = RS.done ? 0 : (t.remaining === null ? 0 : Math.min(t.remaining, 60));
+    cards.push(rsCardHtml(ti, t.name, ws, empties, t.totalStock === null ? '∞ 保底' : (ws.length + ' / ' + (ws.length + (t.remaining || 0)) + ' 份')));
+  });
+  Object.keys(byPrize).filter(p => !known.has(p)).forEach(p => {
+    cards.push(rsCardHtml(-1, p, byPrize[p], 0, byPrize[p].length + ' 位'));
+  });
+  rsEl('rs-board').innerHTML = cards.join('') || '<div style="padding:40px;font-size:20px;opacity:.8">這場抽獎沒有設定獎項</div>';
+}
+function rsCardHtml(ti, prize, winners, empties, countTxt) {
+  let slots = winners.map(w => '<div class="rs-slot win">' + rsEsc(w.name) + '</div>').join('');
+  for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty">？</div>';
+  return '<div class="rs-card" data-ti="' + ti + '"><div class="rs-ph">🎁 ' + rsEsc(prize) + '</div><div class="rs-pc">' + rsEsc(countTxt) + '</div><div class="rs-slots">' + slots + '</div></div>';
+}
+
+function rsRenderBar() {
+  const bar = rsEl('rs-bar');
+  if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢。可按右上「✕ 關閉」返回後台(要重抽某位得獎者請到「📋 查看名單」)。</div>'; return; }
+  const left = rsRemainTotal();
+  let h = '<div class="rs-note">整場還剩 <b>' + left + '</b> 個名額。勾選要「同時開獎」的獎項、填每項要開幾位,按 🎬 一起開(快捷鍵 空白鍵;H=隱藏控制列,F=全螢幕)。</div><div class="rs-tiers">';
+  RS.tiers.forEach((t, ti) => {
+    const rem = t.remaining;
+    if (rem !== null && rem <= 0) return;
+    if (RS.sel[ti] === undefined) RS.sel[ti] = true;
+    if (RS.cnt[ti] === undefined) RS.cnt[ti] = rem === null ? 1 : Math.min(rem, left || 1);
+    h += '<label class="rs-tier"><input type="checkbox" ' + (RS.sel[ti] ? 'checked' : '') + ' onchange="RS.sel[' + ti + ']=this.checked;rsUpdateGo()"> ' +
+      rsEsc(t.name) + ' <span class="rs-note">' + (rem === null ? '保底' : '剩' + rem) + '</span> 開 ' +
+      '<input type="number" min="1" ' + (rem === null ? '' : 'max="' + rem + '"') + ' value="' + RS.cnt[ti] + '" onchange="RS.cnt[' + ti + ']=Math.max(1,parseInt(this.value,10)||1);rsUpdateGo()"> 位</label>';
+  });
+  h += '</div><div class="rs-acts"><button class="rs-go" id="rs-go" onclick="rsStartSelected()">🎬 開獎!</button>' +
+    '<button class="rs-sec" onclick="rsSelAll(true)">全選</button><button class="rs-sec" onclick="rsSelAll(false)">全不選</button>' +
+    '<span style="flex:1"></span><span class="rs-note">不指定獎品:</span>' +
+    '<input type="number" id="rs-rand-n" min="1" max="' + left + '" value="' + Math.min(RS.randN, Math.max(1, left)) + '" style="width:64px;background:#0008;color:#fff;border:1px solid #ffffff44;border-radius:8px;padding:6px" onchange="RS.randN=Math.max(1,parseInt(this.value,10)||1)">' +
+    '<button class="rs-sec" onclick="rsStartRandom(false)">' + (RS.armed === 'rand' ? '⚠️ 再按一次確認' : '🎲 隨機抽這麼多位') + '</button><button class="rs-sec" onclick="rsStartRandom(true)">' + (RS.armed === 'randall' ? '⚠️ 再按一次確認' : '🎲 隨機全部抽完(' + left + ')') + '</button></div>';
+  bar.innerHTML = h;
+  rsUpdateGo();
+}
+function rsSelAll(v) { RS.tiers.forEach((t, ti) => { RS.sel[ti] = v; }); rsRenderBar(); }
+function rsPlan() {
+  const plan = [];
+  RS.tiers.forEach((t, ti) => {
+    if (!RS.sel[ti]) return;
+    if (t.remaining !== null && t.remaining <= 0) return;
+    let n = RS.cnt[ti] || 1;
+    if (t.remaining !== null) n = Math.min(n, t.remaining);
+    if (n > 0) plan.push({ ti, prize: t.name, count: n });
+  });
+  // 總數不可超過整場剩餘名額,依獎項順序先扣
+  let left = rsRemainTotal();
+  plan.forEach(p => { p.count = Math.min(p.count, left); left -= p.count; });
+  return plan.filter(p => p.count > 0);
+}
+function rsUpdateGo() {
+  const go = rsEl('rs-go'); if (!go) return;
+  const plan = rsPlan(), n = plan.reduce((s, p) => s + p.count, 0);
+  go.textContent = !plan.length ? '請先勾選獎項' : (RS.armed === 'go' ? ('⚠️ 再按一次確認開獎(' + n + ' 位)') : ('🎬 同時開獎!(' + plan.length + ' 項 / 共 ' + n + ' 位)'));
+  go.disabled = !plan.length || RS.busy;
+}
+
+// ---------- 轉盤 / 動畫 ----------
+function rsRandName() {
+  const v = RS.voters;
+  return v.length ? v[Math.floor(Math.random() * v.length)].name : '…';
+}
+function rsStartSpin(slotEls) {
+  rsStopSpin();
+  slotEls.forEach(s => { s.className = 'rs-slot spin'; });
+  RS.spinTimer = setInterval(() => { slotEls.forEach(s => { if (s.classList.contains('spin')) s.textContent = rsRandName(); }); }, 70);
+  RS._spinSnd = setInterval(() => rsBeep(520 + Math.random() * 300, 0.03, 0.025), 140);
+}
+function rsStopSpin() {
+  if (RS.spinTimer) clearInterval(RS.spinTimer);
+  if (RS._spinSnd) clearInterval(RS._spinSnd);
+  RS.spinTimer = null; RS._spinSnd = null;
+}
+function rsBeep(freq, dur, vol) {
+  if (!RS.snd) return;
+  try {
+    RS.audio = RS.audio || new (window.AudioContext || window.webkitAudioContext)();
+    const a = RS.audio, o = a.createOscillator(), g = a.createGain();
+    o.type = 'triangle'; o.frequency.value = freq; g.gain.value = vol || 0.05;
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + dur);
+  } catch (e) {}
+}
+function rsDing() { rsBeep(880, 0.25, 0.08); setTimeout(() => rsBeep(1320, 0.35, 0.08), 110); }
+
+// 簡易彩帶
+function rsConfetti(x, y, n) {
+  const cv = rsEl('rs-fx'); if (!cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== cv.clientWidth * dpr) { cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr; }
+  RS.fx = RS.fx || [];
+  const colors = ['#fbbf24', '#f87171', '#60a5fa', '#34d399', '#c084fc', '#fff'];
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 4 + Math.random() * 9;
+    RS.fx.push({ x: x * dpr, y: y * dpr, vx: Math.cos(a) * sp * dpr, vy: (Math.sin(a) * sp - 5) * dpr, g: 0.28 * dpr,
+      w: (5 + Math.random() * 6) * dpr, h: (3 + Math.random() * 5) * dpr, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4,
+      c: colors[i % colors.length], life: 90 + Math.random() * 50 });
+  }
+  if (!RS.fxRun) { RS.fxRun = true; requestAnimationFrame(rsFxLoop); }
+}
+function rsFxLoop() {
+  const cv = rsEl('rs-fx'), ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  RS.fx = (RS.fx || []).filter(p => p.life > 0 && p.y < cv.height + 40);
+  RS.fx.forEach(p => {
+    p.vy += p.g; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life--;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.globalAlpha = Math.min(1, p.life / 30);
+    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+  });
+  if (RS.fx.length) requestAnimationFrame(rsFxLoop); else RS.fxRun = false;
+}
+function rsBurstAt(el, n) {
+  const r = el.getBoundingClientRect();
+  rsConfetti(r.left + r.width / 2, r.top + r.height / 2, n || 36);
+}
+function rsReveal(el, name) {
+  el.className = 'rs-slot win pop';
+  el.textContent = name;
+  rsDing();
+  rsBurstAt(el, 40);
+}
+
+// ---------- 開獎流程 ----------
+async function rsStartSelected() {
+  if (RS.busy || RS.done) return;
+  const plan = rsPlan();
+  if (!plan.length) { rsToast('請先勾選要開的獎項', false); return; }
+  const total = plan.reduce((s, p) => s + p.count, 0);
+  if (!rsArm('go')) return;
+  RS.busy = true; rsUpdateGo();
+  // 1) 在對應獎項卡片上把空位換成轉盤
+  const groups = plan.map(p => {
+    const card = document.querySelector('#rs-board .rs-card[data-ti="' + p.ti + '"]');
+    const empties = card ? Array.from(card.querySelectorAll('.rs-slot.empty')).slice(0, p.count) : [];
+    if (card) card.classList.add('rs-active');
+    return { p, card, slots: empties, got: [] };
+  });
+  const allSlots = [].concat(...groups.map(g => g.slots));
+  const t0 = Date.now();
+  if (RS.anim) rsStartSpin(allSlots);
+  // 2) 依序呼叫後端(同一把鎖,必須一項一項來),結果先收集
+  let err = '';
+  for (const g of groups) {
+    const d = await api({ action: 'adminDrawShopRaffleOneSlot', itemId: RS.id, prizeName: g.p.prize, count: g.p.count });
+    if (d.status !== 'success') { err = d.message || '未知錯誤'; break; }
+    g.got = d.newWinners || [];
+    if (d.done) RS.done = true;
+  }
+  // 3) 轉盤至少轉一下,再逐輪揭曉(每一輪各獎項同時翻開)
+  if (RS.anim) { const wait = 3200 - (Date.now() - t0); if (wait > 0) await rsSleep(wait); }
+  rsStopSpin();
+  const rounds = Math.max(0, ...groups.map(g => g.got.length));
+  for (let r = 0; r < rounds; r++) {
+    groups.forEach(g => {
+      const w = g.got[r], el = g.slots[r];
+      if (!w) return;
+      const nm = RS.nameOf[w.discordId] || w.discordId;
+      if (el) rsReveal(el, nm);
+    });
+    if (RS.anim && r < rounds - 1) await rsSleep(900);
+  }
+  // 沒被抽滿的轉盤位退回空位
+  groups.forEach(g => g.slots.forEach((el, i) => { if (!g.got[i]) { el.className = 'rs-slot empty'; el.textContent = '？'; } }));
+  if (err) rsToast('❌ ' + err, false);
+  else if (total > 0) rsToast('🎉 已開獎並發獎、公告');
+  if (RS.anim) await rsSleep(900);
+  RS.busy = false;
+  await rsFinish();
+}
+async function rsStartRandom(all) {
+  if (RS.busy || RS.done) return;
+  const left = rsRemainTotal();
+  const n = all ? left : Math.min(left, Math.max(1, RS.randN));
+  if (n <= 0) return;
+  if (!rsArm(all ? 'randall' : 'rand')) return;
+  RS.busy = true; rsUpdateGo();
+  // 臨時橫幅卡片放轉盤,揭曉後顯示「誰 → 抽中什麼」
+  const board = rsEl('rs-board');
+  const tmp = document.createElement('div');
+  tmp.className = 'rs-card rs-active'; tmp.style.gridColumn = '1 / -1';
+  tmp.innerHTML = '<div class="rs-ph">🎲 隨機開獎</div><div class="rs-pc">共 ' + n + ' 位</div><div class="rs-slots">' +
+    Array.from({ length: Math.min(n, 60) }).map(() => '<div class="rs-slot empty">？</div>').join('') + '</div>';
+  board.insertBefore(tmp, board.firstChild);
+  const slots = Array.from(tmp.querySelectorAll('.rs-slot'));
+  const t0 = Date.now();
+  if (RS.anim) rsStartSpin(slots);
+  const d = await api({ action: 'adminDrawShopRaffleOneSlot', itemId: RS.id, prizeName: '', count: n });
+  if (RS.anim) { const wait = 3200 - (Date.now() - t0); if (wait > 0) await rsSleep(wait); }
+  rsStopSpin();
+  if (d.status !== 'success') { rsToast('❌ ' + (d.message || ''), false); tmp.remove(); RS.busy = false; await rsFinish(); return; }
+  if (d.done) RS.done = true;
+  const got = d.newWinners || [];
+  for (let i = 0; i < slots.length; i++) {
+    const w = got[i];
+    if (!w) { slots[i].className = 'rs-slot empty'; slots[i].textContent = '？'; continue; }
+    rsReveal(slots[i], (RS.nameOf[w.discordId] || w.discordId) + ' → ' + w.prize);
+    if (RS.anim) await rsSleep(got.length > 12 ? 250 : 700);
+  }
+  rsToast('🎉 已開獎並發獎、公告');
+  if (RS.anim) await rsSleep(1500);
+  RS.busy = false;
+  await rsFinish();
+}
+async function rsFinish() {
+  await rsRefresh();
+  document.querySelectorAll('#rs-board .rs-card').forEach(c => c.classList.remove('rs-active'));
+  if (RS.done) {
+    const b = rsEl('rs-banner');
+    b.innerHTML = '🎉 開獎完畢 🎉';
+    b.classList.add('show');
+    rsDing(); setTimeout(rsDing, 300);
+    if (RS.anim) for (let i = 0; i < 8; i++) setTimeout(() => rsConfetti(Math.random() * innerWidth, innerHeight * 0.3, 60), i * 260);
+    setTimeout(() => b.classList.remove('show'), 3500);
+  }
+}
+
 // 🌟 賭博模式:查看某個賭博商品目前每一筆下注明細(依選項分組並統計總額,方便公布結果前參考)
 async function showGamblingBets(itemId, name) {
   document.getElementById('gambling-bets-title').textContent = '🎲 下注明細：' + name;
@@ -5046,6 +5445,7 @@ function openEditShop(itemId) {
   document.getElementById('em-raffle-repeat').value = i.raffleRepeatWinMode || 'ALLOW';
   document.getElementById('em-raffle-manual').checked = !!i.raffleManualDraw;
   document.getElementById('em-raffle-withdraw').checked = !!i.raffleWithdraw;
+  document.getElementById('em-raffle-stage').checked = !!i.raffleStage;
   document.getElementById('em-raffle-drawn-hint').style.display = (i.isRaffle && i.raffleResult) ? '' : 'none';
   toggleRaffleFields('em');
   f('em-gambling').checked = !!i.isGambling;
@@ -5101,6 +5501,7 @@ async function saveShopItem() {
     raffleNotifyResult:document.getElementById('em-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('em-raffle-repeat').value,
     raffleManualDraw:document.getElementById('em-raffle-manual').checked,
     raffleWithdraw:document.getElementById('em-raffle-withdraw').checked,
+    raffleStage:document.getElementById('em-raffle-stage').checked,
     isGambling:document.getElementById('em-gambling').checked,gamblingOddsMode:f('em-gambling-mode'),
     gamblingOptions:f('em-gambling-options'),gamblingLoserRefundPercent:f('em-gambling-refund'),
     gamblingPoolLockMode:f('em-gambling-poollock'),gamblingBroadcast:document.getElementById('em-gambling-broadcast').checked,
@@ -5441,6 +5842,7 @@ function resetAddShop() {
   document.getElementById('ns-raffle').checked = false;
   document.getElementById('ns-raffle-manual').checked = false;
   document.getElementById('ns-raffle-withdraw').checked = false;
+  document.getElementById('ns-raffle-stage').checked = false;
   toggleRaffleFields('ns');
   document.getElementById('ns-gambling').checked = false;
   document.getElementById('ns-gambling-mode').value = 'FIXED';
@@ -5516,6 +5918,7 @@ async function submitAddShop(forceStatus) {
     raffleNotifyResult:document.getElementById('ns-raffle-notify').checked,raffleRepeatWinMode:document.getElementById('ns-raffle-repeat').value,
     raffleManualDraw:document.getElementById('ns-raffle-manual').checked,
     raffleWithdraw:document.getElementById('ns-raffle-withdraw').checked,
+    raffleStage:document.getElementById('ns-raffle-stage').checked,
     isGambling:document.getElementById('ns-gambling').checked,gamblingOddsMode:f('ns-gambling-mode'),
     gamblingOptions:f('ns-gambling-options'),gamblingLoserRefundPercent:f('ns-gambling-refund'),
     gamblingPoolLockMode:f('ns-gambling-poollock'),gamblingBroadcast:document.getElementById('ns-gambling-broadcast').checked,
