@@ -82,7 +82,7 @@
     .info-card .ic-title { font-weight: bold; font-size: 15px; color: #fff; margin-bottom: 6px; }
     .info-card .ic-sec + .ic-sec { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #4E5058; }
     .info-card b, .info-card strong { color: inherit; }
-    .info-card img { max-width: 100%; max-height: min(360px, 55vh); width: auto; height: auto; object-fit: contain; cursor: zoom-in; } /* 🌟 資訊卡圖片自動限高(點圖可放大看原圖) */
+    .info-card img { max-width: 100%; max-height: var(--ic-imgh, min(360px, 55vh)); width: auto; height: auto; object-fit: contain; cursor: zoom-in; } /* 🌟 資訊卡圖片自動限高(點圖可放大看原圖) */
     .ic-cm { margin-top: 10px; }
     .ic-cm-btn { background: #3F4147; color: #DBDEE1; border: 0; border-radius: 6px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
     .ic-cm-btn:hover { background: #4E5058; }
@@ -956,7 +956,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.209</div>
+    <div class="version-tag">系統版本：v5.4.210</div>
   </div>
 
   <script>
@@ -1033,7 +1033,7 @@
       });
       if (!out.length) return '';
       // 資訊卡直接當成商品網格裡的一格(跟商品卡同一排:商品、文字、商品…),實際跨幾欄由 layoutInfoCards_ 依目前欄數換算
-      return out.map((g) => { const sz = Math.min(6, Math.max(1, parseInt(g[0].size, 10) || 6)); return '<div class="info-card ic-s' + sz + '" data-ics="' + sz + '" style="grid-column:1/-1">' + g.map((c) => '<div class="ic-sec">' + (c.title ? '<div class="ic-title">' + esc(c.title) + '</div>' : '') + '<div>' + infoMd_(c.text) + '</div>' + (c.cmOpen ? '<div class="ic-cm"><button type="button" class="ic-cm-btn" data-id="' + esc(c.id).replace(/"/g, '&quot;') + '" onclick="icCmToggle_(this.dataset.id)">💬 留言' + (c.cmCount > 0 ? '<span class="ic-cm-badge">' + c.cmCount + '</span>' : '') + '</button><div class="ic-cm-box" data-id="' + esc(c.id).replace(/"/g, '&quot;') + '" style="display:none"></div></div>' : '') + '</div>').join('') + '</div>'; }).join('');
+      return out.map((g) => { const sz = Math.min(6, Math.max(1, parseInt(g[0].size, 10) || 6)); return '<div class="info-card ic-s' + sz + '" data-ics="' + sz + '" style="grid-column:1/-1">' + g.map((c) => '<div class="ic-sec"' + (c.imgMax === null || c.imgMax === undefined ? '' : ' style="--ic-imgh:' + (c.imgMax > 0 ? c.imgMax + 'px' : 'none') + '"') + '>' + (c.title ? '<div class="ic-title">' + esc(c.title) + '</div>' : '') + '<div>' + infoMd_(c.text) + '</div>' + (c.cmOpen ? '<div class="ic-cm"><button type="button" class="ic-cm-btn" data-id="' + esc(c.id).replace(/"/g, '&quot;') + '" onclick="icCmToggle_(this.dataset.id)">💬 留言' + (c.cmCount > 0 ? '<span class="ic-cm-badge">' + c.cmCount + '</span>' : '') + '</button><div class="ic-cm-box" data-id="' + esc(c.id).replace(/"/g, '&quot;') + '" style="display:none"></div></div>' : '') + '</div>').join('') + '</div>'; }).join('');
     }
     // size(1~6,代表佔一整行的幾/6)→ 換算成目前網格欄數的跨欄數;6=整行,其餘至少 1 欄
     function layoutInfoCards_() {
