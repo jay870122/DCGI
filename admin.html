@@ -74,7 +74,7 @@ th{background:var(--s2);color:var(--mu);font-size:12px;font-weight:700;text-tran
 td{padding:10px 14px;border-bottom:1px solid rgba(79,84,92,0.4);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,0.02)}
-.cell-name{font-weight:600;color:var(--t);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell-name{font-weight:600;color:var(--t);max-width:300px;white-space:normal;word-break:break-word;line-height:1.4}
 .cell-id{font-family:monospace;font-size:12px;color:var(--mu)}
 /* 🌟🔧 批次使用道具(例如一次300張)的「抽獎結果」會把每一張的結果都串成一整串文字塞進同一格,
 不限高的話整列會被撐成好幾百行,表格整個歪掉、很難看也很難用。限制這格最多顯示150px高度,
@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.176</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.177</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
