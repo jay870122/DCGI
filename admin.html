@@ -109,7 +109,7 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 /* modal */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
 .overlay.open{display:flex}
-.ic-prev img{max-width:100% !important;height:auto !important;box-sizing:border-box}
+.ic-prev img{max-width:100% !important;height:auto !important;box-sizing:border-box;max-height:var(--ic-imgh,min(360px,55vh)) !important;object-fit:contain}
 .modal{background:var(--s);border:1px solid var(--bd);border-radius:12px;width:100%;max-width:700px;margin:auto}
 .modal.as-page{max-width:1200px!important;width:100%;margin:0 0 24px 0}
 .modal.as-page .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px 20px;padding:20px 24px}
@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.175</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.176</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4293,8 +4293,27 @@ function icDomToMd_(root) {
   md = md.replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
   return md;
 }
+function icImgH_(row, v) {
+  if (!row) return; const num = row.querySelector('.ic-imgh'), rg = row.querySelector('.ic-imgh-r'), pv = row.querySelector('.ic-prev'); v = (v === '' || v === null || v === undefined) ? '' : Math.max(0, parseInt(v, 10) || 0);
+  if (num && num.value !== String(v)) num.value = v; if (rg && v !== '' && v > 0) rg.value = Math.min(800, Math.max(40, v));
+  if (pv) { if (v === '') pv.style.removeProperty('--ic-imgh'); else pv.style.setProperty('--ic-imgh', v > 0 ? v + 'px' : 'none'); }
+}
+// 預覽裡拖圖片下緣 = 調整圖片最高高度(寫回「圖片最高」欄)
+(function () {
+  let drag = null;
+  document.addEventListener('mousemove', (e) => {
+    if (drag) { const h = Math.max(40, Math.min(1200, Math.round((drag.h0 + e.clientY - drag.y0) / 10) * 10)); icImgH_(drag.row, h); e.preventDefault(); return; }
+    const im = e.target && e.target.closest && e.target.closest('.ic-prev img'); if (!im) return;
+    const r = im.getBoundingClientRect(); im.style.cursor = (e.clientY > r.bottom - 14) ? 'ns-resize' : '';
+  });
+  document.addEventListener('mousedown', (e) => {
+    const im = e.target && e.target.closest && e.target.closest('.ic-prev img'); if (!im) return; const r = im.getBoundingClientRect(); if (e.clientY <= r.bottom - 14) return;
+    drag = { row: im.closest('.ic-row'), y0: e.clientY, h0: r.height }; e.preventDefault();
+  });
+  document.addEventListener('mouseup', () => { drag = null; });
+})();
 function icSyncFromWys_(row) { row.querySelector('.ic-text').value = icDomToMd_(row.querySelector('.ic-prev')); }
-function icRenderWys_(row) { row.querySelector('.ic-prev').innerHTML = infoMd_(row.querySelector('.ic-text').value) || '<div><br></div>'; }
+function icRenderWys_(row) { row.querySelector('.ic-prev').innerHTML = infoMd_(row.querySelector('.ic-text').value) || '<div><br></div>'; const n = row.querySelector('.ic-imgh'); if (n && n.value !== '') icImgH_(row, n.value); }
 function icOnInput_(row, ev) {
   const t = ev.target;
   if (t.classList.contains('ic-prev')) icSyncFromWys_(row);
@@ -4385,7 +4404,7 @@ function icAddRow_(c) {
     + '<div class="field"><label>分類 <span class="hint">留空=每個分類都顯示</span></label><input class="ic-cat" list="sc-list" value="' + icEsc_(c.category) + '"></div>'
     + '<div class="field"><label>狀態</label><select class="ic-show"><option value="true"' + (c.show === false ? '' : ' selected') + '>🟢 顯示</option><option value="false"' + (c.show === false ? ' selected' : '') + '>🙈 隱藏(玩家看不到)</option></select></div>'
     + '<div class="field"><label>寬度 <span class="hint">共 6 格,6=整行</span></label><select class="ic-size">' + sizeOpts + '</select></div>'
-    + '<div class="field"><label>圖片最高 <span class="hint">px;空=自動(約360)、0=不限制</span></label><input class="ic-imgh" type="number" min="0" step="10" placeholder="自動" value="' + (c.imgMax === null || c.imgMax === undefined ? '' : c.imgMax) + '"></div>'
+    + '<div class="field"><label>圖片最高 <span class="hint">px;空=自動(約360)、0=不限制。可拖動滑桿,或在上方預覽裡拖圖片「下緣」</span></label><div style="display:flex;gap:8px;align-items:center"><input class="ic-imgh" type="number" min="0" step="10" placeholder="自動" style="width:90px" oninput="icImgH_(this.closest(\'.ic-row\'),this.value)" value="' + (c.imgMax === null || c.imgMax === undefined ? '' : c.imgMax) + '"><input class="ic-imgh-r" type="range" min="40" max="800" step="10" style="flex:1" value="' + (c.imgMax ? Math.min(800, Math.max(40, c.imgMax)) : 360) + '" oninput="icImgH_(this.closest(\'.ic-row\'),this.value)"></div></div>'
     + '<div class="field"><label>排序 <span class="hint">同位置多張時,數字小的在前</span></label><input class="ic-order" type="number" value="' + (c.order || '') + '"></div>'
     + '<div class="field full"><label>合併群組 <span class="hint">相同代號的卡片會合成同一張卡(各自標題/內文上下排列);留空=單獨一張</span></label><input class="ic-group" list="ic-grp-list" placeholder="例:g1(不用合併就留空)" value="' + icEsc_(c.group) + '"></div>'
     + '<div class="field full"><label>💬 留言 <span class="hint">勾選後,玩家可以在這張卡片下方公開留言/回覆(所有人看得到,管理員可刪除任何留言)</span></label>'
