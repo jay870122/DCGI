@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.177</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.178</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5080,6 +5080,7 @@ function renderShopTable() {
         ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleStage('${i.itemId}')">🎬 直播開獎(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
         ${i.isRaffle && (i.raffleResult || !(i.raffleManualDraw && i.raffleStage)) ? `<button class="btn btn-edit" onclick="openRaffleStage('${i.itemId}', true)">🧪 開獎動畫(測試)</button>` : ''}
         ${i.isRaffle && !i.raffleResult && i.raffleManualDraw && !i.raffleStage ? `<button class="btn btn-close" onclick="openRaffleDrawModal('${i.itemId}')">🎯 開獎控制台(${i.raffleDrawnCount||0}/${i.stock||1})</button>` : ''}
+        ${i.isRaffle && !i.raffleResult ? `<button class="btn btn-close" onclick="clearRaffleTickets('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🧹 清除名單</button>` : ''}
         ${i.isRaffle && !i.raffleResult && !i.raffleManualDraw ? `<button class="btn btn-close" onclick="drawShopRaffleNow('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">🎲 立即開獎</button>` : ''}
         ${i.isGambling ? `<button class="btn btn-edit" onclick="showGamblingBets('${i.itemId}','${i.name.replace(/'/g,"\\'")}')">📋 查看下注</button>` : ''}
         ${i.isGambling && !i.gamblingResult ? `<button class="btn btn-close" onclick="openSettleGambling('${i.itemId}','${i.name.replace(/'/g,"\\'")}','${(i.gamblingOptions||'').replace(/'/g,"\\'")}')">🎲 公布結果</button>` : ''}
@@ -5287,6 +5288,15 @@ async function showRaffleParticipants(itemId, name) {
       </table>`;
   }
   box.innerHTML = html;
+}
+
+// 🧹 清除抽獎名單(未開獎前):刪掉所有人的票並退還各自花的貨幣
+async function clearRaffleTickets(itemId, name) {
+  if (!confirm(`確定要清除「${name}」的整個抽獎名單嗎？\n所有人投入的票會被清掉,花掉的貨幣會全額退還給玩家(此動作無法復原)。`)) return;
+  if (!confirm('再確認一次：真的要清除並退還嗎？')) return;
+  const d = await api({action:'adminClearRaffleTickets', itemId});
+  if (d.status==='success') { toast('🧹 ' + d.message); loadShopItems(); }
+  else toast('❌ '+d.message, false);
 }
 
 // 🌟 抽獎商品:管理員手動立即開獎(不用等時間到,方便測試或臨時提前開獎)
