@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.180</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.181</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5797,20 +5797,32 @@ function rsToggleRedraw() {
 }
 async function rsRedraw(i) {
   const w = RS.realWin && RS.realWin[i]; if (!w || RS.busy) return;
+  if (!RS.rdMode) { rsToggleRedraw(); } // 先切到重抽模式,卡片上才有格子可以播動畫
   if (!rsArm('rd' + i)) { if (RS.rdMode) rsRender(); return; }
   RS.busy = true;
   try {
-    const d = await api({ action: 'adminRedrawShopRaffleWinner', itemId: RS.id, index: i, expectId: w.discordId });
+    const d = await api({ action: 'adminRedrawShopRaffleWinner', itemId: RS.id, index: i, expectId: w.discordId, defer: 'TRUE' });
     if (!d || d.status !== 'success') { rsToast('❌ ' + (d && d.message || '重抽失敗'), false); return; }
-    rsToast('🔄 已重抽,新得獎者已發獎');
     const r = await api({ action: 'getRaffleParticipants', itemId: RS.id });
     if (r && r.status === 'success' && r.drawn) {
       (r.list || []).forEach(v => { RS.nameOf[v.discordId] = v.name; });
       (r.winners || []).forEach(x => { if (x.name) RS.nameOf[x.discordId] = x.name; });
       RS.realWin = (r.winners || []).map(x => ({ discordId: x.discordId, prize: x.prize, name: x.name || RS.nameOf[x.discordId] || x.discordId }));
-      if (RS.rdMode) { RS.sim = RS.realWin.map(x => ({ discordId: x.discordId, prize: x.prize })); rsApplyTest(); }
-      rsRender();
     }
+    const nw = RS.realWin[i], newName = (nw && nw.name) || RS.nameOf[d.newId] || d.newId || '?';
+    const el = RS.anim ? document.querySelector('#rs-board .rs-slot.win[onclick="rsRedraw(' + i + ')"]') : null;
+    if (el) {
+      const cyc = setInterval(() => { rsSetSlotText_(el, rsRandName()); }, 70);
+      el.className = 'rs-slot spin'; el.removeAttribute('onclick'); el.style.outline = ''; el.style.cursor = '';
+      const tick = setInterval(() => { if (RS.snd) { try { rsBeep(1000, 0.02, 0.05); } catch (e) {} } }, 140);
+      await rsSleep(3200); clearInterval(cyc); clearInterval(tick);
+      rsReveal(el, newName, null, null);
+      await rsSleep(1500);
+    }
+    if (d.deferred) { const ok = await rsRelease(RS.id); rsToast(ok ? '🔄 已重抽,新得獎者已發獎並公告' : '⚠️ 已重抽,但公告沒送出(重開舞台會自動補送)', ok); }
+    else rsToast('🔄 已重抽,新得獎者已發獎');
+    RS.sim = RS.realWin.map(x => ({ discordId: x.discordId, prize: x.prize })); rsApplyTest();
+    rsRender();
   } catch (e) { rsToast('❌ 重抽失敗', false); }
   finally { RS.busy = false; rsRenderBar(); }
 }
