@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.138</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.139</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1860,6 +1860,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-slot{height:clamp(54px,7vh,76px);border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 8px;
   font-size:clamp(16px,1.9vw,24px);font-weight:700;line-height:1.15;word-break:break-all;overflow:hidden;
   background:#0006;border:1px dashed #ffffff40;color:#ffffff66}
+.rs-slot.empty[onclick]{cursor:pointer;transition:all .15s}
+.rs-slot.empty[onclick]:hover{border-color:#fbbf24;color:#fde68a;background:#fbbf2422;transform:translateY(-2px)}
 .rs-slot.spin{background:linear-gradient(180deg,#312e81,#1e1b4b);border:1px solid #a78bfa;color:#e9d5ff;
   box-shadow:inset 0 0 18px #7c3aed88,0 0 14px #7c3aed66;animation:rsShake .12s linear infinite}
 @keyframes rsShake{0%{transform:translateY(-1px)}50%{transform:translateY(1px)}100%{transform:translateY(-1px)}}
@@ -5131,7 +5133,7 @@ function rsRender() {
 }
 function rsCardHtml(ti, prize, winners, empties, countTxt) {
   let slots = winners.map(w => '<div class="rs-slot win">' + rsEsc(w.name) + '</div>').join('');
-  for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty">？</div>';
+  for (let i = 0; i < empties; i++) slots += '<div class="rs-slot empty" title="點一下抽出這個獎項的一位" onclick="rsClickSlot(' + ti + ')">？</div>';
   return '<div class="rs-card" data-ti="' + ti + '"><div class="rs-ph">🎁 ' + rsEsc(prize) + '</div><div class="rs-pc">' + rsEsc(countTxt) + '</div><div class="rs-slots">' + slots + '</div>' +
     (empties > 0 ? rsPoolHtml(winners.map(w => w.discordId)) : '') + '</div>';
 }
@@ -5259,7 +5261,7 @@ function rsRenderBar() {
   if (RS.done && RS.test) { bar.innerHTML = '<div class="rs-note">🧪 測試結束(沒有發獎、沒有發 Discord 公告、沒有寫入)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsResetSim()">🔁 重新測試</button>' + (RS.drawnReal ? '' : '<button class="rs-sec" onclick="rsToggleTest()">離開測試模式</button>') + '</div>'; return; }
   if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢。可按右上「✕ 關閉」返回後台(要重抽某位得獎者請到「📋 查看名單」)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsToggleTest()">🧪 用測試模式再看一次動畫</button></div>'; return; }
   const left = rsRemainTotal();
-  let h = '<div class="rs-note">整場還剩 <b>' + left + '</b> 個名額。勾選要「同時開獎」的獎項、填每項要開幾位,按 🎬 一起開(快捷鍵 空白鍵;H=隱藏控制列,F=全螢幕)。</div><div class="rs-tiers">';
+  let h = '<div class="rs-note">整場還剩 <b>' + left + '</b> 個名額。勾選要「同時開獎」的獎項、填每項要開幾位,按 🎬 一起開(快捷鍵 空白鍵;H=隱藏控制列,F=全螢幕)。也可以直接點卡片上的「？」,點一個抽一個。</div><div class="rs-tiers">';
   RS.tiers.forEach((t, ti) => {
     const rem = t.remaining;
     if (rem !== null && rem <= 0) return;
@@ -5278,6 +5280,12 @@ function rsRenderBar() {
   rsUpdateGo();
 }
 function rsSelAll(v) { RS.tiers.forEach((t, ti) => { RS.sel[ti] = v; }); rsRenderBar(); }
+// 直接點卡片上的「？」空位 = 這個獎項抽一位(一次一個,不用二段確認)
+function rsClickSlot(ti) {
+  if (RS.busy || RS.done || ti < 0) return;
+  const t = RS.tiers[ti]; if (!t || (t.remaining !== null && t.remaining <= 0) || rsRemainTotal() <= 0) return;
+  rsStartSelected([{ ti, prize: t.name, count: 1 }]);
+}
 function rsPlan() {
   const plan = [];
   RS.tiers.forEach((t, ti) => {
@@ -5380,12 +5388,12 @@ function rsReveal(el, name, pool, id) {
 }
 
 // ---------- 開獎流程 ----------
-async function rsStartSelected() {
+async function rsStartSelected(planOverride) {
   if (RS.busy || RS.done) return;
-  const plan = rsPlan();
+  const plan = planOverride || rsPlan();
   if (!plan.length) { rsToast('請先勾選要開的獎項', false); return; }
   const total = plan.reduce((s, p) => s + p.count, 0);
-  if (!rsArm('go')) return;
+  if (!planOverride && !rsArm('go')) return;
   RS.busy = true; rsUpdateGo();
   // 1) 在對應獎項卡片上把空位換成轉盤
   const groups = plan.map(p => {
