@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.156</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.157</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4577,17 +4577,19 @@ async function deleteCraftRecipe(idx) {
 // ── Shop ──
 async function loadShopItems() {
   document.getElementById('shop-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
+  // 🌟🔧 速度:商品清單 / 封存名單 / 資訊卡原本是三個 await 排隊串行(三趟來回疊加),改成同時送出,總時間=最慢的那一個
+  const pArch = stockAdminCall_('adminShopArchiveListWorker').catch(() => null), pIc = stockAdminCall_('adminInfoCardsListWorker').catch(() => null);
   const d = await apiWorkerRead('adminShopItems', {}, {action:'adminGetShopItems'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   shopItems = d.items;
   // 📦 封存區:封存名單存在 Worker(商品封存分頁),封存的商品一定是草稿(玩家看不到),列表預設不顯示,要選「📦 封存區」才看得到
-  try { const ar = await stockAdminCall_('adminShopArchiveListWorker'); const set = new Set((ar && ar.status === 'success' ? ar.ids : []).map(String)); shopItems.forEach(i => { i.archived = set.has(String(i.itemId)) && i.status === 'DRAFT'; }); } catch (e) {}
+  try { const ar = await pArch; const set = new Set((ar && ar.status === 'success' ? ar.ids : []).map(String)); shopItems.forEach(i => { i.archived = set.has(String(i.itemId)) && i.status === 'DRAFT'; }); } catch (e) {}
   // 🌟🔧 分類下拉選單每次載入商品都依「目前真的有的商品」重建(原本只在登入時抓一次,後來新增的分類要重新登入才會出現)
   try {
     const sc = document.getElementById('sc-list');
     if (sc) { const have = Array.from(sc.children).map(o => o.value); shopItems.forEach(i => { const c = (i.category || '').toString().trim(); if (c && have.indexOf(c) === -1) { have.push(c); const o = document.createElement('option'); o.value = c; sc.appendChild(o); } }); }
   } catch (e) {}
-  try { const ic = await stockAdminCall_('adminInfoCardsListWorker'); icAll_ = (ic && ic.status === 'success') ? (ic.cards || []) : []; } catch (e) {}
+  try { const ic = await pIc; icAll_ = (ic && ic.status === 'success') ? (ic.cards || []) : []; } catch (e) {}
   rebuildShopCats_();
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   renderShopTable();
