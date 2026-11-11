@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.181</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.182</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5302,8 +5302,12 @@ async function clearRaffleTickets(itemId, name) {
 // 🌟 抽獎商品:管理員手動立即開獎(不用等時間到,方便測試或臨時提前開獎)
 async function drawShopRaffleNow(itemId, name) {
   if (!confirm(`確定要立即開獎「${name}」嗎？不會等到原本設定的結束時間,會馬上依目前已投入的票數開獎(此動作無法復原)。`)) return;
-  const d = await api({action:'adminDrawShopRaffleNow', itemId});
-  if (d.status==='success') { toast('🎲 已執行開獎!'); loadShopItems(); }
+  let d = await api({action:'adminDrawShopRaffleNow', itemId});
+  if (d.status==='noVotes') {
+    if (!confirm('這場抽獎目前沒有人投票,視為無效抽獎,不會開獎,時間到了也會繼續開放投票直到有人投票。\n\n要直接「關閉(作廢)」這場抽獎嗎?(關閉後無法再投票)')) { toast('⏳ 維持開放,等有人投票再開獎', true); return; }
+    d = await api({action:'adminDrawShopRaffleNow', itemId, voidClose:'TRUE'});
+  }
+  if (d.status==='success') { toast(d.message || '🎲 已執行開獎!'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
 
