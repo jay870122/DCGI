@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.144</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.145</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -345,8 +345,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <button class="btn btn-edit" onclick="batchSetShopStatus('DRAFT')">📥 下架</button>
           <button class="btn btn-edit" onclick="batchArchiveShop(true)">📦 封存</button>
           <button class="btn btn-edit" onclick="batchArchiveShop(false)">♻️ 從封存區還原</button>
-          <button class="btn btn-close" onclick="batchOpenStage(false)" title="只能勾選 1 個抽獎商品">🎬 直播開獎舞台</button>
-          <button class="btn btn-edit" onclick="batchOpenStage(true)" title="只能勾選 1 個抽獎商品;只看動畫,不發獎、不發 Discord 公告">🧪 測試開獎</button>
+          <button class="btn btn-close" onclick="batchOpenStage(false)" title="可勾選多個抽獎商品,舞台上方會出現分頁依序處理">🎬 直播開獎舞台</button>
+          <button class="btn btn-edit" onclick="batchOpenStage(true)" title="可勾選多個抽獎商品;只看動畫,不發獎、不發 Discord 公告">🧪 測試開獎</button>
           <button class="btn btn-close" onclick="batchDrawShopRaffles()">🎰 開獎(僅限抽獎商品)</button>
           <button class="btn btn-edit" onclick="batchMoveShopSort('top')">⬆️ 移到最前</button>
           <button class="btn btn-edit" onclick="batchMoveShopSort('bottom')">⬇️ 移到最後</button>
@@ -1851,6 +1851,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 .rs-prog{font-size:clamp(14px,1.6vw,20px);background:#ffffff1a;border:1px solid #ffffff33;border-radius:999px;padding:6px 16px;white-space:nowrap}
 .rs-tbtn{background:#ffffff1a;border:1px solid #ffffff33;color:#fff;border-radius:10px;padding:6px 9px;cursor:pointer;font-size:13px}
 .rs-tbtn:hover{background:#ffffff33}.rs-tbtn.off{opacity:.55}
+.rs-tabs{position:relative;z-index:2;display:none;gap:8px;padding:0 22px 6px;overflow-x:auto}
+.rs-tabs.show{display:flex}
+.rs-tab{flex:0 0 auto;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#ffffff14;border:1px solid #ffffff33;color:#ddd6fe;border-radius:10px;padding:6px 14px;cursor:pointer;font-size:14px}
+.rs-tab:hover{background:#ffffff26}
+.rs-tab.on{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border-color:#fde68a;font-weight:800}
 .rs-board{position:relative;z-index:2;flex:1;overflow:auto;padding:8px 22px 24px;display:grid;gap:18px;align-content:start;
   grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
 .rs-card{background:linear-gradient(160deg,#ffffff1f,#ffffff0a);border:1px solid #ffffff2e;border-radius:20px;padding:16px 16px 14px;
@@ -1922,6 +1927,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <button class="rs-tbtn" onclick="rsFull()" title="快捷鍵 F">⛶ 全螢幕</button>
     <button class="rs-tbtn" onclick="closeRaffleStage()">✕ 關閉</button>
   </div>
+  <div class="rs-tabs" id="rs-tabs"></div>
   <div class="rs-board" id="rs-board"></div>
   <div class="rs-bar" id="rs-bar"></div>
   <div class="rs-float" id="rs-float"><button class="rs-tbtn" onclick="rsToggleBar()">⚙ 顯示控制列(H)</button></div>
@@ -4785,8 +4791,8 @@ async function archiveShopOne(id, archive) {
 // 批次工具列:對「已勾選的 1 個抽獎商品」開直播開獎舞台 / 測試開獎(舞台一次只處理一個商品)
 function batchOpenStage(test) {
   const picked = shopItems.filter(i => shopSelectedIds.has(i.itemId) && i.isRaffle);
-  if (picked.length !== 1) { toast('請只勾選 1 個抽獎商品(目前勾到 ' + picked.length + ' 個抽獎商品)', false); return; }
-  openRaffleStage(picked[0].itemId, !!test || !!picked[0].raffleResult);
+  if (picked.length === 0) { toast('請先勾選至少 1 個抽獎商品', false); return; }
+  openRaffleStage(picked[0].itemId, !!test || !!picked[0].raffleResult, picked.map(i => i.itemId)); // 勾多個 → 舞台上方出現商品分頁,依序處理
 }
 async function batchDrawShopRaffles() {
   if (shopSelectedIds.size === 0) return;
@@ -4969,13 +4975,14 @@ async function drawShopRaffleStep(itemId, prizeName, count) {
 // 直播方式:開這個畫面 → 用 Discord 螢幕分享 / OBS 視窗擷取;「隱藏控制列」後畫面只剩獎項與得獎者,觀眾看不到操作按鈕。
 // ============================================================
 const RS = { id:null, name:'', total:1, tiers:[], winners:[], voters:[], nameOf:{}, busy:false, done:false,
-  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[], test:false, sim:[], simOver:false, realTiers:null, drawnReal:false, mode:'ALLOW' };
+  anim:true, snd:true, pool:true, barHidden:false, sel:{}, cnt:{}, randN:1, spinTimer:null, audio:null, reels:[], entries:[], queue:[], simMap:{}, testPref:false, test:false, sim:[], simOver:false, realTiers:null, drawnReal:false, mode:'ALLOW' };
 const rsEl = id => document.getElementById(id);
 const rsEsc = v => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const rsSleep = ms => new Promise(r => setTimeout(r, ms));
 try { RS.anim = localStorage.getItem('rs_anim') !== '0'; RS.snd = localStorage.getItem('rs_snd') !== '0'; RS.pool = localStorage.getItem('rs_pool') !== '0'; } catch (e) {}
 
-async function openRaffleStage(itemId, forceTest) {
+async function openRaffleStage(itemId, forceTest, queueIds) {
+  RS.queue = (queueIds && queueIds.length > 1) ? queueIds.slice() : []; RS.simMap = {}; RS.testPref = !!forceTest;
   RS.id = itemId; RS.busy = false; RS.test = !!forceTest; RS.sim = []; RS.simOver = false; RS.realTiers = null; RS.sel = {}; RS.cnt = {}; RS.randN = 1;
   rsEl('rs').classList.add('open');
   document.addEventListener('keydown', rsKey);
@@ -4992,7 +4999,7 @@ function closeRaffleStage() {
   rsEl('rs').classList.remove('open');
   document.removeEventListener('keydown', rsKey);
   if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} }
-  RS.busy = false; RS.test = false; RS.sim = [];
+  RS.busy = false; RS.test = false; RS.sim = []; RS.queue = []; RS.simMap = {};
   if (typeof loadShopItems === 'function') loadShopItems();
 }
 function rsKey(e) {
@@ -5050,7 +5057,7 @@ async function rsRefresh(first) {
   RS.winners = base.map(w => ({ discordId: w.discordId, prize: w.prize, name: w.name || RS.nameOf[w.discordId] || w.discordId }));
   RS.done = !!item.raffleResult || !!d.drawn;
   RS.drawnReal = RS.done;
-  if (RS.drawnReal && first) RS.test = true; // 已經開獎的場次只能用測試模式看動畫
+  if (first) RS.test = RS.testPref || RS.drawnReal; // 已經開獎的場次只能用測試模式看動畫
   if (RS.test) rsApplyTest();
   rsSyncToggles();
   rsRender(); rsRenderBar();
@@ -5080,7 +5087,7 @@ function rsApplyTest() {
 async function rsToggleTest() {
   if (RS.busy) return;
   if (RS.test && RS.drawnReal) { rsToast('這場已經開獎,只能用測試模式看動畫', false); return; }
-  RS.test = !RS.test; RS.sim = []; RS.simOver = false;
+  RS.test = !RS.test; RS.testPref = RS.test; RS.sim = []; RS.simOver = false;
   rsSyncToggles();
   await rsRefresh(true);
 }
@@ -5121,7 +5128,30 @@ async function rsDraw(prizeName, count) {
 }
 function rsRemainTotal() { return Math.max(0, RS.total - RS.winners.length); }
 
+// 多個商品:舞台上方分頁,一個商品開完直接切下一個(商品之間是依序處理,不是同時開)
+function rsRenderTabs() {
+  const box = rsEl('rs-tabs');
+  if (!box) return;
+  if (RS.queue.length < 2) { box.classList.remove('show'); box.innerHTML = ''; return; }
+  box.classList.add('show');
+  box.innerHTML = RS.queue.map(id => {
+    const it = (typeof shopItems !== 'undefined' ? shopItems : []).find(x => x.itemId === id);
+    const nm = it ? it.name : id, done = it && it.raffleResult;
+    return '<button class="rs-tab' + (id === RS.id ? ' on' : '') + '" title="' + rsEsc(nm) + '" onclick="rsSwitch(\'' + rsEsc(id) + '\')">' + (done ? '✅ ' : '') + rsEsc(nm) + '</button>';
+  }).join('');
+}
+async function rsSwitch(id) {
+  if (RS.busy || id === RS.id) { if (RS.busy) rsToast('開獎進行中,請稍後再切換', false); return; }
+  RS.simMap[RS.id] = { sim: RS.sim, over: RS.simOver };
+  RS.id = id;
+  const m = RS.simMap[id]; RS.sim = m ? m.sim : []; RS.simOver = m ? m.over : false;
+  RS.realTiers = null; RS.cnt = {}; RS.sel = {}; RS.randN = 1; RS.armed = null;
+  rsEl('rs-board').innerHTML = '<div style="padding:40px;font-size:22px;opacity:.8">讀取中…</div>';
+  rsEl('rs-bar').innerHTML = '';
+  await rsRefresh(true);
+}
 function rsRender() {
+  rsRenderTabs();
   rsEl('rs-title').textContent = '🎬 ' + RS.name;
   rsEl('rs-prog').textContent = RS.done ? (RS.test ? '🧪 測試完畢' : '🏆 已開獎完畢') : ((RS.test ? '🧪 測試 ' : '進度 ') + RS.winners.length + ' / ' + RS.total);
   const byPrize = {};
