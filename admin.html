@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.173</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.174</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1314,6 +1314,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <input id="stat-m-pl" placeholder="玩家ID(可空)" style="width:170px">
             <input id="stat-m-qty" type="number" value="1" style="width:80px" title="正數=增加,負數=減少">
             <button class="btn btn-edit" onclick="statManual(1)">➕ 增加</button><button class="btn btn-edit" onclick="statManual(-1)">➖ 減少</button>
+            <button class="btn btn-edit" onclick="statOpenAdj()">🛠️ 批次增減(多玩家×多獎品)</button>
             <span class="hint">只改統計數字,不會發放/收回任何獎品;玩家ID留空 = 只加總數</span></div>
           <details style="margin:4px 0 8px"><summary class="hint" style="cursor:pointer">📋 批量增減(多玩家、多獎品一次貼上)</summary>
             <div class="hint" style="margin:4px 0;line-height:1.6">每行一筆:<code>獎品名稱 | 玩家ID或暱稱 | 數量</code>(可用 | 、Tab 或逗號分隔;數量可省略=1,負數=減少;玩家可留空)。群組用上面「群組」欄。例:<br><code>七大罪的箱子×1 | 123456789 | 2</code><br><code>海浪之箱×1 | 小明 | -1</code></div>
@@ -2444,6 +2445,29 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="settle-gambling-warning" style="color:var(--red);font-size:13px;padding:8px 0"></div>
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('settle-gambling-modal')">取消</button><button class="btn-save" id="settle-gambling-confirm" onclick="confirmSettleGambling()">✅ 確認公布並結算</button></div>
+  </div>
+</div>
+
+<!-- 獎品統計 批次增減彈窗(介面比照貨幣批次調整) -->
+<div class="overlay" id="stat-adj-modal">
+  <div class="modal" style="max-width:820px">
+    <div class="modal-header"><h3>🛠️ 批次增減獎品統計</h3><button class="modal-close" onclick="closeModal('stat-adj-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="field full"><label>群組 <span class="hint">要記到哪個統計群組</span></label><input id="sa-grp" list="stat-m-grps" placeholder="例:穿搭大賽"></div>
+      <div class="fsep">要增減的獎品 <span class="hint">先加獎品種類,底下每位玩家再各自填數量(可不同)</span></div>
+      <div id="sa-cols" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;grid-column:span 2"></div>
+      <button class="btn-cancel" onclick="statAdjAddCol()" style="grid-column:span 2">➕ 新增一種獎品</button>
+      <div class="fsep">要增減的玩家 <span class="hint">搜尋加入,或一鍵帶入「玩家貨幣管理」已勾選的玩家</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;grid-column:span 2;margin-bottom:6px">
+        <input id="sa-pl" list="sa-pl-list" placeholder="輸入暱稱或ID後按 ➕ 加入" style="flex:1;min-width:200px"><datalist id="sa-pl-list"></datalist>
+        <button class="btn btn-edit" onclick="statAdjAddPlayer()">➕ 加入玩家</button>
+        <button class="btn btn-edit" onclick="statAdjFromPc()">📥 帶入已勾選玩家(<span id="sa-pc-n">0</span>)</button>
+      </div>
+      <div class="fsep">每位玩家的增減數量 <span class="hint">留空 = 不動;正數增加、負數減少;「不指定玩家」那列只加總數</span></div>
+      <div class="tbl-wrap" style="max-height:320px;min-height:120px;overflow-y:auto;overflow-x:auto;grid-column:span 2"><table style="min-width:max-content"><thead><tr id="sa-thead"><th>玩家</th></tr></thead><tbody id="sa-tbody"></tbody></table></div>
+      <div class="hint" id="sa-warn" style="color:var(--red);grid-column:span 2"></div>
+      <div style="grid-column:span 2;display:flex;gap:8px"><button class="btn-save" id="sa-go" onclick="statAdjRun()">✅ 確認套用</button><button class="btn-cancel" onclick="closeModal('stat-adj-modal')">取消</button></div>
+    </div>
   </div>
 </div>
 
@@ -3964,6 +3988,48 @@ async function statBatch() {
     if (!d || d.status !== 'success') { msg.textContent = '❌ ' + ((d && d.message) || '失敗') + (i ? '(前 ' + i + ' 筆已寫入)' : ''); toast('失敗', false); return; }
   }
   msg.textContent = '✅ 已套用 ' + rows.length + ' 筆'; document.getElementById('stat-b-text').value = ''; toast('✅ 已套用 ' + rows.length + ' 筆'); statGrp_ = g; statLoadTables();
+}
+let saCols_ = [], saPl_ = [];
+function statAdjName_(id) { const p = (ctPlayers_ || []).find((x) => x.id === id) || (typeof pcPlayers !== 'undefined' ? (pcPlayers.find((x) => x.discordId === id) && { name: pcPlayers.find((x) => x.discordId === id).nickname }) : null); return p ? p.name : id; }
+async function statOpenAdj() {
+  try { await ctAdmLoadPlayers_(); } catch (e) {}
+  const g = document.getElementById('stat-m-grp'); document.getElementById('sa-grp').value = (g && g.value) || statGrp_ || '';
+  saCols_ = []; saPl_ = ['']; document.getElementById('sa-cols').innerHTML = ''; document.getElementById('sa-warn').textContent = '';
+  document.getElementById('sa-pl-list').innerHTML = (ctPlayers_ || []).map((p) => '<option value="' + ctEsc_(p.id) + '">' + ctEsc_(p.name) + '</option>').join('');
+  document.getElementById('sa-pc-n').textContent = (typeof pcSelectedIds !== 'undefined') ? pcSelectedIds.size : 0;
+  statAdjAddCol(); document.getElementById('stat-adj-modal').classList.add('open');
+}
+function statAdjAddCol(name) {
+  const id = 'sac_' + Date.now() + '_' + Math.floor(Math.random() * 10000); saCols_.push({ id, name: name || '' });
+  const w = document.createElement('div'); w.id = id; w.style.cssText = 'display:flex;gap:6px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px;flex:1 1 240px';
+  w.innerHTML = '<input class="sac-name" list="stat-m-names" placeholder="獎品名稱" value="' + ctEsc_(name || '') + '" oninput="statAdjColName_(this)" style="flex:1;min-width:0"><button class="btn btn-del" onclick="statAdjDelCol(this)">✕</button>';
+  document.getElementById('sa-cols').appendChild(w); statAdjRender_(true);
+}
+function statAdjColName_(inp) { const c = saCols_.find((x) => x.id === inp.parentNode.id); if (c) { c.name = inp.value.trim(); statAdjRender_(true); } }
+function statAdjDelCol(btn) { const w = btn.parentNode; saCols_ = saCols_.filter((x) => x.id !== w.id); w.remove(); statAdjRender_(true); }
+function statAdjResolve_(v) { v = (v || '').trim(); if (!v) return ''; if (/^\d{5,}$/.test(v)) return v; const f = (ctPlayers_ || []).find((x) => x.name === v) || (ctPlayers_ || []).find((x) => String(x.name).indexOf(v) >= 0); return f ? f.id : null; }
+function statAdjAddPlayer() { const el = document.getElementById('sa-pl'), id = statAdjResolve_(el.value); if (!id) { toast('找不到這個玩家,請輸入 Discord ID 或完整暱稱', false); return; } if (saPl_.indexOf(id) < 0) saPl_.push(id); el.value = ''; statAdjRender_(true); }
+function statAdjFromPc() { if (typeof pcSelectedIds === 'undefined' || !pcSelectedIds.size) { toast('「玩家貨幣管理」頁面還沒勾選玩家', false); return; } pcSelectedIds.forEach((id) => { if (saPl_.indexOf(id) < 0) saPl_.push(id); }); statAdjRender_(true); }
+function statAdjRender_(keep) {
+  const old = {}; if (keep) document.querySelectorAll('.sa-in').forEach((i) => { if (i.value !== '') old[i.dataset.p + '|' + i.dataset.c] = i.value; });
+  document.getElementById('sa-thead').innerHTML = '<th>玩家</th>' + saCols_.map((c) => '<th>' + ctEsc_(c.name || '(未填)') + '</th>').join('') + '<th></th>';
+  document.getElementById('sa-tbody').innerHTML = saPl_.map((id) => '<tr><td>' + (id ? ctEsc_(statAdjName_(id)) + '<br><span class="cell-id" style="font-size:11px">' + ctEsc_(id) + '</span>' : '<i>(不指定玩家,只加總數)</i>') + '</td>' + saCols_.map((c) => '<td><input class="sa-in" type="number" step="1" style="width:90px" data-p="' + ctEsc_(id) + '" data-c="' + c.id + '" value="' + ctEsc_(old[id + '|' + c.id] || '') + '" placeholder="留空=不動"></td>').join('') + '<td><button class="btn btn-del" onclick="statAdjDelPl(this.dataset.p)" data-p="' + ctEsc_(id) + '">✕</button></td></tr>').join('');
+}
+function statAdjDelPl(id) { saPl_ = saPl_.filter((x) => x !== id); statAdjRender_(true); }
+async function statAdjRun() {
+  const w = document.getElementById('sa-warn'); w.textContent = ''; const g = document.getElementById('sa-grp').value.trim();
+  if (!g) { w.textContent = '請填群組'; return; }
+  const rows = []; document.querySelectorAll('.sa-in').forEach((i) => { const q = parseInt(i.value, 10); if (!q) return; const c = saCols_.find((x) => x.id === i.dataset.c); if (!c || !c.name) return; rows.push({ name: c.name, player: i.dataset.p, qty: q }); });
+  if (saCols_.some((c) => !c.name) && rows.length === 0) { w.textContent = '請填獎品名稱'; return; }
+  if (!rows.length) { w.textContent = '請至少填一格數量'; return; }
+  const plus = rows.filter((r) => r.qty > 0).length;
+  if (!confirm('在「' + g + '」套用 ' + rows.length + ' 筆(增加 ' + plus + '、減少 ' + (rows.length - plus) + ')?\n只改統計,不發放/收回獎品。')) return;
+  const btn = document.getElementById('sa-go'); btn.disabled = true; btn.textContent = '處理中...';
+  for (let i = 0; i < rows.length; i += 60) {
+    const d = await stockAdminCall_('adminPrizeStatAdjustWorker', { group: g, rows: JSON.stringify(rows.slice(i, i + 60)) });
+    if (!d || d.status !== 'success') { btn.disabled = false; btn.textContent = '✅ 確認套用'; w.textContent = '❌ ' + ((d && d.message) || '失敗') + (i ? '(前 ' + i + ' 筆已寫入)' : ''); return; }
+  }
+  btn.disabled = false; btn.textContent = '✅ 確認套用'; closeModal('stat-adj-modal'); toast('✅ 已套用 ' + rows.length + ' 筆'); statGrp_ = g; statLoadTables();
 }
 async function statLoadTables() {
   const box = document.getElementById('stat-adm-tables'); if (!box) return; box.innerHTML = '<div class="hint">載入中…</div>';
