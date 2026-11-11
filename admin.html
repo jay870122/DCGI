@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.183</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.184</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1272,8 +1272,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="ct-card">
-          <div class="ct-h"><div><h3>🗳️ 投票明細</h3><div class="hint">誰投給哪件作品;含已撤回的票</div></div>
-            <div class="ct-act" style="margin:0"><input id="ct-bal-q" placeholder="🔍 搜尋投票者或參賽者" oninput="ctAdmRenderBallots_()" style="width:220px"><select id="ct-bal-track" onchange="ctAdmRenderBallots_()" style="width:160px"></select></div></div>
+          <div class="ct-h"><div><h3>🗳️ 投票明細</h3><div class="hint">誰投給哪件作品;含已撤回的票。官方可取消有問題的票(不計分、玩家不能再投同一件作品,可恢復)</div></div>
+            <div class="ct-act" style="margin:0;flex-wrap:wrap"><input id="ct-bal-q" placeholder="🔍 搜尋投票者或參賽者" oninput="ctAdmRenderBallots_()" style="width:220px"><select id="ct-bal-track" onchange="ctAdmRenderBallots_()" style="width:160px"></select><select id="ct-bal-view" onchange="ctAdmRenderBallots_()" style="width:150px"><option value="list">📋 全部列表</option><option value="voter">👤 依投票者分組</option><option value="work">🖼️ 依作品分組</option></select><select id="ct-bal-st" onchange="ctAdmRenderBallots_()" style="width:120px"><option value="">全部狀態</option><option value="on">只看有效</option><option value="off">只看無效</option></select></div></div>
+          <div id="ct-bal-bulk" class="ct-act" style="display:none;margin:6px 0"><span class="hint" id="ct-bal-n"></span><button class="btn btn-del" onclick="ctAdmCancelVotes_(ctBalSel_(),false)">🛑 取消勾選的票</button><button class="btn btn-edit" onclick="document.querySelectorAll('.ct-bal-ck').forEach((c)=>{c.checked=false});ctBalUpd_()">清除勾選</button></div>
           <div id="ct-adm-ballots"></div>
         </div>
 
@@ -3924,13 +3925,48 @@ function ctAdmRenderBallots_() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">全部賽道</option>' + d.tracks.map((t) => '<option value="' + ctEsc_(t.id) + '">' + ctEsc_(t.name) + '</option>').join(''); sel.value = cur;
   const q = (document.getElementById('ct-bal-q').value || '').trim().toLowerCase();
+  const view = (document.getElementById('ct-bal-view') || {}).value || 'list', stf = (document.getElementById('ct-bal-st') || {}).value || '';
   const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
   const wm = {}; d.works.forEach((w) => { wm[w.id] = w; });
-  const rows = (d.ballots || []).filter((b) => (!cur || b.track === cur)).map((b) => ({ b, w: wm[b.work] || {} })).filter((x) => !q || (x.b.voter + ' ' + x.b.voterName + ' ' + (x.w.name || '') + ' ' + (x.w.user || '')).toLowerCase().indexOf(q) !== -1);
+  const rows = (d.ballots || []).filter((b) => (!cur || b.track === cur) && (!stf || (stf === 'on' ? b.active : !b.active))).map((b) => ({ b, w: wm[b.work] || {} })).filter((x) => !q || (x.b.voter + ' ' + x.b.voterName + ' ' + (x.w.name || '') + ' ' + (x.w.user || '')).toLowerCase().indexOf(q) !== -1);
   rows.sort((a, c) => (a.b.time < c.b.time ? 1 : a.b.time > c.b.time ? -1 : 0));
   const act = rows.filter((x) => x.b.active);
   const fmt = (t) => { const m = Date.parse(t); return m ? new Date(m).toLocaleString('zh-TW', { hour12: false }) : ''; };
-  box.innerHTML = rows.length ? '<div class="hint" style="margin-bottom:4px">共 ' + rows.length + ' 筆(有效 ' + act.length + ' 筆、' + new Set(act.map((x) => x.b.voter + '|' + x.b.track)).size + ' 位投票者)</div><div class="ct-tw" style="max-height:420px"><table><thead><tr><th>時間</th><th>賽道</th><th>投票者</th><th>投給</th><th>類型</th><th>狀態</th></tr></thead><tbody>' + rows.map((x) => '<tr' + (x.b.active ? '' : ' style="opacity:.5"') + '><td>' + ctEsc_(fmt(x.b.time)) + '</td><td>' + ctEsc_(tn[x.b.track] || x.b.track) + '</td><td>' + ctEsc_(x.b.voterName) + '<div class="hint">' + ctEsc_(x.b.voter) + '</div></td><td>' + ctEsc_(x.w.name || x.b.work) + '<div class="hint">' + ctEsc_(x.w.user || '') + '</div></td><td>' + (x.b.type === 'excellent' ? '⭐優異' : '支持') + '</td><td>' + (x.b.active ? '有效' : x.b.orphan ? '作品已刪除(已退票)' : '已撤回') + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">沒有投票紀錄</div>';
+  const stTxt = (b) => b.active ? '有效' : b.cancelled ? '<span style="color:#ED4245">🛑 官方取消</span>' : b.orphan ? '作品已刪除(已退票)' : '已撤回';
+  const opTd = (b) => '<td>' + (b.active ? '<input type="checkbox" class="ct-bal-ck" value="' + ctEsc_(b.id) + '" onchange="ctBalUpd_()"> <button class="btn btn-del" onclick="ctAdmCancelVotes_([\'' + ctEsc_(b.id) + '\'],false)">🛑 取消</button>' : b.cancelled ? '<button class="btn btn-edit" onclick="ctAdmCancelVotes_([\'' + ctEsc_(b.id) + '\'],true)">↩️ 恢復</button>' : '') + '</td>';
+  const tr = (x, cols) => '<tr' + (x.b.active ? '' : ' style="opacity:.55"') + '>' + cols.map((c) => '<td>' + c + '</td>').join('') + opTd(x.b) + '</tr>';
+  const cVoter = (x) => ctEsc_(x.b.voterName) + '<div class="hint">' + ctEsc_(x.b.voter) + '</div>', cWork = (x) => ctEsc_(x.w.name || x.b.work) + '<div class="hint">' + ctEsc_(x.w.user || '') + '</div>';
+  const cType = (x) => x.b.type === 'excellent' ? '⭐優異' : '支持';
+  const head = '<div class="hint" style="margin-bottom:4px">共 ' + rows.length + ' 筆(有效 ' + act.length + ' 筆、' + new Set(act.map((x) => x.b.voter + '|' + x.b.track)).size + ' 位投票者)</div>';
+  if (!rows.length) { box.innerHTML = '<div class="hint">沒有投票紀錄</div>'; ctBalUpd_(); return; }
+  if (view === 'list') {
+    box.innerHTML = head + '<div class="ct-tw" style="max-height:420px"><table><thead><tr><th>時間</th><th>賽道</th><th>投票者</th><th>投給</th><th>類型</th><th>狀態</th><th>操作</th></tr></thead><tbody>' + rows.map((x) => tr(x, [ctEsc_(fmt(x.b.time)), ctEsc_(tn[x.b.track] || x.b.track), cVoter(x), cWork(x), cType(x), stTxt(x.b)])).join('') + '</tbody></table></div>';
+  } else {
+    // 分組:每組一個可展開的區塊,標題列顯示有效票數;預設收合,避免名單太長
+    const groups = {}, order = [];
+    rows.forEach((x) => { const k = view === 'voter' ? x.b.voter + '|' + x.b.track : x.b.work; if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(x); });
+    const gAct = (g) => g.filter((x) => x.b.active), gRaw = (g) => gAct(g).reduce((n, x) => n + (x.b.type === 'excellent' ? 2 : 1), 0);
+    if (view === 'work') order.sort((a, c) => gRaw(groups[c]) - gRaw(groups[a])); else order.sort((a, c) => gAct(groups[c]).length - gAct(groups[a]).length);
+    box.innerHTML = head + '<div style="max-height:520px;overflow:auto">' + order.map((k) => {
+      const g = groups[k], f = g[0], a = gAct(g);
+      const title = view === 'voter'
+        ? '👤 <b>' + ctEsc_(f.b.voterName) + '</b> <span class="hint">' + ctEsc_(f.b.voter) + ' · ' + ctEsc_(tn[f.b.track] || f.b.track) + '</span> — 有效 ' + a.length + ' 票(支持 ' + a.filter((x) => x.b.type !== 'excellent').length + '、⭐優異 ' + a.filter((x) => x.b.type === 'excellent').length + ')'
+        : '🖼️ <b>' + ctEsc_(f.w.name || f.b.work) + '</b> <span class="hint">' + ctEsc_(tn[f.b.track] || f.b.track) + '</span> — 計 ' + gRaw(g) + ' 票(支持 ' + a.filter((x) => x.b.type !== 'excellent').length + '、⭐優異 ' + a.filter((x) => x.b.type === 'excellent').length + ')';
+      const bulk = a.length > 1 ? ' <button class="btn btn-del" onclick="event.preventDefault();ctAdmCancelVotes_(' + ctEsc_(JSON.stringify(a.map((x) => x.b.id))) + ',false)">🛑 取消這組全部有效票</button>' : '';
+      return '<details style="border:1px solid #40444B;border-radius:8px;margin-bottom:6px;padding:6px 10px"><summary style="cursor:pointer">' + title + bulk + '</summary><div class="ct-tw" style="margin-top:6px"><table><thead><tr><th>時間</th>' + (view === 'voter' ? '<th>投給</th>' : '<th>投票者</th>') + '<th>類型</th><th>狀態</th><th>操作</th></tr></thead><tbody>'
+        + g.map((x) => tr(x, [ctEsc_(fmt(x.b.time)), view === 'voter' ? cWork(x) : cVoter(x), cType(x), stTxt(x.b)])).join('') + '</tbody></table></div></details>';
+    }).join('') + '</div>';
+  }
+  ctBalUpd_();
+}
+function ctBalSel_() { return Array.from(document.querySelectorAll('.ct-bal-ck:checked')).map((c) => c.value); }
+function ctBalUpd_() { const n = ctBalSel_().length, b = document.getElementById('ct-bal-bulk'); if (b) b.style.display = n ? 'flex' : 'none'; const t = document.getElementById('ct-bal-n'); if (t) t.textContent = '已勾選 ' + n + ' 張票'; }
+async function ctAdmCancelVotes_(ids, restore) {
+  ids = (ids || []).filter(Boolean); if (!ids.length) { toast('沒有勾選任何票', false); return; }
+  if (!confirm(restore ? '確定要恢復這 ' + ids.length + ' 張被官方取消的票嗎?(恢復後重新計分,不會檢查玩家目前的票數上限)' : '確定要取消這 ' + ids.length + ' 張票嗎?\n取消後不計分、不佔玩家額度,玩家也不能再投給同一件作品(之後可以按「恢復」)。')) return;
+  const d = await apiCraftWrite_('adminContestCancelVote', { ids, restore });
+  if (!d || d.status !== 'success') { toast('失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  toast('✅ ' + d.message); loadContestAdmin();
 }
 async function ctAdmSaveTracks() {
   const rows = Array.from(document.querySelectorAll('#ct-adm-tracks .ct-trow')).map((r) => ({ id: r.dataset.id, name: r.querySelector('.ct-name').value.trim(), round: r.querySelector('.ct-round').value, status: r.querySelector('.ct-status').value, start: r.querySelector('.ct-start').value ? new Date(r.querySelector('.ct-start').value).toISOString() : '', end: r.querySelector('.ct-end').value ? new Date(r.querySelector('.ct-end').value).toISOString() : '' })).filter((t) => t.name);
