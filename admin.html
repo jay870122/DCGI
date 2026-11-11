@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.159</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.160</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5489,7 +5489,7 @@ function rsRandName() {
   return v.length ? v[Math.floor(Math.random() * v.length)].name : '…';
 }
 function rsStartSpin(slotEls, pools) {
-  rsStopSpin();
+  rsStopSpin(); if (RS._slotCyc) { clearInterval(RS._slotCyc); RS._slotCyc = null; }
   slotEls.forEach(s => { s.className = 'rs-slot spin'; });
   (pools || []).forEach(p => { if (p && p._reel) p._reel.mode = 'spin'; });
   RS.spinTimer = setInterval(() => { slotEls.forEach(s => { if (s.classList.contains('spin')) s.textContent = rsRandName(); }); }, 70);
@@ -5508,7 +5508,17 @@ function rsStopSpin() {
   RS._hop = null; RS.spinTimer = null; RS._spinSnd = null;
   document.querySelectorAll('#rs-board .rs-chip.hot').forEach(c => c.classList.remove('hot'));
   RS.reels.forEach(r => { if (r.mode === 'spin') r.mode = 'idle'; });
-  document.querySelectorAll('#rs-board .rs-slot.spin').forEach(e => { e.textContent = '…'; });
+  // 🌟🔧 轉盤「加速→落定」階段中,還沒揭曉的格子繼續跳名字(原本這裡直接變成「…」,看起來像卡住);
+  // 每個格子被揭曉(class 不再是 spin)就自動不跳,全部揭曉完計時器自己停止。
+  if (RS._slotCyc) clearInterval(RS._slotCyc);
+  RS._slotCyc = null;
+  if (RS.anim && document.querySelector('#rs-board .rs-slot.spin')) {
+    RS._slotCyc = setInterval(() => {
+      const els = document.querySelectorAll('#rs-board .rs-slot.spin');
+      if (!els.length || !rsEl('rs').classList.contains('open')) { clearInterval(RS._slotCyc); RS._slotCyc = null; return; }
+      els.forEach(e => { e.textContent = rsRandName(); });
+    }, 90);
+  } else document.querySelectorAll('#rs-board .rs-slot.spin').forEach(e => { e.textContent = '…'; });
 }
 function rsBeep(freq, dur, vol) {
   if (!RS.snd) return;
