@@ -120,6 +120,8 @@
         cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease;
     }
     .item-image:hover { transform: scale(1.03); border-color: #5865F2; }
+    /* 🌟 圖片原圖太小時不放大填滿(會糊),改成原尺寸置中顯示(JS 在載入後判斷加上 .img-native) */
+    .item-image.img-native, .auction-image.img-native { width: auto !important; max-width: 100%; height: auto !important; max-height: 140px; object-fit: contain !important; display: block; margin-left: auto; margin-right: auto; }
 
     /* 🌟🔧 修正bug:原本.item-header是display:flex沒有flex-wrap,.item-badge又是white-space:nowrap+
        flex-shrink:0(死不換行、死不縮小)。遇到像賭盤「⌛ 已截止下注，等待管理員公布結果」這種
@@ -929,7 +931,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.201</div>
+    <div class="version-tag">系統版本：v5.4.202</div>
   </div>
 
   <script>
@@ -8906,6 +8908,17 @@ setInterval(function () {
     });
   } catch (e) {}
 }, 1200);
+
+// 🌟 商品/拍賣圖片:原圖比顯示框小很多(會被放大到糊)就不放大,縮成原尺寸置中
+document.addEventListener('load', function (e) {
+  try {
+    var im = e.target;
+    if (!im || im.tagName !== 'IMG' || !(im.classList.contains('item-image') || im.classList.contains('auction-image'))) return;
+    var nw = im.naturalWidth, nh = im.naturalHeight; if (!nw || !nh) return;
+    var scale = Math.max(im.clientWidth / nw, im.clientHeight / nh);
+    if (scale > 1.15) im.classList.add('img-native');
+  } catch (err) {}
+}, true);
 </script>
 </body>
 </html>
