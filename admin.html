@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.153</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.154</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1298,8 +1298,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div id="page-prize-stat" style="display:none"><div class="page-header"><div class="page-title">📊 獎品統計區</div></div>
         <div class="ct-card">
-          <div class="ct-h"><div><h3>📊 統計區(盲盒 [統計:群組] 標籤)</h3><div class="hint" style="line-height:1.6">盲盒/獎勵規則裡寫 <code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>,每次發出就會自動記到「獎品統計」分頁,這裡依群組列出表格(例:服裝大賽 → 各獎品總數)。可複製文字或下載 CSV 回報主辦方。</div></div>
-            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="statLoadTables()">🔄 重新整理</button><button class="btn btn-edit" onclick="statCopy()">📋 複製文字</button><button class="btn btn-edit" onclick="statCsv()">⬇️ 下載 CSV</button></div></div>
+          <div class="ct-h"><div><h3>📊 統計區(盲盒 [統計:群組] 標籤)</h3><div class="hint" style="line-height:1.6">盲盒/獎勵規則裡寫 <code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>,每次發出就自動記到「獎品統計」分頁。可切換「依獎品彙總」或「獎品→玩家明細」兩種表格;官方格式 = 每欄一種獎品(名稱+每人個數),欄下面列出領獎玩家,暱稱有括號時只取括號內 ID。</div></div>
+            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="statLoadTables()">🔄 重新整理</button></div></div>
+          <div class="ct-act" style="margin:6px 0;flex-wrap:wrap;gap:6px"><span class="hint">檢視:</span>
+            <button class="btn btn-edit" id="stat-v-sum" onclick="statSetView('sum')">📊 依獎品彙總</button><button class="btn btn-edit" id="stat-v-det" onclick="statSetView('det')">👥 獎品→玩家明細</button>
+            <button class="btn btn-edit" onclick="statCopy()">📋 複製文字</button><button class="btn btn-edit" onclick="statCsv()">⬇️ 下載 CSV</button>
+            <span class="hint" style="margin-left:8px">官方格式:</span><select id="stat-grp" style="max-width:180px"></select>
+            <button class="btn btn-edit" onclick="statOfficialCopy()">📋 官方格式複製</button><button class="btn btn-edit" onclick="statOfficialCsv()">⬇️ 官方格式 CSV</button></div>
           <div id="stat-adm-tables"><div class="hint">按「重新整理」載入</div></div>
         </div>
 
@@ -3843,23 +3848,61 @@ async function ctAdmSaveTracks() {
   if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   toast(d.message); loadContestAdmin();
 }
-let statTb_ = null;
+let statTb_ = null, statView_ = 'sum';
+function statDisp_(id) { const p = (ctPlayers_ || []).find((x) => x.id === id); return p ? p.name : id; }
+function statOfficialId_(id) { const n = statDisp_(id), m = String(n).match(/[(（]([^()（）]*)[)）]\s*$/) || String(n).match(/[(（]([^()（）]*)[)）]/); return m && m[1].trim() ? m[1].trim() : n; }
+function statSetView(v) { statView_ = v; statRender_(); }
+function statRender_() {
+  const box = document.getElementById('stat-adm-tables'), d = statTb_; if (!box || !d) return; const E = ctEsc_;
+  const bs = document.getElementById('stat-v-sum'), bd = document.getElementById('stat-v-det');
+  if (bs) bs.style.outline = statView_ === 'sum' ? '2px solid var(--gold)' : ''; if (bd) bd.style.outline = statView_ === 'det' ? '2px solid var(--gold)' : '';
+  if (!d.groups.length) { box.innerHTML = '<div class="hint">還沒有任何統計資料。把 <code>[統計:群組]</code> 加到盲盒獎項名稱前,有人抽到/兌換就會出現。</div>'; return; }
+  box.innerHTML = d.groups.map((g) => {
+    if (statView_ === 'sum') return '<div style="margin-bottom:12px"><h4 style="margin:6px 0 4px">' + E(g.name) + ' <span class="hint">合計 ' + g.total + '</span></h4><div class="ct-tw"><table><thead><tr><th>獎品</th><th>總數</th><th>發放次數</th><th>人數</th></tr></thead><tbody>' + g.items.map((x) => '<tr><td>' + E(x.name) + '</td><td><b>' + x.qty + '</b></td><td>' + x.times + '</td><td>' + x.users + '</td></tr>').join('') + '</tbody></table></div></div>';
+    return '<div style="margin-bottom:14px"><h4 style="margin:6px 0 4px">' + E(g.name) + ' <span class="hint">合計 ' + g.total + '</span></h4>' + g.items.map((x) => '<div class="ct-tw" style="margin-bottom:8px"><table><thead><tr><th colspan="3" style="text-align:left">' + E(x.name) + ' <span class="hint">總數量 <b>' + x.qty + '</b> · 總兌換次數 <b>' + x.times + '</b></span></th></tr><tr><th>玩家</th><th>數量</th><th>兌換次數</th></tr></thead><tbody>' + (x.players || []).map((u) => '<tr><td>' + E(statDisp_(u.id)) + '</td><td><b>' + u.qty + '</b></td><td>' + u.times + '</td></tr>').join('') + '</tbody></table></div>').join('') + '</div>';
+  }).join('');
+}
 async function statLoadTables() {
   const box = document.getElementById('stat-adm-tables'); if (!box) return; box.innerHTML = '<div class="hint">載入中…</div>';
-  const d = await stockAdminCall_('adminPrizeStatTablesWorker');
+  const [d] = await Promise.all([stockAdminCall_('adminPrizeStatTablesWorker'), ctAdmLoadPlayers_().catch(() => {})]);
   if (!d || d.status !== 'success') { box.innerHTML = '<div class="hint" style="color:var(--red)">載入失敗:' + ctEsc_((d && d.message) || '未知錯誤') + '</div>'; return; }
-  statTb_ = d; const E = ctEsc_;
-  box.innerHTML = d.groups.length ? d.groups.map((g) => '<div style="margin-bottom:12px"><h4 style="margin:6px 0 4px">' + E(g.name) + ' <span class="hint">合計 ' + g.total + '</span></h4><div class="ct-tw"><table><thead><tr><th>獎品</th><th>總數</th><th>發放次數</th><th>人數</th></tr></thead><tbody>' + g.items.map((x) => '<tr><td>' + E(x.name) + '</td><td><b>' + x.qty + '</b></td><td>' + x.times + '</td><td>' + x.users + '</td></tr>').join('') + '</tbody></table></div></div>').join('') : '<div class="hint">還沒有任何統計資料。把 <code>[統計:群組]</code> 加到盲盒獎項名稱前,有人抽到/兌換就會出現。</div>';
+  statTb_ = d; const sel = document.getElementById('stat-grp'), keep = sel ? sel.value : '';
+  if (sel) { sel.innerHTML = d.groups.map((g) => '<option value="' + ctEsc_(g.name) + '">' + ctEsc_(g.name) + '</option>').join(''); if (keep && d.groups.some((g) => g.name === keep)) sel.value = keep; }
+  statRender_();
 }
-function statLines_() { const d = statTb_; if (!d) return null; const L = []; d.groups.forEach((g, i) => { if (i) L.push(''); L.push('【' + g.name + '】獎品|總數|發放次數|人數'); g.items.forEach((x) => L.push(x.name + '|' + x.qty + '|' + x.times + '|' + x.users)); }); return L; }
+function statLines_() {
+  const d = statTb_; if (!d) return null; const L = [];
+  d.groups.forEach((g, i) => {
+    if (i) L.push(''); L.push('【' + g.name + '】');
+    if (statView_ === 'sum') { L.push('獎品|總數|發放次數|人數'); g.items.forEach((x) => L.push(x.name + '|' + x.qty + '|' + x.times + '|' + x.users)); }
+    else g.items.forEach((x) => { L.push(x.name + ' ' + x.qty + ' ' + x.times); (x.players || []).forEach((u) => L.push(statDisp_(u.id) + ': ' + u.qty + ' ' + u.times)); });
+  });
+  return L;
+}
 async function statCopy() { const L = statLines_(); if (!L) { toast('請先按「重新整理」', false); return; } try { await navigator.clipboard.writeText(L.join('\n')); toast('✅ 已複製統計文字'); } catch (e) { toast('複製失敗,請改用下載 CSV', false); } }
+function statDownload_(rows, name) {
+  const q = (v) => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"';
+  const blob = new Blob(['\ufeff' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name + '_' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
 function statCsv() {
   const d = statTb_; if (!d) { toast('請先按「重新整理」', false); return; }
-  const q = (v) => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"', rows = [['群組', '獎品', '總數', '發放次數', '人數']];
-  d.groups.forEach((g) => g.items.forEach((x) => rows.push([g.name, x.name, x.qty, x.times, x.users])));
-  const blob = new Blob(['\ufeff' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = '獎品統計_' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  const rows = statView_ === 'sum' ? [['群組', '獎品', '總數', '發放次數', '人數']] : [['群組', '獎品', '玩家', '數量', '兌換次數']];
+  d.groups.forEach((g) => g.items.forEach((x) => { if (statView_ === 'sum') rows.push([g.name, x.name, x.qty, x.times, x.users]); else (x.players || []).forEach((u) => rows.push([g.name, x.name, statDisp_(u.id), u.qty, u.times])); }));
+  statDownload_(rows, statView_ === 'sum' ? '獎品統計' : '獎品統計_玩家明細');
 }
+// 官方格式:欄=獎品名稱+每人個數,欄下面列出領獎玩家(暱稱有括號只取括號內ID)
+function statOfficialGrid_() {
+  const d = statTb_, sel = document.getElementById('stat-grp'); if (!d || !sel || !sel.value) return null;
+  const g = d.groups.find((x) => x.name === sel.value); if (!g) return null;
+  const cols = [];
+  g.items.forEach((x) => { const by = {}; (x.players || []).forEach((u) => { (by[u.qty] = by[u.qty] || []).push(statOfficialId_(u.id)); }); Object.keys(by).map(Number).sort((a, b) => a - b).forEach((n) => cols.push({ head: x.name + ' ' + n + '個', ids: by[n] })); });
+  const n = Math.max.apply(null, [0].concat(cols.map((c) => c.ids.length))), rows = [cols.map((c) => c.head)];
+  for (let i = 0; i < n; i++) rows.push(cols.map((c) => c.ids[i] || ''));
+  return rows;
+}
+async function statOfficialCopy() { const r = statOfficialGrid_(); if (!r) { toast('請先按「重新整理」並選擇群組', false); return; } try { await navigator.clipboard.writeText(r.map((x) => x.join('\t')).join('\n')); toast('✅ 已複製官方格式(Tab 分隔,可直接貼到試算表)'); } catch (e) { toast('複製失敗,請改用下載', false); } }
+function statOfficialCsv() { const r = statOfficialGrid_(); if (!r) { toast('請先按「重新整理」並選擇群組', false); return; } statDownload_(r, '官方格式_' + document.getElementById('stat-grp').value); }
 let ctRew_ = null;
 async function ctAdmLoadRewards(sim) {
   const d = await stockAdminCall_('adminContestRewardsWorker', sim ? { sim: '1' } : {});
