@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.182</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.183</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5492,6 +5492,13 @@ function rsApplyTest() {
 }
 async function rsToggleTest() {
   if (RS.busy) return;
+  if (RS.drawnReal && !RS.merged) { // 已開獎:測試=只看動畫/模擬重抽;關閉測試=真實重抽(會發獎)
+    RS.test = !RS.test; RS.testPref = RS.test; RS.rdMode = false; RS.armed = null; RS.stopN = 0; RS.sim = []; RS.simOver = false;
+    if (RS.test) rsApplyTest(); else rsRdShowReal_();
+    rsSyncToggles(); rsRender(); rsRenderBar();
+    rsToast(RS.test ? '🧪 測試模式:重抽只會模擬,不發獎' : '⚠️ 已離開測試模式:現在重抽是真的,會發獎並公告', !RS.test ? false : true);
+    return;
+  }
   if (RS.test && RS.drawnReal) { rsToast('這場已經開獎,只能用測試模式看動畫', false); return; }
   RS.test = !RS.test; RS.testPref = RS.test; RS.sim = []; RS.simOver = false;
   rsSyncToggles();
@@ -5598,8 +5605,8 @@ function rsCardHtml(ti, prize, winners, empties, countTxt) {
     let ex = '', txt = rsEsc(w.name);
     if (RS.rdMode && RS.realWin) {
       const key = w.discordId + '|' + w.prize; seen[key] = (seen[key] || 0) + 1;
-      let ri = -1, c = 0; RS.realWin.forEach((x, k) => { if (x.discordId === w.discordId && x.prize === w.prize && ++c === seen[key] && ri < 0) ri = k; });
-      if (ri >= 0) { ex = ' title="點一下重抽這位得獎者" style="cursor:pointer;outline:2px dashed #fde68a" onclick="rsRedraw(' + ri + ')"'; if (RS.armed === 'rd' + ri) txt = '⚠️ 再按一次確認重抽'; }
+      let ri = -1, c = 0; rsRdList_().forEach((x, k) => { if (x.discordId === w.discordId && x.prize === w.prize && ++c === seen[key] && ri < 0) ri = k; });
+      if (ri >= 0) { ex = ' title="點一下' + (RS.test ? '模擬' : '真實') + '重抽這位得獎者" style="cursor:pointer;outline:2px dashed #fde68a" onclick="rsRedraw(' + ri + ')"'; if (RS.armed === 'rd' + ri) txt = '⚠️ 再按一次確認重抽'; }
     }
     return '<div class="rs-slot win"' + (ex || (rsFitSize(w.name) ? ' style="font-size:' + rsFitSize(w.name) + '"' : '')) + '>' + txt + '</div>';
   }).join('');
@@ -5787,33 +5794,63 @@ async function rsRoundLand(items, r) {
   }));
 }
 
-// 🔄 開獎後在舞台上重抽某位得獎者(真實結果,不是測試動畫):呼叫 adminRedrawShopRaffleWinner,二段確認
+// 🔄 開獎後在舞台上重抽某位得獎者
+//   🧪 測試模式開著 → 完全在瀏覽器模擬(不呼叫後端:不發獎、不公告、不寫入)
+//   測試模式關閉   → 真實重抽:呼叫 adminRedrawShopRaffleWinner(會發獎 + Discord 公告「(重抽)」)
+function rsRdList_() { return RS.test ? RS.sim.map(w => ({ discordId: w.discordId, prize: w.prize, name: RS.nameOf[w.discordId] || w.discordId })) : (RS.realWin || []); }
+function rsRdShowReal_() { RS.tiers = RS.realTiers; RS.winners = (RS.realWin || []).map(x => ({ discordId: x.discordId, prize: x.prize, name: x.name })); RS.done = true; }
 function rsRedrawPanel_() {
   if (!RS.drawnReal || !RS.realWin || !RS.realWin.length) return '';
-  return '<div class="rs-acts" style="margin-top:10px"><button class="rs-sec" onclick="rsToggleRedraw()">' + (RS.rdMode ? '✅ 結束重抽模式' : '👆 重抽模式:直接點畫面上的得獎者') + '</button></div><div class="rs-note" style="margin-top:6px">🔄 重抽得獎者(真實結果;原得獎者作廢、從票池依機率再抽一位並發獎,Discord 會公告「(重抽)」;原得獎者已拿到的獎勵不會自動收回):</div><div class="rs-acts" style="flex-wrap:wrap">' +
-    RS.realWin.map((w, i) => '<button class="rs-sec" onclick="rsRedraw(' + i + ')">' + (RS.armed === 'rd' + i ? '⚠️ 再按一次確認重抽' : '🔄 ' + rsEsc(w.prize) + ' → ' + rsEsc(w.name)) + '</button>').join('') + '</div>';
+  const L = RS.rdMode ? rsRdList_() : RS.realWin;
+  const note = RS.test
+    ? '🧪 模擬重抽(測試模式:不發獎、不發 Discord 公告、不寫入;要真的重抽請先關閉右上「🧪 測試模式」):'
+    : '⚠️ 真實重抽(原得獎者作廢、從票池依機率再抽一位並發獎,Discord 會公告「(重抽)」;原得獎者已拿到的獎勵不會自動收回):';
+  return '<div class="rs-acts" style="margin-top:10px"><button class="rs-sec" onclick="rsToggleRedraw()">' + (RS.rdMode ? '✅ 結束重抽模式' : (RS.test ? '👆 模擬重抽模式:直接點畫面上的得獎者' : '👆 真實重抽模式:直接點畫面上的得獎者')) + '</button></div><div class="rs-note" style="margin-top:6px">' + note + '</div><div class="rs-acts" style="flex-wrap:wrap">' +
+    L.map((w, i) => '<button class="rs-sec" onclick="rsRedraw(' + i + ')">' + (RS.armed === 'rd' + i ? '⚠️ 再按一次確認' + (RS.test ? '模擬' : '真實') + '重抽' : (RS.test ? '🧪 ' : '🔄 ') + rsEsc(w.prize) + ' → ' + rsEsc(w.name)) + '</button>').join('') + '</div>';
 }
 function rsToggleRedraw() {
   if (!RS.drawnReal || !RS.realWin) return;
   RS.rdMode = !RS.rdMode; RS.armed = null;
-  if (RS.rdMode) { RS.test = true; RS.sim = RS.realWin.map(w => ({ discordId: w.discordId, prize: w.prize })); RS.simOver = false; rsApplyTest(); rsRender(); rsRenderBar(); }
-  else { rsResetSim(); }
+  if (RS.test) {
+    if (RS.rdMode) { RS.sim = RS.realWin.map(w => ({ discordId: w.discordId, prize: w.prize })); RS.simOver = false; rsApplyTest(); rsRender(); rsRenderBar(); }
+    else rsResetSim();
+  } else { rsRdShowReal_(); rsRender(); rsRenderBar(); }
+}
+// 模擬重抽:比照後端,原得獎者作廢、其他得獎者依「重複中獎模式」扣除後,依票數加權再抽一位
+function rsSimRedraw_(i) {
+  const old = RS.sim[i]; if (!old) return null;
+  const ent = (RS.voters || []).map(v => ({ id: String(v.discordId), w: parseFloat(v.weighted) || 1 })).filter(e => e.id !== String(old.discordId));
+  RS.sim.forEach((w, k) => { if (k !== i) rsSimWin(ent, String(w.discordId), RS.mode); });
+  if (!ent.length) return null;
+  const tot = ent.reduce((a, e) => a + e.w, 0); let r = Math.random() * tot, wi = ent.length - 1;
+  for (let e = 0; e < ent.length; e++) { r -= ent[e].w; if (r <= 0) { wi = e; break; } }
+  RS.sim[i] = { discordId: ent[wi].id, prize: old.prize };
+  return ent[wi].id;
 }
 async function rsRedraw(i) {
-  const w = RS.realWin && RS.realWin[i]; if (!w || RS.busy) return;
+  const w = rsRdList_()[i]; if (!w || RS.busy) return;
   if (!RS.rdMode) { rsToggleRedraw(); } // 先切到重抽模式,卡片上才有格子可以播動畫
   if (!rsArm('rd' + i)) { if (RS.rdMode) rsRender(); return; }
   RS.busy = true;
+  const sim = RS.test;
   try {
-    const d = await api({ action: 'adminRedrawShopRaffleWinner', itemId: RS.id, index: i, expectId: w.discordId, defer: 'TRUE' });
-    if (!d || d.status !== 'success') { rsToast('❌ ' + (d && d.message || '重抽失敗'), false); return; }
-    const r = await api({ action: 'getRaffleParticipants', itemId: RS.id });
-    if (r && r.status === 'success' && r.drawn) {
-      (r.list || []).forEach(v => { RS.nameOf[v.discordId] = v.name; });
-      (r.winners || []).forEach(x => { if (x.name) RS.nameOf[x.discordId] = x.name; });
-      RS.realWin = (r.winners || []).map(x => ({ discordId: x.discordId, prize: x.prize, name: x.name || RS.nameOf[x.discordId] || x.discordId }));
+    let d = null, newName = '?';
+    if (sim) {
+      await rsSleep(150);
+      const nid = rsSimRedraw_(i);
+      if (!nid) { rsToast('🧪 票池裡沒有其他人可以重抽', false); return; }
+      newName = RS.nameOf[nid] || nid;
+    } else {
+      d = await api({ action: 'adminRedrawShopRaffleWinner', itemId: RS.id, index: i, expectId: w.discordId, defer: 'TRUE' });
+      if (!d || d.status !== 'success') { rsToast('❌ ' + (d && d.message || '重抽失敗'), false); return; }
+      const r = await api({ action: 'getRaffleParticipants', itemId: RS.id });
+      if (r && r.status === 'success' && r.drawn) {
+        (r.list || []).forEach(v => { RS.nameOf[v.discordId] = v.name; });
+        (r.winners || []).forEach(x => { if (x.name) RS.nameOf[x.discordId] = x.name; });
+        RS.realWin = (r.winners || []).map(x => ({ discordId: x.discordId, prize: x.prize, name: x.name || RS.nameOf[x.discordId] || x.discordId }));
+      }
+      const nw = RS.realWin[i]; newName = (nw && nw.name) || RS.nameOf[d.newId] || d.newId || '?';
     }
-    const nw = RS.realWin[i], newName = (nw && nw.name) || RS.nameOf[d.newId] || d.newId || '?';
     const el = RS.anim ? document.querySelector('#rs-board .rs-slot.win[onclick="rsRedraw(' + i + ')"]') : null;
     if (el) {
       const cyc = setInterval(() => { rsSetSlotText_(el, rsRandName()); }, 70);
@@ -5823,17 +5860,20 @@ async function rsRedraw(i) {
       rsReveal(el, newName, null, null);
       await rsSleep(1500);
     }
-    if (d.deferred) { const ok = await rsRelease(RS.id); rsToast(ok ? '🔄 已重抽,新得獎者已發獎並公告' : '⚠️ 已重抽,但公告沒送出(重開舞台會自動補送)', ok); }
-    else rsToast('🔄 已重抽,新得獎者已發獎');
-    RS.sim = RS.realWin.map(x => ({ discordId: x.discordId, prize: x.prize })); rsApplyTest();
+    if (sim) { rsToast('🧪 模擬重抽完成:沒有發獎、沒有發 Discord 公告'); rsApplyTest(); }
+    else {
+      if (d.deferred) { const ok = await rsRelease(RS.id); rsToast(ok ? '🔄 已重抽,新得獎者已發獎並公告' : '⚠️ 已重抽,但公告沒送出(重開舞台會自動補送)', ok); }
+      else rsToast('🔄 已重抽,新得獎者已發獎');
+      rsRdShowReal_();
+    }
     rsRender();
   } catch (e) { rsToast('❌ 重抽失敗', false); }
   finally { RS.busy = false; rsRenderBar(); }
 }
 function rsRenderBar() {
   const bar = rsEl('rs-bar');
-  if (RS.done && RS.test) { bar.innerHTML = '<div class="rs-note">🧪 測試結束(沒有發獎、沒有發 Discord 公告、沒有寫入)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsResetSim()">🔁 重新測試</button>' + (RS.drawnReal ? '' : '<button class="rs-sec" onclick="rsToggleTest()">離開測試模式</button>') + '</div>' + rsRedrawPanel_(); return; }
-  if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢。可按右上「✕ 關閉」返回後台(下方可直接重抽某位得獎者)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsToggleTest()">🧪 用測試模式再看一次動畫</button></div>' + rsRedrawPanel_(); return; }
+  if (RS.done && RS.test) { bar.innerHTML = '<div class="rs-note">🧪 測試結束(沒有發獎、沒有發 Discord 公告、沒有寫入)。</div><div class="rs-acts"><button class="rs-sec" onclick="rsResetSim()">🔁 重新測試</button><button class="rs-sec" onclick="rsToggleTest()">' + (RS.drawnReal ? '⚠️ 離開測試模式(真實重抽用)' : '離開測試模式') + '</button></div>' + rsRedrawPanel_(); return; }
+  if (RS.done) { bar.innerHTML = '<div class="rs-note">🏆 這場抽獎已經開獎完畢(⚠️ 真實模式:下方重抽會真的發獎並公告)。可按右上「✕ 關閉」返回後台。</div><div class="rs-acts"><button class="rs-sec" onclick="rsToggleTest()">🧪 用測試模式再看一次動畫</button></div>' + rsRedrawPanel_(); return; }
   const left = rsRemainTotal();
   let h = '<div class="rs-note">整場還剩 <b>' + left + '</b> 個名額。勾選要「同時開獎」的獎項、填每項要開幾位,按 🎬 一起開(快捷鍵 空白鍵;H=隱藏控制列,F=全螢幕)。也可以直接點卡片上的「？」,點一個抽一個。</div><div class="rs-tiers">';
   RS.tiers.forEach((t, ti) => {
