@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.168</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.169</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -337,6 +337,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <span style="position:relative;display:inline-block"><button class="fab" onclick="toggleAddMenu_(event)">➕ 新增 ▾</button>
               <div id="add-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:6px;background:#2B2D31;border:1px solid #4E5058;border-radius:8px;min-width:170px;z-index:50;overflow:hidden">
                 <div style="padding:10px 14px;cursor:pointer" onclick="addMenuPick_('shop')">🛍️ 新增商品</div>
+                <div style="padding:10px 14px;cursor:pointer;border-top:1px solid #3F4147" onclick="addMenuPick_('bulk')">📥 批次新增商品</div>
                 <div style="padding:10px 14px;cursor:pointer;border-top:1px solid #3F4147" onclick="addMenuPick_('card')">📝 新增資訊卡片</div>
               </div></span>
           </div>
@@ -1975,6 +1976,28 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="rs-board" id="rs-board"></div>
   <div class="rs-bar" id="rs-bar"></div>
   <div class="rs-float" id="rs-float"><button class="rs-tbtn" onclick="rsToggleBar()">⚙ 顯示控制列(H)</button></div>
+</div>
+
+<!-- 批次新增商品彈窗 -->
+<div class="overlay" id="bulk-shop-modal">
+  <div class="modal" style="max-width:860px">
+    <div class="modal-header"><h3>📥 批次新增商品</h3><button class="modal-close" onclick="closeModal('bulk-shop-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="hint" style="line-height:1.7;margin-bottom:8px">從試算表(Excel / Google 試算表)整列複製貼上,或用 <code>|</code> 分隔。<b>每行一個商品</b>,欄位順序:<br>
+        <code>名稱 ｜ 價格 ｜ 庫存 ｜ 獲得變數 ｜ 獎勵數量/盲盒規則 ｜ 備註 ｜ 圖片網址 ｜ 每人終身限購 ｜ 貨幣 ｜ 分類</code><br>
+        只有「名稱」「價格」必填,後面的欄位可省略或留空(貨幣/分類留空 = 用下面的預設)。盲盒規則或備註要換行請寫 <code>\n</code>。第一行如果是標題列(名稱/價格…)會自動略過。<br>
+        範例:<code>七大罪的箱子 | 80 | 1 | 七大罪箱子 | 1 | | | 1</code>　　複雜設定(時間、條件、抽獎…)請建好第一個後用「📋 複製」再改。</div>
+      <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:8px">
+        <div class="field"><label>預設貨幣欄位</label><input id="bk-currency" list="dc-list" value="幻彩水晶"></div>
+        <div class="field"><label>預設分類</label><input id="bk-category" list="sc-list" placeholder="例:穿搭大賽-兌換區"></div>
+        <div class="field"><label>狀態</label><select id="bk-status"><option value="DRAFT">📝 草稿(建議,檢查後再上架)</option><option value="">🚀 直接上架</option></select></div>
+      </div>
+      <textarea id="bk-text" rows="9" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:13px" placeholder="七大罪的箱子&#9;80&#9;1&#10;2nd 鑽石券&#9;60&#9;3&#10;海浪之箱&#9;60&#9;5" oninput="bulkShopPreview()"></textarea>
+      <div id="bk-preview" class="hint" style="margin:8px 0"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn-save" id="bk-go" onclick="bulkShopRun()">📥 開始建立</button><span class="hint" id="bk-prog"></span></div>
+      <div id="bk-log" style="margin-top:8px;font-size:13px;max-height:200px;overflow:auto"></div>
+    </div>
+  </div>
 </div>
 
 <!-- 賭博下注名單彈窗 -->
@@ -4278,7 +4301,62 @@ function icMerge_(merge) {
 }
 function toggleAddMenu_(ev) { ev.stopPropagation(); const m = document.getElementById('add-menu'); m.style.display = m.style.display === 'none' ? 'block' : 'none'; }
 document.addEventListener('click', () => { const m = document.getElementById('add-menu'); if (m) m.style.display = 'none'; });
-function addMenuPick_(t) { document.getElementById('add-menu').style.display = 'none'; if (t === 'shop') navTo('add-shop'); else openInfoCards(null, true); }
+// ── 批次新增商品 ──
+function openBulkShop() { document.getElementById('bulk-shop-modal').classList.add('open'); bulkShopPreview(); }
+function bulkShopParse_() {
+  const txt = (document.getElementById('bk-text').value || '').replace(/\r/g, '');
+  const rows = [], errs = [];
+  txt.split('\n').forEach((line, i) => {
+    if (!line.trim()) return;
+    let c = line.indexOf('\t') !== -1 ? line.split('\t') : line.split('|');
+    c = c.map(x => x.trim());
+    if (rows.length === 0 && /^(商品)?名稱$/.test(c[0])) return; // 標題列
+    const nm = c[0] || '';
+    if (!nm) { errs.push('第 ' + (i + 1) + ' 行:缺少名稱'); return; }
+    const price = c[1] === undefined || c[1] === '' ? '' : c[1].replace(/,/g, '');
+    if (price === '' || isNaN(Number(price))) { errs.push('第 ' + (i + 1) + ' 行「' + nm + '」:價格不是數字'); return; }
+    const nl = v => (v || '').replace(/\\n/g, '\n');
+    rows.push({ ln: i + 1, name: nm, price, stock: c[2] || '', rvar: c[3] || '', rqty: nl(c[4]), remark: nl(c[5]), img: c[6] || '', lpt: c[7] || '', currency: c[8] || '', category: c[9] || '' });
+  });
+  return { rows, errs };
+}
+function bulkShopPreview() {
+  const { rows, errs } = bulkShopParse_(), box = document.getElementById('bk-preview'); if (!box) return;
+  const E = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  box.innerHTML = (rows.length ? '✅ 解析到 <b>' + rows.length + '</b> 個商品:' + rows.slice(0, 8).map(r => E(r.name) + '(' + E(r.price) + ')').join('、') + (rows.length > 8 ? ' …' : '') : '還沒有可建立的商品') +
+    (errs.length ? '<div style="color:var(--red);margin-top:4px">' + errs.map(E).join('<br>') + '</div>' : '');
+  document.getElementById('bk-go').textContent = rows.length ? '📥 開始建立 ' + rows.length + ' 個' : '📥 開始建立';
+}
+let bulkShopBusy_ = false;
+async function bulkShopRun() {
+  if (bulkShopBusy_) return;
+  const { rows, errs } = bulkShopParse_();
+  if (!rows.length) { toast('沒有可建立的商品', false); return; }
+  if (errs.length && !confirm('有 ' + errs.length + ' 行格式錯誤會被略過,仍要建立其餘 ' + rows.length + ' 個嗎?')) return;
+  const cur0 = document.getElementById('bk-currency').value.trim(), cat0 = document.getElementById('bk-category').value.trim(), status = document.getElementById('bk-status').value;
+  if (!confirm('即將建立 ' + rows.length + ' 個商品(' + (status === 'DRAFT' ? '草稿' : '直接上架') + '),確定嗎?')) return;
+  bulkShopBusy_ = true; const go = document.getElementById('bk-go'), prog = document.getElementById('bk-prog'), log = document.getElementById('bk-log'); go.disabled = true; log.innerHTML = '';
+  let ok = 0, fail = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i]; prog.textContent = '建立中 ' + (i + 1) + ' / ' + rows.length + '…';
+    let msg = '', good = false;
+    try {
+      const ne = checkNonInstantRule(r.name, r.rvar);
+      if (ne) throw new Error(ne);
+      const d = await api({ action: 'adminAddShopItem', name: r.name, price: r.price, currency: r.currency || cur0, category: r.category || cat0, stock: r.stock, status: status,
+        limitPT: r.lpt, rewardVar: r.rvar, rewardQty: r.rqty, imageUrl: r.img, remark: r.remark });
+      if (d && d.status === 'success') { good = true; msg = 'ID ' + d.itemId; } else msg = (d && d.message) || '未知錯誤';
+    } catch (e) { msg = (e && e.message) || String(e); }
+    if (good) ok++; else fail++;
+    log.insertAdjacentHTML('beforeend', '<div style="color:' + (good ? 'var(--green,#3ba55d)' : 'var(--red)') + '">' + (good ? '✅ ' : '❌ ') + '第 ' + r.ln + ' 行 ' + r.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') + ':' + String(msg).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>');
+    log.scrollTop = log.scrollHeight;
+  }
+  prog.textContent = '完成:成功 ' + ok + ' 個' + (fail ? '、失敗 ' + fail + ' 個(失敗的請修正後只貼那幾行再建立)' : '');
+  toast(fail ? '批次新增完成,但有 ' + fail + ' 個失敗' : '✅ 已建立 ' + ok + ' 個商品', !fail);
+  go.disabled = false; bulkShopBusy_ = false;
+  if (ok) loadShopItems();
+}
+function addMenuPick_(t) { document.getElementById('add-menu').style.display = 'none'; if (t === 'shop') navTo('add-shop'); else if (t === 'bulk') openBulkShop(); else openInfoCards(null, true); }
 // 資訊卡片當成商品列表的一列:編輯/刪除
 async function deleteInfoCard_(id) {
   const c = (icAll_ || []).find(x => x.id === id); if (!c) return;
