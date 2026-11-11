@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.169</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.170</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -344,6 +344,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="toolbar" id="shop-batch-toolbar" style="display:none;padding:10px 0;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="hint">已勾選 <b id="shop-selected-count">0</b> 項：</span>
+          <button class="btn btn-edit" onclick="openBulkPatch()" title="勾選要統一修改的欄位(例如開始/結束時間),一次套用到已勾選的所有商品">✏️ 批量修改</button>
           <button class="btn btn-edit" onclick="batchSetShopStatus('ACTIVE')">📤 上架</button>
           <button class="btn btn-edit" onclick="batchSetShopStatus('DRAFT')">📥 下架</button>
           <button class="btn btn-edit" onclick="batchArchiveShop(true)">📦 封存</button>
@@ -1978,6 +1979,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="rs-float" id="rs-float"><button class="rs-tbtn" onclick="rsToggleBar()">⚙ 顯示控制列(H)</button></div>
 </div>
 
+<!-- 批量修改商品彈窗 -->
+<div class="overlay" id="bulk-patch-modal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><h3>✏️ 批量修改商品</h3><button class="modal-close" onclick="closeModal('bulk-patch-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="hint" style="line-height:1.7;margin-bottom:8px">要修改已勾選的 <b id="bp-count">0</b> 個商品。<b>只有打勾的欄位</b>會被改,沒勾的完全不動。勾了但留空 = 把這個欄位清空(例如清掉結束時間)。</div>
+      <div id="bp-fields"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button class="btn-save" id="bp-go" onclick="bulkPatchRun()">✅ 套用到已勾選商品</button><span class="hint" id="bp-prog"></span></div>
+    </div>
+  </div>
+</div>
+
 <!-- 批次新增商品彈窗 -->
 <div class="overlay" id="bulk-shop-modal">
   <div class="modal" style="max-width:860px">
@@ -1992,6 +2005,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="field"><label>預設分類</label><input id="bk-category" list="sc-list" placeholder="例:穿搭大賽-兌換區"></div>
         <div class="field"><label>狀態</label><select id="bk-status"><option value="DRAFT">📝 草稿(建議,檢查後再上架)</option><option value="">🚀 直接上架</option></select></div>
       </div>
+      <div class="fsep" style="margin:6px 0">🔗 全部套用相同設定(勾選的欄位會覆蓋每一行的值)</div>
+      <div id="bk-common"></div>
       <textarea id="bk-text" rows="9" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:13px" placeholder="七大罪的箱子&#9;80&#9;1&#10;2nd 鑽石券&#9;60&#9;3&#10;海浪之箱&#9;60&#9;5" oninput="bulkShopPreview()"></textarea>
       <div id="bk-preview" class="hint" style="margin:8px 0"></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn-save" id="bk-go" onclick="bulkShopRun()">📥 開始建立</button><span class="hint" id="bk-prog"></span></div>
@@ -2842,7 +2857,7 @@ const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'
 // 完整回應JSON會寫進「兌換紀錄」表M欄,Worker可以查到。
 const WRITE_ADMIN_ACTIONS_ = new Set([
   'adminUpdateShopItem', 'adminDeleteShopItem', 'adminBatchDeleteShopItems',
-  'adminBatchSetShopItemStatus', 'adminBatchDrawShopRaffles', 'adminAddShopItem',
+  'adminBatchSetShopItemStatus', 'adminBatchPatchShopItems', 'adminBatchDrawShopRaffles', 'adminAddShopItem',
   'adminDuplicateShopItem', 'adminDuplicateAuction', 'adminAddAdminUser',
   'adminRemoveAdminUser', 'adminUpdateAuction', 'adminCloseAuction', 'adminReannounceAuctionWinner',
   'adminDeleteAuction', 'adminAddAuction', 'adminReorderShopItems',
@@ -4301,8 +4316,54 @@ function icMerge_(merge) {
 }
 function toggleAddMenu_(ev) { ev.stopPropagation(); const m = document.getElementById('add-menu'); m.style.display = m.style.display === 'none' ? 'block' : 'none'; }
 document.addEventListener('click', () => { const m = document.getElementById('add-menu'); if (m) m.style.display = 'none'; });
+// ── 共用欄位區塊(批次新增「全部套用相同」/批量修改共用):勾選才生效 ──
+const BULK_FIELDS_ = [
+  { k: 'startDate', label: '開始時間', t: 'datetime-local' }, { k: 'endDate', label: '結束時間', t: 'datetime-local' },
+  { k: 'price', label: '價格', t: 'number' }, { k: 'stock', label: '庫存(空=無限)', t: 'text' },
+  { k: 'currency', label: '貨幣欄位', t: 'text', list: 'dc-list' }, { k: 'category', label: '分類', t: 'text', list: 'sc-list' },
+  { k: 'limitPT', label: '每人終身限購', t: 'number' }, { k: 'limitPD', label: '每人每日限購', t: 'number' }, { k: 'limitPW', label: '每人每週限購', t: 'number' }, { k: 'limitPM', label: '每人每月限購', t: 'number' },
+  { k: 'limitGD', label: '全服每日限量', t: 'number' }, { k: 'limitGW', label: '全服每週限量', t: 'number' }, { k: 'limitGM', label: '全服每月限量', t: 'number' },
+  { k: 'imageUrl', label: '圖片網址', t: 'text' }, { k: 'remark', label: '備註/說明', t: 'textarea' },
+  { k: 'status', label: '狀態', t: 'select' },
+];
+function bulkFieldsRender_(px) {
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:6px 12px">' + BULK_FIELDS_.map(f => {
+    const id = px + '-' + f.k;
+    let inp = f.t === 'textarea' ? '<textarea id="' + id + '" rows="2" style="width:100%;box-sizing:border-box" disabled></textarea>'
+      : f.t === 'select' ? '<select id="' + id + '" disabled><option value="DRAFT">📝 草稿(下架)</option><option value="">🚀 上架</option></select>'
+      : '<input id="' + id + '" type="' + f.t + '"' + (f.list ? ' list="' + f.list + '"' : '') + ' style="width:100%;box-sizing:border-box" disabled>';
+    return '<div class="field" style="margin:0"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="' + id + '-on" onchange="document.getElementById(\'' + id + '\').disabled=!this.checked"> ' + f.label + '</label>' + inp + '</div>';
+  }).join('') + '</div>';
+}
+function bulkFieldsCollect_(px) {
+  const o = {};
+  BULK_FIELDS_.forEach(f => {
+    const on = document.getElementById(px + '-' + f.k + '-on'); if (!on || !on.checked) return;
+    o[f.k] = document.getElementById(px + '-' + f.k).value;
+  });
+  return o;
+}
+function bulkFieldsLabel_(o) { return Object.keys(o).map(k => { const f = BULK_FIELDS_.find(x => x.k === k); return (f ? f.label : k) + '=' + (o[k] === '' ? '(清空)' : (k === 'status' ? (o[k] === 'DRAFT' ? '草稿' : '上架') : o[k])); }).join('、'); }
+function openBulkPatch() {
+  if (!shopSelectedIds.size) { toast('請先勾選要修改的商品', false); return; }
+  document.getElementById('bp-count').textContent = shopSelectedIds.size;
+  document.getElementById('bp-fields').innerHTML = bulkFieldsRender_('bp'); document.getElementById('bp-prog').textContent = '';
+  document.getElementById('bulk-patch-modal').classList.add('open');
+}
+async function bulkPatchRun() {
+  const patch = bulkFieldsCollect_('bp');
+  if (!Object.keys(patch).length) { toast('請先勾選要修改的欄位', false); return; }
+  if (patch.price !== undefined && (patch.price === '' || isNaN(Number(patch.price)))) { toast('價格要填數字', false); return; }
+  const ids = Array.from(shopSelectedIds);
+  if (!confirm('要把以下設定套用到 ' + ids.length + ' 個商品:\n\n' + bulkFieldsLabel_(patch) + '\n\n其他欄位不會動。確定嗎?')) return;
+  const go = document.getElementById('bp-go'), prog = document.getElementById('bp-prog'); go.disabled = true; prog.textContent = '修改中…';
+  const d = await api({ action: 'adminBatchPatchShopItems', itemIds: JSON.stringify(ids), patch: JSON.stringify(patch) });
+  go.disabled = false;
+  if (d && d.status === 'success') { toast('✅ ' + d.message); closeModal('bulk-patch-modal'); loadShopItems(); }
+  else { prog.textContent = ''; toast('❌ ' + ((d && d.message) || '失敗'), false); }
+}
 // ── 批次新增商品 ──
-function openBulkShop() { document.getElementById('bulk-shop-modal').classList.add('open'); bulkShopPreview(); }
+function openBulkShop() { const c = document.getElementById('bk-common'); if (c && !c.innerHTML) c.innerHTML = bulkFieldsRender_('bk'); document.getElementById('bulk-shop-modal').classList.add('open'); bulkShopPreview(); }
 function bulkShopParse_() {
   const txt = (document.getElementById('bk-text').value || '').replace(/\r/g, '');
   const rows = [], errs = [];
@@ -4334,7 +4395,10 @@ async function bulkShopRun() {
   if (!rows.length) { toast('沒有可建立的商品', false); return; }
   if (errs.length && !confirm('有 ' + errs.length + ' 行格式錯誤會被略過,仍要建立其餘 ' + rows.length + ' 個嗎?')) return;
   const cur0 = document.getElementById('bk-currency').value.trim(), cat0 = document.getElementById('bk-category').value.trim(), status = document.getElementById('bk-status').value;
-  if (!confirm('即將建立 ' + rows.length + ' 個商品(' + (status === 'DRAFT' ? '草稿' : '直接上架') + '),確定嗎?')) return;
+  const common0 = bulkFieldsCollect_('bk');
+  if (common0.price !== undefined && (common0.price === '' || isNaN(Number(common0.price)))) { toast('「價格」要填數字', false); return; }
+  if (!confirm('即將建立 ' + rows.length + ' 個商品(' + (status === 'DRAFT' ? '草稿' : '直接上架') + ')' + (Object.keys(common0).length ? '\n全部套用:' + bulkFieldsLabel_(common0) : '') + ',確定嗎?')) return;
+  const common = bulkFieldsCollect_('bk');
   bulkShopBusy_ = true; const go = document.getElementById('bk-go'), prog = document.getElementById('bk-prog'), log = document.getElementById('bk-log'); go.disabled = true; log.innerHTML = '';
   let ok = 0, fail = 0;
   for (let i = 0; i < rows.length; i++) {
@@ -4343,8 +4407,9 @@ async function bulkShopRun() {
     try {
       const ne = checkNonInstantRule(r.name, r.rvar);
       if (ne) throw new Error(ne);
-      const d = await api({ action: 'adminAddShopItem', name: r.name, price: r.price, currency: r.currency || cur0, category: r.category || cat0, stock: r.stock, status: status,
-        limitPT: r.lpt, rewardVar: r.rvar, rewardQty: r.rqty, imageUrl: r.img, remark: r.remark });
+      const base = { action: 'adminAddShopItem', name: r.name, price: r.price, currency: r.currency || cur0, category: r.category || cat0, stock: r.stock, status: status,
+        limitPT: r.lpt, rewardVar: r.rvar, rewardQty: r.rqty, imageUrl: r.img, remark: r.remark };
+      const d = await api(Object.assign(base, common)); // 「全部套用相同設定」勾選的欄位覆蓋每一行的值
       if (d && d.status === 'success') { good = true; msg = 'ID ' + d.itemId; } else msg = (d && d.message) || '未知錯誤';
     } catch (e) { msg = (e && e.message) || String(e); }
     if (good) ok++; else fail++;
