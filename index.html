@@ -925,7 +925,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.192</div>
+    <div class="version-tag">系統版本：v5.4.193</div>
   </div>
 
   <script>
@@ -4891,7 +4891,16 @@
       if (!ctTrack_ || !d.tracks.some((t) => t.id === ctTrack_)) ctTrack_ = d.tracks.length ? d.tracks[0].id : null;
       renderContest_();
     }
-    let ctPop_ = '';
+    let ctPop_ = '', ctCdTimer_ = null;
+    // ⏳ 未開放賽道的開放倒數(有填投票開始時間才會出現);歸零時自動重新讀取
+    function ctCdTick_() {
+      const el = document.getElementById('ct-cd');
+      if (!el) { if (ctCdTimer_) { clearInterval(ctCdTimer_); ctCdTimer_ = null; } return; }
+      const ms = parseInt(el.getAttribute('data-t'), 10) - Date.now();
+      if (ms <= 0) { clearInterval(ctCdTimer_); ctCdTimer_ = null; el.textContent = '開放中…'; setTimeout(() => loadContest_(), 800); return; }
+      const sec = Math.floor(ms / 1000), d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60, p2 = (n) => String(n).padStart(2, '0');
+      el.textContent = (d ? d + ' 天 ' : '') + p2(h) + ':' + p2(m) + ':' + p2(x);
+    }
     function ctVote_(work, type, el) {
       if (ctBusy_) return; ctBusy_ = true;
       if (el && el.classList) el.classList.add('busy');
@@ -4926,7 +4935,8 @@
         const head = pub ? '<b style="color:#fff">#' + w.rank + ' ' + E(w.name) + '</b> <span style="color:#F0B232">' + (w.score != null ? w.score + ' 分' : '') + '</span> <span style="color:#949BA4;font-size:12px">(支持 ' + w.support + ' · 優異 ' + w.excellent + ' · 計 ' + w.raw + ' 票)</span>' : '<b style="color:#fff">作品 #' + w.no + '</b>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '');
         return '<div style="background:#2F3136;border-radius:10px;padding:14px;margin-bottom:14px"><div style="margin-bottom:10px;font-size:16px">' + head + '</div>' + (imgs ? '<div class="ct-imgs">' + imgs + '</div>' : '')
           + (w.text ? '<div class="ct-desc">' + E(w.text) + '</div>' : '') + (btns ? '<div>' + btns + '</div>' : '') + '</div>';
-      }).join('') || (t.hidden ? '<div style="color:#949BA4;padding:18px 0;text-align:center">🔒 這個賽道尚未開放,作品將在開放後顯示</div>' : '<div style="color:#949BA4">這個賽道還沒有作品</div>');
+      }).join('') || (t.hidden ? '<div style="color:#949BA4;padding:18px 0;text-align:center">🔒 這個賽道尚未開放,作品將在開放後顯示' + (Date.parse(t.start) > Date.now() ? '<div style="margin-top:10px;font-size:15px;color:#F0B232">⏳ 開放倒數 <b id="ct-cd" data-t="' + Date.parse(t.start) + '" style="font-variant-numeric:tabular-nums"></b><div style="font-size:12px;color:#949BA4;margin-top:2px">(' + fmtT(t.start) + ' 開放)</div></div>' : '') + '</div>' : '<div style="color:#949BA4">這個賽道還沒有作品</div>');
+      if (document.getElementById('ct-cd')) { ctCdTick_(); if (!ctCdTimer_) ctCdTimer_ = setInterval(ctCdTick_, 1000); }
       if (d.overall && d.overall.length) {
         ov.innerHTML = '<h3 style="color:#fff;margin:14px 0 6px">🏆 總排名(取最高的兩個賽道相加)</h3>' + d.overall.map((o) => '<div style="font-size:14px;color:#DBDEE1;padding:3px 0">#' + o.rank + ' <b style="color:#fff">' + E(o.name) + '</b> — ' + o.total + ' 分 <span style="color:#949BA4;font-size:12px">(' + o.best.map((b) => E((d.trackNames || {})[b] || b)).join('、') + ')</span></div>').join('');
       }
