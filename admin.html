@@ -274,7 +274,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.157</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.158</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5099,7 +5099,7 @@ function rsKey(e) {
   if (e.key === 'h' || e.key === 'H') rsToggleBar();
   else if (e.key === 'f' || e.key === 'F') rsFull();
   else if (e.key === 'Escape' && !document.fullscreenElement) closeRaffleStage();
-  else if ((e.key === ' ' || e.key === 'Enter') && !RS.barHidden && !RS.busy && (RS.merged || !RS.done)) { e.preventDefault(); if (RS.merged) rsMergedStart(rsMPlan()); else rsStartSelected(); }
+  else if ((e.key === ' ' || e.key === 'Enter') && !RS.busy && (RS.merged || !RS.done)) { e.preventDefault(); if (RS.merged) rsMergedStart(rsMPlan()); else rsStartSelected(); }
 }
 function rsToggle(k) {
   RS[k] = !RS[k];
@@ -5129,6 +5129,7 @@ function rsSetCols(v) {
 }
 function rsToggleBar() {
   RS.barHidden = !RS.barHidden;
+  try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {} // 避免焦點留在按鈕上,空白鍵變成再按一次按鈕
   rsEl('rs-bar').classList.toggle('hide', RS.barHidden);
   rsEl('rs-float').classList.toggle('show', RS.barHidden);
 }
