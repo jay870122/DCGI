@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.235</div>
+    <div class="version-tag">系統版本：v5.4.236</div>
   </div>
 
   <script>
@@ -6437,6 +6437,8 @@
       document.getElementById('auction-modal').style.display = 'flex';
       document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取中...</p>';
       document.getElementById('auction-category-tabs').style.display = 'none';
+      // 🌟🔧 修正:重開視窗時畫面已被清成「讀取中...」,但上次的快照還在 → 讀回來一樣就被當成「沒有變動」跳過重繪,永遠卡在讀取中
+      lastAuctionsSnapshotJSON = null; lastAuctionCategoryOrderJSON = null; currentAuctions = [];
       loadAuctions();
 
       if (auctionAutoRefreshInterval) clearInterval(auctionAutoRefreshInterval);
