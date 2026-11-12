@@ -279,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.202</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.203</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2971,6 +2971,14 @@ async function api(params) {
   const url = isWrite ? `${GAS}?${shortParams}` : `${GAS}?${new URLSearchParams({...params, discordId, accessToken: tok || ''})}`;
   const postOptions = isWrite ? { method: 'POST', body: JSON.stringify({...params, discordId, accessToken: tok || ''}) } : undefined;
 
+  if (!isWrite && params.action === 'getRaffleParticipants') {
+    // 🌟🆕 後台抽獎名單改讀Worker(快、不等GAS冷啟動);Worker失敗就退回GAS
+    try {
+      const wr = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${new URLSearchParams({ action: 'adminRaffleParticipants', itemId: params.itemId, discordId, accessToken: tok || '' })}`, 15000);
+      const wd = await wr.json();
+      if (wd && wd.status === 'success') return wd;
+    } catch (e) { /* 退回GAS */ }
+  }
   if (!isWrite) {
     // 🌟 純讀取的action,簡單fetch就好,不用套賽跑架構
     const r = await fetch(url);
