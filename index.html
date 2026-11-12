@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.234</div>
+    <div class="version-tag">系統版本：v5.4.235</div>
   </div>
 
   <script>
@@ -6456,14 +6456,21 @@
       auctionCountdownReloadTriggered.clear();
     }
 
-    function loadAuctions() {
+    let auctionLoadSeq_ = 0;
+    function loadAuctions(isRetry_) {
       // 🌟 記住這次重整前的截止時間,重整後如果發現變長了,代表剛好被自動延長觸發,閃一下卡片提醒玩家
       const prevEndDates = {};
       currentAuctions.forEach(a => { prevEndDates[a.id] = a.endDate; });
 
-      fetch(`${DASHBOARD_WORKER_URL}?action=auctions&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      // 🌟🔧 加上逾時(12秒)與只採用最新一次的回應:以前請求卡住就一直停在「讀取中…」,而且每10秒自動重整會疊一堆請求
+      const mySeq_ = ++auctionLoadSeq_;
+      const ctrl_ = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      const timer_ = ctrl_ ? setTimeout(() => ctrl_.abort(), 12000) : null;
+      fetch(`${DASHBOARD_WORKER_URL}?action=auctions&discordId=${currentUser.id}&accessToken=${encodeURIComponent(getAccessToken())}`, ctrl_ ? { signal: ctrl_.signal } : undefined)
       .then(res => res.json())
       .then(data => {
+        if (timer_) clearTimeout(timer_);
+        if (mySeq_ !== auctionLoadSeq_) return; // 已有更新的請求,這份舊回應丟掉
         if (data.status === 'success') {
           const refreshLabel = document.getElementById('auction-last-refresh');
 
@@ -6501,8 +6508,17 @@
         }
       })
       .catch(err => {
+        if (timer_) clearTimeout(timer_);
         console.error('拍賣讀取錯誤:', err);
-        document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>';
+        if (mySeq_ !== auctionLoadSeq_) return;
+        // 已經有畫面的話保留舊內容(只更新提示),不要因為一次網路不穩就把整個列表換成錯誤字;第一次載入失敗先自動重試一次
+        if (currentAuctions.length > 0) {
+          const lbl_ = document.getElementById('auction-last-refresh');
+          if (lbl_) lbl_.textContent = '⚠️ 這次更新失敗(網路較慢),10秒後自動再試';
+          return;
+        }
+        if (!isRetry_) { loadAuctions(true); return; }
+        document.getElementById('auction-list-container').innerHTML = '<p style="text-align:center; color:#ED4245;">讀取逾時或失敗，<a href="#" onclick="loadAuctions();return false;" style="color:#5865F2;">點此重試</a></p>';
       });
     }
 
