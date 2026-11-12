@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.230</div>
+    <div class="version-tag">系統版本：v5.4.231</div>
   </div>
 
   <script>
@@ -8345,8 +8345,15 @@ function fetchScoresAndShop(discordId, callback = null) {
     async function tryProcessPurchaseViaWorker_(itemId, qty, altMode, altAmountsObj, unlockPassword, altSelectedNames, optionIndex) {
       try {
         const url = `${DASHBOARD_WORKER_URL}?action=processPurchaseWorker&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`;
-        const res = await fetchWithTimeout_(url, BINGO_ITEM_USE_TIMEOUT_MS);
-        const data = await res.json();
+        // 🌟 多人同時搶購:Worker 端現在最多排隊 20 秒,所以這支請求的逾時要拉長到 45 秒(否則會在伺服器還在排隊/處理時就被前端砍掉,變成「結果不確定」)。
+        // 遇到「系統忙碌」(= 沒拿到鎖,保證沒寫入)自動重試 1 次;已售完/餘額不足/超過限購等其他錯誤不會重試。
+        let data = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const res = await fetchWithTimeout_(url, 45000);
+          data = await res.json();
+          if (data && data.status === 'error' && data.safeNoWrite && /系統忙碌/.test(data.message || '') && attempt === 0) { await sleep_(1200 + Math.random() * 1500); continue; }
+          break;
+        }
         if (data && data.status === 'unsupported') return data;
         if (data && data.status === 'success') return data;
         if (data && data.status === 'error' && data.safeNoWrite) return data;
