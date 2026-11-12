@@ -961,7 +961,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.226</div>
+    <div class="version-tag">系統版本：v5.4.227</div>
   </div>
 
   <script>
@@ -1177,6 +1177,7 @@
         icLinkTry_(); return;
       }
       if (self && q.get('category') && !q.get('item') && !q.get('auction') && [...q.keys()].length === 1) { try { selectCategory(q.get('category')); window.scrollTo({ top: 0, behavior: 'smooth' }); return; } catch (e) {} }
+      if (q.get('redeem') && !q.get('item') && !q.get('auction')) { try { showRedeemCode(q.get('redeem')); return; } catch (e) {} } // 序號/兌換碼連結:頁內直接打開兌換視窗並填好碼(含 Worker /share?redeem=)
       location.assign(u.href); // 商品/拍賣/其他:同一個分頁跳轉(不開新視窗)
     }, true);
     async function icLinkTry_() {
