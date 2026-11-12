@@ -279,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.192</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.193</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5047,7 +5047,13 @@ async function saveShopReorderInline() {
   shopReorderList.forEach(i => { if (i._card) { if (i.group && grpPos[i.group] !== undefined) posById[i.id] = grpPos[i.group]; else { posById[i.id] = before; if (i.group) grpPos[i.group] = before; } } else before++; });
   const cardsChanged = shopReorderList.some(i => i._card);
   if (cardsChanged) {
-    const allCards = icAll_.map(c => (posById[c.id] !== undefined) ? Object.assign({}, c, { pos: posById[c.id] }) : c);
+    // 同一位置(例如分類裡只有資訊卡片、沒有商品)的卡片靠「排序(order)」決定先後,所以也要把新順序寫回 order,否則儲存後會跳回原本的順序
+    const newCards = shopReorderList.filter(i => i._card);
+    const vals = newCards.map(c => parseFloat(c.order) || 0).sort((a, b) => a - b);
+    if (vals.length && vals[0] <= 0) vals[0] = 1; // 後端把 0 當成「沒填」會改用列號,所以不能寫 0
+    for (let k = 1; k < vals.length; k++) if (vals[k] <= vals[k - 1]) vals[k] = Math.round((vals[k - 1] + 0.001) * 1000) / 1000;
+    const ordById = {}; newCards.forEach((c, k) => { ordById[c.id] = vals[k]; });
+    const allCards = icAll_.map(c => (posById[c.id] !== undefined) ? Object.assign({}, c, { pos: posById[c.id], order: ordById[c.id] !== undefined ? ordById[c.id] : c.order }) : c);
     const cr = await apiCraftWrite_('adminInfoCardsSave', { cards: allCards });
     if (!cr || cr.status !== 'success') { toast('❌ 商品順序已存,但資訊卡片位置儲存失敗:' + ((cr && cr.message) || ''), false); return; }
   }
