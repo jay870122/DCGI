@@ -110,6 +110,10 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
 .overlay.open{display:flex}
 .ic-prev img{max-width:100% !important;height:auto !important;box-sizing:border-box;max-height:var(--ic-imgh,min(360px,55vh)) !important;object-fit:contain}
+/* 資訊卡圖片置中/靠右:圖片是 display:block,要用 margin auto 才會跟著對齊 */
+.ic-prev [style*="text-align:center"] img, .ic-prev [style*="text-align: center"] img, .ic-prev img[style*="text-align: center"], .info-card [style*="text-align:center"] img, .info-card [style*="text-align: center"] img, .info-card img[style*="text-align: center"]{margin-left:auto!important;margin-right:auto!important}
+.ic-prev [style*="text-align:right"] img, .ic-prev [style*="text-align: right"] img, .ic-prev img[style*="text-align: right"], .info-card [style*="text-align:right"] img, .info-card [style*="text-align: right"] img, .info-card img[style*="text-align: right"]{margin-left:auto!important;margin-right:0!important}
+
 .modal{background:var(--s);border:1px solid var(--bd);border-radius:12px;width:100%;max-width:700px;margin:auto}
 .modal.as-page{max-width:1200px!important;width:100%;margin:0 0 24px 0}
 .modal.as-page .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px 20px;padding:20px 24px}
@@ -275,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.190</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.191</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4325,7 +4329,7 @@ function icDomToMd_(root) {
     const tag = n.tagName; let inner;
     if (tag === 'BR') return '\n';
     if (tag === 'HR') return '---\n';
-    if (tag === 'IMG') { const src = n.getAttribute('src') || ''; if (!/^https?:\/\//i.test(src)) return ''; const w = parseInt(n.style.width, 10) || parseInt(n.getAttribute('width'), 10) || 0; return '![' + (n.getAttribute('alt') || '圖片') + '](' + src + (w ? ' =' + w : '') + ')'; }
+    if (tag === 'IMG') { const src = n.getAttribute('src') || ''; if (!/^https?:\/\//i.test(src)) return ''; const w = parseInt(n.style.width, 10) || parseInt(n.getAttribute('width'), 10) || 0; const _al = (n.style && n.style.textAlign) || ''; const _md = '![' + (n.getAttribute('alt') || '圖片') + '](' + src + (w ? ' =' + w : '') + ')'; return /^(center|right)$/.test(_al) ? '[' + _al + ']' + _md + '[/' + _al + ']' : _md; }
     inner = kids(n);
     if (tag === 'B' || tag === 'STRONG') return inner ? '**' + inner + '**' : '';
     if (tag === 'I' || tag === 'EM') return inner ? '*' + inner + '*' : '';

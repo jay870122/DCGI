@@ -391,6 +391,10 @@
 #contest-modal .ct-desc{font-size:14px}
 .ct-desc{font-size:13px;line-height:1.7;color:#DBDEE1;white-space:pre-wrap;background:rgba(0,0,0,.18);border-radius:8px;padding:10px 12px}
 @media(max-width:560px){.ct-imgs{flex-direction:column}.ct-imgbox{flex:0 0 auto}.ct-imgbox .ct-img{height:220px}}
+
+/* 資訊卡圖片置中/靠右:圖片是 display:block,要用 margin auto 才會跟著對齊 */
+.info-card [style*="text-align:center"] img, .info-card [style*="text-align: center"] img, .info-card img[style*="text-align: center"]{margin-left:auto!important;margin-right:auto!important}
+.info-card [style*="text-align:right"] img, .info-card [style*="text-align: right"] img, .info-card img[style*="text-align: right"]{margin-left:auto!important;margin-right:0!important}
 </style>
 </head>
 <body>
@@ -961,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.227</div>
+    <div class="version-tag">系統版本：v5.4.228</div>
   </div>
 
   <script>
