@@ -279,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.200</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.201</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2903,7 +2903,7 @@ const DASHBOARD_WORKER_URL = 'https://autumn-wood-df55.jay87012205.workers.dev/'
 // 完整回應JSON會寫進「兌換紀錄」表M欄,Worker可以查到。
 const WRITE_ADMIN_ACTIONS_ = new Set([
   'adminUpdateShopItem', 'adminDeleteShopItem', 'adminBatchDeleteShopItems',
-  'adminBatchSetShopItemStatus', 'adminBatchPatchShopItems', 'adminBatchDrawShopRaffles', 'adminAddShopItem',
+  'adminBatchSetShopItemStatus', 'adminBatchPatchShopItems', 'adminBatchDrawShopRaffles', 'adminRedrawShopRaffleWinner', 'adminAddShopItem',
   'adminDuplicateShopItem', 'adminDuplicateAuction', 'adminAddAdminUser',
   'adminRemoveAdminUser', 'adminUpdateAuction', 'adminCloseAuction', 'adminReannounceAuctionWinner',
   'adminDeleteAuction', 'adminAddAuction', 'adminReorderShopItems',
