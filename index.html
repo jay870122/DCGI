@@ -961,7 +961,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.225</div>
+    <div class="version-tag">系統版本：v5.4.226</div>
   </div>
 
   <script>
@@ -1156,6 +1156,29 @@
     // 🎽 穿搭大賽直達連結:?contest=all(總入口) / ?contest=<賽道ID> / ?contest=mine(我的得獎資訊);先記下來,登入+確認開放後再自動打開
     (function () { try { const q = new URLSearchParams(location.search), c = q.get('contest'); if (c) { localStorage.setItem('ct_link_target', JSON.stringify({ t: c.slice(0, 40), at: Date.now() })); q.delete('contest'); const r = q.toString(); history.replaceState(null, '', location.pathname + (r ? '?' + r : '') + location.hash); } } catch (e) {} })();
     let icLinkCards_ = false, icLinkShop_ = false;
+    // 🔗 資訊卡/說明裡的「本商城」連結:不開新視窗,直接在目前頁面跳轉(能在頁內處理的就不重新整理)
+    document.addEventListener('click', (ev) => {
+      const a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null; if (!a || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button) return;
+      let u; try { u = new URL(a.getAttribute('href'), location.href); } catch (e) { return; }
+      const self = u.origin === location.origin && u.pathname.replace(/index\.html$/, '') === location.pathname.replace(/index\.html$/, '');
+      const share = u.href.indexOf(DASHBOARD_WORKER_URL + 'share') === 0;
+      if (!self && !share) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const q = u.searchParams;
+      try { const im = document.getElementById('img-zoom'); if (im) im.style.display = 'none'; } catch (e) {}
+      if (self && q.get('contest') && !q.get('item') && !q.get('auction')) { // 穿搭大賽:頁內直接打開
+        const c = q.get('contest'); if (!contestAvailable) { alert('🎽 穿搭大賽目前還沒開放'); return; }
+        ctTrack_ = c === 'mine' ? '__mine' : (c === 'all' ? null : c);
+        if (document.getElementById('contest-modal').style.display !== 'flex') openContest(); else loadContest_();
+        return;
+      }
+      if (self && q.get('card') && !q.get('item') && !q.get('auction')) { // 資訊卡/留言:頁內捲過去
+        try { localStorage.setItem('ic_link_target', JSON.stringify({ card: q.get('card'), cm: q.get('cm') || '', t: Date.now() })); } catch (e) {}
+        icLinkTry_(); return;
+      }
+      if (self && q.get('category') && !q.get('item') && !q.get('auction') && [...q.keys()].length === 1) { try { selectCategory(q.get('category')); window.scrollTo({ top: 0, behavior: 'smooth' }); return; } catch (e) {} }
+      location.assign(u.href); // 商品/拍賣/其他:同一個分頁跳轉(不開新視窗)
+    }, true);
     async function icLinkTry_() {
       if (!(icLinkCards_ && icLinkShop_)) return;
       let t = null; try { t = JSON.parse(localStorage.getItem('ic_link_target') || 'null'); } catch (e) {}
