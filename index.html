@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.237</div>
+    <div class="version-tag">系統版本：v5.4.238</div>
   </div>
 
   <script>
@@ -8227,6 +8227,11 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
       if (n > mine) { alert('你只有 ' + mine + ' 張,不能收回 ' + n + ' 張'); return; }
       if (!confirm('確定要收回「' + itemName + '」的 ' + n + ' 張抽獎券嗎?\n會退還這些票當初花費的貨幣(依比例),收回後可以再重新投。')) return;
       raffleWithdrawBusy_ = true;
+      // 🌟 處理中狀態:把這張卡片上的「收回/全部收回」按鈕鎖住並顯示「處理中…」,避免玩家以為沒反應又連按
+      const wdBtns_ = inp && inp.parentElement ? Array.from(inp.parentElement.querySelectorAll('button')) : [];
+      const wdOrig_ = wdBtns_.map(b => b.textContent);
+      wdBtns_.forEach(b => { b.disabled = true; b.style.opacity = '0.6'; b.style.cursor = 'wait'; b.textContent = '處理中…'; });
+      if (inp) inp.disabled = true;
       try {
         const qs_ = `discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&count=${all ? 'ALL' : n}&accessToken=${encodeURIComponent(getAccessToken())}`;
         // 🌟🆕 先走Worker(跟搶購/開獎共用鎖);Worker回unsupported才退回GAS;送出後中斷/逾時絕不重送給GAS(避免重複退款)
@@ -8241,7 +8246,11 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
         else alert('❌ ' + ((data && data.message) || '收回失敗'));
       } catch (e) {
         alert('⚠️ 連線逾時或失敗,無法確認有沒有收回成功,請按「重整庫存」確認你的票數與餘額後再決定要不要重試。');
-      } finally { raffleWithdrawBusy_ = false; }
+      } finally {
+        raffleWithdrawBusy_ = false;
+        wdBtns_.forEach((b, i) => { b.disabled = false; b.style.opacity = ''; b.style.cursor = ''; b.textContent = wdOrig_[i]; });
+        if (inp) inp.disabled = false;
+      }
     }
     function buyItem(itemId, itemName, safeId, maxQty, currencyName, unlockPasswordOverride) {
       if (!currentUser) return;
