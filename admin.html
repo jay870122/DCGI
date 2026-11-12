@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.189</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.190</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2140,7 +2140,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   </div>
 </div>
 <div class="overlay" id="infocard-modal">
-  <div class="modal" style="max-width:720px">
+  <div class="modal" style="max-width:min(1000px,96vw)">
     <div class="modal-header"><h3 id="ic-modal-title">📝 編輯資訊卡片</h3><button class="modal-close" onclick="closeModal('infocard-modal')">×</button></div>
     <div class="form-grid" id="ic-rows"></div>
     <div class="modal-footer">
@@ -4444,6 +4444,9 @@ function icToolbarAct_(el) {
 document.addEventListener('mousedown', (ev) => { const b = ev.target.closest && ev.target.closest('.ic-tb button, .ic-emo [data-act]'); if (b) ev.preventDefault(); });
 document.addEventListener('keyup', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
 document.addEventListener('mouseup', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
+// 📐 編輯框可拖右下角調整高度,記住在這台裝置(下次開編輯也一樣高)
+function icEdH_() { try { const h = parseInt(localStorage.getItem('ic_ed_h') || '', 10); if (h >= 120 && h <= 3000) return h + 'px'; } catch (e) {} return '45vh'; }
+document.addEventListener('mouseup', () => { document.querySelectorAll('.ic-prev[contenteditable]').forEach((w) => { const h = Math.round(w.getBoundingClientRect().height); if (w.style.height && w.style.height.endsWith('px') && h >= 120) { try { localStorage.setItem('ic_ed_h', String(h)); } catch (e) {} } }); });
 document.addEventListener('focusout', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
 document.addEventListener('click', (ev) => { const b = ev.target.closest && ev.target.closest('.ic-tb [data-act], .ic-emo [data-act]'); if (b && !['font', 'size'].includes(b.dataset.act)) icToolbarAct_(b); });
 document.addEventListener('change', (ev) => {
@@ -4488,7 +4491,7 @@ function icAddRow_(c) {
     + IC_TB_HTML_
     + '<label style="display:flex;gap:4px;align-items:center;margin:6px 0 4px" class="hint"><input type="checkbox" class="ic-code-toggle">&lt;/&gt; 顯示程式碼(Markdown 原始碼)</label>'
     + '<textarea class="ic-text" rows="6" placeholder="Markdown 原始碼" style="width:100%;display:none;font-family:Consolas,monospace">' + icEsc_(c.text) + '</textarea>'
-    + '<div class="ic-prev" contenteditable="true" spellcheck="false" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:120px;max-height:60vh;overflow:auto;outline:none;margin-top:4px"></div></div>'
+    + '<div class="ic-prev" contenteditable="true" spellcheck="false" style="background:#2B2D31;border:1px solid #3F4147;border-left:4px solid #5865F2;border-radius:10px;padding:12px 14px;color:#DBDEE1;font-size:14px;line-height:1.6;min-height:120px;height:' + icEdH_() + ';max-height:90vh;resize:vertical;flex-shrink:0;overflow:auto;outline:none;margin-top:4px"></div></div>'
     + '<div class="field full"><details><summary class="hint" style="cursor:pointer">ℹ️ 語法說明(點開)</summary><div class="hint" style="line-height:1.7;margin-top:6px">'
     + '· <b>Markdown</b>:<code># 大標題</code> <code>## 中標題</code> <code>**粗體**</code> <code>*斜體*</code> <code>~~刪除線~~</code> <code>`程式碼`</code> <code>&gt; 引用</code> <code>- 清單</code> <code>1. 編號</code> <code>---</code> <code>[文字](網址)</code><br>'
     + '· <b>圖片</b>:<code>![說明](https://圖片網址)</code>,指定寬度加 <code>=300</code><br>'
