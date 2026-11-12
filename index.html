@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.236</div>
+    <div class="version-tag">系統版本：v5.4.237</div>
   </div>
 
   <script>
@@ -8228,8 +8228,15 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
       if (!confirm('確定要收回「' + itemName + '」的 ' + n + ' 張抽獎券嗎?\n會退還這些票當初花費的貨幣(依比例),收回後可以再重新投。')) return;
       raffleWithdrawBusy_ = true;
       try {
-        const res = await fetchWithTimeout_(`${GAS_API_URL}?action=raffleWithdraw&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&count=${all ? 'ALL' : n}&accessToken=${encodeURIComponent(getAccessToken())}`, 30000);
-        const data = await res.json();
+        const qs_ = `discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&count=${all ? 'ALL' : n}&accessToken=${encodeURIComponent(getAccessToken())}`;
+        // 🌟🆕 先走Worker(跟搶購/開獎共用鎖);Worker回unsupported才退回GAS;送出後中斷/逾時絕不重送給GAS(避免重複退款)
+        let data = null;
+        const wres = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=raffleWithdrawWorker&${qs_}`, 30000);
+        data = await wres.json();
+        if (data && data.status === 'unsupported') {
+          const res = await fetchWithTimeout_(`${GAS_API_URL}?action=raffleWithdraw&${qs_}`, 30000);
+          data = await res.json();
+        }
         if (data && data.status === 'success') { alert('✅ ' + data.message); refreshData(); }
         else alert('❌ ' + ((data && data.message) || '收回失敗'));
       } catch (e) {
