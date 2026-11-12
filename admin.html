@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.188</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.189</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1296,7 +1296,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="ct-card">
           <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍)、參與獎、投票獎、投票神預測獎;金額在上面「獎勵設定」調整;貨幣要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」</div></div>
-            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards(true)">🧪 試算(假設全部公布)</button><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 發放未發放的獎勵</button></div></div>
+            <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards(true)">🧪 試算(假設全部公布)</button><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 全部一起發</button></div></div>
+          <div id="ct-grant-bar" class="ct-act" style="flex-wrap:wrap;margin:6px 0"></div>
           <div id="ct-adm-rewards"></div>
         </div>
 
@@ -4127,29 +4128,45 @@ let ctRew_ = null;
 async function ctAdmLoadRewards(sim) {
   const d = await stockAdminCall_('adminContestRewardsWorker', sim ? { sim: '1' } : {});
   if (!d || d.status !== 'success') { toast('計算失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
-  if (!sim) ctRew_ = d;
+  if (!sim) { ctRew_ = d; ctAdmRenderGrantBar_(); }
   const box = document.getElementById('ct-adm-rewards');
   if (!d.players.length) { box.innerHTML = '<div class="hint">還沒有可結算的獎勵(賽道需「已截止」或「已公布」)</div>'; return; }
   let ex = 0, lo = 0; d.players.forEach((p) => { ex += p.exch + (sim ? p.exchDone : 0); lo += p.lottery + (sim ? p.lotteryDone : 0); });
   const banner = sim ? '<div style="background:rgba(250,166,26,0.15);border:1px solid var(--gold);border-radius:var(--r);padding:8px 12px;margin-bottom:8px;font-size:13px">🧪 <b>試算結果(不會發放)</b>:假設所有賽道都已公布,用目前票數計算' + ((d.pending || []).length ? '。尚未公布的賽道:' + d.pending.map((t) => ctEsc_(t.name) + '(' + ctEsc_(t.status) + ')').join('、') : '') + '。正式發放請按「計算獎勵」或「發放」。</div>' : '';
   box.innerHTML = banner + '<div class="hint" style="margin-bottom:4px">' + (sim ? '預估合計' : '待發放合計') + ':兌換卷 <b>' + ex + '</b>、抽獎卷 <b>' + lo + '</b>(' + d.players.filter((p) => p.exch || p.lottery || (sim && (p.exchDone || p.lotteryDone))).length + ' 位玩家)</div><div class="ct-tw"><table><thead><tr><th>玩家</th><th>' + (sim ? '預估' : '待發') + ' 兌換卷</th><th>' + (sim ? '預估' : '待發') + ' 抽獎卷</th><th>明細</th></tr></thead><tbody>' + d.players.map((p) => '<tr><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + (sim ? p.exch + p.exchDone : p.exch) + '</b>' + (!sim && p.exchDone ? '<div class="hint">已發 ' + p.exchDone + '</div>' : '') + '</td><td><b>' + (sim ? p.lottery + p.lotteryDone : p.lottery) + '</b>' + (!sim && p.lotteryDone ? '<div class="hint">已發 ' + p.lotteryDone + '</div>' : '') + '</td><td style="font-size:12px">' + p.items.map((i) => (i.granted && !sim ? '<s>' : '') + ctEsc_(i.label) + ' ' + i.exch + '/' + i.lottery + (i.granted && !sim ? '</s>' : '')).join('<br>') + '</td></tr>').join('') + '</tbody></table></div>';
 }
-async function ctAdmGrantRewards() {
+// 🎁 分賽道發放:track 省略 = 全部一起發;'__overall' = 只發總排名獎;其他 = 只發該賽道(參與/投票/優異/投票神預測)
+function ctGrantTrack_(it) { return (it.key || '').indexOf('overall|') === 0 ? '__overall' : ((it.key || '').split('|')[1] || ''); }
+function ctGrantPick_(track) { const d = ctRew_; if (!d) return []; return d.players.map((p) => { const it = p.items.filter((i) => !i.granted && (!track || ctGrantTrack_(i) === track)); return { user: p.user, name: p.name, items: it, exch: it.reduce((n, i) => n + i.exch, 0), lottery: it.reduce((n, i) => n + i.lottery, 0) }; }).filter((p) => p.exch || p.lottery); }
+function ctAdmRenderGrantBar_() {
+  const bar = document.getElementById('ct-grant-bar'), d = ctRew_; if (!bar || !d) return;
+  const tn = {}; ((ctAdm_ && ctAdm_.tracks) || []).forEach((t) => { tn[t.id] = t.name; });
+  const keys = []; d.players.forEach((p) => p.items.forEach((i) => { const k = ctGrantTrack_(i); if (keys.indexOf(k) === -1) keys.push(k); }));
+  const order = ((ctAdm_ && ctAdm_.tracks) || []).map((t) => t.id).concat(['__overall']);
+  keys.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  bar.innerHTML = keys.length ? '<span class="hint">分開發:</span>' + keys.map((k) => {
+    const todo = ctGrantPick_(k), nm = k === '__overall' ? '🏆 總排名獎' : (tn[k] || k);
+    return todo.length ? '<button class="btn btn-edit" onclick="ctAdmGrantRewards(\'' + ctEsc_(k) + '\')">🎁 發放 ' + ctEsc_(nm) + '(' + todo.length + ' 人)</button>' : '<span class="btn" style="opacity:.55;cursor:default">✅ ' + ctEsc_(nm) + ' 已發完</span>';
+  }).join('') : '';
+}
+async function ctAdmGrantRewards(track) {
   await ctAdmLoadRewards();
   const d = ctRew_; if (!d) return;
-  const todo = d.players.filter((p) => p.exch || p.lottery); if (!todo.length) { toast('沒有待發放的獎勵'); return; }
+  const tn = {}; ((ctAdm_ && ctAdm_.tracks) || []).forEach((t) => { tn[t.id] = t.name; });
+  const label = !track ? '全部賽道' : track === '__overall' ? '總排名獎' : (tn[track] || track);
+  const todo = ctGrantPick_(track); if (!todo.length) { toast('「' + label + '」沒有待發放的獎勵'); return; }
   if (!pcCurrencyFields || !pcCurrencyFields.length) await loadPlayerCurrency();
   const find = (nm) => (pcCurrencyFields || []).find((f) => (f.display || '').trim() === nm);
   const cx = find(d.currencies[0]), cl = find(d.currencies[1]);
   if (!cx || !cl) { toast('找不到貨幣「' + (!cx ? d.currencies[0] : d.currencies[1]) + '」,請先到貨幣設定建立這兩種貨幣(顯示名稱要完全一樣)', false); return; }
-  if (!confirm('確定要發放獎勵給 ' + todo.length + ' 位玩家嗎?(兌換卷合計 ' + todo.reduce((s, p) => s + p.exch, 0) + '、抽獎卷合計 ' + todo.reduce((s, p) => s + p.lottery, 0) + ')\n會私訊通知玩家,此動作無法復原!')) return;
+  if (!confirm('確定要發放「' + label + '」的獎勵給 ' + todo.length + ' 位玩家嗎?(兌換卷合計 ' + todo.reduce((s, p) => s + p.exch, 0) + '、抽獎卷合計 ' + todo.reduce((s, p) => s + p.lottery, 0) + ')\n會私訊通知玩家,此動作無法復原!')) return;
   const adj = {};
   todo.forEach((p) => { const a = []; if (p.exch) a.push({ internal: cx.internal, display: cx.display, mode: 'ADD', amount: p.exch }); if (p.lottery) a.push({ internal: cl.internal, display: cl.display, mode: 'ADD', amount: p.lottery }); adj[p.user] = a; });
-  const r = await api({ action: 'adminAdjustPlayerCurrency', playerAdjustments: JSON.stringify(adj), playerItemGrants: '{}', notify: true, broadcast: false, reason: '角色穿搭大賽獎勵', serialKeyNames: '[]', serialTargetIds: '[]', serialNotify: false });
+  const r = await api({ action: 'adminAdjustPlayerCurrency', playerAdjustments: JSON.stringify(adj), playerItemGrants: '{}', notify: true, broadcast: false, reason: '角色穿搭大賽獎勵' + (track ? '(' + label + ')' : ''), serialKeyNames: '[]', serialTargetIds: '[]', serialNotify: false })
   if (!r || r.status !== 'success') { toast('發放失敗: ' + ((r && r.message) || '未知錯誤'), false); return; }
-  const awards = []; todo.forEach((p) => p.items.filter((i) => !i.granted).forEach((i) => awards.push({ key: i.key, user: p.user, label: i.label, exch: i.exch, lottery: i.lottery })));
+  const awards = []; todo.forEach((p) => p.items.forEach((i) => awards.push({ key: i.key, user: p.user, label: i.label, exch: i.exch, lottery: i.lottery })));
   const m = await apiCraftWrite_('adminContestMarkGranted', { awards });
-  toast('🎁 已發放給 ' + todo.length + ' 位玩家' + (m && m.status === 'success' ? '' : '(但「已發放」記錄寫入失敗,請勿重複發放!)'), !!(m && m.status === 'success'));
+  toast('🎁 「' + label + '」已發放給 ' + todo.length + ' 位玩家' + (m && m.status === 'success' ? '' : '(但「已發放」記錄寫入失敗,請勿重複發放!)'), !!(m && m.status === 'success'));
   ctAdmLoadRewards();
 }
 let ctPlayers_ = null;
