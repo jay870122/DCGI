@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.233</div>
+    <div class="version-tag">系統版本：v5.4.234</div>
   </div>
 
   <script>
@@ -6848,6 +6848,17 @@
         : `目前折抵 0 個(${info.altName} 數量不足以湊到最小可折抵單位,或尚未輸入數量)`;
     }
 
+    async function tryPlaceBidViaWorker_(auctionId, amount, altMode, altAmount) {
+      try {
+        const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=placeBidWorker&discordId=${currentUser.id}&auctionId=${encodeURIComponent(auctionId)}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`, 30000);
+        const data = await res.json();
+        if (data && (data.status === 'success' || data.status === 'unsupported' || (data.status === 'error' && data.safeNoWrite))) return data;
+        return { status: 'error', message: (data && data.message) ? data.message : '出價結果不確定,請重新整理確認' };
+      } catch (e) {
+        return null;
+      }
+    }
+
     function submitBid(auctionId, auctionName) {
       if (!currentUser) return;
       const input = document.getElementById(`bid-input-${auctionId}`);
@@ -6878,8 +6889,14 @@
       btn.innerText = '⏳ 出價中請稍後...';
       input.disabled = true;
 
-      fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`)
-      .then(res => res.json())
+      // 🌟 先打Worker版出價(快、不排GAS佇列);Worker回unsupported才退回GAS;
+      // Worker結果不確定(逾時/網路錯誤/寫到一半失敗)就不要再丟GAS重打,避免重複扣款,請玩家重新整理確認
+      tryPlaceBidViaWorker_(auctionId, amount, altMode, altAmount)
+      .then(w => {
+        if (w && w.status !== 'unsupported') return w;
+        if (w === null) return { status: 'error', message: '出價結果不確定(連線逾時),請先重新整理頁面看看餘額跟拍賣最高價,確認沒有出價成功再重試。' };
+        return fetch(`${GAS_API_URL}?action=bid&discordId=${currentUser.id}&auctionId=${auctionId}&bidAmount=${amount}&altMode=${altMode}&altAmount=${altAmount}&accessToken=${encodeURIComponent(getAccessToken())}`).then(res => res.json());
+      })
       .then(data => {
         if (data.status === 'success') {
           alert('✅ 出價成功！');
