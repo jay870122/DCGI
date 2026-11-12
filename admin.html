@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.186</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.187</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1272,7 +1272,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="ct-card">
-          <div class="ct-h"><div><h3>🗳️ 投票明細</h3><div class="hint">誰投給哪件作品;含已撤回的票。官方可取消有問題的票(不計分、退回玩家額度,玩家可以重新投;也可按恢復)</div></div>
+          <div class="ct-h"><div><h3>🗳️ 投票明細</h3><div class="hint">誰投給哪件作品;含已撤回的票。官方可取消有問題的票(直接刪掉、當作沒投過,額度退回,玩家可以重新投)</div></div>
             <div class="ct-act" style="margin:0;flex-wrap:wrap"><input id="ct-bal-q" placeholder="🔍 搜尋投票者或參賽者" oninput="ctAdmRenderBallots_()" style="width:220px"><select id="ct-bal-track" onchange="ctAdmRenderBallots_()" style="width:160px"></select><select id="ct-bal-view" onchange="ctAdmRenderBallots_()" style="width:150px"><option value="list">📋 全部列表</option><option value="voter">👤 依投票者分組</option><option value="work">🖼️ 依作品分組</option></select><select id="ct-bal-st" onchange="ctAdmRenderBallots_()" style="width:120px"><option value="">全部狀態</option><option value="on">只看有效</option><option value="off">只看無效</option></select></div></div>
           <div id="ct-bal-bulk" class="ct-act" style="display:none;margin:6px 0"><span class="hint" id="ct-bal-n"></span><button class="btn btn-del" onclick="ctAdmCancelVotes_(ctBalSel_(),false)">🛑 取消勾選的票</button><button class="btn btn-edit" onclick="document.querySelectorAll('.ct-bal-ck').forEach((c)=>{c.checked=false});ctBalUpd_()">清除勾選</button></div>
           <div id="ct-adm-ballots"></div>
@@ -3933,7 +3933,7 @@ function ctAdmRenderBallots_() {
   const act = rows.filter((x) => x.b.active);
   const fmt = (t) => { const m = Date.parse(t); return m ? new Date(m).toLocaleString('zh-TW', { hour12: false }) : ''; };
   const stTxt = (b) => b.active ? '有效' : b.cancelled ? '<span style="color:#ED4245">🛑 官方取消</span>' : b.orphan ? '作品已刪除(已退票)' : '已撤回';
-  const opTd = (b) => '<td>' + (b.active ? '<input type="checkbox" class="ct-bal-ck" value="' + ctEsc_(b.id) + '" onchange="ctBalUpd_()"> <button class="btn btn-del" onclick="ctAdmCancelVotes_([\'' + ctEsc_(b.id) + '\'],false)">🛑 取消</button>' : b.cancelled ? '<button class="btn btn-edit" onclick="ctAdmCancelVotes_([\'' + ctEsc_(b.id) + '\'],true)">↩️ 恢復</button>' : '') + '</td>';
+  const opTd = (b) => '<td>' + (b.active ? '<input type="checkbox" class="ct-bal-ck" value="' + ctEsc_(b.id) + '" onchange="ctBalUpd_()"> <button class="btn btn-del" onclick="ctAdmCancelVotes_([\'' + ctEsc_(b.id) + '\'],false)">🛑 取消</button>' : '') + '</td>';
   const tr = (x, cols) => '<tr' + (x.b.active ? '' : ' style="opacity:.55"') + '>' + cols.map((c) => '<td>' + c + '</td>').join('') + opTd(x.b) + '</tr>';
   const cVoter = (x) => ctEsc_(x.b.voterName) + '<div class="hint">' + ctEsc_(x.b.voter) + '</div>', cWork = (x) => ctEsc_(x.w.name || x.b.work) + '<div class="hint">' + ctEsc_(x.w.user || '') + '</div>';
   const cType = (x) => x.b.type === 'excellent' ? '⭐優異' : '支持';
@@ -3963,8 +3963,8 @@ function ctBalSel_() { return Array.from(document.querySelectorAll('.ct-bal-ck:c
 function ctBalUpd_() { const n = ctBalSel_().length, b = document.getElementById('ct-bal-bulk'); if (b) b.style.display = n ? 'flex' : 'none'; const t = document.getElementById('ct-bal-n'); if (t) t.textContent = '已勾選 ' + n + ' 張票'; }
 async function ctAdmCancelVotes_(ids, restore) {
   ids = (ids || []).filter(Boolean); if (!ids.length) { toast('沒有勾選任何票', false); return; }
-  if (!confirm(restore ? '確定要恢復這 ' + ids.length + ' 張被官方取消的票嗎?(恢復後重新計分,不會檢查玩家目前的票數上限)' : '確定要取消這 ' + ids.length + ' 張票嗎?\n取消後不計分、退回玩家額度,玩家可以重新投票(之後也可以按「恢復」)。')) return;
-  const d = await apiCraftWrite_('adminContestCancelVote', { ids, restore });
+  if (!confirm('確定要取消這 ' + ids.length + ' 張票嗎?\n會直接刪掉(當作沒投過),額度退回,玩家可以重新投。刪掉後無法復原。')) return;
+  const d = await apiCraftWrite_('adminContestCancelVote', { ids });
   if (!d || d.status !== 'success') { toast('失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   toast('✅ ' + d.message); loadContestAdmin();
 }
