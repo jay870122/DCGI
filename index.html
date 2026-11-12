@@ -961,7 +961,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.222</div>
+    <div class="version-tag">系統版本：v5.4.223</div>
   </div>
 
   <script>
@@ -4912,9 +4912,10 @@
     // 🎽 角色穿搭大賽:匿名作品、每賽道每人支持票(作品數×40%)+優異票(×15%,計2票),不可投自己;公布後顯示名次與分數
     let ctState_ = null, ctTrack_ = null, ctBusy_ = false;
     // 👁 管理員用一般玩家畫面預覽(網址 ?ctPreview=1 或視窗內切換):後端照一般玩家權限回傳(入口時間/測試模式/未開放賽道都照玩家看到的)
-    let ctAsPlayer_ = false; try { ctAsPlayer_ = new URLSearchParams(location.search).get('ctPreview') === '1'; } catch (e) {}
-    const ctPreviewFromUrl_ = ctAsPlayer_;
-    function ctTogglePreview_() { ctAsPlayer_ = !ctAsPlayer_; loadContest_(); }
+    // 預設 = 玩家視角(管理員按「切換管理員視角」才看得到作者/未開放賽道;選擇記在這台裝置)
+    let ctAsPlayer_ = true; try { ctAsPlayer_ = localStorage.getItem('ct_admin_view') !== '1'; } catch (e) {}
+    let ctPreviewFromUrl_ = false; try { ctPreviewFromUrl_ = new URLSearchParams(location.search).get('ctPreview') === '1'; if (ctPreviewFromUrl_) ctAsPlayer_ = true; } catch (e) {}
+    function ctTogglePreview_() { ctAsPlayer_ = !ctAsPlayer_; try { localStorage.setItem('ct_admin_view', ctAsPlayer_ ? '0' : '1'); } catch (e) {} loadContest_(); }
     async function checkContestAvailability_() {
       try { const d = await chamberCall_('contestStateWorker'); if (d && d.status === 'success' && (d.tracks || []).length) { contestAvailable = true; renderSidebar(); } } catch (e) {}
       if (ctPreviewFromUrl_) { // 從後台按「一般玩家畫面預覽」進來 → 等確認是管理員(儀表板載完)後直接打開
@@ -4965,8 +4966,8 @@
     function ctPreviewBar_() {
       if (!isAdminUser) return '';
       return ctAsPlayer_
-        ? '<div style="background:rgba(254,231,92,.12);border:1px solid rgba(254,231,92,.5);border-radius:8px;padding:6px 10px;margin-bottom:8px;color:#FEE75C;display:flex;gap:8px;align-items:center;flex-wrap:wrap">👁 一般玩家畫面預覽中(只有管理員看得到這行;在這裡投票是真的投票) <button type="button" class="btn" style="padding:3px 10px;margin:0;font-size:12px;background:#4E5058" onclick="ctTogglePreview_()">結束預覽</button></div>'
-        : '<div style="margin-bottom:6px"><button type="button" class="btn" style="padding:3px 10px;margin:0;font-size:12px;background:#4E5058" onclick="ctTogglePreview_()">👁 用一般玩家畫面預覽</button> <span style="font-size:11px;color:#949BA4">(管理員才看得到)</span></div>';
+        ? '<div style="background:rgba(254,231,92,.12);border:1px solid rgba(254,231,92,.5);border-radius:8px;padding:6px 10px;margin-bottom:8px;color:#FEE75C;display:flex;gap:8px;align-items:center;flex-wrap:wrap">👁 目前是玩家視角(只有管理員看得到這行;在這裡投票是真的投票) <button type="button" class="btn" style="padding:3px 10px;margin:0;font-size:12px;background:#4E5058" onclick="ctTogglePreview_()">👑 切換管理員視角</button></div>'
+        : '<div style="margin-bottom:6px"><button type="button" class="btn" style="padding:3px 10px;margin:0;font-size:12px;background:#4E5058" onclick="ctTogglePreview_()">👁 切回玩家視角</button> <span style="font-size:11px;color:#949BA4">👑 管理員視角:看得到作者與未開放賽道的作品</span></div>';
     }
     function renderContest_() {
       const d = ctState_; if (!d) return;
