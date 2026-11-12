@@ -279,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.199</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.200</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2924,7 +2924,7 @@ const ADMIN_ACTION_TIMEOUT_MS = 25000;
 // 🌟🆕 這些拍賣後台寫入動作由Worker執行(Worker端op名稱);其餘寫入動作維持原本GAS流程
 const SMALL_ADMIN_WORKER_OPS_ = { adminGrantGeneralItem: 'grantGeneralItem', adminGrantBingoItem: 'grantBingoItem', adminResetBingoCards: 'resetBingoCards', adminResetPlayerRedemption: 'resetPlayerRedemption' };
 const SHOP_ADMIN_WORKER_OPS_ = { adminAddShopItem: 'add', adminUpdateShopItem: 'update', adminDeleteShopItem: 'delete', adminDuplicateShopItem: 'duplicate', adminBatchDeleteShopItems: 'batchDelete', adminBatchSetShopItemStatus: 'batchStatus', adminBatchPatchShopItems: 'batchPatch', adminReorderShopItems: 'reorder' };
-const RAFFLE_ADMIN_WORKER_OPS_ = { adminDrawShopRaffleNow: 'drawNow', adminBatchDrawShopRaffles: 'batchDraw' };
+const RAFFLE_ADMIN_WORKER_OPS_ = { adminDrawShopRaffleNow: 'drawNow', adminBatchDrawShopRaffles: 'batchDraw', adminRedrawShopRaffleWinner: 'redraw' };
 const AUCTION_ADMIN_WORKER_OPS_ = {
   adminAddAuction: 'add', adminUpdateAuction: 'update', adminCloseAuction: 'close', adminDeleteAuction: 'delete',
   adminDuplicateAuction: 'duplicate', adminReorderAuctions: 'reorder', adminReannounceAuctionWinner: 'reannounce',
