@@ -275,7 +275,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.187</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.188</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1269,6 +1269,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="ct-card">
           <div class="ct-h"><div><h3>📊 作品與即時成績</h3><div class="hint">後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到</div></div></div>
           <div id="ct-adm-works"></div>
+        </div>
+
+        <div class="ct-card">
+          <div class="ct-h"><div><h3>🔗 直達連結</h3><div class="hint">複製後貼到 Discord,玩家點了會打開網頁商店並自動開啟穿搭大賽(要先登入;大賽還沒開放時會提示)</div></div></div>
+          <div id="ct-links" class="ct-act" style="flex-wrap:wrap"></div>
         </div>
 
         <div class="ct-card">
@@ -3892,6 +3897,7 @@ function ctAdmRender_() {
   }).join('') || '<div class="hint">還沒有賽道</div>';
   ctAdmRenderBallots_();
   ctAdmRenderCfg_();
+  ctAdmRenderLinks_();
   const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
   document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>玩家</th><th>命中優異獎(件數)</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">賽道截止後才會有資料</div>';
   document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有成績</div>';
@@ -3958,6 +3964,17 @@ function ctAdmRenderBallots_() {
     }).join('') + '</div>';
   }
   ctBalUpd_();
+}
+function ctLink_(t) { return FRONTEND_URL + '?contest=' + encodeURIComponent(t); }
+function ctAdmRenderLinks_() {
+  const box = document.getElementById('ct-links'), d = ctAdm_; if (!box || !d) return;
+  const b = (t, label) => '<button type="button" class="btn btn-edit" onclick="ctCopyLink_(\'' + ctEsc_(t) + '\',\'' + ctEsc_(label) + '\')">📋 ' + ctEsc_(label) + '</button>';
+  box.innerHTML = b('all', '總連結') + b('mine', '我的得獎資訊') + d.tracks.map((t) => b(t.id, t.name)).join('') + '<div class="hint" style="width:100%;margin-top:4px">總連結:' + ctEsc_(ctLink_('all')) + '</div>';
+}
+async function ctCopyLink_(t, label) {
+  const u = ctLink_(t);
+  try { await navigator.clipboard.writeText(u); toast('✅ 已複製「' + label + '」連結'); }
+  catch (e) { prompt('複製這個連結:', u); }
 }
 function ctBalSel_() { return Array.from(document.querySelectorAll('.ct-bal-ck:checked')).map((c) => c.value); }
 function ctBalUpd_() { const n = ctBalSel_().length, b = document.getElementById('ct-bal-bulk'); if (b) b.style.display = n ? 'flex' : 'none'; const t = document.getElementById('ct-bal-n'); if (t) t.textContent = '已勾選 ' + n + ' 張票'; }

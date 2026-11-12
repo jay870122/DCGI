@@ -961,7 +961,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.223</div>
+    <div class="version-tag">系統版本：v5.4.224</div>
   </div>
 
   <script>
@@ -1153,6 +1153,8 @@
     })();
     // 🔗 DC 通知附的留言連結 ?card=卡片ID&cm=留言ID:先記起來(登入跳轉會丟掉網址參數),卡片與商店都載入後自動切分類、展開留言並捲動到該則
     (function () { try { const q = new URLSearchParams(location.search), c = q.get('card'); if (c) { localStorage.setItem('ic_link_target', JSON.stringify({ card: c, cm: q.get('cm') || '', t: Date.now() })); history.replaceState(null, '', location.pathname + location.hash); } } catch (e) {} })();
+    // 🎽 穿搭大賽直達連結:?contest=all(總入口) / ?contest=<賽道ID> / ?contest=mine(我的得獎資訊);先記下來,登入+確認開放後再自動打開
+    (function () { try { const q = new URLSearchParams(location.search), c = q.get('contest'); if (c) { localStorage.setItem('ct_link_target', JSON.stringify({ t: c.slice(0, 40), at: Date.now() })); q.delete('contest'); const r = q.toString(); history.replaceState(null, '', location.pathname + (r ? '?' + r : '') + location.hash); } } catch (e) {} })();
     let icLinkCards_ = false, icLinkShop_ = false;
     async function icLinkTry_() {
       if (!(icLinkCards_ && icLinkShop_)) return;
@@ -4921,6 +4923,11 @@
       if (ctPreviewFromUrl_) { // 從後台按「一般玩家畫面預覽」進來 → 等確認是管理員(儀表板載完)後直接打開
         for (let i = 0; i < 40 && !isAdminUser; i++) await new Promise((r) => setTimeout(r, 500));
         if (isAdminUser && document.getElementById('contest-modal').style.display !== 'flex') openContest();
+      }
+      let lt = null; try { lt = JSON.parse(localStorage.getItem('ct_link_target') || 'null'); localStorage.removeItem('ct_link_target'); } catch (e) {}
+      if (lt && Date.now() - (lt.at || 0) < 15 * 60 * 1000) {
+        if (contestAvailable) { ctTrack_ = lt.t === 'mine' ? '__mine' : (lt.t === 'all' ? null : lt.t); if (document.getElementById('contest-modal').style.display !== 'flex') openContest(); else loadContest_(); }
+        else alert('🎽 穿搭大賽目前還沒開放,開放後再點連結就能直接進入喔!');
       }
     }
     let ctSeed_ = Math.random().toString(36).slice(2, 10);
