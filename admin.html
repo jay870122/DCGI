@@ -279,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.193</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.194</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2921,6 +2921,12 @@ const WRITE_ADMIN_ACTIONS_ = new Set([
   'adminSaveCraftRecipe', 'adminDeleteCraftRecipe',
 ]);
 const ADMIN_ACTION_TIMEOUT_MS = 25000;
+// 🌟🆕 這些拍賣後台寫入動作由Worker執行(Worker端op名稱);其餘寫入動作維持原本GAS流程
+const AUCTION_ADMIN_WORKER_OPS_ = {
+  adminAddAuction: 'add', adminUpdateAuction: 'update', adminCloseAuction: 'close', adminDeleteAuction: 'delete',
+  adminDuplicateAuction: 'duplicate', adminReorderAuctions: 'reorder', adminReannounceAuctionWinner: 'reannounce',
+  adminBatchCloseAuctions: 'batchClose', adminBatchSetAuctionStatus: 'batchStatus', adminBatchDeleteAuctions: 'batchDelete',
+};
 function sleep_(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 // 🌟🆕 加了第三個參數options(可省略),理由跟index.html同一處修改完全一樣:讓api()函式可以用POST
 // 送出寫入類請求,大型欄位(例如道具模板的「內容獎池」文字可能幾千字)不用再塞進URL查詢字串、不會
@@ -2966,6 +2972,19 @@ async function api(params) {
     // 🌟 純讀取的action,簡單fetch就好,不用套賽跑架構
     const r = await fetch(url);
     return r.json();
+  }
+
+  // 🌟🆕 拍賣後台寫入改先走Worker(跟出價/結算共用鎖,改資料時不會跟結算打架);Worker回'unsupported'才退回下面的GAS流程
+  if (AUCTION_ADMIN_WORKER_OPS_[params.action]) {
+    try {
+      const wurl = `${DASHBOARD_WORKER_URL}?${new URLSearchParams({ action: 'adminAuctionOpWorker', discordId, accessToken: tok || '' })}`;
+      const wres = await fetchWithTimeout_(wurl, 30000, { method: 'POST', body: JSON.stringify({ ...params, op: AUCTION_ADMIN_WORKER_OPS_[params.action] }) });
+      const wdata = await wres.json();
+      if (wdata && wdata.status !== 'unsupported') return wdata;
+    } catch (e) {
+      // 請求送出後中斷/逾時:Worker可能已經做完,絕對不能再丟給GAS重做一次
+      return { status: 'error', message: '⚠️ 連線中斷,無法確認這次操作有沒有成功——請先重新整理列表確認,再決定要不要重試。' };
+    }
   }
 
   // 🌟 寫入類action:套用賽跑架構
