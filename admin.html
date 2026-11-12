@@ -279,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.195</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.196</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2922,6 +2922,7 @@ const WRITE_ADMIN_ACTIONS_ = new Set([
 ]);
 const ADMIN_ACTION_TIMEOUT_MS = 25000;
 // 🌟🆕 這些拍賣後台寫入動作由Worker執行(Worker端op名稱);其餘寫入動作維持原本GAS流程
+const SMALL_ADMIN_WORKER_OPS_ = { adminGrantGeneralItem: 'grantGeneralItem', adminGrantBingoItem: 'grantBingoItem', adminResetBingoCards: 'resetBingoCards', adminResetPlayerRedemption: 'resetPlayerRedemption' };
 const AUCTION_ADMIN_WORKER_OPS_ = {
   adminAddAuction: 'add', adminUpdateAuction: 'update', adminCloseAuction: 'close', adminDeleteAuction: 'delete',
   adminDuplicateAuction: 'duplicate', adminReorderAuctions: 'reorder', adminReannounceAuctionWinner: 'reannounce',
@@ -2975,11 +2976,11 @@ async function api(params) {
   }
 
   // 🌟🆕 拍賣後台寫入改先走Worker(跟出價/結算共用鎖,改資料時不會跟結算打架);Worker回'unsupported'才退回下面的GAS流程
-  if (AUCTION_ADMIN_WORKER_OPS_[params.action] || params.action === 'adminAdjustPlayerCurrency') {
+  if (AUCTION_ADMIN_WORKER_OPS_[params.action] || params.action === 'adminAdjustPlayerCurrency' || SMALL_ADMIN_WORKER_OPS_[params.action]) {
     try {
       const isAdj_ = params.action === 'adminAdjustPlayerCurrency';
-      const wurl = `${DASHBOARD_WORKER_URL}?${new URLSearchParams({ action: isAdj_ ? 'adminAdjustPlayerCurrencyWorker' : 'adminAuctionOpWorker', discordId, accessToken: tok || '' })}`;
-      const wres = await fetchWithTimeout_(wurl, 30000, { method: 'POST', body: JSON.stringify(isAdj_ ? { ...params } : { ...params, op: AUCTION_ADMIN_WORKER_OPS_[params.action] }) });
+      const wurl = `${DASHBOARD_WORKER_URL}?${new URLSearchParams({ action: isAdj_ ? 'adminAdjustPlayerCurrencyWorker' : (SMALL_ADMIN_WORKER_OPS_[params.action] ? 'adminSmallOpWorker' : 'adminAuctionOpWorker'), discordId, accessToken: tok || '' })}`;
+      const wres = await fetchWithTimeout_(wurl, 30000, { method: 'POST', body: JSON.stringify(isAdj_ ? { ...params } : SMALL_ADMIN_WORKER_OPS_[params.action] ? { ...params, op: SMALL_ADMIN_WORKER_OPS_[params.action] } : { ...params, op: AUCTION_ADMIN_WORKER_OPS_[params.action] }) });
       const wdata = await wres.json();
       if (wdata && wdata.status !== 'unsupported') return wdata;
     } catch (e) {
