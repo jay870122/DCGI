@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.229</div>
+    <div class="version-tag">系統版本：v5.4.230</div>
   </div>
 
   <script>
@@ -7036,16 +7036,19 @@ function fetchScoresAndShop(discordId, callback = null) {
 
           const allCats = Array.from(new Set(currentShopItems.filter(item => shouldShowLinkOnlyItem(item)).map(item => item.category)));
 
+          // 只有資訊卡、沒有商品的分類也算存在(不然按「重整庫存」會被當成分類不見、跳回第一個分類)
+          const icCats = (infoCards_ || []).map((c) => (c.category || '').toString().trim()).filter(Boolean);
+          const catExists = (c) => allCats.includes(c) || icCats.includes(c);
           if (targetItem && targetItem.category) {
             currentCategory = targetItem.category;
             localStorage.removeItem('shared_category_target');
-          } else if (targetCategory && allCats.includes(targetCategory)) {
+          } else if (targetCategory && catExists(targetCategory)) {
             currentCategory = targetCategory;
             localStorage.removeItem('shared_category_target');
           } else {
             localStorage.removeItem('shared_category_target');
             // 🌟 沒有指定分類(或上次選的分類已經不存在)時,預設選排序後的第一個分類,而不是「所有商品」
-            if (!currentCategory || !allCats.includes(currentCategory)) {
+            if (!currentCategory || !catExists(currentCategory)) {
               allCats.sort((a, b) => getCategoryOrderIndex(a, CATEGORY_ORDER) - getCategoryOrderIndex(b, CATEGORY_ORDER));
               currentCategory = allCats[0] || null;
             }
