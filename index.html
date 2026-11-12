@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.240</div>
+    <div class="version-tag">系統版本：v5.4.241</div>
   </div>
 
   <script>
@@ -4940,7 +4940,7 @@
 
 
     // ============================================================
-    // 🎽 角色穿搭大賽:匿名作品、每賽道每人支持票(作品數×40%)+優異票(×15%,計2票),不可投自己;公布後顯示名次與分數
+    // 🎽 角色穿搭大賽:匿名作品、每賽道每人合計票數(作品數×40%),其中優異票最多×15%(計2票),不可投自己;公布後顯示名次與分數
     let ctState_ = null, ctTrack_ = null, ctBusy_ = false;
     // 👁 管理員用一般玩家畫面預覽(網址 ?ctPreview=1 或視窗內切換):後端照一般玩家權限回傳(入口時間/測試模式/未開放賽道都照玩家看到的)
     // 預設 = 玩家視角(管理員按「切換管理員視角」才看得到作者/未開放賽道;選擇記在這台裝置)
@@ -5027,7 +5027,7 @@
       const open = t.status === '投票中', pub = t.status === '已公布';
       const fmtT = (iso) => { const x = iso ? new Date(iso) : null; return x && !isNaN(x) ? (x.getMonth() + 1) + '/' + x.getDate() + ' ' + String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0') : ''; };
       document.getElementById('ct-info').innerHTML = ctPreviewBar_() + (d.testMode ? '<div style="color:#FEE75C">🧪 測試模式:只有管理員看得到這個頁面</div>' : '') + '第 ' + t.round + ' 輪 · ' + E(t.name) + (t.hidden ? '' : '(共 ' + t.works.length + ' 件作品)') + ((t.start || t.end) ? ' · 投票 ' + (fmtT(t.start) || '—') + ' ~ ' + (fmtT(t.end) || '—') : '') + (d.shuffle && !pub ? ' · 🔀 作品順序為隨機排列' : '')
-        + (open ? '<br>🗳️ 你的票:支持票 <b style="color:#fff">' + t.used.support + ' / ' + t.limits.support + '</b>、⭐ 優異票(計 2 票)<b style="color:#fff">' + t.used.excellent + ' / ' + t.limits.excellent + '</b>。不可投自己的作品,投票期間可隨時收回改投。'
+        + (open ? '<br>🗳️ 你的票:已投 <b style="color:#fff">' + (t.used.support + t.used.excellent) + ' / ' + (t.limits.total || t.limits.support) + '</b> 張(支持+優異合計),其中 ⭐ 優異票 <b style="color:#fff">' + t.used.excellent + ' / ' + t.limits.excellent + '</b>(1 張計 2 票)。不可投自己的作品,投票期間可隨時收回改投。'
           + (t.works.length ? '<div style="margin-top:6px;font-size:13px;color:#DBDEE1">🏅 本賽道 <b style="color:#fff">' + t.works.length + '</b> 件作品,優異獎約 <b style="color:#F0B232">' + Math.max(2, Math.ceil(t.works.length * 0.1 - 1e-9)) + '</b> 名(含最高票;同分一併計入,實際名額以結算為準)</div>' : '')
           + (d.prophetReward ? '<div style="margin-top:8px;background:rgba(240,178,50,.10);border:1px solid rgba(240,178,50,.45);border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.7;color:#DBDEE1">⭐ <b style="color:#F0B232">優異票 = 2 票</b>(支持票 = 1 票)<br>🔮 <b style="color:#F0B232">投票神預測</b>:你的優異票若投給該賽道最後獲得「優異獎」的作品(最高票,或前 10% 名額),賽道結算後可獲得 <b style="color:#fff">' + d.prophetReward.exch + ' ' + E(d.prophetReward.names[0]) + ' + ' + d.prophetReward.lottery + ' ' + E(d.prophetReward.names[1]) + '</b>' + '</div>' : '')
           : pub ? '<br>🏆 成績已公布' : t.status === '已截止' ? '<br>' +  '⏹️ 投票已截止,等待公布成績' : '<br>尚未開放投票');
