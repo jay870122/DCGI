@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.238</div>
+    <div class="version-tag">系統版本：v5.4.239</div>
   </div>
 
   <script>
@@ -5041,10 +5041,10 @@
             btns = '<div class="ct-vb">' + vb('support', 'sup', '👍 支持', '✅ 已支持', '計 1 票') + vb('excellent', 'exc', '⭐ 優異', '🌟 已優異', '計 2 票') + '</div>';
           }
         }
-        const head = pub ? '<b style="color:#fff">#' + w.rank + ' ' + E(w.name) + '</b> <span style="color:#F0B232">' + (w.score != null ? w.score + ' 分' : '') + '</span> <span style="color:#949BA4;font-size:12px">(支持 ' + w.support + ' · 優異 ' + w.excellent + ' · 計 ' + w.raw + ' 票)</span>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '') : '<b style="color:#fff">作品 #' + w.no + '</b>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '') + (w.adminSee ? ' <span style="font-size:12px;background:rgba(0,0,0,.25);border-radius:6px;padding:2px 8px;color:#FEE75C" title="只有管理員看得到">👑 ' + E(w.name || '') + ' <span style="opacity:.7">' + E(w.user || '') + '</span></span>' : '');
+        const head = t.hidden ? '<b style="color:#fff">你的作品</b> <span style="color:#3BA55D;font-size:12px">✅ 已上傳完成</span>' : pub ? '<b style="color:#fff">#' + w.rank + ' ' + E(w.name) + '</b> <span style="color:#F0B232">' + (w.score != null ? w.score + ' 分' : '') + '</span> <span style="color:#949BA4;font-size:12px">(支持 ' + w.support + ' · 優異 ' + w.excellent + ' · 計 ' + w.raw + ' 票)</span>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '') : '<b style="color:#fff">作品 #' + w.no + '</b>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '') + (w.adminSee ? ' <span style="font-size:12px;background:rgba(0,0,0,.25);border-radius:6px;padding:2px 8px;color:#FEE75C" title="只有管理員看得到">👑 ' + E(w.name || '') + ' <span style="opacity:.7">' + E(w.user || '') + '</span></span>' : '');
         return '<div style="background:#3A3C43;border:1px solid #5865F2aa;border-radius:12px;padding:14px;margin-bottom:30px;box-shadow:0 4px 14px rgba(0,0,0,.35)"><div style="margin:-14px -14px 12px;padding:10px 14px;background:#4752C4;border-radius:11px 11px 0 0;font-size:16px">' + head + '</div>' + (imgs ? '<div class="ct-imgs">' + imgs + '</div>' : '')
           + (w.text ? '<div class="ct-desc">' + E(w.text) + '</div>' : '') + (btns ? '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #ffffff33"><div style="font-size:12px;color:#B9BBBE;margin-bottom:6px">▼ 以下按鈕是投給上面的「作品 #' + w.no + '」</div>' + btns + '</div>' : '') + '</div>';
-      }).join('') || (t.hidden ? '<div style="color:#949BA4;padding:18px 0;text-align:center">🔒 這個賽道尚未開放,作品將在開放後顯示' + (Date.parse(t.start) > Date.now() ? '<div style="margin-top:10px;font-size:15px;color:#F0B232">⏳ 開放倒數 <b id="ct-cd" data-t="' + Date.parse(t.start) + '" style="font-variant-numeric:tabular-nums"></b><div style="font-size:12px;color:#949BA4;margin-top:2px">(' + fmtT(t.start) + ' 開放)</div></div>' : '') + '</div>' : '<div style="color:#949BA4">這個賽道還沒有作品</div>');
+      }).join('') + (t.hidden ? '<div style="color:#949BA4;padding:18px 0;text-align:center">🔒 這個賽道尚未開放,作品將在開放後顯示' + (Date.parse(t.start) > Date.now() ? '<div style="margin-top:10px;font-size:15px;color:#F0B232">⏳ 開放倒數 <b id="ct-cd" data-t="' + Date.parse(t.start) + '" style="font-variant-numeric:tabular-nums"></b><div style="font-size:12px;color:#949BA4;margin-top:2px">(' + fmtT(t.start) + ' 開放)</div></div>' : '') + '</div>' : '') || ('<div style="color:#949BA4">這個賽道還沒有作品</div>');
       if (document.getElementById('ct-cd')) { ctCdTick_(); if (!ctCdTimer_) ctCdTimer_ = setInterval(ctCdTick_, 1000); }
       if (d.overall && d.overall.length) {
         ov.innerHTML = '<div style="background:rgba(240,178,50,.10);border:1px solid rgba(240,178,50,.45);border-radius:10px;padding:10px 14px;margin-bottom:12px"><h3 style="color:#F0B232;margin:0 0 6px">🏆 總排名(取最高的兩個賽道相加)</h3>' + d.overall.map((o) => '<div style="font-size:14px;color:#DBDEE1;padding:3px 0">#' + o.rank + ' <b style="color:#fff">' + E(o.name) + '</b> — ' + o.total + ' 分 <span style="color:#949BA4;font-size:12px">(' + o.best.map((b) => E((d.trackNames || {})[b] || b)).join('、') + ')</span></div>').join('') + '</div>';
