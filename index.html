@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.232</div>
+    <div class="version-tag">系統版本：v5.4.233</div>
   </div>
 
   <script>
@@ -6951,6 +6951,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
           return;
         }
 
+        if (result.serverNow) serverClockOff_ = result.serverNow - Date.now(); // 校正電腦時間跟伺服器的差,商品倒數/開賣按鈕用伺服器時間
         const data = result.scores;
         if(data && data.status === "success") {
           // 🌟 優先顯示系統裡的暱稱(DC暱稱/B欄備援),不是Discord帳號本身的global_name/username
@@ -8688,6 +8689,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
       window.location.href = "https://jay870122.github.io/DCGI/";
     }
 
+    var serverClockOff_ = 0;
     function startCountdowns() {
       if (countdownInterval) clearInterval(countdownInterval);
       
@@ -8696,7 +8698,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
         if (timers.length === 0) return;
         
         let needsReRender = false;
-        const now = new Date().getTime();
+        const now = new Date().getTime() + serverClockOff_;
         
         timers.forEach(timer => {
           const itemId = timer.getAttribute('data-id');
