@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.228</div>
+    <div class="version-tag">系統版本：v5.4.229</div>
   </div>
 
   <script>
@@ -1013,6 +1013,7 @@
           else { op = '<span style="display:block;text-align:' + nm + '">'; }
           carry.push({ nm, o: op, c }); return op;
         });
+        t = t.replace(/\[((?:[^\[\]\n])+?)\]\((https?:\/\/[^\s)<"]+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m); // 第二輪:連結文字裡有 [color]/[size] 等標籤時,標籤轉完才配得到
         t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
         const rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
         return pre + rs + carry.map((e) => e.c).reverse().join('');
@@ -1180,7 +1181,7 @@
         try { localStorage.setItem('ic_link_target', JSON.stringify({ card: q.get('card'), cm: q.get('cm') || '', t: Date.now() })); } catch (e) {}
         icLinkTry_(); return;
       }
-      if (self && q.get('category') && !q.get('item') && !q.get('auction') && [...q.keys()].length === 1) { try { selectCategory(q.get('category')); window.scrollTo({ top: 0, behavior: 'smooth' }); return; } catch (e) {} }
+      if (q.get('category') && !q.get('item') && !q.get('auction') && !q.get('redeem')) { try { selectCategory(q.get('category')); window.scrollTo({ top: 0, behavior: 'smooth' }); return; } catch (e) {} } // 分類連結(含 Worker /share?category=):頁內切換
       if (q.get('redeem') && !q.get('item') && !q.get('auction')) { try { showRedeemCode(q.get('redeem')); return; } catch (e) {} } // 序號/兌換碼連結:頁內直接打開兌換視窗並填好碼(含 Worker /share?redeem=)
       location.assign(u.href); // 商品/拍賣/其他:同一個分頁跳轉(不開新視窗)
     }, true);

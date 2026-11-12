@@ -279,7 +279,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.191</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.192</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4271,6 +4271,7 @@ async function saveCurExp() {
           else { op = '<span style="display:block;text-align:' + nm + '">'; }
           carry.push({ nm, o: op, c }); return op;
         });
+        t = t.replace(/\[((?:[^\[\]\n])+?)\]\((https?:\/\/[^\s)<"]+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m); // 第二輪:連結文字裡有 [color]/[size] 等標籤時,標籤轉完才配得到
         t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
         const rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
         return pre + rs + carry.map((e) => e.c).reverse().join('');
