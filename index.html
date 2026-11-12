@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.231</div>
+    <div class="version-tag">系統版本：v5.4.232</div>
   </div>
 
   <script>
@@ -6924,7 +6924,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-function fetchScoresAndShop(discordId, callback = null) {
+function fetchScoresAndShop(discordId, callback = null, fresh = false) {
       fetchScoresAndShopInFlight_ = true;
       document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
 
@@ -6935,7 +6935,7 @@ function fetchScoresAndShop(discordId, callback = null) {
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 20000);
 
-      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}`, { signal: abortController.signal })
+      fetch(`${DASHBOARD_WORKER_URL}?discordId=${discordId}&accessToken=${encodeURIComponent(getAccessToken())}${fresh ? '&fresh=true&_t=' + Date.now() : ''}`, fresh ? { signal: abortController.signal, cache: 'no-store' } : { signal: abortController.signal })
       .then(res => res.json())
       .then(result => {
         clearTimeout(timeoutId);
@@ -8488,14 +8488,14 @@ function fetchScoresAndShop(discordId, callback = null) {
             // 🌟 抽獎模式:買=投票,沒有開盲盒/里程碑那些東西,直接顯示後端組好的投票結果訊息就好
             successMsg += `\n\n🎟️ ${data.message}`;
             alert(successMsg);
-            fetchScoresAndShop(currentUser.id);
+            fetchScoresAndShop(currentUser.id, null, true);
             return;
           }
           if (data.isGambling) {
             // 🌟 賭博模式:買=下注,結果要等管理員手動公布,直接顯示後端組好的下注結果訊息就好
             successMsg += `\n\n🎲 ${data.message}`;
             alert(successMsg);
-            fetchScoresAndShop(currentUser.id);
+            fetchScoresAndShop(currentUser.id, null, true);
             return;
           }
           if (data.altUsed && data.altUsed.length > 0) {
@@ -8527,7 +8527,7 @@ function fetchScoresAndShop(discordId, callback = null) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
           }
           alert(successMsg);
-          fetchScoresAndShop(currentUser.id); 
+          fetchScoresAndShop(currentUser.id, null, true); 
         } else if (data.needUnlock) {
           // 🌟 密碼錯誤,或分類密碼解鎖後接著發現商品自己還有另一層鎖:重新提示一次密碼,輸入後自動重試同一筆購買
           document.getElementById('loading').style.display = 'none';
@@ -8541,12 +8541,12 @@ function fetchScoresAndShop(discordId, callback = null) {
           // 🌟 賭博集資池「下注當下鎖定」模式:送出的瞬間賠率被別人插隊改變了,拒絕成交,重新整理拿最新賠率給玩家重新確認
           alert("⚠️ " + data.message);
           document.getElementById('loading-text').innerText = "🔄 正在同步最新賠率...";
-          fetchScoresAndShop(currentUser.id);
+          fetchScoresAndShop(currentUser.id, null, true);
         } else {
           alert("❌ 兌換失敗：" + data.message);
           if (data.message.includes("庫存") || data.message.includes("限購") || data.message.includes("售完") || data.message.includes("上限") || data.message.includes("條件")) {
             document.getElementById('loading-text').innerText = "🔄 正在同步最新資料...";
-            fetchScoresAndShop(currentUser.id);
+            fetchScoresAndShop(currentUser.id, null, true);
           } else {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
