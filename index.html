@@ -255,7 +255,8 @@
     #stock-modal, #crypto-modal { overflow-y: auto; }
     @media (max-width: 900px) { .dual-wrap { flex-direction: column; align-items: stretch; max-width: 560px; } .lb-panel { flex: 0 0 auto; max-height: none; } }
     .modal-header { flex-shrink: 0; padding: 25px 45px 15px 25px; border-bottom: 1px solid #4F545C; position: relative; }
-    .modal-body { overflow-y: auto; padding: 15px 25px 25px 25px; }
+    .modal-body { overflow-y: auto; overscroll-behavior: contain; padding: 15px 25px 25px 25px; }
+    .modal-overlay, .modal-content, #stock-modal, #crypto-modal, .lb-panel { overscroll-behavior: contain; }
     .modal-close { position: absolute; top: 15px; right: 20px; color: #B9BBBE; font-size: 24px; font-weight: bold; cursor: pointer; }
     .modal-close:hover { color: white; }
     .history-card { background: #202225; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #40444B;}
@@ -965,7 +966,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.244</div>
+    <div class="version-tag">系統版本：v5.4.245</div>
   </div>
 
   <script>
@@ -975,6 +976,24 @@
     const VAPID_PUBLIC_KEY = 'BEtm2b_TlQ7e8oKiFmAa69I3e01t0zfPNxggs1eBkVZCpZuheOf6o7wjQpgxZdzcMbKikUUCYQ2SkD1T0fkbDRk';
     // 🌟🔒 安全性修正:所有打後端的請求都要帶上這個 accessToken,讓後端自己向 Discord 官方驗證使用者身分,
     // 不能只靠自己在網址上宣稱的 discordId(那樣任何人都能冒充別人)
+    // 🔒 任何彈出視窗開著時,鎖住後面頁面的捲動(視窗內捲到底後,不會再連動把後面的網頁一起往下拉;iOS/舊瀏覽器不吃 overscroll-behavior,所以再用 body 鎖定補一層)
+    (function () {
+      let locked = false, prevOverflow = '';
+      function anyOpen() {
+        const els = document.querySelectorAll('.modal-overlay, [id$="-modal"]');
+        for (let i = 0; i < els.length; i++) { const d = els[i].style.display; if (d && d !== 'none') return true; }
+        return false;
+      }
+      function sync() {
+        const open = anyOpen();
+        if (open && !locked) { prevOverflow = document.body.style.overflow || ''; document.body.style.overflow = 'hidden'; locked = true; }
+        else if (!open && locked) { document.body.style.overflow = prevOverflow; locked = false; }
+      }
+      try {
+        new MutationObserver((ms) => { for (let i = 0; i < ms.length; i++) { const t = ms[i].target; if (t.classList && (t.classList.contains('modal-overlay') || (t.id && /-modal$/.test(t.id)))) { sync(); return; } } })
+          .observe(document.body, { attributes: true, attributeFilter: ['style'], subtree: true });
+      } catch (e) {}
+    })();
     function getAccessToken() { return localStorage.getItem('dc_access_token') || ''; }
     // 🌟🆕 手動「重新登入」:清掉本地存的Discord token、直接導去Discord重新授權。
     // 用來因應「載入卡住/逾時」偶爾是因為本地存的token其實已經失效(Discord那邊過期或被撤銷),
