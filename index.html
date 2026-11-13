@@ -1020,7 +1020,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.253</div>
+    <div class="version-tag">系統版本：v5.4.254</div>
   </div>
 
   <script>
@@ -1611,21 +1611,23 @@
       const groups = buildCategoryGroups(categories, getOrderIndex);
       allShopParentNames = new Set(groups.filter(g => g.type === 'parent').map(g => g.parentName));
 
+      // 切到(或被連結帶到)某個分類時,自動展開它所在的資料夾;之後使用者想收合就能隨時收合
+      if (sbLastCat_ !== currentCategory) { groups.forEach(g => { if (g.type === 'parent' && (g.selfCat === currentCategory || g.children.some(c => c.cat === currentCategory))) collapsedShopParents.delete(g.parentName); }); sbLastCat_ = currentCategory; }
       let html = "";
       groups.forEach(g => {
         if (g.type === 'flat') {
           html += renderCatItemHtml(g.cat, g.cat, false);
         } else {
           const isCollapsed = collapsedShopParents.has(g.parentName);
-          const hasActiveChild = g.children.some(c => c.cat === currentCategory) || g.selfCat === currentCategory;
+          const hasActiveChild = false; // 手動收合優先;切換到子分類時由上面的 sbLastCat_ 自動展開
           const toggleArrow = `<span onclick="event.stopPropagation(); toggleCategoryParent('${g.parentName.replace(/'/g,"\\'")}')" style="cursor:pointer;padding:0 4px">${isCollapsed ? '▸' : '▾'}</span>`;
           if (g.selfCat) {
             // 🌟 父分類本身也是真的分類,可以直接點選查看商品;箭頭另外做成獨立的收合開關,不影響點選本身
             const sample = currentShopItems.find(i => i.category === g.selfCat);
             const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(g.selfCat);
             const count = currentShopItems.filter(i => i.category === g.selfCat).length;
-            html += `<div class="cat-item cat-parent-item ${currentCategory === g.selfCat ? 'active' : ''}" onclick="selectCategory('${g.selfCat.replace(/'/g,"\\'")}')">
-                       <span class="ci-lead" onclick="event.stopPropagation(); toggleCategoryParent('${g.parentName.replace(/'/g,"\\'")}')">${isCollapsed ? '▸' : '▾'}</span><span class="ci-ico">${locked ? '🔒' : '📂'}</span><span class="ci-name">${g.parentName}</span>
+            html += `<div class="cat-item cat-parent-item ${currentCategory === g.selfCat ? 'active' : ''}" onclick="catParentClick_('${g.parentName.replace(/'/g,"\\'")}', '${g.selfCat.replace(/'/g,"\\'")}')">
+                       <span class="ci-lead">${isCollapsed ? '▸' : '▾'}</span><span class="ci-ico">${locked ? '🔒' : '📂'}</span><span class="ci-name">${g.parentName}</span>
                        <span class="ci-cnt">${count}</span>
                        <span class="btn-share-cat" onclick="shareCategory(event, '${g.selfCat.replace(/'/g,"\\'")}')" title="分享此分類">🔗</span>
                      </div>`;
@@ -1657,6 +1659,13 @@
     }
     // 🌟 點擊父分類標題(或旁邊的箭頭)手動展開/收合底下的子分類,只影響這一個父分類,不會連動收掉其他的
     // (自動把「其他」父分類收起來的手風琴效果是在 selectCategory 切換分類時觸發,這裡只是單純開關)
+    let sbLastCat_ = null;
+    // 點資料夾列:一下展開、再一下收起;父分類本身也是可看商品的分類時,展開的同時順便切到它
+    function catParentClick_(parentName, selfCat) {
+      const wasCollapsed = collapsedShopParents.has(parentName);
+      if (wasCollapsed) collapsedShopParents.delete(parentName); else collapsedShopParents.add(parentName);
+      if (selfCat && wasCollapsed) selectCategory(selfCat); else renderSidebar();
+    }
     function toggleCategoryParent(parentName) {
       if (collapsedShopParents.has(parentName)) collapsedShopParents.delete(parentName);
       else collapsedShopParents.add(parentName);
