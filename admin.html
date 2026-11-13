@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.214</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.215</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4840,7 +4840,7 @@ async function deleteInfoCard_(id) {
   const d = await apiCraftWrite_('adminInfoCardsSave', { cards: rest });
   if (d && d.status === 'success') { toast('✅ 已刪除'); await loadShopItems(); } else toast('❌ ' + ((d && d.message) || '失敗'), false);
 }
-async function openInfoCards(focusId, newCard) {
+async function openInfoCards(focusId, newCard, asCopy) {
   const d = await stockAdminCall_('adminInfoCardsListWorker');
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
   icAll_ = d.cards || [];
@@ -4850,8 +4850,10 @@ async function openInfoCards(focusId, newCard) {
   if (newCard) card = { category: (document.getElementById('shop-cat-filter') || {}).value || '', show: true, size: 6, order: icAll_.length + 1 };
   else card = icAll_.find(x => x.id === focusId);
   if (!card) { toast('找不到這張資訊卡片,請重新整理後再試', false); return; }
+  // 複製:帶入原內容,但不帶 id/位置,儲存後成為一張新卡片(標題加「(複製)」,排在最後)
+  if (asCopy) { card = Object.assign({}, card, { id: '', pos: null, title: (card.title || '') + '(複製)', order: icAll_.length + 1 }); newCard = true; }
   icAddRow_(card);
-  document.getElementById('ic-modal-title').textContent = newCard ? '➕ 新增資訊卡片' : '✏️ 編輯資訊卡片';
+  document.getElementById('ic-modal-title').textContent = asCopy ? '📋 複製資訊卡片(儲存後成為新卡片)' : (newCard ? '➕ 新增資訊卡片' : '✏️ 編輯資訊卡片');
   document.getElementById('ic-del-btn').style.display = newCard ? 'none' : '';
   document.getElementById('infocard-modal').classList.add('open');
   if (newCard) setTimeout(() => { const ti = document.querySelector('#ic-rows .ic-title'); if (ti) ti.focus(); }, 50);
@@ -5331,7 +5333,7 @@ function renderShopTable() {
       <td data-label="價格">—</td><td data-label="庫存">—</td>
       <td data-label="狀態">${c.show === false ? '<span class="status status-draft">隱藏中</span>' : '<span class="status status-open">● 顯示中</span>'}</td>
       <td class="cell-id" data-label="ID">${c.id}</td>
-      <td class="cell-actions" data-label="操作"><div class="btn-row"><button class="btn btn-edit" onclick="openInfoCards('${c.id}')">編輯</button><button class="btn btn-del" onclick="deleteInfoCard_('${c.id}')">刪除</button></div></td>
+      <td class="cell-actions" data-label="操作"><div class="btn-row"><button class="btn btn-edit" onclick="openInfoCards('${c.id}')">編輯</button><button class="btn btn-edit" onclick="openInfoCards('${c.id}', false, true)">📋 複製</button><button class="btn btn-del" onclick="deleteInfoCard_('${c.id}')">刪除</button></div></td>
     </tr>` }));
   document.getElementById('shop-tbody').innerHTML = (items.length === 0 && !cardRows_.length)
     ? '<tr><td colspan="9" class="empty">沒有符合條件的商品</td></tr>'
