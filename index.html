@@ -1024,7 +1024,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.270</div>
+    <div class="version-tag">系統版本：v5.4.271</div>
   </div>
 
   <script>
@@ -7184,9 +7184,10 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-function fetchScoresAndShop(discordId, callback = null, fresh = false) {
+function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = false) {
+      // silent=true:背景更新(購買成功後商店已經先顯示,這裡悄悄重載校正餘額/庫存):不顯示載入畫面、失敗也不蓋掉商店、保留捲動位置
       fetchScoresAndShopInFlight_ = true;
-      document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
+      if (!silent) document.getElementById('loading-text').innerText = "⏳ 載入分數與商店目錄...";
 
       // 🌟🔧 修正「有時候會卡在載入畫面很久」的問題:瀏覽器原生fetch沒有內建逾時,如果Worker那邊
       // 剛好卡住(例如Cloudflare Worker冷啟動、Google試算表API一時回應變慢),畫面會一直停在
@@ -7204,6 +7205,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
           // 時畫面會永遠停在「⏳ 載入分數與商店目錄...」不會有任何提示,也叫不出重整鈕。
           // 改成清楚顯示錯誤原因 + 一個可以重新嘗試的按鈕,不要讓玩家卡住不知道發生什麼事。
           console.error("讀取分數與商店資料失敗:", result.message);
+          if (silent) return;
           document.getElementById('loading-text').innerHTML =
             `❌ 載入失敗：${result.message || '未知錯誤'}<br>` +
             `<button class="btn-action" style="margin-top:12px" onclick="fetchScoresAndShop('${discordId}')">🔄 點我重試</button> ` +
@@ -7323,12 +7325,14 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
             const idx = cat.indexOf('＞') !== -1 ? cat.indexOf('＞') : cat.indexOf('>');
             if (idx !== -1) allShopParentNames.add(cat.substring(0, idx).trim());
           });
+          const keepY_ = silent ? window.scrollY : 0;
           applyShopAccordion(currentCategory);
           renderSidebar(); 
           renderShop();    
           icLinkShop_ = true; try { icLinkTry_(); } catch (e) {}
           document.getElementById('loading').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
+          if (silent) { try { window.scrollTo(0, keepY_); } catch (e) {} }
         }
 
         if(callback) callback(); 
@@ -7360,6 +7364,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
       .catch(err => {
         clearTimeout(timeoutId);
         console.error("載入失敗:", err);
+        if (silent) return;
         // 🌟 err.name === 'AbortError' 代表是我們自己主動逾時中斷的(伺服器那邊還沒回應),
         // 跟一般的網路斷線/連線失敗分開顯示,玩家比較知道實際發生什麼事
         const isTimeout = err && err.name === 'AbortError';
@@ -8756,6 +8761,14 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
     }
 
     // 🌟 購買結果的完整處理邏輯,抽成共用函式,不管結果是GAS直接回應的、還是輪詢查到的,都走同一套處理。
+    // 購買成功、玩家關掉成功視窗後:立刻把商店顯示回來(不再用載入畫面擋 1 秒多),同時在背景悄悄重載校正餘額/庫存
+    function afterBuyRefresh_() {
+      try {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+      } catch (e) {}
+      fetchScoresAndShop(currentUser.id, null, true, true);
+    }
     function handleBuyResult_(data, itemId, itemName, safeId, maxQty, currencyName, successPrefix) {
         stopLoadingProgress_(); // 🌟 不管接下來走哪個分支,結果出來了就該停止進度條
         if(data.status === "success") {
@@ -8768,14 +8781,14 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
             // 🌟 抽獎模式:買=投票,沒有開盲盒/里程碑那些東西,直接顯示後端組好的投票結果訊息就好
             successMsg += `\n\n🎟️ ${data.message}`;
             alert(successMsg);
-            fetchScoresAndShop(currentUser.id, null, true);
+            afterBuyRefresh_();
             return;
           }
           if (data.isGambling) {
             // 🌟 賭博模式:買=下注,結果要等管理員手動公布,直接顯示後端組好的下注結果訊息就好
             successMsg += `\n\n🎲 ${data.message}`;
             alert(successMsg);
-            fetchScoresAndShop(currentUser.id, null, true);
+            afterBuyRefresh_();
             return;
           }
           if (data.altUsed && data.altUsed.length > 0) {
@@ -8807,7 +8820,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
             successMsg += "\n\n🎁 您獲得的專屬序號：\n" + data.keys.join("\n") + "\n\n(可至「紀錄」隨時查詢)";
           }
           alert(successMsg);
-          fetchScoresAndShop(currentUser.id, null, true); 
+          afterBuyRefresh_();
         } else if (data.needUnlock) {
           // 🌟 密碼錯誤,或分類密碼解鎖後接著發現商品自己還有另一層鎖:重新提示一次密碼,輸入後自動重試同一筆購買
           document.getElementById('loading').style.display = 'none';
