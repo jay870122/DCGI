@@ -5,7 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Garbled 幻彩水晶商店</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💎</text></svg>">
+  <script>
+    // ⚡ 防「先閃一下登入首頁」:已經有登入憑證(或剛從 Discord 授權跳回來)就在畫面第一次繪製前,先把登入區藏起來、顯示載入中。
+    // 以前要等 window.onload(含所有圖片/字型載完)才切換,某些內建瀏覽器(Discord/LINE 內開網頁)載入慢,就會停在登入首頁好幾秒。
+    try { if (localStorage.getItem('dc_access_token') || /access_token=/.test(location.hash)) document.documentElement.classList.add('has-token'); } catch (e) {}
+  </script>
   <style>
+    html.has-token #login-section { display: none; }
+    html.has-token #loading { display: block; }
     /* 🌟 整體版面與寬度設定 */
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
            background-color: #2C2F33; color: white; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
@@ -966,7 +973,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.246</div>
+    <div class="version-tag">系統版本：v5.4.247</div>
   </div>
 
   <script>
@@ -1251,7 +1258,7 @@
         try { checkBingoAvailability(); } catch (e) {} // 🌟 查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
       }, 700);
     }
-    window.onload = () => {
+    document.addEventListener('DOMContentLoaded', () => { // ⚡ 不等圖片/字型全載完就開始登入+載資料(原本是 window.onload)
       // 🌟 攔截分享網址的參數並記憶 (商品分享 & 分類分享)
       const urlParams = new URLSearchParams(window.location.search);
       const shareTarget = urlParams.get('item');
@@ -1329,7 +1336,7 @@
           document.getElementById('loading').style.display = 'none'; document.getElementById('login-section').style.display = 'block';
         });
       }
-    };
+    });
 
     function refreshData() {
       if(!currentUser) return;
