@@ -1022,7 +1022,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.264</div>
+    <div class="version-tag">系統版本：v5.4.265</div>
   </div>
 
   <script>
@@ -3613,7 +3613,15 @@
       }).join('');
 
       // 🌟 已用完/過期/還沒到時間的道具(不能疊加、不能開,只能查看/清除)
-      const unusableHtml = unusableItems.map((it, uIdx) => {
+      // 🌟 同名稱 + 同狀態 + 同原因 + 同解鎖時間的合併成一列(×N),勾選一列=勾選這一疊的全部份數
+      const unusableStacked_ = [];
+      const unusableStackIdx_ = {};
+      unusableItems.forEach(it => {
+        const k = [it.itemName, it.status, it.unusableReason || '', it.usableFrom || ''].join('|');
+        if (unusableStackIdx_[k] === undefined) { unusableStackIdx_[k] = unusableStacked_.length; unusableStacked_.push({ it, ids: [it.instanceId] }); }
+        else unusableStacked_[unusableStackIdx_[k]].ids.push(it.instanceId);
+      });
+      const unusableHtml = unusableStacked_.map(({ it, ids }, uIdx) => {
         const isWaiting = it.usableFrom && new Date(it.usableFrom) > new Date();
         const waitHtml = isWaiting ? `<span style="color:#72767D;font-size:11px;display:block">🔒 ${new Date(it.usableFrom).toLocaleString()} 後才能打開</span>` : '';
         const isDeletable = !isWaiting;
@@ -3638,9 +3646,9 @@
         <div style="background:#2F3136;border-radius:8px;padding:10px 12px;opacity:0.5">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
             <span style="display:flex;align-items:center;gap:6px">
-              ${isDeletable ? `<input type="checkbox" class="general-item-delete-checkbox" data-instance="${it.instanceId}" onchange="updateDeletableGeneralItemSelectedCount()">` : ''}
+              ${isDeletable ? `<input type="checkbox" class="general-item-delete-checkbox" data-instance="${ids.join(',')}" data-n="${ids.length}" onchange="updateDeletableGeneralItemSelectedCount()">` : ''}
               <span>
-                <b>${it.itemName}</b>
+                <b>${it.itemName}</b>${ids.length > 1 ? ` <span style="color:#B9BBBE;font-size:12px">×${ids.length}</span>` : ''}
                 ${waitHtml}
                 ${it.unusableReason && !waitHtml ? `<span style="color:#ED4245;font-size:11px;display:block">${it.unusableReason}</span>` : ''}
               </span>
@@ -4063,7 +4071,8 @@
     function updateDeletableGeneralItemSelectedCount() {
       const checked = document.querySelectorAll('.general-item-delete-checkbox:checked');
       const countEl = document.getElementById('gi-deletable-selected-count');
-      if (countEl) countEl.textContent = checked.length;
+      const selN_ = Array.from(checked).reduce((a, cb) => a + (parseInt(cb.dataset.n, 10) || 1), 0);
+      if (countEl) countEl.textContent = selN_;
       const clearBtn = document.getElementById('gi-clear-btn');
       if (clearBtn) clearBtn.disabled = checked.length === 0;
       const allCbs = document.querySelectorAll('.general-item-delete-checkbox');
@@ -4079,7 +4088,7 @@
       if (generalItemActionInFlight) return;
       const checked = Array.from(document.querySelectorAll('.general-item-delete-checkbox:checked'));
       if (checked.length === 0) return;
-      const instanceIds = checked.map(cb => cb.dataset.instance);
+      const instanceIds = [].concat(...checked.map(cb => String(cb.dataset.instance).split(',')));
       if (!confirm(`確定要清除這 ${instanceIds.length} 個已用完/過期的道具嗎？此動作無法復原。`)) return;
 
       generalItemActionInFlight = true;
