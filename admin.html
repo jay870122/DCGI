@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.209</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.210</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -692,7 +692,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               🆕 <b>猜對之後會自動換新題目</b>:猜中會照這個商品的「庫存」欄位正常扣1(扣完之後如果庫存還有剩,或庫存留空=無限),系統會自動重新骰一組新答案、清空目前已知的收斂範圍提示,直接讓大家繼續猜下一輪,不用手動重設;庫存扣到0之後才會真的停止(下次猜對不會再出新題)。所以想讓這個終極密碼可以重複玩很多輪,記得把「庫存」欄位設大一點或留空。
             </div>
             <div class="fsep">其他</div>
-            <div class="field full"><label>圖片網址</label><input id="ns-img" type="url"></div>
+            <div class="field full"><label>圖片網址 <span class="hint">多張用 | 或空白分開,商品卡可左右切換</span></label><input id="ns-img" type="text" placeholder="https://… (多張用 | 分開)"></div>
             <div class="field full"><label>備註</label><textarea id="ns-remark" placeholder="[非即時發送]&#10;下單後3日內發送"></textarea></div>
             <div class="field">
               <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>
@@ -889,7 +889,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>最後幾分鐘有出價延長</label><input id="na-ext1" type="number" min="1" placeholder="例：5"></div>
             <div class="field"><label>延長幾分鐘</label><input id="na-ext2" type="number" min="1" placeholder="例：10"></div>
             <div class="fsep">其他</div>
-            <div class="field full"><label>圖片網址</label><input id="na-img" type="url"></div>
+            <div class="field full"><label>圖片網址 <span class="hint">多張用 | 或空白分開,商品卡可左右切換</span></label><input id="na-img" type="text" placeholder="https://… (多張用 | 分開)"></div>
             <div class="field full"><label>備註</label><textarea id="na-remark"></textarea></div>
             <div class="field full">
               <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>
@@ -1684,7 +1684,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         🆕 猜對之後會照「庫存」欄位正常扣1,扣完還有剩(或庫存留空=無限)就會自動重新骰一組新答案、清空收斂範圍提示,直接開下一輪;庫存扣到0才會真的停止出新題。
       </div>
       <div class="fsep">其他</div>
-      <div class="full field"><label>圖片網址</label><input id="em-img" type="url"></div>
+      <div class="field full"><label>圖片網址 <span class="hint">多張用 | 或空白分開,商品卡可左右切換</span></label><input id="em-img" type="text" placeholder="https://… (多張用 | 分開)"></div>
       <div class="full field"><label>備註</label><textarea id="em-remark"></textarea></div>
       <div class="field">
         <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>
@@ -1853,7 +1853,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>最後幾分鐘有出價延長</label><input id="ea-ext1" type="number" min="1"></div>
       <div class="field"><label>延長幾分鐘</label><input id="ea-ext2" type="number" min="1"></div>
       <div class="fsep">其他</div>
-      <div class="full field"><label>圖片網址</label><input id="ea-img" type="url"></div>
+      <div class="field full"><label>圖片網址 <span class="hint">多張用 | 或空白分開,商品卡可左右切換</span></label><input id="ea-img" type="text" placeholder="https://… (多張用 | 分開)"></div>
       <div class="full field"><label>備註</label><textarea id="ea-remark"></textarea></div>
       <div class="full field">
         <label>限定身分組 <span class="hint">點擊選擇,可複選</span></label>

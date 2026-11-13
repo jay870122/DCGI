@@ -171,6 +171,9 @@
     .shop-item-card.sc-col.sc-open .sc-sum { margin-bottom: 8px; border-bottom: 1px solid #40444B; padding-bottom: 6px; }
     
     /* 🌟 圖片樣式更新：加入游標與 hover 放大提示效果 */
+    .ig-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -2px 0 8px; font-size: 12px; color: #B9BBBE; }
+    .ig-b { border: 0; background: #2B2D31; color: #fff; border-radius: 6px; width: 28px; height: 22px; font-size: 16px; line-height: 1; cursor: pointer; padding: 0; }
+    .ig-b:hover { background: #4E5058; }
     .item-image { 
         width: auto; max-width: 100%; height: auto; max-height: 160px; object-fit: contain; display: block; margin: 0 auto 12px; border-radius: 6px; border: 1px solid #40444B; 
         cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease;
@@ -1002,7 +1005,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.251</div>
+    <div class="version-tag">系統版本：v5.4.252</div>
   </div>
 
   <script>
@@ -1722,6 +1725,29 @@
     }
 
     // 🌟 控制圖片放大縮小
+    // 🖼️ 商品/拍賣卡多張圖:圖片網址欄用 | 或空白分開多張,卡片上出現 ‹ 1/N › 可切換(手機可左右滑)
+    function imgList_(s) { return (s || '').toString().split(/[\s|]+/).filter((u) => /^https?:\/\/[^\s"'<>]+$/i.test(u)); }
+    function imgBarHtml_(list) { return list.length > 1 ? '<div class="ig-bar"><button type="button" class="ig-b" data-d="-1">‹</button><span class="ig-c">1/' + list.length + '</span><button type="button" class="ig-b" data-d="1">›</button></div>' : ''; }
+    function imgStep_(img, d) {
+      const L = (img.dataset.imgs || '').split('|'); if (L.length < 2) return;
+      const i = (((+img.dataset.gi || 0) + d) % L.length + L.length) % L.length; img.dataset.gi = i; img.src = L[i];
+      const bar = img.nextElementSibling; if (bar && bar.classList.contains('ig-bar')) bar.querySelector('.ig-c').textContent = (i + 1) + '/' + L.length;
+      const nx = new Image(); nx.src = L[(i + 1) % L.length];
+    }
+    (function () {
+      document.addEventListener('click', (e) => {
+        const b = e.target && e.target.closest && e.target.closest('.ig-b'); if (!b) return;
+        e.preventDefault(); e.stopPropagation();
+        const img = b.closest('.ig-bar').previousElementSibling; if (img && img.dataset) imgStep_(img, +b.dataset.d);
+      }, true);
+      let sx = 0, sy = 0;
+      document.addEventListener('touchstart', (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+      document.addEventListener('touchend', (e) => {
+        const im = e.target && e.target.closest && e.target.closest('img[data-imgs]'); if (!im) return;
+        const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { imgStep_(im, dx < 0 ? 1 : -1); im.dataset.swiped = '1'; setTimeout(() => { delete im.dataset.swiped; }, 400); }
+      }, { passive: true });
+    })();
     function openImage(url) {
       const fullSizeImage = document.getElementById('full-size-image');
       fullSizeImage.src = url;
@@ -6874,7 +6900,7 @@
             </div>`;
         }
 
-        const imageHtml = a.imageUrl ? `<img src="${a.imageUrl}" class="auction-image" alt="拍賣品圖片" title="點擊放大觀看" onclick="openImage('${a.imageUrl}')">` : '';
+        const _il = imgList_(a.imageUrl); const imageHtml = _il.length ? `<img src="${_il[0]}" class="auction-image" alt="拍賣品圖片" title="點擊放大觀看" onclick="if(this.dataset.swiped)return;openImage(this.src)"${_il.length > 1 ? ' data-imgs="' + _il.join('|') + '"' : ''}>${imgBarHtml_(_il)}` : (a.imageUrl ? `<img src="${a.imageUrl}" class="auction-image" alt="拍賣品圖片" title="點擊放大觀看" onclick="openImage(this.src)">` : '');
         const remarkHtml = a.remark ? `<div class="item-remark" style="margin-bottom:10px;">📝 ${a.remark}</div>` : '';
 
         return `
@@ -7453,7 +7479,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
         let displayName = item.name.replace(/\[(?:持有上限|單次上限|強平次數|加密已實現|股票已實現|持幣|投資損益|投資強平)[^\]]*\]/g, '').replace('[持有]', '').replace('[連結限定]', '').trim();
         const holdMaxM_ = (item.name || '').match(/\[持有上限[:：]?\s*(-?\d+(?:\.\d+)?)\]/);
         // 🌟 更新圖片 HTML 讓它帶有 onclick 事件以開啟預覽
-        let imageHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="openImage('${item.imageUrl}')">` : '';
+        const _il = imgList_(item.imageUrl); let imageHtml = _il.length ? `<img src="${_il[0]}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="if(this.dataset.swiped)return;openImage(this.src)"${_il.length > 1 ? ' data-imgs="' + _il.join('|') + '"' : ''}>${imgBarHtml_(_il)}` : (item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" alt="商品圖片" title="點擊放大觀看" onclick="openImage(this.src)">` : '');
         
         // 🌟 自動檢查備註中的網址並替換成 a 標籤 (超連結)
         let formattedRemark = item.remark;
