@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.215</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.216</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4858,6 +4858,24 @@ async function openInfoCards(focusId, newCard, asCopy) {
   document.getElementById('infocard-modal').classList.add('open');
   if (newCard) setTimeout(() => { const ti = document.querySelector('#ic-rows .ic-title'); if (ti) ti.focus(); }, 50);
 }
+// 🌟 資訊卡片:快速上架/下架(顯示=玩家看得到,下架=隱藏但內容保留)
+async function infoCardToggleShow_(id) {
+  const c = (icAll_ || []).find(x => x.id === id); if (!c) return;
+  const toShow = c.show === false;
+  const all = icAll_.map(x => x.id === id ? Object.assign({}, x, { show: toShow }) : x);
+  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
+  if (d && d.status === 'success') { toast(toShow ? '✅ 已上架(玩家看得到)' : '✅ 已下架(玩家看不到)'); await loadShopItems(); } else toast('❌ ' + ((d && d.message) || '失敗'), false);
+}
+// 📦 封存:先下架再標記封存(玩家一律看不到,列表預設不顯示,狀態選「📦 封存區」才看得到);還原=移出封存,維持下架,要再按「上架」
+async function infoCardArchive_(id, archive) {
+  const c = (icAll_ || []).find(x => x.id === id); if (!c) return;
+  const name = c.title || (c.text || '').slice(0, 30);
+  if (archive && !confirm('要封存這張資訊卡片嗎?\n' + name + '\n\n封存會先下架,之後可在「狀態 → 📦 封存區」還原。')) return;
+  if (!archive && !confirm('要把這張資訊卡片移出封存區嗎?(還原後是下架狀態,要再按「上架」)\n' + name)) return;
+  const all = icAll_.map(x => x.id === id ? Object.assign({}, x, archive ? { archived: true, show: false } : { archived: false }) : x);
+  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
+  if (d && d.status === 'success') { toast(archive ? '✅ 已封存' : '✅ 已還原(下架狀態)'); await loadShopItems(); } else toast('❌ ' + ((d && d.message) || '失敗'), false);
+}
 async function deleteInfoCardFromModal_() {
   const r = document.querySelector('#ic-rows .ic-row'); if (!r || !r.dataset.id) return;
   closeModal('infocard-modal');
@@ -4872,7 +4890,7 @@ async function saveInfoCards() {
     const id = r.dataset.id || ('c' + Date.now().toString(36));
     const card = { id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || ((icAll_ || []).length + 1), group: r.querySelector('.ic-group').value.trim(), pos: r.dataset.pos === '' ? null : parseInt(r.dataset.pos, 10), size: r.querySelector('.ic-size').value, imgMax: r.querySelector('.ic-imgh').value === '' ? null : parseInt(r.querySelector('.ic-imgh').value, 10), show: r.querySelector('.ic-show').value === 'true', cmOpen: r.querySelector('.ic-cm-open').checked, cmMax: r.querySelector('.ic-cm-max').value, cmPer: r.querySelector('.ic-cm-per').value, cmRefresh: r.querySelector('.ic-cm-refresh').value, cmNotify: r.querySelector('.ic-cm-notify').value.trim(), cmAdminOnly: !!(r.querySelector('.ic-cm-aonly') && r.querySelector('.ic-cm-aonly').checked) };
     const all = (icAll_ || []).slice(); const k = all.findIndex(x => x.id === id);
-    if (k >= 0) all[k] = card; else all.push(card);
+    if (k >= 0) { card.archived = !!all[k].archived; all[k] = card; } else all.push(card);
     const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast('✅ 資訊卡片已儲存'); closeModal('infocard-modal'); await loadShopItems();
@@ -5173,7 +5191,7 @@ function rebuildShopCats_() {
     const sel = document.getElementById('shop-cat-filter'), keep = sel.value, cats = [];
     const arch = document.getElementById('shop-status-filter').value === 'ARCHIVED';
     shopItems.forEach(i => { if (!!i.archived !== arch) return; const c = (i.category || '').toString().trim(); if (c && cats.indexOf(c) === -1) cats.push(c); });
-    if (!arch) (icAll_ || []).forEach(c => { const k = (c.category || '').toString().trim(); if (k && cats.indexOf(k) === -1) cats.push(k); }); // 只有資訊卡片的分類也要列出
+    (icAll_ || []).forEach(c => { if (!!c.archived !== arch) return; const k = (c.category || '').toString().trim(); if (k && cats.indexOf(k) === -1) cats.push(k); }); // 只有資訊卡片的分類也要列出(封存區只列封存的)
     sel.innerHTML = '<option value="">全部分類</option>' + cats.map(c => '<option value="' + c.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">' + c.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
     sel.value = cats.indexOf(keep) !== -1 ? keep : '';
   } catch (e) {}
@@ -5207,7 +5225,7 @@ let icAll_ = [];
 function buildShopReorderList_(cat) {
   const items = shopItems.filter(i => i.category === cat && !i.archived).slice()
     .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
-  const cards = (icAll_ || []).filter(c => (c.category || '') === cat).map(c => Object.assign({ _card: true }, c, { pos: (c.pos === null || c.pos === undefined) ? 0 : c.pos }))
+  const cards = (icAll_ || []).filter(c => !c.archived && (c.category || '') === cat).map(c => Object.assign({ _card: true }, c, { pos: (c.pos === null || c.pos === undefined) ? 0 : c.pos }))
     .sort((a, b) => a.pos - b.pos || (a.order || 0) - (b.order || 0));
   const out = []; let ci = 0;
   for (let k = 0; k <= items.length; k++) {
@@ -5325,15 +5343,15 @@ function renderShopTable() {
 
   const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
-  const cardRows_ = (statusFilter === 'ARCHIVED' ? [] : (icAll_ || []).filter(c => (!q || ((c.title || '') + (c.text || '')).toLowerCase().includes(q)) && (!cat || (c.category || '') === cat) && (statusFilter === 'DRAFT' ? c.show === false : statusFilter === 'ACTIVE' ? c.show !== false : true)))
+  const cardRows_ = ((icAll_ || []).filter(c => (statusFilter === 'ARCHIVED' ? !!c.archived : !c.archived) && (!q || ((c.title || '') + (c.text || '')).toLowerCase().includes(q)) && (!cat || (c.category || '') === cat) && (statusFilter === 'DRAFT' ? c.show === false : statusFilter === 'ACTIVE' ? c.show !== false : true)))
     .map(c => ({ c, html: `<tr>
       <td></td>
       <td class="cell-name" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${c.group ? '(合併組)' : ''}</span>${((c.title || (c.text || '').replace(/!\[[^\]]*\]\([^)]*\)/g, '🖼️圖片').slice(0, 30) || '(無標題)') + '').replace(/</g, '&lt;')}</td>
       <td data-label="分類">${c.category || '(全部分類)'}</td>
       <td data-label="價格">—</td><td data-label="庫存">—</td>
-      <td data-label="狀態">${c.show === false ? '<span class="status status-draft">隱藏中</span>' : '<span class="status status-open">● 顯示中</span>'}</td>
+      <td data-label="狀態">${c.archived ? '<span class="status status-ended">📦 已封存</span>' : c.show === false ? '<span class="status status-draft">下架中(隱藏)</span>' : '<span class="status status-open">● 上架中(顯示)</span>'}</td>
       <td class="cell-id" data-label="ID">${c.id}</td>
-      <td class="cell-actions" data-label="操作"><div class="btn-row"><button class="btn btn-edit" onclick="openInfoCards('${c.id}')">編輯</button><button class="btn btn-edit" onclick="openInfoCards('${c.id}', false, true)">📋 複製</button><button class="btn btn-del" onclick="deleteInfoCard_('${c.id}')">刪除</button></div></td>
+      <td class="cell-actions" data-label="操作"><div class="btn-row"><button class="btn btn-edit" onclick="openInfoCards('${c.id}')">編輯</button>${c.archived ? `<button class="btn btn-edit" onclick="infoCardArchive_('${c.id}', false)">♻️ 還原</button>` : `<button class="btn btn-edit" onclick="infoCardToggleShow_('${c.id}')">${c.show === false ? '⬆️ 上架' : '⬇️ 下架'}</button><button class="btn btn-edit" onclick="infoCardArchive_('${c.id}', true)">📦 封存</button>`}<button class="btn btn-edit" onclick="openInfoCards('${c.id}', false, true)">📋 複製</button><button class="btn btn-del" onclick="deleteInfoCard_('${c.id}')">刪除</button></div></td>
     </tr>` }));
   document.getElementById('shop-tbody').innerHTML = (items.length === 0 && !cardRows_.length)
     ? '<tr><td colspan="9" class="empty">沒有符合條件的商品</td></tr>'
