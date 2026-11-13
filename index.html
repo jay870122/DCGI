@@ -965,7 +965,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.243</div>
+    <div class="version-tag">系統版本：v5.4.244</div>
   </div>
 
   <script>
@@ -4968,7 +4968,7 @@
     }
     function closeContest() { document.getElementById('contest-modal').style.display = 'none'; }
     async function loadContest_(first) {
-      const d = await chamberCall_('contestStateWorker', Object.assign({ seed: ctSeed_ }, (ctAsPlayer_ && isAdminUser) ? { asPlayer: '1' } : {}));
+      const d = await chamberCall_('contestStateWorker', Object.assign({ seed: ctSeed_ }, ctAsPlayer_ ? { asPlayer: '1' } : {}));
       if (!d || d.status !== 'success') { document.getElementById('ct-works').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
       ctState_ = d;
       if (!ctTrack_ || (!d.tracks.some((t) => t.id === ctTrack_) && !(ctTrack_ === '__mine' && d.mine))) ctTrack_ = d.tracks.length ? d.tracks[0].id : null;
