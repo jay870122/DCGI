@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.221</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.222</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4526,7 +4526,7 @@ function icDomToMd_(root) {
   const BLK = /^(DIV|P|H1|H2|H3|BLOCKQUOTE|UL|OL|HR|TABLE|TR)$/;
   function kids(n) { let acc = ''; Array.from(n.childNodes).forEach(c => { if (c.nodeType === 1 && BLK.test(c.tagName) && acc && !acc.endsWith('\n')) acc += '\n'; acc += walk(c); }); return acc; }
   function walk(n) {
-    if (n.nodeType === 3) return n.nodeValue.replace(/ /g, ' ');
+    if (n.nodeType === 3) return n.nodeValue.replace(/\u200b/g, '').replace(/ /g, ' ');
     if (n.nodeType !== 1) return '';
     const tag = n.tagName; let inner;
     if (n.dataset && n.dataset.tlsrc) { let src = ''; try { src = decodeURIComponent(n.dataset.tlsrc); } catch (e) {} return ':::timeline\n' + src + '\n:::\n'; } // 活動進度時程區塊:原樣寫回原始文字,不要被畫面上的階段方塊覆蓋
@@ -4613,7 +4613,11 @@ function icWrapSel_(row, css) {
   icRestoreRange_(row);
   const sel = window.getSelection(); if (!sel.rangeCount) return false;
   const r = sel.getRangeAt(0);
-  if (r.collapsed) { icWysHtml_(row, '<span style="' + css + '">文字</span>'); return true; }
+  if (r.collapsed) { // 沒選取文字:不要塞「文字」二字,放一個看不見的零寬字元,游標停在裡面,接著打的字就是這個大小/顏色/字體
+    const sp = document.createElement('span'); sp.setAttribute('style', css); const tn = document.createTextNode('\u200b'); sp.appendChild(tn);
+    r.insertNode(sp); const nr = document.createRange(); nr.setStart(tn, 1); nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
+    icSyncFromWys_(row); icSaveRange_(row); return true;
+  }
   const prop = css.split(':')[0].trim();
   const span = document.createElement('span');
   span.setAttribute('style', css);
@@ -4637,7 +4641,7 @@ function icToolbarAct_(el) {
     const v = act === 'colorset' ? el.dataset.v : row.querySelector('.ic-cp-in').value;
     if (code) icInsert_(row.querySelector('.ic-text'), '[color=' + v + ']', '[/color]', '文字');
     else if (icSelText_(row)) icWysCmd_(row, 'foreColor', v); // 直接對選取範圍上色,保留原有粗體/斜體等格式
-    else icWysHtml_(row, '<span style="color:' + v + '">文字</span>');
+    else icWrapSel_(row, 'color:' + v);
     row.querySelector('.ic-cp').style.display = 'none'; return;
   }
   if (act === 'emoji') { const e = row.querySelector('.ic-emo'); e.style.display = e.style.display === 'none' ? 'flex' : 'none'; return; }
