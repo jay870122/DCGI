@@ -966,7 +966,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.245</div>
+    <div class="version-tag">系統版本：v5.4.246</div>
   </div>
 
   <script>
@@ -1241,6 +1241,16 @@
     
     let countdownInterval = null;
 
+    let startupSecondaryDone_ = false;
+    function runStartupSecondary_() {
+      if (startupSecondaryDone_) return; startupSecondaryDone_ = true;
+      try { checkStockAvailability_(); } catch (e) {}
+      try { checkCryptoAvailability_(); } catch (e) {}
+      setTimeout(() => {
+        try { checkContestAvailability_(); } catch (e) {}
+        try { checkBingoAvailability(); } catch (e) {} // 🌟 查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
+      }, 700);
+    }
     window.onload = () => {
       // 🌟 攔截分享網址的參數並記憶 (商品分享 & 分類分享)
       const urlParams = new URLSearchParams(window.location.search);
@@ -1307,10 +1317,10 @@
           document.getElementById('user-name').innerText = user.global_name || user.username;
           document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
           fetchScoresAndShop(user.id);
-          checkStockAvailability_();
-          checkContestAvailability_();
-          checkCryptoAvailability_();
-          checkBingoAvailability(); // 🌟 順便查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
+          // ⚡ 啟動瘦身:一進站原本同時打 8~9 支後端(分數商店、股票、穿搭、虛擬幣、BINGO、貨幣期限、資訊卡、留言…),彼此搶 Worker/試算表讀取,
+          // 最重要的「分數+商店」反而被拖慢。現在只先打這一支,商店畫出來之後才依序補查其他入口(只影響側邊按鈕出現的時間,不影響商店)。
+          // 保險:主請求萬一失敗/很慢,8 秒後也會補查,不會讓入口永遠不出現。
+          setTimeout(runStartupSecondary_, 8000);
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
           maybeShowPushPrompt(); // 🌟 網址如果帶 ?subscribe=1(用來分享邀請大家訂閱推播的連結),自動跳出引導視窗
           maybeShowSharedRedeemCode(); // 🌟 網址如果帶 ?redeem=兌換碼(分享兌換碼連結用),自動打開兌換彈窗、把碼預先填好
@@ -7021,9 +7031,12 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false) {
           latestCustomVars = data.customVars || []; // 🌟 背包彈窗要用完整清單(不篩選)
           latestBalances_ = { s1: data.s1, s2: data.s2, s3: data.s3 }; // 🌟 購物車顯示目前餘額/扣完後餘額用
           cartBalanceStale_ = false;
-          try { loadCurExpiry_(); } catch (e) {}
-          try { loadInfoCards_(); } catch (e) {}
-          try { refreshNotes_(); } catch (e) {}
+          // ⚡ 第一次載入時錯開幾百毫秒再打這三支,讓商店先畫出來;之後(購買完重整等)照舊立刻刷新
+          const lateMs_ = startupSecondaryDone_ ? 0 : 500;
+          setTimeout(() => { try { loadCurExpiry_(); } catch (e) {} }, lateMs_);
+          setTimeout(() => { try { loadInfoCards_(); } catch (e) {} }, lateMs_);
+          setTimeout(() => { try { refreshNotes_(); } catch (e) {} }, lateMs_ + 200);
+          setTimeout(runStartupSecondary_, 1200);
           // 🌟🆕 修正bug:「背包裡的貨幣清單沒有因為開道具而即時更新」——開道具成功後會呼叫
           // fetchScoresAndShop()刷新latestCustomVars(資料本身是新的),但如果背包彈窗當下正開著,
           // 畫面上已經畫出來的那份backpack-list-container是舊的DOM,不會自己跟著重新渲染,玩家
