@@ -1022,7 +1022,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.265</div>
+    <div class="version-tag">系統版本：v5.4.266</div>
   </div>
 
   <script>
@@ -9297,7 +9297,11 @@ setInterval(cdTick_, 1000);
       try { n = parseInt(sessionStorage.getItem(key) || '0', 10); } catch (e) {}
       if (n >= 2) return; // 避免萬一繞不過快取時無限重新整理
       try { sessionStorage.setItem(key, String(n + 1)); } catch (e) {}
-      var u = new URL(location.href); u.searchParams.set('v', m[1]); location.replace(u.toString());
+      var u = new URL(location.href); u.searchParams.set('v', m[1]);
+      // 🌟 隨機延遲 0~90 秒再換新版:避免每次更新後所有開著的頁面在同一分鐘一起重新載入,
+      // 瞬間打爆後端/Google 試算表的每分鐘讀取額度(2026-11-13 連續更新 3 次後讀取衝到 342/分鐘)。
+      var target = u.toString();
+      setTimeout(function () { location.replace(target); }, Math.floor(Math.random() * 90000));
     } catch (e) {}
   }
   setTimeout(check, 1500); setInterval(check, 300000);
