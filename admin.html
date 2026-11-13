@@ -138,6 +138,7 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
     .ic-tl-s.st-next { opacity: .9; }
     .ic-tl-s.st-next .b { color: #5BA6FF; }
     .ic-tl-s.st-past .b { color: #3BA55D; }
+.ic-prev div, .ic-prev span, .ic-prev font, .ic-prev a { line-height: inherit !important; } /* 貼上帶進來的行高不要讓上下兩行疊在一起 */
 .ic-a, .ic-prev a { color: #00A8FC; }
 .ic-prev [style^="color:"] a, .ic-prev font[color] a, [style^="color:"] .ic-a, font[color] .ic-a { color: inherit; } /* 連結外層有指定顏色就沿用,不強制改藍色 */
 .ic-prev img{max-width:100% !important;height:auto !important;box-sizing:border-box;max-height:var(--ic-imgh,min(360px,55vh)) !important;object-fit:contain}
@@ -310,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.224</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.225</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4620,17 +4621,27 @@ function icWrapSel_(row, css) {
     r.insertNode(sp); const nr = document.createRange(); nr.setStart(tn, 1); nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
     icSyncFromWys_(row); icSaveRange_(row); return true;
   }
-  const prop = css.split(':')[0].trim();
-  const span = document.createElement('span');
-  span.setAttribute('style', css);
-  // 選取範圍沒有「切到一半的標籤」時直接就地包起來(連結裡的文字就留在連結裡面,不會把 <a> 掏空);否則才用抽出再放回
-  let done = false;
-  try { r.surroundContents(span); done = true; } catch (e) {}
-  if (!done) { span.appendChild(r.extractContents()); r.insertNode(span); }
-  span.querySelectorAll('span[style]').forEach(x => { x.style.removeProperty(prop); if (!x.getAttribute('style')) { while (x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); } });
-  // 清掉抽出後留下的空殼(例如空的 <a>)
-  row.querySelector('.ic-prev').querySelectorAll('a,b,i,u,s,em,strong').forEach(x => { if (!x.textContent && !x.querySelector('img,br,hr')) x.remove(); });
-  sel.removeAllRanges(); const nr = document.createRange(); nr.selectNodeContents(span); sel.addRange(nr);
+  // 逐個文字節點各自包一層 span(不會把整個區塊 <div> 包進 <span>,也不會把連結掏空、留下空殼);
+  // 如果文字本來就是單獨一個 <span style=…> 就直接改它的樣式,避免一層包一層
+  const ci = css.indexOf(':'), prop = css.slice(0, ci).trim(), val = css.slice(ci + 1).trim();
+  const root = r.commonAncestorContainer.nodeType === 3 ? r.commonAncestorContainer.parentNode : r.commonAncestorContainer;
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [];
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    if (!r.intersectsNode(n) || (n.parentNode.closest && n.parentNode.closest('[data-tlsrc],[data-galsrc]'))) continue;
+    const st = n === r.startContainer ? r.startOffset : 0, en = n === r.endContainer ? r.endOffset : n.nodeValue.length;
+    if (st >= en) continue;
+    if (!/\S/.test(n.nodeValue.slice(st, en)) && n !== r.startContainer && n !== r.endContainer) continue; // 區塊之間的空白不理它
+    nodes.push([n, st, en]);
+  }
+  if (!nodes.length) return false;
+  let first = null, last = null;
+  nodes.forEach(([n, st, en]) => {
+    const par = n.parentNode; let tgt;
+    if (st === 0 && en === n.nodeValue.length && par.tagName === 'SPAN' && par.childNodes.length === 1 && par.getAttribute('style') && !par.dataset.tlsrc) { par.style.setProperty(prop, val); tgt = par; }
+    else { const rr = document.createRange(); rr.setStart(n, st); rr.setEnd(n, en); tgt = document.createElement('span'); tgt.setAttribute('style', css); rr.surroundContents(tgt); }
+    if (!first) first = tgt; last = tgt;
+  });
+  const nr = document.createRange(); nr.setStartBefore(first); nr.setEndAfter(last); sel.removeAllRanges(); sel.addRange(nr);
   icSyncFromWys_(row); icSaveRange_(row); return true;
 }
 function icSelText_(row) { icRestoreRange_(row); return window.getSelection().toString(); }
