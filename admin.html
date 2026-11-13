@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.210</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.211</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -330,6 +330,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('player-currency')">💰 玩家貨幣管理</div>
       <div class="nav-item" onclick="navTo('cur-exp')">⏳ 貨幣有效期</div>
       <div class="nav-item" onclick="navTo('cur-mon')">📊 貨幣獲得/消耗統計</div>
+      <div class="nav-item" onclick="navTo('display-cfg')">🏷️ 身分組/貨幣顯示</div>
       <div class="nav-item" onclick="navTo('prize-stat')">🎁 獎品統計區</div>
       <div class="nav-item" onclick="navTo('contest')">🎽 穿搭大賽</div>
       <hr class="nav-sep">
@@ -1269,6 +1270,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <!-- 密碼鎖定管理 -->
       <div id="page-stock-cfg" style="display:none"><div class="page-header"><div class="page-title">📈 台股設定</div></div><div class="pg-host" data-modal="stock-cfg-modal"></div></div>
       <div id="page-crypto-cfg" style="display:none"><div class="page-header"><div class="page-title">₿ 加密貨幣設定</div></div><div class="pg-host" data-modal="crypto-cfg-modal"></div></div>
+      <div id="page-display-cfg" style="display:none">
+        <div class="page-header"><div class="page-title">🏷️ 身分組 / 貨幣顯示設定</div><div class="toolbar"><button class="btn btn-edit" onclick="loadDisplayCfg()">🔄 重新讀取</button><button class="btn-save" id="dcfg-save" onclick="saveDisplayCfg()">💾 儲存</button></div></div>
+        <div class="tbl-wrap" style="padding:20px 24px">
+          <div class="page-title" style="font-size:15px">💠 自訂貨幣(玩家主頁上方的數字方塊)</div>
+          <div class="hint" style="margin:6px 0 10px;line-height:1.7">顯示名稱可以改;「內部欄位」是玩家資料的欄位名,不能改。<br>模式:<b>一律顯示</b> / <b>數值為 0 時隱藏</b> / <b>隱藏(只在背包看得到)</b>。分類只影響背包裡的分組。</div>
+          <div id="dcfg-vars" style="overflow-x:auto"></div>
+        </div>
+        <div class="tbl-wrap" style="padding:20px 24px">
+          <div class="page-title" style="font-size:15px">🏅 身分組(玩家主頁的藍色標籤)</div>
+          <div class="hint" style="margin:6px 0 10px;line-height:1.7">名稱就是玩家看到的標籤文字,機器人也可以取用(機器人端用 <code>botRoleMap</code>)。「身分組 ID」是 Discord 的身分組 ID,不能改。模式:<b>顯示在主頁</b> / <b>隱藏(只在背包看得到)</b>。沒有列在這裡的身分組,玩家不會看到。</div>
+          <div id="dcfg-roles" style="overflow-x:auto"></div>
+          <div style="margin-top:12px"><button class="btn btn-edit" onclick="dcfgAddRole()">➕ 新增身分組</button></div>
+        </div>
+      </div>
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
       <div id="page-contest" style="display:none">
         <div class="page-header"><div class="page-title">🎽 角色穿搭大賽(匿名交叉投票)</div><div class="toolbar"><button class="btn btn-edit" id="ct-refresh-btn" onclick="ctAdmRefresh_()">🔄 重新整理</button></div></div>
@@ -3706,7 +3721,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3728,6 +3743,7 @@ function navTo(p) {
   if (p==='crypto-cfg') openCryptoConfig();
   if (p==='cur-exp') openCurExp();
   if (p==='cur-mon') openCurMonthly();
+  if (p==='display-cfg') loadDisplayCfg();
   if (p==='contest') loadContestAdmin();
   if (p==='prize-stat') statLoadTables();
   if (p==='history') loadHistory();
@@ -3740,6 +3756,50 @@ function navTo(p) {
 }
 
 // ── Toast ──
+// 🏷️ 身分組 / 貨幣顯示設定(讀寫「身分組對照表」「自訂變數」兩張表,走 Worker adminDisplaySettingsWorker)
+let dcfgData_ = { vars: [], roles: [] };
+async function dcfgCall_(body) {
+  const qs = new URLSearchParams({ action: 'adminDisplaySettingsWorker', discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
+  const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, { method: 'POST', body: JSON.stringify(body) });
+  return res.json();
+}
+function dcfgEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+async function loadDisplayCfg() {
+  document.getElementById('dcfg-vars').innerHTML = '<div class="hint">讀取中…</div>'; document.getElementById('dcfg-roles').innerHTML = '';
+  let d; try { d = await dcfgCall_({ op: 'read' }); } catch (e) { d = { status: 'error', message: '連線失敗' }; }
+  if (!d || d.status !== 'success') { document.getElementById('dcfg-vars').innerHTML = '<div class="hint">讀取失敗:' + dcfgEsc_((d && d.message) || '') + '</div>'; return; }
+  dcfgData_ = { vars: d.vars || [], roles: d.roles || [], newRoles: [] };
+  dcfgRender_();
+}
+function dcfgRender_() {
+  const sel = (opts, cur, cls, attr) => '<select class="' + cls + '" ' + attr + '>' + opts.map(([v, l]) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
+  const VM = [['', '一律顯示'], ['HIDE_ZERO', '數值為 0 時隱藏'], ['HIDDEN', '隱藏(只在背包)']], RM = [['', '顯示在主頁'], ['HIDDEN', '隱藏(只在背包)']];
+  const th = (a) => '<tr>' + a.map((x) => '<th style="text-align:left;padding:6px 8px;color:var(--mu);font-weight:600;white-space:nowrap">' + x + '</th>').join('') + '</tr>';
+  const td = (x) => '<td style="padding:4px 6px">' + x + '</td>';
+  const inp = (v, cls, attr, w) => '<input class="' + cls + '" ' + attr + ' value="' + dcfgEsc_(v) + '" style="width:' + (w || 150) + 'px;padding:6px 8px;background:var(--bg,#1E1F22);color:var(--t,#fff);border:1px solid var(--bd);border-radius:6px">';
+  document.getElementById('dcfg-vars').innerHTML = dcfgData_.vars.length
+    ? '<table style="border-collapse:collapse;width:100%">' + th(['顯示名稱', '內部欄位(不可改)', '模式', '分類']) + dcfgData_.vars.map((v) => '<tr>' + td(inp(v.display, 'dv-d', 'data-row="' + v.row + '"')) + td('<code style="color:var(--mu)">' + dcfgEsc_(v.internal) + '</code>') + td(sel(VM, v.mode, 'dv-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dv-c', 'data-row="' + v.row + '"', 110)) + '</tr>').join('') + '</table>'
+    : '<div class="hint">「自訂變數」表裡還沒有任何貨幣。</div>';
+  document.getElementById('dcfg-roles').innerHTML = '<table style="border-collapse:collapse;width:100%">' + th(['身分組 ID(不可改)', '顯示名稱', '模式', '分類']) + dcfgData_.roles.map((v) => '<tr>' + td('<code style="color:var(--mu)">' + dcfgEsc_(v.id) + '</code>') + td(inp(v.name, 'dr-n', 'data-row="' + v.row + '"')) + td(sel(RM, v.mode, 'dr-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dr-c', 'data-row="' + v.row + '"', 110)) + '</tr>').join('') + (dcfgData_.newRoles || []).map((v, i) => '<tr style="background:rgba(240,178,50,0.07)">' + td(inp(v.id, 'dn-i', 'data-i="' + i + '" placeholder="貼上身分組 ID"', 170)) + td(inp(v.name, 'dn-n', 'data-i="' + i + '"')) + td(sel(RM, v.mode, 'dn-m', 'data-i="' + i + '"')) + td(inp(v.category, 'dn-c', 'data-i="' + i + '"', 110)) + '</tr>').join('') + '</table>';
+}
+function dcfgAddRole() { dcfgCollect_(); (dcfgData_.newRoles = dcfgData_.newRoles || []).push({ id: '', name: '', category: '', mode: '' }); dcfgRender_(); }
+function dcfgCollect_() {
+  const g = (cls, row) => { const el = document.querySelector('#page-display-cfg .' + cls + '[data-row="' + row + '"]'); return el ? el.value : null; };
+  dcfgData_.vars.forEach((v) => { const d = g('dv-d', v.row); if (d !== null) { v.display = d; v.mode = g('dv-m', v.row); v.category = g('dv-c', v.row); } });
+  dcfgData_.roles.forEach((v) => { const n = g('dr-n', v.row); if (n !== null) { v.name = n; v.mode = g('dr-m', v.row); v.category = g('dr-c', v.row); } });
+  (dcfgData_.newRoles || []).forEach((v, i) => { const q = (c) => { const el = document.querySelector('#page-display-cfg .' + c + '[data-i="' + i + '"]'); return el ? el.value : ''; }; v.id = q('dn-i').trim(); v.name = q('dn-n'); v.mode = q('dn-m'); v.category = q('dn-c'); });
+}
+async function saveDisplayCfg() {
+  dcfgCollect_();
+  const btn = document.getElementById('dcfg-save'); btn.disabled = true; const old = btn.textContent; btn.textContent = '儲存中…';
+  try {
+    const nr = (dcfgData_.newRoles || []).filter((v) => v.id || v.name);
+    const d = await dcfgCall_({ op: 'save', vars: dcfgData_.vars, roles: dcfgData_.roles, newRoles: nr });
+    if (d && d.status === 'success') { toast(d.changed || d.added ? '✅ 已儲存(玩家重新整理後生效,最多約數十秒)' : '沒有任何變更'); await loadDisplayCfg(); }
+    else toast('❌ ' + ((d && d.message) || '儲存失敗'), false);
+  } catch (e) { toast('⚠️ 連線中斷,無法確認有沒有儲存,請按「重新讀取」確認', false); }
+  btn.disabled = false; btn.textContent = old;
+}
 function toast(msg, ok=true) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className=`toast ${ok?'ok':'err'} show`;
