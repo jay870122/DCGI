@@ -89,12 +89,23 @@
     .sidebar { width: 220px; flex-shrink: 0; /* content-box:總寬250,捲軸另算 */ background-color: #2C2F33; border-radius: 8px; padding: 15px;
                display: flex; flex-direction: column; gap: 5px; position: sticky; top: 20px;
                max-height: calc(100vh - 130px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; }
-    .cat-item { padding: 12px 15px;
-                border-radius: 6px; cursor: pointer; color: #B9BBBE; font-size: 15px; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+    .cat-item { padding: 8px 10px; min-height: 40px; box-sizing: border-box; gap: 8px;
+                border-radius: 8px; cursor: pointer; color: #B9BBBE; font-size: 14px; transition: background-color .15s, color .15s; display: flex; justify-content: space-between; align-items: center; }
     .cat-item:hover { background-color: #40444B; color: white; }
     .cat-item.active { background-color: #5865F2; color: white; font-weight: bold; }
-    .cat-parent-item { color: #FEE75C; font-weight: bold; background-color: rgba(255,255,255,0.03); }
-    .cat-parent-item:hover { background-color: rgba(255,255,255,0.08); color: #FEE75C; }
+    /* 🎨 分類列統一結構:[收合箭頭槽] [圖示] [名稱(可換行)] [數量膠囊] [分享鈕],父分類與子分類欄位對齊,差別只在底色/左側色條/字重 */
+    .ci-lead { width: 14px; flex: none; text-align: center; font-size: 11px; color: #FEE75C; cursor: pointer; user-select: none; }
+    .ci-ico { width: 20px; flex: none; text-align: center; font-size: 15px; }
+    .ci-name { flex: 1; min-width: 0; line-height: 1.3; word-break: break-word; }
+    .ci-cnt { flex: none; min-width: 24px; text-align: center; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 7px; border-radius: 10px; background: rgba(255,255,255,.08); color: #B9BBBE; }
+    .cat-item.active .ci-cnt { background: rgba(255,255,255,.25); color: #fff; }
+    .cat-item .btn-share-cat { flex: none; width: 20px; text-align: center; opacity: .3; }
+    .cat-item:hover .btn-share-cat, .cat-item.active .btn-share-cat { opacity: .85; }
+    .cat-parent-item { color: #E3E5E8; font-weight: 600; background-color: rgba(255,255,255,0.045); box-shadow: inset 3px 0 0 #FEE75C; }
+    .cat-parent-item:hover { background-color: rgba(255,255,255,0.09); color: #fff; }
+    .cat-parent-item.active { box-shadow: inset 3px 0 0 #FEE75C; }
+    .cat-parent-item .ci-ico { color: #FEE75C; }
+    .cat-child { margin-left: 12px; border-radius: 0 8px 8px 0; box-shadow: inset 1px 0 0 #4E5058; padding-left: 12px; }
 
     /* 🌟 分類分享按鈕 */
     .btn-share-cat {
@@ -257,6 +268,10 @@
       .shop-layout { flex-direction: column; }
       .sidebar { width: 100%; flex-direction: row; overflow-x: auto; position: static; white-space: nowrap; padding: 10px; box-sizing: border-box; max-height: none; overscroll-behavior: auto; }
       .cat-item { flex-shrink: 0; }
+      .ci-name { white-space: nowrap; flex: none; }
+      .cat-child { margin-left: 0; box-shadow: none; padding-left: 10px; border-radius: 8px; }
+      .cat-item .btn-share-cat { display: none; }
+      .ci-lead:empty { display: none; }
 
       /* 🌟 手機版貨幣顯示改成 2 欄排列 + 縮小字級/間距,避免 4 個貨幣方塊直向疊起來佔掉半個螢幕 */
       .score-box { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1005,7 +1020,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.252</div>
+    <div class="version-tag">系統版本：v5.4.253</div>
   </div>
 
   <script>
@@ -1584,12 +1599,10 @@
         const itemCnt_ = visibleShopItems.filter(i => i.category === cat).length;
         const count = itemCnt_ || (infoCards_ || []).filter(c => c.category === cat).length; // 沒商品時顯示資訊卡片數
         const icon = iconOverride || (locked ? '🔒' : '🏷️');
-        return `<div class="cat-item ${currentCategory === cat ? 'active' : ''}" style="${indent ? 'padding-left:32px' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
-                   <span>${icon} ${displayLabel}</span>
-                   <div style="display:flex; align-items:center; gap:10px;">
-                     <span style="font-size:12px; opacity:0.7;">${count}</span>
-                     <span class="btn-share-cat" onclick="shareCategory(event, '${cat.replace(/'/g,"\\'")}')" title="分享此分類">🔗</span>
-                   </div>
+        return `<div class="cat-item${indent ? ' cat-child' : ''} ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
+                   ${indent ? '' : '<span class="ci-lead"></span>'}<span class="ci-ico">${icon}</span><span class="ci-name">${displayLabel}</span>
+                   <span class="ci-cnt">${count}</span>
+                   <span class="btn-share-cat" onclick="shareCategory(event, '${cat.replace(/'/g,"\\'")}')" title="分享此分類">🔗</span>
                  </div>`;
       }
 
@@ -1612,16 +1625,15 @@
             const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(g.selfCat);
             const count = currentShopItems.filter(i => i.category === g.selfCat).length;
             html += `<div class="cat-item cat-parent-item ${currentCategory === g.selfCat ? 'active' : ''}" onclick="selectCategory('${g.selfCat.replace(/'/g,"\\'")}')">
-                       <span>${toggleArrow}${locked ? '🔒' : '📂'} ${g.parentName}</span>
-                       <div style="display:flex; align-items:center; gap:10px;">
-                         <span style="font-size:12px; opacity:0.7;">${count}</span>
-                         <span class="btn-share-cat" onclick="shareCategory(event, '${g.selfCat.replace(/'/g,"\\'")}')" title="分享此分類">🔗</span>
-                       </div>
+                       <span class="ci-lead" onclick="event.stopPropagation(); toggleCategoryParent('${g.parentName.replace(/'/g,"\\'")}')">${isCollapsed ? '▸' : '▾'}</span><span class="ci-ico">${locked ? '🔒' : '📂'}</span><span class="ci-name">${g.parentName}</span>
+                       <span class="ci-cnt">${count}</span>
+                       <span class="btn-share-cat" onclick="shareCategory(event, '${g.selfCat.replace(/'/g,"\\'")}')" title="分享此分類">🔗</span>
                      </div>`;
           } else {
             html += `<div class="cat-item cat-parent-item" onclick="toggleCategoryParent('${g.parentName.replace(/'/g,"\\'")}')">
-                       <span>${isCollapsed ? '▸' : '▾'} 📂 ${g.parentName}</span>
-                       <span style="font-size:12px; opacity:0.6;">${g.children.length}</span>
+                       <span class="ci-lead">${isCollapsed ? '▸' : '▾'}</span><span class="ci-ico">📂</span><span class="ci-name">${g.parentName}</span>
+                       <span class="ci-cnt">${g.children.length}</span>
+                       <span class="btn-share-cat" style="visibility:hidden">🔗</span>
                      </div>`;
           }
           if (!isCollapsed || hasActiveChild) {
