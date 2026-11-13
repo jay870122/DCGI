@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.225</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.226</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4469,6 +4469,7 @@ const IC_TB_HTML_ = `<div class="ic-tb" style="display:flex;gap:4px;align-items:
 <button type="button" class="btn" data-act="emoji" title="插入表情">😀</button>
 <button type="button" class="btn" data-act="image" title="插入圖片">🖼️</button>
 <button type="button" class="btn" data-act="link" title="插入連結">🔗</button>
+<button type="button" class="btn" data-act="unlink" title="取消連結(游標放在連結上,或選取含連結的文字,再按;文字會保留)">🔗✕</button>
 <button type="button" class="btn" data-act="line" data-o="## " title="標題">H</button>
 <button type="button" class="btn" data-act="line" data-o="- " title="清單">•≡</button>
 <button type="button" class="btn" data-act="line" data-o="> " title="引用">❝</button>
@@ -4647,6 +4648,24 @@ function icWrapSel_(row, css) {
 function icSelText_(row) { icRestoreRange_(row); return window.getSelection().toString(); }
 function icWysEsc_(t) { return (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function icWysCmd_(row, cmd, val) { icRestoreRange_(row); document.execCommand('styleWithCSS', false, false); document.execCommand(cmd, false, val || null); icSyncFromWys_(row); icSaveRange_(row); }
+// 🔗✕ 取消連結:只拿掉連結、文字留著。所見即所得:游標在連結上或選取範圍碰到的連結全部拆掉;程式碼模式:把 [文字](網址) 換成「文字」
+function icUnlink_(row, code) {
+  if (code) {
+    const ta = row.querySelector('.ic-text'), v = ta.value, re = /\[([^\[\]\n]*(?:\[[^\]\n]*\][^\[\]\n]*)*)\]\((?:https?:\/\/)(?:[^\s()]|\([^\s()]*\))+\)/g;
+    const a = ta.selectionStart, b = ta.selectionEnd; let out = '', last = 0, n = 0, m;
+    while ((m = re.exec(v))) { const e = m.index + m[0].length; if (e > a && m.index < (b > a ? b : a + 1)) { out += v.slice(last, m.index) + m[1]; last = e; n++; } }
+    if (!n) { toast('游標在連結上,或選取含連結的文字,再按「🔗✕」', false); return; }
+    ta.value = out + v.slice(last); ta.dispatchEvent(new Event('input', { bubbles: true })); return;
+  }
+  icRestoreRange_(row);
+  const sel = window.getSelection(); if (!sel.rangeCount) return;
+  const r = sel.getRangeAt(0), root = row.querySelector('.ic-prev'); let as = [];
+  if (r.collapsed) { const n = r.startContainer.nodeType === 3 ? r.startContainer.parentNode : r.startContainer; const a = n.closest && n.closest('a'); if (a && root.contains(a)) as = [a]; }
+  else { as = Array.from(root.querySelectorAll('a')).filter(a => r.intersectsNode(a)); const n = r.commonAncestorContainer.nodeType === 3 ? r.commonAncestorContainer.parentNode : r.commonAncestorContainer; const up = n.closest && n.closest('a'); if (up && root.contains(up) && as.indexOf(up) < 0) as.push(up); }
+  if (!as.length) { toast('游標在連結上,或選取含連結的文字,再按「🔗✕」', false); return; }
+  as.forEach(a => { const par = a.parentNode; while (a.firstChild) par.insertBefore(a.firstChild, a); par.removeChild(a); par.normalize(); });
+  icSyncFromWys_(row); icSaveRange_(row);
+}
 function icToolbarAct_(el) {
   const row = el.closest('.ic-row'), act = el.dataset.act, code = row.querySelector('.ic-code-toggle').checked;
   if (act === 'colorbox') { const p = row.querySelector('.ic-cp'); p.style.display = p.style.display === 'none' ? 'flex' : 'none'; return; }
@@ -4657,6 +4676,7 @@ function icToolbarAct_(el) {
     else icWrapSel_(row, 'color:' + v);
     row.querySelector('.ic-cp').style.display = 'none'; return;
   }
+  if (act === 'unlink') { icUnlink_(row, code); return; }
   if (act === 'emoji') { const e = row.querySelector('.ic-emo'); e.style.display = e.style.display === 'none' ? 'flex' : 'none'; return; }
   if (code) {
     const ta = row.querySelector('.ic-text');
