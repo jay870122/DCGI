@@ -310,7 +310,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.223</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.224</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5292,11 +5292,14 @@ let shopReorderMode = false;
 let shopReorderList = [];
 let icAll_ = [];
 // 排序清單 = 該分類商品 + 該分類的資訊卡片(卡片位置 = 排在第 N 個商品前)
+// 資訊卡片順序:跟前台一致 —— 沒設位置的卡(null)永遠在最上面,其次依位置(排在第 N 個商品前),同位置再依「排序」
+function icPosKey_(c) { return (c.pos === null || c.pos === undefined || c.pos === '') ? -1 : Number(c.pos); }
+function icCmp_(a, b) { return (icPosKey_(a) - icPosKey_(b)) || ((parseFloat(a.order) || 0) - (parseFloat(b.order) || 0)); }
 function buildShopReorderList_(cat) {
   const items = shopItems.filter(i => i.category === cat && !i.archived).slice()
     .sort((a, b) => (a.sortOrder===null||a.sortOrder===undefined?Infinity:a.sortOrder) - (b.sortOrder===null||b.sortOrder===undefined?Infinity:b.sortOrder));
-  const cards = (icAll_ || []).filter(c => !c.archived && (c.category || '') === cat).map(c => Object.assign({ _card: true }, c, { pos: (c.pos === null || c.pos === undefined) ? 0 : c.pos }))
-    .sort((a, b) => a.pos - b.pos || (a.order || 0) - (b.order || 0));
+  const cards = (icAll_ || []).filter(c => !c.archived && (c.category || '') === cat).slice().sort(icCmp_)
+    .map(c => Object.assign({ _card: true }, c, { pos: (c.pos === null || c.pos === undefined) ? 0 : c.pos })); // 先照前台規則排好,再把「沒設位置」當成放在最前面(0)
   const out = []; let ci = 0;
   for (let k = 0; k <= items.length; k++) {
     while (ci < cards.length && (cards[ci].pos === k || (k === items.length && cards[ci].pos >= k))) out.push(cards[ci++]);
@@ -5413,7 +5416,7 @@ function renderShopTable() {
   const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   const cardRows_ = ((icAll_ || []).filter(c => (statusFilter === 'ARCHIVED' ? !!c.archived : !c.archived) && (!q || ((c.title || '') + (c.text || '')).toLowerCase().includes(q)) && (!cat || (c.category || '') === cat) && (statusFilter === 'DRAFT' ? c.show === false : statusFilter === 'ACTIVE' ? c.show !== false : true)))
-    .slice().sort((a, b) => ((a.pos == null ? 0 : a.pos) - (b.pos == null ? 0 : b.pos)) || ((a.order || 0) - (b.order || 0)))
+    .slice().sort(icCmp_)
     .map(c => ({ c, html: `<tr>
       <td><input type="checkbox" class="ic-row-check" data-id="${c.id}" ${icSel_.has(c.id) ? 'checked' : ''} onchange="toggleIcSelect_('${c.id}', this.checked)"></td>
       <td class="cell-name" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${c.group ? '(合併組)' : ''}</span>${((c.title || icPlain_(c.text, 30) || '(無標題)') + '').replace(/</g, '&lt;')}</td>
