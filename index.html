@@ -45,7 +45,7 @@
     /* 🌟 整體版面與寬度設定 */
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
            background-color: #2C2F33; color: white; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-    .card { background-color: #23272A; padding: 30px; border-radius: 12px; width: 100%; max-width: 1100px;
+    .card { background-color: #23272A; padding: 30px; border-radius: 12px; width: 100%; max-width: 1500px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.6); position: relative; }
     
     /* 🌟 按鈕樣式 */
@@ -163,7 +163,7 @@
     .shop-item-card.disabled { }
 
     /* 🌟 商店排列:sc-2 = 1排2個(精簡)、sc-list = 清單(1排1個精簡);精簡卡片只顯示標題/狀態/價格,點標題展開詳情與購買 */
-    @media (min-width: 1000px) { .shop-list-container:not(.sc-2):not(.sc-list):not(.sc-1) { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; } } /* 電腦寬螢幕:一列固定 3 張卡 */
+    @media (min-width: 1280px) { .shop-list-container:not(.sc-2):not(.sc-list):not(.sc-1) { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; } } /* 電腦寬螢幕:一列固定 3 張卡 */
     .shop-list-container.sc-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .shop-list-container.sc-list { grid-template-columns: 1fr; gap: 6px; }
     .shop-list-container.sc-1 { grid-template-columns: 1fr; }
@@ -1021,7 +1021,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.256</div>
+    <div class="version-tag">系統版本：v5.4.257</div>
   </div>
 
   <script>
