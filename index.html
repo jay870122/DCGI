@@ -11,6 +11,21 @@
     try { if (localStorage.getItem('dc_access_token') || /access_token=/.test(location.hash)) document.documentElement.classList.add('has-token'); } catch (e) {}
   </script>
   <style>
+    /* 📅 資訊卡「活動進度時程」(:::timeline 區塊):依時間自動標出 已結束 / 進行中 / 未開始 */
+    .ic-tl { margin: 6px 0; }
+    .ic-tl-sum { font-size: 14px; color: #DBDEE1; margin-bottom: 8px; line-height: 1.6; }
+    .ic-tl-sum b { color: #F0B232; }
+    .ic-tl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .ic-tl-s { background: #2B2D31; border: 1px solid #3F4147; border-radius: 10px; padding: 9px 10px; font-size: 13px; line-height: 1.45; opacity: .55; }
+    .ic-tl-s .t { font-weight: bold; color: #fff; font-size: 14px; }
+    .ic-tl-s .d { color: #949BA4; font-size: 12px; margin-top: 2px; }
+    .ic-tl-s .n { color: #B9BBBE; font-size: 12px; margin-top: 2px; }
+    .ic-tl-s .b { margin-top: 6px; font-size: 12px; font-weight: bold; color: #949BA4; }
+    .ic-tl-s.st-now { opacity: 1; border-color: #F0B232; background: rgba(240,178,50,.12); box-shadow: 0 0 0 1px rgba(240,178,50,.35); }
+    .ic-tl-s.st-now .b { color: #F0B232; }
+    .ic-tl-s.st-next { opacity: .9; }
+    .ic-tl-s.st-next .b { color: #5BA6FF; }
+    .ic-tl-s.st-past .b { color: #3BA55D; }
     html.has-token #login-section { display: none; }
     html.has-token #loading { display: block; }
     /* 🌟 整體版面與寬度設定 */
@@ -973,7 +988,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.248</div>
+    <div class="version-tag">系統版本：v5.4.249</div>
   </div>
 
   <script>
@@ -1046,8 +1061,19 @@
       };
       const lines = (src || '').toString().replace(/\r/g, '').split('\n'), out = []; let list = null;
       const close = () => { if (list) { out.push('</' + list + '>'); list = null; } };
+      let tl = null; // :::timeline 區塊收集中
+      const tlMs = (t) => { t = (t || '').trim(); if (!t) return 0; let m = t.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/); let y, mo, d, h = 0, mi = 0; if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; h = +(m[4] || 0); mi = +(m[5] || 0); } else { m = t.match(/^(\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/); if (!m) return 0; y = new Date(Date.now() + 8 * 3600e3).getUTCFullYear(); mo = +m[1]; d = +m[2]; h = +(m[3] || 0); mi = +(m[4] || 0); } const v = Date.parse(y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0') + 'T' + String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') + ':00+08:00'); return isNaN(v) ? 0 : v; };
+      const tlRange = (t) => { const m = (t || '').trim().match(/(\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}:\d{2}))?$/); return m ? (+m[1]) + '/' + (+m[2]) + (m[3] ? ' ' + m[3].padStart(5, '0') : '') : (t || '').trim(); };
       lines.forEach((ln) => {
         let m;
+        if (tl) {
+          if (/^\s*:::\s*$/.test(ln)) {
+            out.push('<div class="ic-tl" data-tl="1"><div class="ic-tl-sum"></div><div class="ic-tl-grid">' + tl.map((r) => { const c = r.split('|').map((x) => x.trim()), st = tlMs(c[1]), en = tlMs(c[2]); return '<div class="ic-tl-s" data-s="' + st + '" data-e="' + en + '"><div class="t">' + esc(c[0] || '') + '</div><div class="d">' + esc(tlRange(c[1]) + (c[2] ? ' ~ ' + tlRange(c[2]) : ' 起')) + '</div>' + (c[3] ? '<div class="n">' + esc(c[3]) + '</div>' : '') + '<div class="b"></div></div>'; }).join('') + '</div></div>');
+            tl = null;
+          } else if (ln.trim()) tl.push(ln);
+          return;
+        }
+        if (/^\s*:::\s*timeline\s*$/i.test(ln)) { close(); tl = []; return; }
         if ((m = ln.match(/^(#{1,3})\s+(.*)$/))) { close(); out.push('<div data-h="' + m[1].length + '" style="font-weight:bold;color:#fff;font-size:' + ({ 1: 22, 2: 18, 3: 16 })[m[1].length] + 'px;margin:6px 0 2px">' + inline(m[2]) + '</div>'); }
         else if (/^\s*(---+|\*\*\*+)\s*$/.test(ln)) { close(); out.push('<hr style="border:0;border-top:1px solid #4E5058;margin:8px 0">'); }
         else if ((m = ln.match(/^>\s?(.*)$/))) { close(); out.push('<div data-q="1" style="border-left:3px solid #4E5058;padding-left:10px;color:#B9BBBE">' + inline(m[1]) + '</div>'); }
@@ -1058,6 +1084,27 @@
       });
       close(); return out.join('');
     }
+    // 📅 活動進度時程:每個階段依「現在(伺服器時間)」標出 已結束/進行中/未開始,上方摘要列出目前進度;資訊卡畫出來後、以及每 30 秒自動更新一次
+    function icTlUpdate_() {
+      const now = Date.now() + (typeof serverClockOff_ === 'number' ? serverClockOff_ : 0);
+      const dur = (ms) => { const m = Math.max(0, Math.floor(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mi = m % 60; return d ? d + '天' + h + '小時' : h ? h + '小時' + mi + '分' : mi + '分'; };
+      document.querySelectorAll('.ic-tl[data-tl]').forEach((box) => {
+        const act = [], tiles = box.querySelectorAll('.ic-tl-s'); let nextT = null, nextMs = 0, anyPast = 0;
+        tiles.forEach((el) => {
+          const st = +el.dataset.s || 0, en = +el.dataset.e || 0, b = el.querySelector('.b'), name = el.querySelector('.t').textContent;
+          let cls, txt;
+          if (st && now < st) { cls = 'st-next'; txt = '⏳ 還有 ' + dur(st - now) + ' 開始'; if (!nextT || st < nextMs) { nextT = name; nextMs = st; } }
+          else if (en && now >= en) { cls = 'st-past'; txt = '✅ 已結束'; anyPast++; }
+          else { cls = 'st-now'; txt = '🔥 進行中' + (en ? ' · 剩 ' + dur(en - now) : ''); act.push(name); }
+          el.classList.remove('st-now', 'st-next', 'st-past'); el.classList.add(cls); if (b) b.textContent = txt;
+        });
+        const sum = box.querySelector('.ic-tl-sum'); if (!sum) return;
+        if (act.length) sum.innerHTML = '📍 目前進度:<b>' + act.map((x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('</b>、<b>') + '</b>';
+        else if (nextT) sum.innerHTML = '⏳ 活動尚未開始,下一階段:<b>' + nextT.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</b>(還有 ' + dur(nextMs - now) + ')';
+        else sum.textContent = '🏁 活動已全部結束';
+      });
+    }
+    setInterval(() => { try { icTlUpdate_(); } catch (e) {} }, 30000);
     // sel: 不給=置頂的卡(沒設位置);數字 k=排在第 k 個商品前的卡;(k,true)=位置>=k 的卡;'all'=全部
     function infoCardsHtml_(sel, orMore) {
       const esc = (t) => (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1083,6 +1130,7 @@
         el.style.gridColumn = 'span ' + span;
       });
       try { icCmRestore_(); } catch (e) {}
+      try { icTlUpdate_(); } catch (e) {}
     }
     window.addEventListener('resize', () => { try { layoutInfoCards_(); } catch (e) {} });
     // 💬 資訊卡片留言(公開討論串):卡片開放留言才會出現「💬 留言」按鈕,點開看所有人的留言、可發言、可回覆(被回覆的人會收到私訊通知);
