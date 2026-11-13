@@ -1022,7 +1022,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.266</div>
+    <div class="version-tag">系統版本：v5.4.267</div>
   </div>
 
   <script>
@@ -1627,7 +1627,8 @@
             // 🌟 父分類本身也是真的分類,可以直接點選查看商品;箭頭另外做成獨立的收合開關,不影響點選本身
             const sample = currentShopItems.find(i => i.category === g.selfCat);
             const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(g.selfCat);
-            const count = currentShopItems.filter(i => i.category === g.selfCat).length;
+            // 沒商品時改顯示資訊卡片數(跟子分類一致,例如只有資訊卡片的「[活動]穿搭大賽」不會顯示 0)
+            const count = visibleShopItems.filter(i => i.category === g.selfCat).length || (infoCards_ || []).filter(c => c.category === g.selfCat).length;
             html += `<div class="cat-item cat-parent-item ${currentCategory === g.selfCat ? 'active' : ''}" onclick="catParentClick_('${g.parentName.replace(/'/g,"\\'")}', '${g.selfCat.replace(/'/g,"\\'")}')">
                        <span class="ci-lead">${isCollapsed ? '▸' : '▾'}</span><span class="ci-ico">${locked ? '🔒' : '📂'}</span><span class="ci-name">${g.parentName}</span>
                        <span class="ci-cnt">${count}</span>
