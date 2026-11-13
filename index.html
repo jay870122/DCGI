@@ -973,7 +973,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.247</div>
+    <div class="version-tag">系統版本：v5.4.248</div>
   </div>
 
   <script>
@@ -1248,13 +1248,13 @@
     
     let countdownInterval = null;
 
-    let startupSecondaryDone_ = false;
+    let startupSecondaryDone_ = false, contestCheckStarted_ = false;
     function runStartupSecondary_() {
       if (startupSecondaryDone_) return; startupSecondaryDone_ = true;
       try { checkStockAvailability_(); } catch (e) {}
       try { checkCryptoAvailability_(); } catch (e) {}
       setTimeout(() => {
-        try { checkContestAvailability_(); } catch (e) {}
+        if (!contestCheckStarted_) { contestCheckStarted_ = true; try { checkContestAvailability_(); } catch (e) {} }
         try { checkBingoAvailability(); } catch (e) {} // 🌟 查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
       }, 700);
     }
@@ -1328,6 +1328,11 @@
           // 最重要的「分數+商店」反而被拖慢。現在只先打這一支,商店畫出來之後才依序補查其他入口(只影響側邊按鈕出現的時間,不影響商店)。
           // 保險:主請求萬一失敗/很慢,8 秒後也會補查,不會讓入口永遠不出現。
           setTimeout(runStartupSecondary_, 8000);
+          // 🎽 從穿搭大賽專用網址(?contest=)進來:不要等商店載完/啟動延後,立刻查入口並直接打開大賽視窗(不然會先看到商店首頁,過幾秒才跳過去)
+          try {
+            const ctl_ = JSON.parse(localStorage.getItem('ct_link_target') || 'null');
+            if ((ctl_ && Date.now() - (ctl_.at || 0) < 15 * 60 * 1000) || ctPreviewFromUrl_) { contestCheckStarted_ = true; checkContestAvailability_(); }
+          } catch (e) {}
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
           maybeShowPushPrompt(); // 🌟 網址如果帶 ?subscribe=1(用來分享邀請大家訂閱推播的連結),自動跳出引導視窗
           maybeShowSharedRedeemCode(); // 🌟 網址如果帶 ?redeem=兌換碼(分享兌換碼連結用),自動打開兌換彈窗、把碼預先填好
