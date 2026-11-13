@@ -1022,7 +1022,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.262</div>
+    <div class="version-tag">系統版本：v5.4.263</div>
   </div>
 
   <script>
@@ -3666,7 +3666,14 @@
           <label style="font-size:12px;color:#B9BBBE;cursor:pointer;white-space:nowrap"><input type="checkbox" id="gi-compact" ${giP_.compact ? 'checked' : ''} onchange="giViewPrefs_.compact=this.checked;giSavePrefs_();giApplyView_()"> 精簡模式</label>
           <span id="gi-count-label" style="font-size:11px;color:#72767D;margin-left:auto"></span>
         </div>` : '';
-      container.innerHTML = giToolbarHtml + `<div id="gi-groups-wrap" style="display:flex;flex-direction:column;gap:8px">${groupsHtml}</div>` + deleteControlsHtml + unusableHtml;
+      // 🌟 已用完/過期/暫時無法使用的道具收進一個可摺疊區塊(預設收合,點標題展開;玩家要清除時才需要打開)
+      const unusableClosed_ = bpIsCollapsed_('u:unusable');
+      const unusableSectionHtml = unusableItems.length > 0 ? `
+        <div style="margin-top:6px">
+          ${bpGroupHead_('u:unusable', '🔒 暫時無法使用 / 已用完 / 過期', unusableItems.length, unusableClosed_)}
+          <div style="display:${unusableClosed_ ? 'none' : 'flex'};flex-direction:column;gap:8px">${deleteControlsHtml}${unusableHtml}</div>
+        </div>` : '';
+      container.innerHTML = giToolbarHtml + `<div id="gi-groups-wrap" style="display:flex;flex-direction:column;gap:8px">${groupsHtml}</div>` + unusableSectionHtml;
       giApplyView_();
       startGeneralItemCountdowns_();
       loadCraftRecipes_();
@@ -6490,7 +6497,8 @@
       try { JSON.parse(localStorage.getItem('bp_collapsed') || '[]').forEach(x => bpCollapsed_.add(x)); } catch (e) {}
       return bpCollapsed_;
     }
-    function bpIsCollapsed_(key) { return bpLoadCollapsed_().has(key); }
+    // 一般分組:set 裡有=已收合(預設展開);key 以 'u:' 開頭的分組相反:預設收合,set 裡有=已展開
+    function bpIsCollapsed_(key) { const h = bpLoadCollapsed_().has(key); return key.indexOf('u:') === 0 ? !h : h; }
     function bpGroupHead_(key, title, count, closed) {
       const esc = String(title).replace(/&/g, '&amp;').replace(/</g, '&lt;');
       return `<div class="bp-grp-head" data-k="${encodeURIComponent(key)}" onclick="bpToggleGroup_(this)" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:12px;color:#B9BBBE;margin-bottom:4px;padding:4px 2px"><span class="bp-arrow" style="display:inline-block;width:12px;transition:transform .15s;transform:rotate(${closed ? '-90deg' : '0deg'})">▾</span><span>${esc}</span><span style="color:#72767D">(${count})</span></div>`;
@@ -6499,8 +6507,8 @@
       const key = decodeURIComponent(el.getAttribute('data-k'));
       const set = bpLoadCollapsed_();
       const body = el.nextElementSibling;
-      const nowClosed = !set.has(key);
-      if (nowClosed) set.add(key); else set.delete(key);
+      const nowClosed = !bpIsCollapsed_(key);
+      if (set.has(key)) set.delete(key); else set.add(key);
       try { localStorage.setItem('bp_collapsed', JSON.stringify([...set])); } catch (e) {}
       if (body) body.style.display = nowClosed ? 'none' : (body.classList.contains('role-box') ? '' : 'flex');
       const ar = el.querySelector('.bp-arrow'); if (ar) ar.style.transform = nowClosed ? 'rotate(-90deg)' : 'rotate(0deg)';
