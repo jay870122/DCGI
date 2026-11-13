@@ -109,7 +109,19 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 /* modal */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
 .overlay.open{display:flex}
-/* 📅 資訊卡「活動進度時程」(:::timeline 區塊):依時間自動標出 已結束 / 進行中 / 未開始 */
+/* 🖼️ 資訊卡「圖片輪播」(:::gallery 區塊):多張圖左右切換,可滑動、點圖放大 */
+    .ic-gal { position: relative; margin: 6px 0; }
+    .ic-gal-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 10px; background: #1E1F22; }
+    .ic-gal-track::-webkit-scrollbar { display: none; }
+    .ic-gal-sl { flex: 0 0 100%; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; box-sizing: border-box; }
+    .ic-gal-sl .cap { color: #B9BBBE; font-size: 12px; margin-top: 4px; text-align: center; padding: 0 36px; }
+    .ic-gal-b { position: absolute; top: 50%; transform: translateY(-50%); width: 30px; height: 44px; border: 0; border-radius: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; padding: 0; z-index: 2; }
+    .ic-gal-b:hover { background: rgba(0,0,0,.8); }
+    .ic-gal-p { left: 4px; } .ic-gal-n { right: 4px; }
+    .ic-gal-dots { display: flex; justify-content: center; gap: 6px; margin-top: 6px; }
+    .ic-gal-dots i { width: 7px; height: 7px; border-radius: 50%; background: #4E5058; cursor: pointer; }
+    .ic-gal-dots i.on { background: #F0B232; }
+    /* 📅 資訊卡「活動進度時程」(:::timeline 區塊):依時間自動標出 已結束 / 進行中 / 未開始 */
     .ic-tl { margin: 6px 0; }
     .ic-tl-sum { font-size: 14px; color: #DBDEE1; margin-bottom: 8px; line-height: 1.6; }
     .ic-tl-sum b { color: #F0B232; }
@@ -296,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.208</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.209</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4329,10 +4341,13 @@ async function saveCurExp() {
       const lines = (src || '').toString().replace(/\r/g, '').split('\n'), out = []; let list = null;
       const close = () => { if (list) { out.push('</' + list + '>'); list = null; } };
       let tl = null; // :::timeline 區塊收集中
+      const galHtml = (rows, ed) => { const sl = rows.map((r) => { const c = r.split('|'), u = (c[0] || '').trim(), cap = c.slice(1).join('|').trim(); return okUrl(u) ? '<div class="ic-gal-sl"><img src="' + u + '" alt="' + esc(cap) + '" loading="lazy" style="max-width:100%">' + (cap ? '<div class="cap">' + esc(cap) + '</div>' : '') + '</div>' : ''; }).filter(Boolean); if (!sl.length) return ''; return '<div class="ic-gal" data-gal="1"' + (ed ? ' contenteditable="false" data-galsrc="' + encodeURIComponent(rows.join('\n')) + '"' : '') + '><div class="ic-gal-track">' + sl.join('') + '</div>' + (sl.length > 1 ? '<button type="button" class="ic-gal-b ic-gal-p">‹</button><button type="button" class="ic-gal-b ic-gal-n">›</button><div class="ic-gal-dots">' + sl.map((x, k) => '<i' + (k ? '' : ' class="on"') + '></i>').join('') + '</div>' : '') + '</div>'; };
+      let gal = null; // :::gallery 區塊收集中
       const tlMs = (t) => { t = (t || '').trim(); if (!t) return 0; let m = t.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/); let y, mo, d, h = 0, mi = 0; if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; h = +(m[4] || 0); mi = +(m[5] || 0); } else { m = t.match(/^(\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/); if (!m) return 0; y = new Date(Date.now() + 8 * 3600e3).getUTCFullYear(); mo = +m[1]; d = +m[2]; h = +(m[3] || 0); mi = +(m[4] || 0); } const v = Date.parse(y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0') + 'T' + String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') + ':00+08:00'); return isNaN(v) ? 0 : v; };
       const tlRange = (t) => { const m = (t || '').trim().match(/(\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}:\d{2}))?$/); return m ? (+m[1]) + '/' + (+m[2]) + (m[3] ? ' ' + m[3].padStart(5, '0') : '') : (t || '').trim(); };
       lines.forEach((ln) => {
         let m;
+        if (gal) { if (/^\s*:::\s*$/.test(ln)) { out.push(galHtml(gal, true)); gal = null; } else if (ln.trim()) gal.push(ln); return; }
         if (tl) {
           if (/^\s*:::\s*$/.test(ln)) {
             out.push('<div class="ic-tl" data-tl="1" contenteditable="false" data-tlsrc="' + encodeURIComponent(tl.join('\n')) + '"><div class="ic-tl-sum"></div><div class="ic-tl-grid">' + tl.map((r) => { const c = r.split('|').map((x) => x.trim()), st = tlMs(c[1]), en = tlMs(c[2]); return '<div class="ic-tl-s" data-s="' + st + '" data-e="' + en + '"><div class="t">' + esc(c[0] || '') + '</div><div class="d">' + esc(tlRange(c[1]) + (c[2] ? '' : ' 起')) + '</div>' + (c[2] ? '<div class="d">~ ' + esc(tlRange(c[2])) + '</div>' : '') + (c[3] ? '<div class="n">' + esc(c[3]) + '</div>' : '') + '<div class="b"></div></div>'; }).join('') + '</div></div>');
@@ -4340,6 +4355,7 @@ async function saveCurExp() {
           } else if (ln.trim()) tl.push(ln);
           return;
         }
+        if (/^\s*:::\s*gallery\s*$/i.test(ln)) { close(); gal = []; return; }
         if (/^\s*:::\s*timeline\s*$/i.test(ln)) { close(); tl = []; return; }
         if ((m = ln.match(/^(#{1,3})\s+(.*)$/))) { close(); out.push('<div data-h="' + m[1].length + '" style="font-weight:bold;color:#fff;font-size:' + ({ 1: 22, 2: 18, 3: 16 })[m[1].length] + 'px;margin:6px 0 2px">' + inline(m[2]) + '</div>'); }
         else if (/^\s*(---+|\*\*\*+)\s*$/.test(ln)) { close(); out.push('<hr style="border:0;border-top:1px solid #4E5058;margin:8px 0">'); }
@@ -4402,6 +4418,25 @@ function icRgbHex_(c) { const m = (c || '').match(/rgba?\((\d+),\s*(\d+),\s*(\d+
       });
     }
     setInterval(() => { try { icTlUpdate_(); } catch (e) {} }, 30000);
+
+    // 🖼️ 圖片輪播:左右鈕 / 圓點切換,手機可直接滑動
+    (function () {
+      document.addEventListener('click', (e) => {
+        const t = e.target; if (!t || !t.closest) return;
+        const b = t.closest('.ic-gal-b'), d = t.closest('.ic-gal-dots i');
+        if (!b && !d) return;
+        const g = t.closest('.ic-gal'), tr = g && g.querySelector('.ic-gal-track'); if (!tr) return;
+        e.preventDefault(); e.stopPropagation();
+        const w = tr.clientWidth, n = tr.children.length, cur = Math.round(tr.scrollLeft / (w || 1));
+        let to = b ? cur + (b.classList.contains('ic-gal-n') ? 1 : -1) : Array.prototype.indexOf.call(d.parentNode.children, d);
+        to = (to + n) % n; tr.scrollTo({ left: to * w, behavior: 'smooth' });
+      }, true);
+      document.addEventListener('scroll', (e) => {
+        const tr = e.target; if (!tr || !tr.classList || !tr.classList.contains('ic-gal-track')) return;
+        const i = Math.round(tr.scrollLeft / (tr.clientWidth || 1)), ds = tr.parentNode.querySelectorAll('.ic-gal-dots i');
+        ds.forEach((x, k) => x.classList.toggle('on', k === i));
+      }, true);
+    })();
 function icDomToMd_(root) {
   const FONTS = { sans: /jhenghei|sans/i, kai: /kai|標楷/i, ming: /pmingliu|新細明|serif/i, mono: /consolas|mono/i };
   const BLK = /^(DIV|P|H1|H2|H3|BLOCKQUOTE|UL|OL|HR)$/;
@@ -4411,6 +4446,7 @@ function icDomToMd_(root) {
     if (n.nodeType !== 1) return '';
     const tag = n.tagName; let inner;
     if (n.dataset && n.dataset.tlsrc) { let src = ''; try { src = decodeURIComponent(n.dataset.tlsrc); } catch (e) {} return ':::timeline\n' + src + '\n:::\n'; } // 活動進度時程區塊:原樣寫回原始文字,不要被畫面上的階段方塊覆蓋
+    if (n.dataset && n.dataset.galsrc) { let src = ''; try { src = decodeURIComponent(n.dataset.galsrc); } catch (e) {} return ':::gallery\n' + src + '\n:::\n'; } // 圖片輪播區塊:原樣寫回原始文字
     if (tag === 'BR') return '\n';
     if (tag === 'HR') return '---\n';
     if (tag === 'IMG') { const src = n.getAttribute('src') || ''; if (!/^https?:\/\//i.test(src)) return ''; const w = parseInt(n.style.width, 10) || parseInt(n.getAttribute('width'), 10) || 0; const _al = (n.style && n.style.textAlign) || ''; const _md = '![' + (n.getAttribute('alt') || '圖片') + '](' + src + (w ? ' =' + w : '') + ')'; return /^(center|right)$/.test(_al) ? '[' + _al + ']' + _md + '[/' + _al + ']' : _md; }
