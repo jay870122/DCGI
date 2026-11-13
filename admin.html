@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.211</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.212</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1279,9 +1279,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="tbl-wrap" style="padding:20px 24px">
           <div class="page-title" style="font-size:15px">🏅 身分組(玩家主頁的藍色標籤)</div>
-          <div class="hint" style="margin:6px 0 10px;line-height:1.7">名稱就是玩家看到的標籤文字,機器人也可以取用(機器人端用 <code>botRoleMap</code>)。「身分組 ID」是 Discord 的身分組 ID,不能改。模式:<b>顯示在主頁</b> / <b>隱藏(只在背包看得到)</b>。沒有列在這裡的身分組,玩家不會看到。</div>
+          <div class="hint" style="margin:6px 0 10px;line-height:1.7">列出伺服器全部身分組(由機器人定期回報)。<b>勾選=玩家主頁會顯示這個標籤</b>;沒勾的不會顯示在主頁(玩家仍可在背包看到已登錄的身分組)。「主頁顯示名稱」可以跟 Discord 名稱不同,玩家看到的是這個。</div>
           <div id="dcfg-roles" style="overflow-x:auto"></div>
-          <div style="margin-top:12px"><button class="btn btn-edit" onclick="dcfgAddRole()">➕ 新增身分組</button></div>
+          <div style="margin-top:12px"><button class="btn btn-edit" onclick="dcfgAddRole()">➕ 手動新增(清單裡找不到時貼 ID)</button></div>
         </div>
       </div>
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
@@ -3756,8 +3756,8 @@ function navTo(p) {
 }
 
 // ── Toast ──
-// 🏷️ 身分組 / 貨幣顯示設定(讀寫「身分組對照表」「自訂變數」兩張表,走 Worker adminDisplaySettingsWorker)
-let dcfgData_ = { vars: [], roles: [] };
+// 🏷️ 身分組 / 貨幣顯示設定(讀寫「身分組對照表」「自訂變數」兩張表,走 Worker adminDisplaySettingsWorker;機器人定期把伺服器全部身分組寫進「DC身分組清單」)
+let dcfgData_ = { vars: [], roles: [], dcRoles: [], newRoles: [], rows: [] };
 async function dcfgCall_(body) {
   const qs = new URLSearchParams({ action: 'adminDisplaySettingsWorker', discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
   const res = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, { method: 'POST', body: JSON.stringify(body) });
@@ -3768,33 +3768,49 @@ async function loadDisplayCfg() {
   document.getElementById('dcfg-vars').innerHTML = '<div class="hint">讀取中…</div>'; document.getElementById('dcfg-roles').innerHTML = '';
   let d; try { d = await dcfgCall_({ op: 'read' }); } catch (e) { d = { status: 'error', message: '連線失敗' }; }
   if (!d || d.status !== 'success') { document.getElementById('dcfg-vars').innerHTML = '<div class="hint">讀取失敗:' + dcfgEsc_((d && d.message) || '') + '</div>'; return; }
-  dcfgData_ = { vars: d.vars || [], roles: d.roles || [], newRoles: [] };
+  const inMap = {}; (d.roles || []).forEach((r) => { inMap[r.id] = r; });
+  const rows = [], seen = {};
+  (d.dcRoles || []).forEach((r) => { const m = inMap[r.id]; seen[r.id] = 1; rows.push({ id: r.id, dcName: r.name, name: m ? m.name : r.name, category: m ? m.category : '', row: m ? m.row : 0, inMap: !!m, show: !!m && m.mode !== 'HIDDEN', origMode: m ? m.mode : '' }); });
+  (d.roles || []).forEach((m) => { if (seen[m.id]) return; rows.push({ id: m.id, dcName: '', name: m.name, category: m.category, row: m.row, inMap: true, show: m.mode !== 'HIDDEN', origMode: m.mode, extra: true }); });
+  dcfgData_ = { vars: d.vars || [], roles: d.roles || [], dcRoles: d.dcRoles || [], newRoles: [], rows };
   dcfgRender_();
 }
 function dcfgRender_() {
   const sel = (opts, cur, cls, attr) => '<select class="' + cls + '" ' + attr + '>' + opts.map(([v, l]) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
-  const VM = [['', '一律顯示'], ['HIDE_ZERO', '數值為 0 時隱藏'], ['HIDDEN', '隱藏(只在背包)']], RM = [['', '顯示在主頁'], ['HIDDEN', '隱藏(只在背包)']];
+  const VM = [['', '一律顯示'], ['HIDE_ZERO', '數值為 0 時隱藏'], ['HIDDEN', '隱藏(只在背包)']];
   const th = (a) => '<tr>' + a.map((x) => '<th style="text-align:left;padding:6px 8px;color:var(--mu);font-weight:600;white-space:nowrap">' + x + '</th>').join('') + '</tr>';
   const td = (x) => '<td style="padding:4px 6px">' + x + '</td>';
   const inp = (v, cls, attr, w) => '<input class="' + cls + '" ' + attr + ' value="' + dcfgEsc_(v) + '" style="width:' + (w || 150) + 'px;padding:6px 8px;background:var(--bg,#1E1F22);color:var(--t,#fff);border:1px solid var(--bd);border-radius:6px">';
   document.getElementById('dcfg-vars').innerHTML = dcfgData_.vars.length
     ? '<table style="border-collapse:collapse;width:100%">' + th(['顯示名稱', '內部欄位(不可改)', '模式', '分類']) + dcfgData_.vars.map((v) => '<tr>' + td(inp(v.display, 'dv-d', 'data-row="' + v.row + '"')) + td('<code style="color:var(--mu)">' + dcfgEsc_(v.internal) + '</code>') + td(sel(VM, v.mode, 'dv-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dv-c', 'data-row="' + v.row + '"', 110)) + '</tr>').join('') + '</table>'
     : '<div class="hint">「自訂變數」表裡還沒有任何貨幣。</div>';
-  document.getElementById('dcfg-roles').innerHTML = '<table style="border-collapse:collapse;width:100%">' + th(['身分組 ID(不可改)', '顯示名稱', '模式', '分類']) + dcfgData_.roles.map((v) => '<tr>' + td('<code style="color:var(--mu)">' + dcfgEsc_(v.id) + '</code>') + td(inp(v.name, 'dr-n', 'data-row="' + v.row + '"')) + td(sel(RM, v.mode, 'dr-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dr-c', 'data-row="' + v.row + '"', 110)) + '</tr>').join('') + (dcfgData_.newRoles || []).map((v, i) => '<tr style="background:rgba(240,178,50,0.07)">' + td(inp(v.id, 'dn-i', 'data-i="' + i + '" placeholder="貼上身分組 ID"', 170)) + td(inp(v.name, 'dn-n', 'data-i="' + i + '"')) + td(sel(RM, v.mode, 'dn-m', 'data-i="' + i + '"')) + td(inp(v.category, 'dn-c', 'data-i="' + i + '"', 110)) + '</tr>').join('') + '</table>';
+  const noList = !dcfgData_.dcRoles.length;
+  const chk = dcfgData_.rows.filter((r) => r.show).length;
+  document.getElementById('dcfg-roles').innerHTML = (noList ? '<div class="hint" style="margin-bottom:8px;color:var(--gold)">⚠️ 還沒收到機器人回報的伺服器身分組清單(機器人更新到 v1.1.7 並重啟後,約 1 分鐘內會自動回報,之後每 30 分鐘更新)。目前只列出已經在對照表裡的身分組。</div>' : '')
+    + '<div style="margin-bottom:8px"><input id="dcfg-q" placeholder="🔍 搜尋身分組名稱或 ID" oninput="dcfgFilter_()" style="width:260px;padding:6px 8px;background:var(--bg,#1E1F22);color:var(--t,#fff);border:1px solid var(--bd);border-radius:6px"> <span class="hint" id="dcfg-cnt">已勾選 ' + chk + ' 個</span></div>'
+    + '<table style="border-collapse:collapse;width:100%">' + th(['顯示', '主頁顯示名稱', 'Discord 名稱 / ID', '分類']) + dcfgData_.rows.map((v, i) => '<tr class="dcfg-r" data-q="' + dcfgEsc_((v.name + ' ' + v.dcName + ' ' + v.id).toLowerCase()) + '">' + td('<input type="checkbox" class="dr-s" data-i="' + i + '"' + (v.show ? ' checked' : '') + ' onchange="dcfgCount_()" style="width:18px;height:18px">') + td(inp(v.name, 'dr-n', 'data-i="' + i + '"')) + td('<span style="color:var(--mu)">' + dcfgEsc_(v.dcName || '(已不在伺服器清單)') + '</span><br><code style="color:var(--mu);font-size:11px">' + dcfgEsc_(v.id) + '</code>') + td(inp(v.category, 'dr-c', 'data-i="' + i + '"', 110)) + '</tr>').join('')
+    + (dcfgData_.newRoles || []).map((v, i) => '<tr style="background:rgba(240,178,50,0.07)">' + td('<span class="hint">新增</span>') + td(inp(v.name, 'dn-n', 'data-i="' + i + '"')) + td(inp(v.id, 'dn-i', 'data-i="' + i + '" placeholder="貼上身分組 ID"', 170)) + td(inp(v.category, 'dn-c', 'data-i="' + i + '"', 110)) + '</tr>').join('') + '</table>';
 }
-function dcfgAddRole() { dcfgCollect_(); (dcfgData_.newRoles = dcfgData_.newRoles || []).push({ id: '', name: '', category: '', mode: '' }); dcfgRender_(); }
+function dcfgCount_() { const n = document.querySelectorAll('#page-display-cfg .dr-s:checked').length, el = document.getElementById('dcfg-cnt'); if (el) el.textContent = '已勾選 ' + n + ' 個'; }
+function dcfgFilter_() { const q = (document.getElementById('dcfg-q').value || '').trim().toLowerCase(); document.querySelectorAll('#page-display-cfg .dcfg-r').forEach((tr) => { tr.style.display = !q || tr.dataset.q.indexOf(q) !== -1 ? '' : 'none'; }); }
+function dcfgAddRole() { dcfgCollect_(); (dcfgData_.newRoles = dcfgData_.newRoles || []).push({ id: '', name: '', category: '' }); dcfgRender_(); }
 function dcfgCollect_() {
-  const g = (cls, row) => { const el = document.querySelector('#page-display-cfg .' + cls + '[data-row="' + row + '"]'); return el ? el.value : null; };
-  dcfgData_.vars.forEach((v) => { const d = g('dv-d', v.row); if (d !== null) { v.display = d; v.mode = g('dv-m', v.row); v.category = g('dv-c', v.row); } });
-  dcfgData_.roles.forEach((v) => { const n = g('dr-n', v.row); if (n !== null) { v.name = n; v.mode = g('dr-m', v.row); v.category = g('dr-c', v.row); } });
-  (dcfgData_.newRoles || []).forEach((v, i) => { const q = (c) => { const el = document.querySelector('#page-display-cfg .' + c + '[data-i="' + i + '"]'); return el ? el.value : ''; }; v.id = q('dn-i').trim(); v.name = q('dn-n'); v.mode = q('dn-m'); v.category = q('dn-c'); });
+  const g = (cls, key, val) => { const el = document.querySelector('#page-display-cfg .' + cls + '[data-' + key + '="' + val + '"]'); return el ? el : null; };
+  dcfgData_.vars.forEach((v) => { const d = g('dv-d', 'row', v.row); if (d) { v.display = d.value; v.mode = g('dv-m', 'row', v.row).value; v.category = g('dv-c', 'row', v.row).value; } });
+  dcfgData_.rows.forEach((v, i) => { const n = g('dr-n', 'i', i); if (n) { v.name = n.value; v.category = g('dr-c', 'i', i).value; v.show = g('dr-s', 'i', i).checked; } });
+  (dcfgData_.newRoles || []).forEach((v, i) => { const e = g('dn-n', 'i', i); if (e) { v.name = e.value; v.id = g('dn-i', 'i', i).value.trim(); v.category = g('dn-c', 'i', i).value; } });
 }
 async function saveDisplayCfg() {
   dcfgCollect_();
   const btn = document.getElementById('dcfg-save'); btn.disabled = true; const old = btn.textContent; btn.textContent = '儲存中…';
   try {
-    const nr = (dcfgData_.newRoles || []).filter((v) => v.id || v.name);
-    const d = await dcfgCall_({ op: 'save', vars: dcfgData_.vars, roles: dcfgData_.roles, newRoles: nr });
+    const roles = [], newRoles = [];
+    dcfgData_.rows.forEach((v) => {
+      if (v.inMap) roles.push({ row: v.row, id: v.id, name: v.name, category: v.category, mode: v.show ? '' : 'HIDDEN' });
+      else if (v.show) newRoles.push({ id: v.id, name: v.name || v.dcName, category: v.category, mode: '' });
+    });
+    (dcfgData_.newRoles || []).filter((v) => v.id || v.name).forEach((v) => newRoles.push({ id: v.id, name: v.name, category: v.category, mode: '' }));
+    const d = await dcfgCall_({ op: 'save', vars: dcfgData_.vars, roles, newRoles });
     if (d && d.status === 'success') { toast(d.changed || d.added ? '✅ 已儲存(玩家重新整理後生效,最多約數十秒)' : '沒有任何變更'); await loadDisplayCfg(); }
     else toast('❌ ' + ((d && d.message) || '儲存失敗'), false);
   } catch (e) { toast('⚠️ 連線中斷,無法確認有沒有儲存,請按「重新讀取」確認', false); }
