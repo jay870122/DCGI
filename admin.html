@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.216</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.217</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4604,6 +4604,20 @@ function icToggleCode_(row) {
 function icSaveRange_(row) { const sel = window.getSelection(); if (sel.rangeCount) { const r = sel.getRangeAt(0); if (row.querySelector('.ic-prev').contains(r.commonAncestorContainer)) row._rng = r.cloneRange(); } }
 function icRestoreRange_(row) { const w = row.querySelector('.ic-prev'); w.focus(); if (row._rng) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(row._rng); } }
 function icWysHtml_(row, html) { icRestoreRange_(row); document.execCommand('insertHTML', false, html); icSyncFromWys_(row); icSaveRange_(row); }
+// 對選取範圍套樣式時保留原有內容(連結/粗體/圖片等),不要像 insertHTML 只剩純文字
+function icWrapSel_(row, css) {
+  icRestoreRange_(row);
+  const sel = window.getSelection(); if (!sel.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  if (r.collapsed) { icWysHtml_(row, '<span style="' + css + '">文字</span>'); return true; }
+  const prop = css.split(':')[0].trim();
+  const frag = r.extractContents(), span = document.createElement('span');
+  span.setAttribute('style', css); span.appendChild(frag);
+  span.querySelectorAll('span[style]').forEach(x => { x.style.removeProperty(prop); if (!x.getAttribute('style')) { while (x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); } });
+  r.insertNode(span);
+  sel.removeAllRanges(); const nr = document.createRange(); nr.selectNodeContents(span); sel.addRange(nr);
+  icSyncFromWys_(row); icSaveRange_(row); return true;
+}
 function icSelText_(row) { icRestoreRange_(row); return window.getSelection().toString(); }
 function icWysEsc_(t) { return (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function icWysCmd_(row, cmd, val) { icRestoreRange_(row); document.execCommand('styleWithCSS', false, false); document.execCommand(cmd, false, val || null); icSyncFromWys_(row); icSaveRange_(row); }
@@ -4667,9 +4681,9 @@ document.addEventListener('change', (ev) => {
     else if (el.dataset.act === 'color') icInsert_(ta, '[color=' + v + ']', '[/color]', '文字');
   } else {
     const t = icSelText_(row) || '文字', e = icWysEsc_(t);
-    if (el.dataset.act === 'font') icWysHtml_(row, '<span style="font-family:' + ({ sans: "'Microsoft JhengHei',sans-serif", kai: "DFKai-SB,BiauKai,'標楷體',serif", ming: "PMingLiU,'新細明體',serif", mono: 'Consolas,monospace' })[v] + '">' + e + '</span>');
-    else if (el.dataset.act === 'size') icWysHtml_(row, '<span style="font-size:' + v + 'px">' + e + '</span>');
-    else if (el.dataset.act === 'color') icWysHtml_(row, '<span style="color:' + v + '">' + e + '</span>');
+    if (el.dataset.act === 'font') icWrapSel_(row, 'font-family:' + ({ sans: "'Microsoft JhengHei',sans-serif", kai: "DFKai-SB,BiauKai,'標楷體',serif", ming: "PMingLiU,'新細明體',serif", mono: 'Consolas,monospace' })[v]);
+    else if (el.dataset.act === 'size') icWrapSel_(row, 'font-size:' + v + 'px');
+    else if (el.dataset.act === 'color') icWrapSel_(row, 'color:' + v);
   }
   if (el.tagName === 'SELECT') el.value = '';
 });
@@ -5344,6 +5358,7 @@ function renderShopTable() {
   const stateLabel = {available:'<span class="status status-open">● 上架中</span>',not_started:'<span class="status status-ns">● 未開始</span>',ended:'<span class="status status-ended">● 已結束</span>'};
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   const cardRows_ = ((icAll_ || []).filter(c => (statusFilter === 'ARCHIVED' ? !!c.archived : !c.archived) && (!q || ((c.title || '') + (c.text || '')).toLowerCase().includes(q)) && (!cat || (c.category || '') === cat) && (statusFilter === 'DRAFT' ? c.show === false : statusFilter === 'ACTIVE' ? c.show !== false : true)))
+    .slice().sort((a, b) => ((a.pos == null ? 0 : a.pos) - (b.pos == null ? 0 : b.pos)) || ((a.order || 0) - (b.order || 0)))
     .map(c => ({ c, html: `<tr>
       <td></td>
       <td class="cell-name" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${c.group ? '(合併組)' : ''}</span>${((c.title || (c.text || '').replace(/!\[[^\]]*\]\([^)]*\)/g, '🖼️圖片').slice(0, 30) || '(無標題)') + '').replace(/</g, '&lt;')}</td>
