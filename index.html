@@ -86,7 +86,7 @@
     
     /* 🌟 側邊欄與網格商品區佈局 */
     .shop-layout { display: flex; gap: 20px; align-items: flex-start; }
-    .sidebar { width: 280px; flex-shrink: 0; /* content-box:總寬310,捲軸另算 */ background-color: #2C2F33; border-radius: 8px; padding: 15px;
+    .sidebar { width: clamp(180px, 18vw, 280px); flex-shrink: 0; /* content-box:視窗縮小時自動變窄(最窄 180、最寬 280),捲軸另算 */ background-color: #2C2F33; border-radius: 8px; padding: 15px;
                display: flex; flex-direction: column; gap: 5px; position: sticky; top: 20px;
                max-height: calc(100vh - 130px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; }
     .cat-item { padding: 8px 10px; min-height: 40px; box-sizing: border-box; gap: 8px;
@@ -1021,7 +1021,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.258</div>
+    <div class="version-tag">系統版本：v5.4.259</div>
   </div>
 
   <script>
