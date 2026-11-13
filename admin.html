@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.219</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.220</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4611,10 +4611,15 @@ function icWrapSel_(row, css) {
   const r = sel.getRangeAt(0);
   if (r.collapsed) { icWysHtml_(row, '<span style="' + css + '">文字</span>'); return true; }
   const prop = css.split(':')[0].trim();
-  const frag = r.extractContents(), span = document.createElement('span');
-  span.setAttribute('style', css); span.appendChild(frag);
+  const span = document.createElement('span');
+  span.setAttribute('style', css);
+  // 選取範圍沒有「切到一半的標籤」時直接就地包起來(連結裡的文字就留在連結裡面,不會把 <a> 掏空);否則才用抽出再放回
+  let done = false;
+  try { r.surroundContents(span); done = true; } catch (e) {}
+  if (!done) { span.appendChild(r.extractContents()); r.insertNode(span); }
   span.querySelectorAll('span[style]').forEach(x => { x.style.removeProperty(prop); if (!x.getAttribute('style')) { while (x.firstChild) x.parentNode.insertBefore(x.firstChild, x); x.remove(); } });
-  r.insertNode(span);
+  // 清掉抽出後留下的空殼(例如空的 <a>)
+  row.querySelector('.ic-prev').querySelectorAll('a,b,i,u,s,em,strong').forEach(x => { if (!x.textContent && !x.querySelector('img,br,hr')) x.remove(); });
   sel.removeAllRanges(); const nr = document.createRange(); nr.selectNodeContents(span); sel.addRange(nr);
   icSyncFromWys_(row); icSaveRange_(row); return true;
 }
