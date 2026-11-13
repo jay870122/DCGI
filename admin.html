@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.220</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.221</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4417,8 +4417,9 @@ async function saveCurExp() {
           carry.push({ nm, o: op, c }); return op;
         });
         t = t.replace(/\[((?:[^\[\]\n])+?)\]\((https?:\/\/(?:[^\s()<"]|\([^\s()<"]*\))+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m); // 第二輪:連結文字裡有 [color]/[size] 等標籤時,標籤轉完才配得到
+        t = t.replace(/<a [^>]*>[\s\S]*?<\/a>/g, (m) => { keep.push(m); return '\u0000' + (keep.length - 1) + '\u0000'; }); // 已經是連結的不要再被「裸網址自動連結」二次包進去(會變成巢狀連結、存檔變 [](網址))
         t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
-        const rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
+        let rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]); rs = rs.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
         return pre + rs + carry.map((e) => e.c).reverse().join('');
       };
       const lines = (src || '').toString().replace(/\r/g, '').split('\n'), out = []; let list = null;
@@ -4522,7 +4523,7 @@ function icRgbHex_(c) { const m = (c || '').match(/rgba?\((\d+),\s*(\d+),\s*(\d+
     })();
 function icDomToMd_(root) {
   const FONTS = { sans: /jhenghei|sans/i, kai: /kai|標楷/i, ming: /pmingliu|新細明|serif/i, mono: /consolas|mono/i };
-  const BLK = /^(DIV|P|H1|H2|H3|BLOCKQUOTE|UL|OL|HR)$/;
+  const BLK = /^(DIV|P|H1|H2|H3|BLOCKQUOTE|UL|OL|HR|TABLE|TR)$/;
   function kids(n) { let acc = ''; Array.from(n.childNodes).forEach(c => { if (c.nodeType === 1 && BLK.test(c.tagName) && acc && !acc.endsWith('\n')) acc += '\n'; acc += walk(c); }); return acc; }
   function walk(n) {
     if (n.nodeType === 3) return n.nodeValue.replace(/ /g, ' ');
@@ -4530,16 +4531,19 @@ function icDomToMd_(root) {
     const tag = n.tagName; let inner;
     if (n.dataset && n.dataset.tlsrc) { let src = ''; try { src = decodeURIComponent(n.dataset.tlsrc); } catch (e) {} return ':::timeline\n' + src + '\n:::\n'; } // 活動進度時程區塊:原樣寫回原始文字,不要被畫面上的階段方塊覆蓋
     if (n.dataset && n.dataset.galsrc) { let src = ''; try { src = decodeURIComponent(n.dataset.galsrc); } catch (e) {} return ':::gallery\n' + src + '\n:::\n'; } // 圖片輪播區塊:原樣寫回原始文字
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'META' || tag === 'LINK' || tag === 'HEAD' || tag === 'TITLE') return '';
     if (tag === 'BR') return '\n';
     if (tag === 'HR') return '---\n';
     if (tag === 'IMG') { const src = n.getAttribute('src') || ''; if (!/^https?:\/\//i.test(src)) return ''; const w = parseInt(n.style.width, 10) || parseInt(n.getAttribute('width'), 10) || 0; const _al = (n.style && n.style.textAlign) || ''; const _md = '![' + (n.getAttribute('alt') || '圖片') + '](' + src + (w ? ' =' + w : '') + ')'; return /^(center|right)$/.test(_al) ? '[' + _al + ']' + _md + '[/' + _al + ']' : _md; }
     inner = kids(n);
-    if (tag === 'B' || tag === 'STRONG') return inner ? '**' + inner + '**' : '';
-    if (tag === 'I' || tag === 'EM') return inner ? '*' + inner + '*' : '';
+    if (tag === 'B' || tag === 'STRONG') { const fw = n.style && n.style.fontWeight; if (fw === 'normal' || fw === '400' || fw === 'lighter') return inner; /* Google 文件/Word 貼上會包一層 <b style="font-weight:normal"> */ return inner.trim() ? '**' + inner + '**' : inner; }
+    if (tag === 'I' || tag === 'EM') { const fs = n.style && n.style.fontStyle; if (fs === 'normal') return inner; return inner.trim() ? '*' + inner + '*' : inner; }
     if (tag === 'U') return inner ? '[u]' + inner + '[/u]' : '';
     if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') return inner ? '~~' + inner + '~~' : '';
     if (tag === 'CODE') return inner ? '`' + inner + '`' : '';
-    if (tag === 'A') { const h = n.getAttribute('href') || ''; return /^https?:\/\//i.test(h) ? '[' + inner + '](' + h + ')' : inner; }
+    if (tag === 'A') { const h = n.getAttribute('href') || ''; if (!inner.trim()) return ''; /* 空的連結不輸出 [](網址) */ return /^https?:\/\//i.test(h) ? '[' + inner + '](' + h + ')' : inner; }
+    if (tag === 'TD' || tag === 'TH') return inner.replace(/\n+$/, '') + ' ';
+    if (tag === 'TR') return inner.replace(/ +$/, '') + '\n';
     if (/^H[1-3]$/.test(tag) || n.dataset.h) return '#'.repeat(parseInt(n.dataset.h || tag[1], 10)) + ' ' + inner.replace(/\n+$/, '') + '\n';
     if (tag === 'BLOCKQUOTE' || n.dataset.q) return inner.replace(/\n+$/, '').split('\n').map(l => '> ' + l).join('\n') + '\n';
     if (tag === 'UL' || tag === 'OL') { let k = 0; return Array.from(n.children).map(li => (tag === 'OL' ? (++k) + '. ' : '- ') + walk(li).replace(/\n+$/, '')).join('\n') + '\n'; }
@@ -4548,7 +4552,7 @@ function icDomToMd_(root) {
     const st = n.style || {};
     if (tag === 'SPAN' || tag === 'DIV' || tag === 'P' || tag === 'FONT') {
       if (out) {
-        if (st.fontSize && /px$/.test(st.fontSize)) out = '[size=' + Math.max(10, Math.min(48, parseInt(st.fontSize, 10))) + ']' + out + '[/size]';
+        { let px = 0; if (st.fontSize && /px$/.test(st.fontSize)) px = parseFloat(st.fontSize); else if (st.fontSize && /pt$/.test(st.fontSize)) px = parseFloat(st.fontSize) * 4 / 3; if (tag === 'FONT' && n.getAttribute('size')) px = ({ 1: 10, 2: 13, 3: 16, 4: 18, 5: 24, 6: 32, 7: 48 })[n.getAttribute('size')] || px; if (px) out = '[size=' + Math.max(10, Math.min(48, Math.round(px))) + ']' + out + '[/size]'; }
         if (tag === 'FONT' && n.getAttribute('color')) out = '[color=' + n.getAttribute('color') + ']' + out + '[/color]';
         if (st.color) out = '[color=' + icRgbHex_(st.color) + ']' + out + '[/color]';
         if (st.fontFamily) { const k = Object.keys(FONTS).find(f => FONTS[f].test(st.fontFamily)); if (k) out = '[font=' + k + ']' + out + '[/font]'; }
@@ -4667,6 +4671,24 @@ function icToolbarAct_(el) {
     if (!icSelText_(row)) icWysHtml_(row, '<a href="' + u.trim().replace(/"/g, '') + '">連結文字</a>'); else icWysCmd_(row, 'createLink', u.trim());
   }
 }
+// 📋 貼上一律先「正規化」:把外面複製來的格式(Google 文件/Word/網頁)轉成編輯器看得懂的標記再貼,避免帶進奇怪的 HTML/背景色/字體或整段變粗體
+document.addEventListener('paste', (ev) => {
+  const w = ev.target.closest && ev.target.closest('.ic-prev'); if (!w) return;
+  const row = w.closest('.ic-row'), cd = ev.clipboardData; if (!cd) return;
+  ev.preventDefault();
+  let md = '';
+  try {
+    const html = cd.getData('text/html');
+    if (html) { const body = new DOMParser().parseFromString(html, 'text/html').body; md = icDomToMd_(body); }
+  } catch (e) { md = ''; }
+  if (!md) md = cd.getData('text/plain') || '';
+  md = md.replace(/\r/g, '');
+  if (!md.trim()) return;
+  let out = infoMd_(md);
+  const m = out.match(/^<div>([\s\S]*)<\/div>$/);
+  if (m && md.indexOf('\n') < 0 && (out.match(/<div/g) || []).length === 1) out = m[1]; // 單行貼上:不要把目前這行切成兩行
+  icWysHtml_(row, out);
+});
 document.addEventListener('mousedown', (ev) => { const b = ev.target.closest && ev.target.closest('.ic-tb button, .ic-emo [data-act]'); if (b) ev.preventDefault(); });
 document.addEventListener('keyup', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
 document.addEventListener('mouseup', (ev) => { const w = ev.target.closest && ev.target.closest('.ic-prev'); if (w) icSaveRange_(w.closest('.ic-row')); });
@@ -4855,8 +4877,7 @@ function addMenuPick_(t) { document.getElementById('add-menu').style.display = '
 async function deleteInfoCard_(id) {
   const c = (icAll_ || []).find(x => x.id === id); if (!c) return;
   if (!confirm('確定要刪除這張資訊卡片嗎?\n' + (c.title || (c.text || '').slice(0, 30)))) return;
-  const rest = icAll_.filter(x => x.id !== id);
-  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: rest });
+  const d = await icSaveCards_(L => L.filter(x => x.id !== id), { allowEmpty: true });
   if (d && d.status === 'success') { toast('✅ 已刪除'); await loadShopItems(); } else toast('❌ ' + ((d && d.message) || '失敗'), false);
 }
 async function openInfoCards(focusId, newCard, asCopy) {
@@ -4876,6 +4897,15 @@ async function openInfoCards(focusId, newCard, asCopy) {
   document.getElementById('ic-del-btn').style.display = newCard ? 'none' : '';
   document.getElementById('infocard-modal').classList.add('open');
   if (newCard) setTimeout(() => { const ti = document.querySelector('#ic-rows .ic-title'); if (ti) ti.focus(); }, 50);
+}
+// 🛡️ 資訊卡片一律「先讀最新清單 → 只改要改的 → 整份存回」。讀不到最新清單就不存(避免用舊的/空的清單把所有卡片蓋掉)
+async function icSaveCards_(mutate, opts) {
+  let d0 = null; try { d0 = await stockAdminCall_('adminInfoCardsListWorker'); } catch (e) {}
+  if (!d0 || d0.status !== 'success') { toast('❌ 讀不到最新的資訊卡片清單,為避免覆蓋/清空,這次沒有儲存,請重新整理後再試', false); return { status: 'error', message: '讀不到最新清單' }; }
+  const all = mutate((d0.cards || []).slice());
+  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all, allowEmpty: !!(opts && opts.allowEmpty) });
+  if (d && d.status === 'success') icAll_ = all;
+  return d;
 }
 // 列表用:把資訊卡片的 markdown/標記拿掉,取第一行有內容的純文字當名稱
 function icPlain_(t, n) {
@@ -4899,8 +4929,7 @@ function icPlain_(t, n) {
 async function infoCardToggleShow_(id) {
   const c = (icAll_ || []).find(x => x.id === id); if (!c) return;
   const toShow = c.show === false;
-  const all = icAll_.map(x => x.id === id ? Object.assign({}, x, { show: toShow }) : x);
-  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
+  const d = await icSaveCards_(L => L.map(x => x.id === id ? Object.assign({}, x, { show: toShow }) : x));
   if (d && d.status === 'success') { toast(toShow ? '✅ 已上架(玩家看得到)' : '✅ 已下架(玩家看不到)'); await loadShopItems(); } else toast('❌ ' + ((d && d.message) || '失敗'), false);
 }
 // 📦 封存:先下架再標記封存(玩家一律看不到,列表預設不顯示,狀態選「📦 封存區」才看得到);還原=移出封存,維持下架,要再按「上架」
@@ -4909,8 +4938,7 @@ async function infoCardArchive_(id, archive) {
   const name = c.title || (c.text || '').slice(0, 30);
   if (archive && !confirm('要封存這張資訊卡片嗎?\n' + name + '\n\n封存會先下架,之後可在「狀態 → 📦 封存區」還原。')) return;
   if (!archive && !confirm('要把這張資訊卡片移出封存區嗎?(還原後是下架狀態,要再按「上架」)\n' + name)) return;
-  const all = icAll_.map(x => x.id === id ? Object.assign({}, x, archive ? { archived: true, show: false } : { archived: false }) : x);
-  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
+  const d = await icSaveCards_(L => L.map(x => x.id === id ? Object.assign({}, x, archive ? { archived: true, show: false } : { archived: false }) : x));
   if (d && d.status === 'success') { toast(archive ? '✅ 已封存' : '✅ 已還原(下架狀態)'); await loadShopItems(); } else toast('❌ ' + ((d && d.message) || '失敗'), false);
 }
 async function deleteInfoCardFromModal_() {
@@ -4926,9 +4954,8 @@ async function saveInfoCards() {
     if (!r.querySelector('.ic-code-toggle').checked) icSyncFromWys_(r);
     const id = r.dataset.id || ('c' + Date.now().toString(36));
     const card = { id, category: r.querySelector('.ic-cat').value.trim(), title: r.querySelector('.ic-title').value, text: r.querySelector('.ic-text').value, order: r.querySelector('.ic-order').value || ((icAll_ || []).length + 1), group: r.querySelector('.ic-group').value.trim(), pos: r.dataset.pos === '' ? null : parseInt(r.dataset.pos, 10), size: r.querySelector('.ic-size').value, imgMax: r.querySelector('.ic-imgh').value === '' ? null : parseInt(r.querySelector('.ic-imgh').value, 10), show: r.querySelector('.ic-show').value === 'true', cmOpen: r.querySelector('.ic-cm-open').checked, cmMax: r.querySelector('.ic-cm-max').value, cmPer: r.querySelector('.ic-cm-per').value, cmRefresh: r.querySelector('.ic-cm-refresh').value, cmNotify: r.querySelector('.ic-cm-notify').value.trim(), cmAdminOnly: !!(r.querySelector('.ic-cm-aonly') && r.querySelector('.ic-cm-aonly').checked) };
-    const all = (icAll_ || []).slice(); const k = all.findIndex(x => x.id === id);
-    if (k >= 0) { card.archived = !!all[k].archived; all[k] = card; } else all.push(card);
-    const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
+    if ((card.text || '').length > 45000) { toast('❌ 內文太長(' + card.text.length + ' 字,上限 45000),請拆成兩張卡片', false); return; }
+    const d = await icSaveCards_(L => { const k = L.findIndex(x => x.id === id); if (k >= 0) { card.archived = !!L[k].archived; L[k] = card; } else L.push(card); return L; });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast('✅ 資訊卡片已儲存'); closeModal('infocard-modal'); await loadShopItems();
   } finally { btn.disabled = false; btn.textContent = orig; }
@@ -5312,8 +5339,7 @@ async function saveShopReorderInline() {
     if (vals.length && vals[0] <= 0) vals[0] = 1; // 後端把 0 當成「沒填」會改用列號,所以不能寫 0
     for (let k = 1; k < vals.length; k++) if (vals[k] <= vals[k - 1]) vals[k] = Math.round((vals[k - 1] + 0.001) * 1000) / 1000;
     const ordById = {}; newCards.forEach((c, k) => { ordById[c.id] = vals[k]; });
-    const allCards = icAll_.map(c => (posById[c.id] !== undefined) ? Object.assign({}, c, { pos: posById[c.id], order: ordById[c.id] !== undefined ? ordById[c.id] : c.order }) : c);
-    const cr = await apiCraftWrite_('adminInfoCardsSave', { cards: allCards });
+    const cr = await icSaveCards_(L => L.map(c => (posById[c.id] !== undefined) ? Object.assign({}, c, { pos: posById[c.id], order: ordById[c.id] !== undefined ? ordById[c.id] : c.order }) : c));
     if (!cr || cr.status !== 'success') { toast('❌ 商品順序已存,但資訊卡片位置儲存失敗:' + ((cr && cr.message) || ''), false); return; }
   }
   toast('✅ ' + (d.message || '已儲存順序'));
@@ -5442,11 +5468,9 @@ function toggleIcSelect_(id, checked) { if (checked) icSel_.add(id); else icSel_
 // 對已勾選的資訊卡片做批次動作:show/hide/archive/restore/delete;一次存回整份卡片清單
 async function icBatchOp_(op) {
   const ids = icSel_; if (!ids.size) return true;
-  let all = (icAll_ || []).slice();
-  if (op === 'delete') all = all.filter(c => !ids.has(c.id));
-  else all = all.map(c => !ids.has(c.id) ? c : Object.assign({}, c,
-    op === 'show' ? { show: true } : op === 'hide' ? { show: false } : op === 'archive' ? { archived: true, show: false } : { archived: false }));
-  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
+  const d = await icSaveCards_(L => op === 'delete' ? L.filter(c => !ids.has(c.id))
+    : L.map(c => !ids.has(c.id) ? c : Object.assign({}, c,
+      op === 'show' ? { show: true } : op === 'hide' ? { show: false } : op === 'archive' ? { archived: true, show: false } : { archived: false })), { allowEmpty: op === 'delete' });
   if (d && d.status === 'success') { icSel_.clear(); return true; }
   toast('❌ 資訊卡片:' + ((d && d.message) || '失敗'), false); return false;
 }

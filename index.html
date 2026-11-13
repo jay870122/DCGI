@@ -1022,7 +1022,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.268</div>
+    <div class="version-tag">系統版本：v5.4.269</div>
   </div>
 
   <script>
@@ -1089,8 +1089,9 @@
           carry.push({ nm, o: op, c }); return op;
         });
         t = t.replace(/\[((?:[^\[\]\n])+?)\]\((https?:\/\/(?:[^\s()<"]|\([^\s()<"]*\))+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m); // 第二輪:連結文字裡有 [color]/[size] 等標籤時,標籤轉完才配得到
+        t = t.replace(/<a [^>]*>[\s\S]*?<\/a>/g, (m) => { keep.push(m); return '\u0000' + (keep.length - 1) + '\u0000'; }); // 已是連結的不要再被裸網址自動連結二次包進去
         t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
-        const rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
+        let rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]); rs = rs.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
         return pre + rs + carry.map((e) => e.c).reverse().join('');
       };
       const lines = (src || '').toString().replace(/\r/g, '').split('\n'), out = []; let list = null;
