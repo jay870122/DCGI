@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.217</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.218</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5360,7 +5360,7 @@ function renderShopTable() {
   const cardRows_ = ((icAll_ || []).filter(c => (statusFilter === 'ARCHIVED' ? !!c.archived : !c.archived) && (!q || ((c.title || '') + (c.text || '')).toLowerCase().includes(q)) && (!cat || (c.category || '') === cat) && (statusFilter === 'DRAFT' ? c.show === false : statusFilter === 'ACTIVE' ? c.show !== false : true)))
     .slice().sort((a, b) => ((a.pos == null ? 0 : a.pos) - (b.pos == null ? 0 : b.pos)) || ((a.order || 0) - (b.order || 0)))
     .map(c => ({ c, html: `<tr>
-      <td></td>
+      <td><input type="checkbox" class="ic-row-check" data-id="${c.id}" ${icSel_.has(c.id) ? 'checked' : ''} onchange="toggleIcSelect_('${c.id}', this.checked)"></td>
       <td class="cell-name" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${c.group ? '(合併組)' : ''}</span>${((c.title || (c.text || '').replace(/!\[[^\]]*\]\([^)]*\)/g, '🖼️圖片').slice(0, 30) || '(無標題)') + '').replace(/</g, '&lt;')}</td>
       <td data-label="分類">${c.category || '(全部分類)'}</td>
       <td data-label="價格">—</td><td data-label="庫存">—</td>
@@ -5414,6 +5414,19 @@ function renderShopTable() {
 
 // ── 商品批次操作 ──
 let shopSelectedIds = new Set();
+let icSel_ = new Set(); // 已勾選的資訊卡片 id
+function toggleIcSelect_(id, checked) { if (checked) icSel_.add(id); else icSel_.delete(id); updateShopBatchToolbar(); }
+// 對已勾選的資訊卡片做批次動作:show/hide/archive/restore/delete;一次存回整份卡片清單
+async function icBatchOp_(op) {
+  const ids = icSel_; if (!ids.size) return true;
+  let all = (icAll_ || []).slice();
+  if (op === 'delete') all = all.filter(c => !ids.has(c.id));
+  else all = all.map(c => !ids.has(c.id) ? c : Object.assign({}, c,
+    op === 'show' ? { show: true } : op === 'hide' ? { show: false } : op === 'archive' ? { archived: true, show: false } : { archived: false }));
+  const d = await apiCraftWrite_('adminInfoCardsSave', { cards: all });
+  if (d && d.status === 'success') { icSel_.clear(); return true; }
+  toast('❌ 資訊卡片:' + ((d && d.message) || '失敗'), false); return false;
+}
 
 function toggleShopItemSelect(itemId, checked) {
   if (checked) shopSelectedIds.add(itemId); else shopSelectedIds.delete(itemId);
@@ -5423,9 +5436,10 @@ function toggleShopItemSelect(itemId, checked) {
 function toggleShopSelectAll(checked) {
   if (checked) {
     document.querySelectorAll('.shop-row-check').forEach(cb => { shopSelectedIds.add(cb.dataset.id); cb.checked = true; });
+    document.querySelectorAll('.ic-row-check').forEach(cb => { icSel_.add(cb.dataset.id); cb.checked = true; });
   } else {
-    shopSelectedIds.clear();
-    document.querySelectorAll('.shop-row-check').forEach(cb => { cb.checked = false; });
+    shopSelectedIds.clear(); icSel_.clear();
+    document.querySelectorAll('.shop-row-check, .ic-row-check').forEach(cb => { cb.checked = false; });
   }
   const selectAllCb = document.getElementById('shop-select-all');
   if (selectAllCb) selectAllCb.checked = checked;
@@ -5436,22 +5450,29 @@ function updateShopBatchToolbar() {
   const toolbar = document.getElementById('shop-batch-toolbar');
   const countEl = document.getElementById('shop-selected-count');
   if (!toolbar || !countEl) return;
-  countEl.textContent = shopSelectedIds.size;
-  toolbar.style.display = shopSelectedIds.size > 0 ? 'flex' : 'none';
+  const n_ = shopSelectedIds.size + icSel_.size;
+  countEl.textContent = n_ + (icSel_.size ? '(含資訊卡片 ' + icSel_.size + ')' : '');
+  toolbar.style.display = n_ > 0 ? 'flex' : 'none';
 }
 
 async function batchDeleteShopItems() {
-  if (shopSelectedIds.size === 0) return;
-  if (!confirm(`確定要刪除已勾選的 ${shopSelectedIds.size} 個商品嗎？此操作無法還原。`)) return;
+  const nc = icSel_.size;
+  if (shopSelectedIds.size === 0 && !nc) return;
+  if (!confirm(`確定要刪除已勾選的 ${shopSelectedIds.size ? shopSelectedIds.size + ' 個商品' : ''}${shopSelectedIds.size && nc ? ' 和 ' : ''}${nc ? nc + ' 張資訊卡片' : ''}嗎？此操作無法還原。`)) return;
+  if (nc && !(await icBatchOp_('delete'))) return;
+  if (shopSelectedIds.size === 0) { toast('🗑️ 已刪除 ' + nc + ' 張資訊卡片'); await loadShopItems(); return; }
   const d = await api({ action: 'adminBatchDeleteShopItems', itemIds: JSON.stringify(Array.from(shopSelectedIds)) });
   if (d.status === 'success') { toast('🗑️ ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
   else toast('❌ ' + d.message, false);
 }
 
 async function batchSetShopStatus(status) {
-  if (shopSelectedIds.size === 0) return;
+  const nc = icSel_.size;
+  if (shopSelectedIds.size === 0 && !nc) return;
   const label = status === 'DRAFT' ? '下架' : '上架';
-  if (!confirm(`確定要把已勾選的 ${shopSelectedIds.size} 個商品${label}嗎？`)) return;
+  if (!confirm(`確定要把已勾選的 ${shopSelectedIds.size ? shopSelectedIds.size + ' 個商品' : ''}${shopSelectedIds.size && nc ? ' 和 ' : ''}${nc ? nc + ' 張資訊卡片' : ''}${label}嗎？`)) return;
+  if (nc && !(await icBatchOp_(status === 'DRAFT' ? 'hide' : 'show'))) return;
+  if (shopSelectedIds.size === 0) { toast('✅ 已' + label + ' ' + nc + ' 張資訊卡片'); await loadShopItems(); return; }
   const d = await api({ action: 'adminBatchSetShopItemStatus', itemIds: JSON.stringify(Array.from(shopSelectedIds)), status });
   if (d.status === 'success') { toast('✅ ' + d.message); shopSelectedIds.clear(); loadShopItems(); }
   else toast('❌ ' + d.message, false);
@@ -5476,6 +5497,13 @@ async function confirmArchive2_(ids) {
   return confirm('【封存確認 2/2】\n再確認一次:真的要封存嗎?\n之後可在「狀態 → 📦 封存區」還原(還原後是草稿,需重新上架)。');
 }
 async function batchArchiveShop(archive) {
+  const nc = icSel_.size;
+  if (nc) {
+    if (!confirm(archive ? `要封存已勾選的 ${nc} 張資訊卡片嗎?(會先下架,可在「狀態→📦封存區」還原)` : `要把已勾選的 ${nc} 張資訊卡片移出封存區嗎?(還原後是下架狀態)`)) return;
+    if (!(await icBatchOp_(archive ? 'archive' : 'restore'))) return;
+    toast(archive ? '✅ 已封存 ' + nc + ' 張資訊卡片' : '✅ 已還原 ' + nc + ' 張資訊卡片');
+    if (shopSelectedIds.size === 0) { await loadShopItems(); return; }
+  }
   if (shopSelectedIds.size === 0) return;
   const ids = Array.from(shopSelectedIds);
   if (archive) { if (!(await confirmArchive2_(ids))) return; }
