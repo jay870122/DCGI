@@ -138,6 +138,8 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
     .ic-tl-s.st-next { opacity: .9; }
     .ic-tl-s.st-next .b { color: #5BA6FF; }
     .ic-tl-s.st-past .b { color: #3BA55D; }
+.ic-a, .ic-prev a { color: #00A8FC; }
+.ic-prev [style^="color:"] a, .ic-prev font[color] a, [style^="color:"] .ic-a, font[color] .ic-a { color: inherit; } /* 連結外層有指定顏色就沿用,不強制改藍色 */
 .ic-prev img{max-width:100% !important;height:auto !important;box-sizing:border-box;max-height:var(--ic-imgh,min(360px,55vh)) !important;object-fit:contain}
 /* 資訊卡圖片置中/靠右:圖片是 display:block,要用 margin auto 才會跟著對齊 */
 .ic-prev [style*="text-align:center"] img, .ic-prev [style*="text-align: center"] img, .ic-prev img[style*="text-align: center"], .info-card [style*="text-align:center"] img, .info-card [style*="text-align: center"] img, .info-card img[style*="text-align: center"]{margin-left:auto!important;margin-right:auto!important}
@@ -308,7 +310,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.222</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.223</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4402,7 +4404,7 @@ async function saveCurExp() {
         t = esc(t);
         const keep = []; t = t.replace(/`([^`\n]+)`/g, (m, c) => { keep.push('<code style="background:#1E1F22;padding:1px 5px;border-radius:4px">' + c + '</code>'); return '\u0000' + (keep.length - 1) + '\u0000'; });
         t = t.replace(/!\[([^\]]*)\]\((https?:\/\/(?:[^\s()]|\([^\s()]*\))+)(?:\s+=(\d{2,4}))?\)/g, (m, alt, u, w) => okUrl(u) ? '<img src="' + u + '" alt="' + alt + '" loading="lazy" style="max-width:100%;' + (w ? 'width:' + Math.min(parseInt(w, 10), 1200) + 'px;' : '') + 'height:auto;border-radius:8px;display:block;margin:6px 0">' : m);
-        t = t.replace(/\[([^\]]+)\]\((https?:\/\/(?:[^\s()]|\([^\s()]*\))+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m);
+        t = t.replace(/\[([^\]]+)\]\((https?:\/\/(?:[^\s()]|\([^\s()]*\))+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" class="ic-a">' + tx + '</a>' : m);
         t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/~~([^~\n]+)~~/g, '<s>$1</s>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
         t = t.replace(/\[特大\]([\s\S]*?)\[\/特大\]/g, '<span style="font-size:28px">$1</span>').replace(/\[大\]([\s\S]*?)\[\/大\]/g, '<span style="font-size:20px">$1</span>').replace(/\[小\]([\s\S]*?)\[\/小\]/g, '<span style="font-size:12px">$1</span>');
         // 🌟 標籤用「堆疊」處理:可以巢狀、可以跨行(換行時自動關掉再重開),多餘的結尾標籤直接忽略,不會再出現 [/color] 跑出來
@@ -4416,9 +4418,9 @@ async function saveCurExp() {
           else { op = '<span style="display:block;text-align:' + nm + '">'; }
           carry.push({ nm, o: op, c }); return op;
         });
-        t = t.replace(/\[((?:[^\[\]\n])+?)\]\((https?:\/\/(?:[^\s()<"]|\([^\s()<"]*\))+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + tx + '</a>' : m); // 第二輪:連結文字裡有 [color]/[size] 等標籤時,標籤轉完才配得到
+        t = t.replace(/\[((?:[^\[\]\n])+?)\]\((https?:\/\/(?:[^\s()<"]|\([^\s()<"]*\))+)\)/g, (m, tx, u) => okUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener" class="ic-a">' + tx + '</a>' : m); // 第二輪:連結文字裡有 [color]/[size] 等標籤時,標籤轉完才配得到
         t = t.replace(/<a [^>]*>[\s\S]*?<\/a>/g, (m) => { keep.push(m); return '\u0000' + (keep.length - 1) + '\u0000'; }); // 已經是連結的不要再被「裸網址自動連結」二次包進去(會變成巢狀連結、存檔變 [](網址))
-        t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00A8FC">' + u + '</a>');
+        t = t.replace(/(^|[\s>])(https?:\/\/[^\s<]+)/g, (m, p, u) => p + '<a href="' + u + '" target="_blank" rel="noopener" class="ic-a">' + u + '</a>');
         let rs = t.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]); rs = rs.replace(/\u0000(\d+)\u0000/g, (m, k) => keep[+k]);
         return pre + rs + carry.map((e) => e.c).reverse().join('');
       };
