@@ -308,7 +308,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.218</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.219</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4872,6 +4872,24 @@ async function openInfoCards(focusId, newCard, asCopy) {
   document.getElementById('infocard-modal').classList.add('open');
   if (newCard) setTimeout(() => { const ti = document.querySelector('#ic-rows .ic-title'); if (ti) ti.focus(); }, 50);
 }
+// 列表用:把資訊卡片的 markdown/標記拿掉,取第一行有內容的純文字當名稱
+function icPlain_(t, n) {
+  t = (t || '').toString();
+  let pre = '';
+  if (/^\s*:::timeline/.test(t)) pre = '📅 時程:';
+  else if (/^\s*:::gallery/.test(t)) pre = '🖼️ 輪播:';
+  const lines = t.split('\n').map(l => l
+    .replace(/^\s*:::\w*\s*$/, '')
+    .replace(/!\[[^\]]*\]\((?:[^\s()]|\([^\s()]*\))+(?:\s*=\d+)?\)/g, '🖼️圖片')
+    .replace(/\[\/?(?:center|left|right|u|size=\d+|color=#?\w+|font=\w+|size|color|font)\]/gi, '')
+    .replace(/\[([^\]]+)\]\((?:[^\s()]|\([^\s()]*\))+\)/g, '$1')
+    .replace(/^\s*(?:#{1,3}\s+|>\s+|[-*]\s+)/, '')
+    .replace(/\*\*|~~|`/g, '')
+    .replace(/\s*\|.*$/, '')
+    .trim()).filter(Boolean);
+  const out = pre + (lines[0] || '');
+  return out.length > n ? out.slice(0, n) + '…' : out;
+}
 // 🌟 資訊卡片:快速上架/下架(顯示=玩家看得到,下架=隱藏但內容保留)
 async function infoCardToggleShow_(id) {
   const c = (icAll_ || []).find(x => x.id === id); if (!c) return;
@@ -5313,7 +5331,7 @@ function renderShopTable() {
           <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
           <button class="btn btn-edit" onclick="moveShopReorderRow(${idx},1)" ${idx===shopReorderList.length-1?'disabled':''}>▼</button>
         </div></td>
-        ${i._card ? `<td class="cell-name" colspan="3" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${i.group ? '(合併組)' : ''}</span>${(i.title || (i.text || '').slice(0, 24) || '(無標題)').replace(/</g, '&lt;')}</td><td></td><td></td><td></td><td></td>` : `<td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</td>
+        ${i._card ? `<td class="cell-name" colspan="3" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${i.group ? '(合併組)' : ''}</span>${(i.title || icPlain_(i.text, 30) || '(無標題)').replace(/</g, '&lt;')}</td><td></td><td></td><td></td><td></td>` : `<td class="cell-name" title="${i.name}" data-label="商品名稱">${i.name}${i.status==='DRAFT' ? ' <span class="status status-draft" style="margin-left:6px">📝 草稿</span>' : ''}</td>
         <td data-label="分類">${i.category||'—'}</td>
         <td data-label="價格">${i.price}</td>
         <td data-label="庫存">${i.stock||'無限'}</td>
@@ -5361,7 +5379,7 @@ function renderShopTable() {
     .slice().sort((a, b) => ((a.pos == null ? 0 : a.pos) - (b.pos == null ? 0 : b.pos)) || ((a.order || 0) - (b.order || 0)))
     .map(c => ({ c, html: `<tr>
       <td><input type="checkbox" class="ic-row-check" data-id="${c.id}" ${icSel_.has(c.id) ? 'checked' : ''} onchange="toggleIcSelect_('${c.id}', this.checked)"></td>
-      <td class="cell-name" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${c.group ? '(合併組)' : ''}</span>${((c.title || (c.text || '').replace(/!\[[^\]]*\]\([^)]*\)/g, '🖼️圖片').slice(0, 30) || '(無標題)') + '').replace(/</g, '&lt;')}</td>
+      <td class="cell-name" data-label="資訊卡片"><span class="status status-ns" style="margin-right:6px">📝 資訊卡片${c.group ? '(合併組)' : ''}</span>${((c.title || icPlain_(c.text, 30) || '(無標題)') + '').replace(/</g, '&lt;')}</td>
       <td data-label="分類">${c.category || '(全部分類)'}</td>
       <td data-label="價格">—</td><td data-label="庫存">—</td>
       <td data-label="狀態">${c.archived ? '<span class="status status-ended">📦 已封存</span>' : c.show === false ? '<span class="status status-draft">下架中(隱藏)</span>' : '<span class="status status-open">● 上架中(顯示)</span>'}</td>
