@@ -1022,7 +1022,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.261</div>
+    <div class="version-tag">系統版本：v5.4.262</div>
   </div>
 
   <script>
@@ -6470,14 +6470,40 @@
         return;
       }
       const { groups, groupOrder } = groupByCategory_(latestCustomVars, '一般物品');
-      container.innerHTML = groupOrder.map(g => `
+      container.innerHTML = groupOrder.map(g => {
+        const closed = bpIsCollapsed_('i:' + g);
+        return `
         <div style="margin-bottom:10px">
-          <div style="font-size:12px;color:#72767D;margin-bottom:4px">${g}</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
+          ${bpGroupHead_('i:' + g, g, groups[g].length, closed)}
+          <div style="display:${closed ? 'none' : 'flex'};flex-direction:column;gap:8px;">
             ${groups[g].map(v => `<div class="score-item">💠 ${v.display}: <span class="score-value">${v.value}</span></div>`).join('')}
           </div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
+    }
+
+    // 🌟 背包分組可摺疊:點分組標題收合/展開,狀態記在這個瀏覽器(localStorage,讀寫失敗就只在本次有效)
+    let bpCollapsed_ = null;
+    function bpLoadCollapsed_() {
+      if (bpCollapsed_) return bpCollapsed_;
+      bpCollapsed_ = new Set();
+      try { JSON.parse(localStorage.getItem('bp_collapsed') || '[]').forEach(x => bpCollapsed_.add(x)); } catch (e) {}
+      return bpCollapsed_;
+    }
+    function bpIsCollapsed_(key) { return bpLoadCollapsed_().has(key); }
+    function bpGroupHead_(key, title, count, closed) {
+      const esc = String(title).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      return `<div class="bp-grp-head" data-k="${encodeURIComponent(key)}" onclick="bpToggleGroup_(this)" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:12px;color:#B9BBBE;margin-bottom:4px;padding:4px 2px"><span class="bp-arrow" style="display:inline-block;width:12px;transition:transform .15s;transform:rotate(${closed ? '-90deg' : '0deg'})">▾</span><span>${esc}</span><span style="color:#72767D">(${count})</span></div>`;
+    }
+    function bpToggleGroup_(el) {
+      const key = decodeURIComponent(el.getAttribute('data-k'));
+      const set = bpLoadCollapsed_();
+      const body = el.nextElementSibling;
+      const nowClosed = !set.has(key);
+      if (nowClosed) set.add(key); else set.delete(key);
+      try { localStorage.setItem('bp_collapsed', JSON.stringify([...set])); } catch (e) {}
+      if (body) body.style.display = nowClosed ? 'none' : (body.classList.contains('role-box') ? '' : 'flex');
+      const ar = el.querySelector('.bp-arrow'); if (ar) ar.style.transform = nowClosed ? 'rotate(-90deg)' : 'rotate(0deg)';
     }
 
     // 🌟 身分組分類顯示:分類是在試算表「身分組對照表」工作表C欄設定的(不再自動抓「[標籤]」前綴),
@@ -6489,12 +6515,14 @@
       const { groups, groupOrder } = groupByCategory_(latestRoleDetails, '一般身分組');
 
       rolesBox.innerHTML = `<div style="font-weight:bold;color:#B9BBBE;font-size:13px;margin-bottom:8px">🏅 我的身分組</div>` +
-        groupOrder.map(g => `
+        groupOrder.map(g => {
+          const closed = bpIsCollapsed_('r:' + g);
+          return `
           <div style="margin-bottom:10px">
-            <div style="font-size:12px;color:#72767D;margin-bottom:4px">${g}</div>
-            <div class="role-box">${groups[g].map(item => `<div class="role-badge">🏅 ${item.name}</div>`).join('')}</div>
-          </div>
-        `).join('');
+            ${bpGroupHead_('r:' + g, g, groups[g].length, closed)}
+            <div class="role-box"${closed ? ' style="display:none"' : ''}>${groups[g].map(item => `<div class="role-badge">🏅 ${item.name}</div>`).join('')}</div>
+          </div>`;
+        }).join('');
     }
 
     // ============================================================
