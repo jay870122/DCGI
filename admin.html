@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.226</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.227</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -351,6 +351,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('auction-bids')">🔨 拍賣出價紀錄</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('lock-settings')">🔒 密碼鎖定管理</div>
+      <hr class="nav-sep">
+      <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
     </div>
     <div class="main" id="main-content">
       <!-- 商品管理 -->
@@ -1286,6 +1288,30 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="hint" style="margin:6px 0 10px;line-height:1.7">列出伺服器全部身分組(由機器人定期回報)。<b>勾「背包」=玩家的背包會列出這個身分組</b>(沒勾的玩家完全看不到);勾了背包之後,才可以再選<b>「主頁」=要不要同時顯示在玩家主頁的藍色標籤</b>。「顯示名稱」可以跟 Discord 名稱不同,玩家看到的是這個。</div>
           <div id="dcfg-roles" style="overflow-x:auto"></div>
           <div style="margin-top:12px"><button class="btn btn-edit" onclick="dcfgAddRole()">➕ 手動新增(清單裡找不到時貼 ID)</button></div>
+        </div>
+      </div>
+      <div id="page-group-reward" style="display:none">
+        <div class="page-header"><div class="page-title">👥 團任/團戰獎勵</div><div class="toolbar"><button class="btn btn-edit" onclick="loadGroupReward()">🔄 重新讀取</button><button class="btn btn-primary" id="gr-save-btn" onclick="grSave_()">💾 儲存全部</button></div></div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">機器人「團任發放」會依這裡的設定計算每位玩家的獎勵。<b>最終獎勵 = 基本值 × 上傳時填的倍數 × 所有生效的期間「×X」 + 所有生效的期間「+X」</b>;期間以「事件日期」判斷(補登別天就看那天)。貨幣「幻彩水晶」會同時加「總獲得」與「可用」兩欄。</div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🎯 基本獎勵(每種事件)</div>
+          <div id="gr-kinds"></div>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="grAddKind_()">➕ 新增事件種類</button>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🎉 期間獎勵(活動期間加成)</div>
+          <div id="gr-periods"></div>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="grAddPeriod_()">➕ 新增期間獎勵</button>
+        </div>
+        <div class="ct-card" style="padding:14px 18px">
+          <div style="font-weight:700;margin-bottom:8px">🧮 試算(用目前畫面上的設定,不用先儲存)</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select id="gr-pv-kind" onchange="grPreview_()"></select>
+            <input type="date" id="gr-pv-date" onchange="grPreview_()">
+            <input type="number" id="gr-pv-mul" min="0" step="any" value="1" style="width:90px" oninput="grPreview_()" title="上傳時填的倍數">
+            <span class="hint">← 上傳倍數</span>
+          </div>
+          <div id="gr-pv-out" style="margin-top:8px;line-height:1.8"></div>
         </div>
       </div>
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
@@ -3725,7 +3751,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3757,10 +3783,110 @@ function navTo(p) {
     auctionBidsAutoRefreshInterval = setInterval(loadAuctionBids, 10000);
   }
   if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
+  if (p==='group-reward') loadGroupReward();
 }
 
 // ── Toast ──
 // 🏷️ 身分組 / 貨幣顯示設定(讀寫「身分組對照表」「自訂變數」兩張表,走 Worker adminDisplaySettingsWorker;機器人定期把伺服器全部身分組寫進「DC身分組清單」)
+// 👥 團任/團戰獎勵設定(走 Worker adminGroupRewardGet / adminGroupRewardSave;機器人發放時依這份設定計算)
+let grKinds_ = [], grPeriods_ = [];
+function grCall_(action, body) {
+  const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
+  return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
+}
+function grEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+async function loadGroupReward() {
+  try {
+    const d = await grCall_('adminGroupRewardGet');
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    grKinds_ = Object.keys(d.cfg.kinds || {}).map((n) => ({ name: n, enabled: d.cfg.kinds[n].enabled !== false, allowMultiplier: !!d.cfg.kinds[n].allowMultiplier, rewards: (d.cfg.kinds[n].rewards || []).map((r) => ({ currency: r.currency, amount: r.amount })) }));
+    grPeriods_ = (d.cfg.periods || []).map((p) => ({ id: p.id, name: p.name || '', enabled: p.enabled !== false, start: p.start || '', end: p.end || '', kinds: (p.kinds || []).slice(), currency: p.currency || '', mode: p.mode === 'mul' ? 'mul' : 'add', value: p.value }));
+    grRender_();
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+}
+function grRender_() {
+  const cur = '<datalist id="gr-cur-list">' + (Array.from(document.querySelectorAll('#dc-list option')).map((o) => '<option value="' + grEsc_(o.value) + '">').join('')) + '<option value="幻彩水晶"></datalist>';
+  document.getElementById('gr-kinds').innerHTML = cur + (grKinds_.length ? grKinds_.map((k, i) => `
+    <div style="border:1px solid var(--border,#40444B);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input value="${grEsc_(k.name)}" placeholder="事件名稱(例:團任)" style="width:150px" oninput="grKinds_[${i}].name=this.value;grRefreshKindNames_()">
+        <label style="cursor:pointer"><input type="checkbox" ${k.enabled ? 'checked' : ''} style="width:auto" onchange="grKinds_[${i}].enabled=this.checked;grPreview_()"> 啟用</label>
+        <label style="cursor:pointer"><input type="checkbox" ${k.allowMultiplier ? 'checked' : ''} style="width:auto" onchange="grKinds_[${i}].allowMultiplier=this.checked;grPreview_()"> 上傳時可填倍數</label>
+        <button class="btn btn-edit" onclick="grDelKind_(${i})">🗑 刪除此事件</button>
+      </div>
+      <div style="margin-top:6px">${k.rewards.map((r, j) => `
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+          <input list="gr-cur-list" value="${grEsc_(r.currency)}" placeholder="貨幣名稱" style="width:170px" oninput="grKinds_[${i}].rewards[${j}].currency=this.value;grPreview_()">
+          <input type="number" min="0" step="any" value="${r.amount}" style="width:100px" oninput="grKinds_[${i}].rewards[${j}].amount=this.value;grPreview_()">
+          <button class="btn btn-edit" onclick="grKinds_[${i}].rewards.splice(${j},1);grRender_()">✕</button>
+        </div>`).join('')}
+        <button class="btn btn-edit" style="margin-top:6px" onclick="grKinds_[${i}].rewards.push({currency:'幻彩水晶',amount:1});grRender_()">➕ 加一項獎勵</button>
+      </div>
+    </div>`).join('') : '<div class="hint">還沒有任何事件種類</div>');
+  document.getElementById('gr-periods').innerHTML = grPeriods_.length ? grPeriods_.map((p, i) => `
+    <div style="border:1px solid var(--border,#40444B);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <label style="cursor:pointer"><input type="checkbox" ${p.enabled ? 'checked' : ''} style="width:auto" onchange="grPeriods_[${i}].enabled=this.checked;grPreview_()"> 啟用</label>
+        <input value="${grEsc_(p.name)}" placeholder="名稱(公告會顯示)" style="width:150px" oninput="grPeriods_[${i}].name=this.value;grPreview_()">
+        <input type="date" value="${grEsc_(p.start)}" onchange="grPeriods_[${i}].start=this.value;grPreview_()" title="開始日(含,空=不限)">
+        <span>~</span>
+        <input type="date" value="${grEsc_(p.end)}" onchange="grPeriods_[${i}].end=this.value;grPreview_()" title="結束日(含,空=不限)">
+        <select onchange="grPeriods_[${i}].mode=this.value;grPreview_()"><option value="add" ${p.mode === 'add' ? 'selected' : ''}>+X(加成)</option><option value="mul" ${p.mode === 'mul' ? 'selected' : ''}>×X(倍數)</option></select>
+        <input type="number" step="any" value="${p.value}" style="width:90px" oninput="grPeriods_[${i}].value=this.value;grPreview_()">
+        <input list="gr-cur-list" value="${grEsc_(p.currency)}" placeholder="貨幣(空=全部)" style="width:140px" oninput="grPeriods_[${i}].currency=this.value;grPreview_()">
+        <button class="btn btn-edit" onclick="grPeriods_.splice(${i},1);grRender_()">🗑 刪除</button>
+      </div>
+      <div style="margin-top:6px" class="hint">套用的事件(都不勾=全部事件):
+        ${grKinds_.map((k) => `<label style="cursor:pointer;margin-right:10px"><input type="checkbox" style="width:auto" ${p.kinds.indexOf(k.name) !== -1 ? 'checked' : ''} onchange="grTogglePeriodKind_(${i},'${grEsc_(k.name).replace(/'/g, '&#39;')}',this.checked)"> ${grEsc_(k.name)}</label>`).join('')}
+      </div>
+    </div>`).join('') : '<div class="hint">目前沒有期間獎勵</div>';
+  const sel = document.getElementById('gr-pv-kind'), keep = sel.value;
+  sel.innerHTML = grKinds_.map((k) => `<option value="${grEsc_(k.name)}">${grEsc_(k.name)}</option>`).join('');
+  if (keep) sel.value = keep;
+  const dt = document.getElementById('gr-pv-date');
+  if (!dt.value) dt.value = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  grPreview_();
+}
+function grRefreshKindNames_() { const sel = document.getElementById('gr-pv-kind'), keep = sel.value; sel.innerHTML = grKinds_.map((k) => `<option value="${grEsc_(k.name)}">${grEsc_(k.name)}</option>`).join(''); sel.value = keep; grPreview_(); }
+function grAddKind_() { grKinds_.push({ name: '', enabled: true, allowMultiplier: false, rewards: [{ currency: '幻彩水晶', amount: 1 }] }); grRender_(); }
+function grDelKind_(i) { if (!confirm('刪除事件「' + (grKinds_[i].name || '(未命名)') + '」?按「儲存全部」才會生效。')) return; grKinds_.splice(i, 1); grRender_(); }
+function grAddPeriod_() { grPeriods_.push({ id: '', name: '', enabled: true, start: '', end: '', kinds: [], currency: '', mode: 'add', value: 1 }); grRender_(); }
+function grTogglePeriodKind_(i, name, on) { const ks = grPeriods_[i].kinds, ix = ks.indexOf(name); if (on && ix === -1) ks.push(name); if (!on && ix !== -1) ks.splice(ix, 1); grPreview_(); }
+function grCompute_(kindName, date, uploadMul) {
+  const k = grKinds_.find((x) => x.name === kindName);
+  if (!k) return { error: '找不到事件' };
+  let um = parseFloat(uploadMul); if (!isFinite(um) || um <= 0) um = 1; if (!k.allowMultiplier) um = 1;
+  const act = grPeriods_.filter((p) => p.enabled && (!p.kinds.length || p.kinds.indexOf(kindName) !== -1) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
+  return { act, rows: k.rewards.map((r) => {
+    let mul = um, add = 0; const notes = [];
+    if (um !== 1) notes.push('×' + um + '(倍數)');
+    act.forEach((p) => { if (p.currency && p.currency !== r.currency) return; const v = parseFloat(p.value) || 0; if (p.mode === 'mul') { mul *= v; notes.push('×' + v + '(' + (p.name || '期間') + ')'); } else { add += v; notes.push((v >= 0 ? '+' : '') + v + '(' + (p.name || '期間') + ')'); } });
+    return { currency: r.currency, base: parseFloat(r.amount) || 0, fin: Math.round(((parseFloat(r.amount) || 0) * mul + add) * 100) / 100, notes };
+  }), enabled: k.enabled };
+}
+function grPreview_() {
+  const out = document.getElementById('gr-pv-out'); if (!out) return;
+  const c = grCompute_(document.getElementById('gr-pv-kind').value, document.getElementById('gr-pv-date').value, document.getElementById('gr-pv-mul').value);
+  if (c.error) { out.textContent = c.error; return; }
+  out.innerHTML = (c.enabled ? '' : '<div style="color:#ED4245">⚠ 此事件目前已停用</div>') + (c.rows.length ? c.rows.map((r) => `${grEsc_(r.currency)}:基本 ${r.base}${r.notes.length ? ' ' + grEsc_(r.notes.join(' ')) : ''} → <b>${r.fin}</b>`).join('<br>') : '尚未設定任何獎勵');
+}
+async function grSave_() {
+  const kinds = {}, names = {};
+  for (const k of grKinds_) {
+    const nm = (k.name || '').trim();
+    if (!nm) { toast('有事件沒有填名稱', false); return; }
+    if (names[nm]) { toast('事件名稱重複:' + nm, false); return; }
+    names[nm] = 1;
+    kinds[nm] = { enabled: k.enabled, allowMultiplier: k.allowMultiplier, rewards: k.rewards.map((r) => ({ currency: (r.currency || '').trim(), amount: parseFloat(r.amount) })) };
+  }
+  const periods = grPeriods_.map((p) => ({ id: p.id, name: (p.name || '').trim(), enabled: p.enabled, start: p.start || '', end: p.end || '', kinds: p.kinds.filter((n) => names[n]), currency: (p.currency || '').trim(), mode: p.mode, value: parseFloat(p.value) }));
+  const btn = document.getElementById('gr-save-btn'); btn.disabled = true;
+  try {
+    const d = await grCall_('adminGroupRewardSave', { cfg: { kinds, periods } });
+    if (d && d.status === 'success') { toast('已儲存'); await loadGroupReward(); } else toast((d && d.message) || '儲存失敗', false);
+  } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
+  finally { btn.disabled = false; }
+}
 let dcfgData_ = { vars: [], roles: [], dcRoles: [], newRoles: [], newVars: [], rows: [] };
 async function dcfgCall_(body) {
   const qs = new URLSearchParams({ action: 'adminDisplaySettingsWorker', discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
