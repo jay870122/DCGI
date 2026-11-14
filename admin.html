@@ -166,6 +166,23 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--gold)}
 .field textarea{resize:vertical;min-height:70px;font-family:inherit}
 .field .role-hint{font-size:11px;color:var(--mu);margin-top:3px}
+/* 🎁/🎯 新版表單版面(戳戳樂、個人挑戰頁共用) */
+.pk-card{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.pk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.pk-grid.w2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.pk-sec{font-weight:700;margin:4px 0 10px;color:var(--gold);font-size:15px}
+.pk-chk{display:flex;align-items:center;gap:8px;font-size:14px;min-height:38px}
+.pk-chk input{width:auto !important;flex:none}
+.pk-rw{display:grid;grid-template-columns:1fr 96px auto;gap:8px;align-items:end;margin-top:8px}
+.pk-badge{font-size:11px;font-weight:400;color:var(--blue);margin-left:6px;text-transform:none;letter-spacing:0}
+.pk-row2{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.pk-row2 .field{flex:1 1 120px}
+.pk-calc{background:#0003;border-radius:var(--r);padding:10px 12px;line-height:1.8;font-size:14px}
+.field input[type=checkbox]{width:auto}
+#page-poke input:not([type=checkbox]),#page-poke select,#page-poke textarea,#page-challenge-cfg input:not([type=checkbox]),#page-challenge-cfg select,#page-challenge-cfg textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
+#page-poke input:focus,#page-challenge-cfg input:focus,#page-challenge-cfg textarea:focus{outline:none;border-color:var(--gold)}
+#page-poke .field input,#page-challenge-cfg .field input,#page-challenge-cfg .field textarea{width:100%}
+#page-challenge-cfg textarea{width:100%}
 /* form sections */
 .fsep{grid-column:span 2;font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
 /* save/cancel btn */
@@ -311,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.241</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.242</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1321,20 +1338,30 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="page-header"><div class="page-title">🎯 個人挑戰/團任公告</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="cc-save-btn" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
         <div class="hint" style="line-height:1.7;margin-bottom:12px">機器人每天在「公告時間」自動貼團任公告 + 「個人挑戰」按鈕(取代 Skript)。<b>啟用前請先把 Skript 的 團任提醒/個人挑戰 關掉,不然會重複公告。</b>也可用 /個人挑戰公告 手動貼。</div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">⚙️ 基本</div>
-          <label><input type="checkbox" id="cc-enabled"> 啟用每日自動公告</label><br>
-          <label><input type="checkbox" id="cc-relay"> 接管 Skript 的 webhook 公告/私訊(拍賣、賭博、貨幣調整、BINGO、抽獎、道具、序號、購買、玩家留言)</label>
-          <div class="hint">勾選前請先把 瓜.sk 的「on message received」那段和玩家留言按鈕關掉,否則會重複公告/私訊。機器人需有「管理訊息」(刪原始訊息)、「管理身分組」(發 [身分組] 獎勵)權限。</div>
-          公告時間(台北) <input id="cc-time" type="time" style="width:110px"><br>
-          公告頻道ID <input id="cc-ch" style="width:200px"> 提醒身分組ID <input id="cc-ping" style="width:200px"><br>
-          生日身分組ID(挑戰直接PASS) <input id="cc-bday" style="width:200px"><br>
-          Webhook 名稱 <input id="cc-wname" style="width:160px"> 頭像網址 <input id="cc-wav" style="width:300px"><br>
-          管理員身分組ID(可按「挑戰成功」,一行一個)<br><textarea id="cc-admins" rows="3" style="width:260px"></textarea>
+          <div class="pk-sec">⚙️ 基本</div>
+          <label class="pk-chk"><input type="checkbox" id="cc-enabled"> 啟用每日自動公告</label>
+          <label class="pk-chk"><input type="checkbox" id="cc-relay"> 接管 Skript 的 webhook 公告/私訊(拍賣、賭博、貨幣調整、BINGO、抽獎、道具、序號、購買、玩家留言)</label>
+          <div class="hint" style="margin-bottom:10px">勾選前請先把 瓜.sk 的「on message received」那段和玩家留言按鈕關掉,否則會重複公告/私訊。機器人需有「管理訊息」(刪原始訊息)、「管理身分組」(發 [身分組] 獎勵)權限。</div>
+          <div class="pk-grid">
+            <div class="field"><label>公告時間(台北)</label><input id="cc-time" type="time"></div>
+            <div class="field"><label>公告頻道ID</label><input id="cc-ch"></div>
+            <div class="field"><label>提醒身分組ID</label><input id="cc-ping"></div>
+            <div class="field"><label>生日身分組ID<span class="hint">挑戰直接PASS</span></label><input id="cc-bday"></div>
+            <div class="field"><label>Webhook 名稱</label><input id="cc-wname"></div>
+            <div class="field"><label>Webhook 頭像網址</label><input id="cc-wav"></div>
+          </div>
+          <div class="field" style="margin-top:10px"><label>管理員身分組ID<span class="hint">可按「挑戰成功」,一行一個</span></label><textarea id="cc-admins" rows="3"></textarea></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">🍬 活動糖果盒(挑戰成功額外給)</div>
-          <label><input type="checkbox" id="cc-c-on"> 啟用</label> 貨幣名稱 <input id="cc-c-cur" style="width:150px"><br>
-          期間 <input type="date" id="cc-c-st"> ~ <input type="date" id="cc-c-en"> (含當天) 每次隨機 <input type="number" id="cc-c-min" style="width:70px" min="0"> ~ <input type="number" id="cc-c-max" style="width:70px" min="0"> 個
+          <div class="pk-sec">🍬 活動糖果盒 <span class="hint">挑戰成功額外給</span></div>
+          <label class="pk-chk"><input type="checkbox" id="cc-c-on"> 啟用</label>
+          <div class="pk-grid">
+            <div class="field"><label>貨幣名稱</label><input id="cc-c-cur"></div>
+            <div class="field"><label>開始日期</label><input type="date" id="cc-c-st"></div>
+            <div class="field"><label>結束日期(含當天)</label><input type="date" id="cc-c-en"></div>
+            <div class="field"><label>每次最少</label><input type="number" id="cc-c-min" min="0"></div>
+            <div class="field"><label>每次最多</label><input type="number" id="cc-c-max" min="0"></div>
+          </div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎲 隨機倍數機率(沒指定日期的日子)</div>
@@ -3924,6 +3951,7 @@ async function loadPoke() {
     const d = await pkCall_({ op: 'list' });
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     pkBoards_ = d.boards || []; pkRenderList_();
+    if (!(itemTemplates || []).length) { try { const dt = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' }); if (dt && dt.status === 'success') itemTemplates = dt.templates || []; } catch (e) {} }
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 function pkRenderList_() {
@@ -3963,42 +3991,48 @@ function pkNew_() {
   pkRenderEdit_();
 }
 function pkEdit_(id) { const b = pkBoards_.find((x) => x.id === id); if (!b) return; pkId_ = id; pkCur_ = JSON.parse(JSON.stringify(b.cfg)); pkCur_._st = b.status; pkRenderEdit_(); }
+function pkTypeOf_(name) { return (itemTemplates || []).some((t) => t.name === name) ? 'item' : 'currency'; }
+function pkBadge_(i, k) { const r = pkCur_.prizes[i].rewards[k]; return r.name ? (pkTypeOf_(r.name) === 'item' ? '🎒 道具' : '💰 貨幣') : ''; }
 function pkRenderEdit_() {
   const c = pkCur_, e = grEsc_, locked = c._st === 'live' || c._st === 'pending';
   const dis = locked ? ' disabled' : '';
   const box = document.getElementById('pk-edit'); box.style.display = '';
-  const dl = '<datalist id="gr-cur-list">' + Array.from(document.querySelectorAll('#dc-list option')).map((o) => '<option value="' + e(o.value) + '">').join('') + '<option value="幻彩水晶"></datalist>';
-  box.innerHTML = dl + `<div style="font-weight:700;margin-bottom:8px">${pkId_ ? '✏️ 編輯板子' : '➕ 新增板子'}${locked ? ' <span class="hint">(已發佈:只能改說明、冷卻、次數、截止時間)</span>' : ''}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;line-height:2.2">
-      名稱 <input value="${e(c.name)}" style="width:170px"${dis} oninput="pkCur_.name=this.value">
-      格數 <input type="number" min="1" max="20" value="${c.rows}" style="width:60px"${dis} oninput="pkCur_.rows=parseInt(this.value)||1;pkCalc_()"> 排 ×
-      <input type="number" min="1" max="5" value="${c.cols}" style="width:60px"${dis} oninput="pkCur_.cols=Math.min(5,parseInt(this.value)||1);pkCalc_()"> 欄(最多 5 欄)
+  const names = Array.from(document.querySelectorAll('#dc-list option')).map((o) => o.value).concat((itemTemplates || []).map((t) => t.name));
+  const dl = '<datalist id="pk-name-list">' + Array.from(new Set(names.concat(['幻彩水晶']))).map((n) => '<option value="' + e(n) + '">').join('') + '</datalist>';
+  const F = (label, inner, extra) => `<div class="field"${extra || ''}><label>${label}</label>${inner}</div>`;
+  box.innerHTML = dl + `<div class="pk-sec">${pkId_ ? '✏️ 編輯板子' : '➕ 新增板子'}${locked ? ' <span class="hint">(已發佈:只能改說明、冷卻、次數、截止時間)</span>' : ''}</div>
+    <div class="pk-grid w2">${F('板子名稱', `<input value="${e(c.name)}"${dis} oninput="pkCur_.name=this.value">`)}${F('說明(選填)', `<input value="${e(c.desc)}" oninput="pkCur_.desc=this.value">`)}</div>
+    <div class="pk-grid" style="margin-top:10px">
+      ${F('排數(1~20)', `<input type="number" min="1" max="20" value="${c.rows}"${dis} oninput="pkCur_.rows=parseInt(this.value)||1;pkCalc_()">`)}
+      ${F('欄數(1~5)', `<input type="number" min="1" max="5" value="${c.cols}"${dis} oninput="pkCur_.cols=Math.min(5,parseInt(this.value)||1);pkCalc_()">`)}
+      ${F('發佈頻道ID', `<input value="${e(c.channelId)}"${dis} oninput="pkCur_.channelId=this.value.trim()">`)}
+      ${F('大獎公告頻道ID<span class="hint">空=同頻道</span>', `<input value="${e(c.announceChannelId)}"${dis} oninput="pkCur_.announceChannelId=this.value.trim()">`)}
     </div>
-    <div style="line-height:2.2">說明(選填) <input value="${e(c.desc)}" style="width:80%" oninput="pkCur_.desc=this.value"><br>
-      發佈頻道ID <input value="${e(c.channelId)}" style="width:200px"${dis} oninput="pkCur_.channelId=this.value.trim()"> 大獎公告頻道ID(空=同頻道) <input value="${e(c.announceChannelId)}" style="width:200px"${dis} oninput="pkCur_.announceChannelId=this.value.trim()"></div>
-    <div style="font-weight:700;margin:10px 0 4px">🏆 獎品(其餘格子=銘謝惠顧)</div>
-    ${c.prizes.map((p, i) => `<div style="border:1px solid var(--border,#40444B);border-radius:8px;padding:8px;margin-bottom:6px">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <input value="${e(p.emoji)}" style="width:44px" maxlength="4"${dis} oninput="pkCur_.prizes[${i}].emoji=this.value">
-        <input value="${e(p.name)}" placeholder="獎品名稱" style="width:150px"${dis} oninput="pkCur_.prizes[${i}].name=this.value">
-        數量 <input type="number" min="1" value="${p.count}" style="width:70px"${dis} oninput="pkCur_.prizes[${i}].count=parseInt(this.value)||1;pkCalc_()">
-        <label><input type="checkbox" ${p.announce ? 'checked' : ''}${dis} onchange="pkCur_.prizes[${i}].announce=this.checked"> 頻道公告</label>
-        ${locked ? '' : `<button class="btn btn-edit" onclick="pkCur_.prizes.splice(${i},1);pkRenderEdit_()">🗑</button>`}</div>
-      ${p.rewards.map((r, k) => `<div style="margin:4px 0 0 20px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <select${dis} onchange="pkCur_.prizes[${i}].rewards[${k}].type=this.value"><option value="currency" ${r.type !== 'item' ? 'selected' : ''}>貨幣</option><option value="item" ${r.type === 'item' ? 'selected' : ''}>道具</option></select>
-        <input value="${e(r.name)}" list="gr-cur-list" placeholder="貨幣/道具名稱" style="width:170px"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].name=this.value">
-        × <input type="number" min="0" step="any" value="${r.amount}" style="width:80px"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].amount=this.value">
-        ${locked ? '' : `<button class="btn btn-edit" onclick="pkCur_.prizes[${i}].rewards.splice(${k},1);pkRenderEdit_()">✕</button>`}</div>`).join('')}
-      ${locked ? '' : `<button class="btn btn-edit" style="margin:4px 0 0 20px" onclick="pkCur_.prizes[${i}].rewards.push({type:'currency',name:'',amount:1});pkRenderEdit_()">➕ 加一項獎勵</button>`}</div>`).join('')}
+    <div class="pk-sec" style="margin-top:18px">🏆 獎品 <span class="hint">其餘格子 = 未中獎</span></div>
+    ${c.prizes.map((p, i) => `<div class="pk-card">
+      <div class="pk-row2">
+        ${F('圖示', `<input value="${e(p.emoji)}" maxlength="4"${dis} oninput="pkCur_.prizes[${i}].emoji=this.value">`, ' style="flex:0 0 70px"')}
+        ${F('獎品名稱', `<input value="${e(p.name)}"${dis} oninput="pkCur_.prizes[${i}].name=this.value">`, ' style="flex:2 1 160px"')}
+        ${F('數量', `<input type="number" min="1" value="${p.count}"${dis} oninput="pkCur_.prizes[${i}].count=parseInt(this.value)||1;pkCalc_()">`, ' style="flex:0 0 90px"')}
+        <label class="pk-chk"><input type="checkbox" ${p.announce ? 'checked' : ''}${dis} onchange="pkCur_.prizes[${i}].announce=this.checked"> 頻道公告</label>
+        ${locked ? '' : `<button class="btn btn-edit" onclick="pkCur_.prizes.splice(${i},1);pkRenderEdit_()">🗑</button>`}
+      </div>
+      ${p.rewards.map((r, k) => `<div class="pk-rw">
+        ${F(`獎勵名稱(貨幣或道具,自動判斷)<span class="pk-badge" id="pk-b-${i}-${k}">${pkBadge_(i, k)}</span>`, `<input value="${e(r.name)}" list="pk-name-list" placeholder="例:幻彩水晶、道具名稱"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].name=this.value;document.getElementById('pk-b-${i}-${k}').textContent=pkBadge_(${i},${k})">`)}
+        ${F('數量', `<input type="number" min="0" step="any" value="${r.amount}"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].amount=this.value">`)}
+        ${locked ? '<span></span>' : `<button class="btn btn-edit" onclick="pkCur_.prizes[${i}].rewards.splice(${k},1);pkRenderEdit_()">✕</button>`}</div>`).join('')}
+      ${locked ? '' : `<button class="btn btn-edit" style="margin-top:10px" onclick="pkCur_.prizes[${i}].rewards.push({type:'currency',name:'',amount:1});pkRenderEdit_()">➕ 加一項獎勵</button>`}</div>`).join('')}
     ${locked ? '' : '<button class="btn btn-edit" onclick="pkCur_.prizes.push({name:\'\',count:1,emoji:\'🎁\',announce:false,rewards:[]});pkRenderEdit_()">➕ 新增獎品</button>'}
-    <div style="line-height:2.2;margin-top:8px">沒中獎的格子顯示 <input value="${e(c.blankName)}" style="width:110px"${dis} oninput="pkCur_.blankName=this.value"></div>
-    <div style="font-weight:700;margin:10px 0 4px">⏱ 限制(0=不限)</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">每人冷卻 <input type="number" min="0" value="${c.cooldownMin}" style="width:70px" oninput="pkCur_.cooldownMin=parseInt(this.value)||0"> 分鐘
-      每人最多戳 <input type="number" min="0" value="${c.maxPerPlayer}" style="width:70px" oninput="pkCur_.maxPerPlayer=parseInt(this.value)||0"> 次
-      每天最多 <input type="number" min="0" value="${c.maxPerDay}" style="width:70px" oninput="pkCur_.maxPerDay=parseInt(this.value)||0"> 次
-      截止 <input type="datetime-local" value="${e(c.endAt)}" oninput="pkCur_.endAt=this.value"></div>
-    <div id="pk-calc" style="margin-top:10px;line-height:1.8"></div>
-    <div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-primary" onclick="pkSave_()">💾 儲存</button><button class="btn btn-edit" onclick="document.getElementById('pk-edit').style.display='none'">取消</button></div>`;
+    <div class="pk-grid" style="margin-top:12px">${F('未中獎的格子顯示', `<input value="${e(c.blankName)}"${dis} oninput="pkCur_.blankName=this.value">`)}</div>
+    <div class="pk-sec" style="margin-top:18px">⏱ 限制 <span class="hint">0 = 不限</span></div>
+    <div class="pk-grid">
+      ${F('每人冷卻(分鐘)', `<input type="number" min="0" value="${c.cooldownMin}" oninput="pkCur_.cooldownMin=parseInt(this.value)||0">`)}
+      ${F('每人最多戳(次)', `<input type="number" min="0" value="${c.maxPerPlayer}" oninput="pkCur_.maxPerPlayer=parseInt(this.value)||0">`)}
+      ${F('每人每天最多(次)', `<input type="number" min="0" value="${c.maxPerDay}" oninput="pkCur_.maxPerDay=parseInt(this.value)||0">`)}
+      ${F('截止時間', `<input type="datetime-local" value="${e(c.endAt)}" oninput="pkCur_.endAt=this.value">`)}
+    </div>
+    <div id="pk-calc" class="pk-calc" style="margin-top:14px"></div>
+    <div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-primary" onclick="pkSave_()">💾 儲存</button><button class="btn btn-edit" onclick="document.getElementById('pk-edit').style.display='none'">取消</button></div>`;
   pkCalc_();
 }
 function pkCalc_() {
@@ -4011,6 +4045,7 @@ function pkCalc_() {
 function e_(t) { return grEsc_(t || ''); }
 async function pkSave_() {
   const c = JSON.parse(JSON.stringify(pkCur_)); delete c._st;
+  c.prizes.forEach((p) => p.rewards.forEach((r) => { r.type = pkTypeOf_(r.name); }));
   try {
     const d = await pkCall_({ op: 'save', id: pkId_, cfg: c });
     if (d && d.status === 'success') { toast(d.note || '已儲存'); document.getElementById('pk-edit').style.display = 'none'; loadPoke(); } else toast((d && d.message) || '儲存失敗', false);
