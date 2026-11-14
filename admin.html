@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.236</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.237</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -353,6 +353,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('lock-settings')">🔒 密碼鎖定管理</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
+      <div class="nav-item" onclick="navTo('challenge-cfg')">🎯 個人挑戰設定</div>
       <div class="nav-item" onclick="navTo('group-stats')">📊 團任/團戰統計</div>
     </div>
     <div class="main" id="main-content">
@@ -1313,6 +1314,42 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <span class="hint">← 上傳倍數</span>
           </div>
           <div id="gr-pv-out" style="margin-top:8px;line-height:1.8"></div>
+        </div>
+      </div>
+      <div id="page-challenge-cfg" style="display:none">
+        <div class="page-header"><div class="page-title">🎯 個人挑戰/團任公告</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="cc-save-btn" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">機器人每天在「公告時間」自動貼團任公告 + 「個人挑戰」按鈕(取代 Skript)。<b>啟用前請先把 Skript 的 團任提醒/個人挑戰 關掉,不然會重複公告。</b>也可用 /個人挑戰公告 手動貼。</div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">⚙️ 基本</div>
+          <label><input type="checkbox" id="cc-enabled"> 啟用每日自動公告</label><br>
+          公告時間(台北) <input id="cc-time" type="time" style="width:110px"><br>
+          公告頻道ID <input id="cc-ch" style="width:200px"> 提醒身分組ID <input id="cc-ping" style="width:200px"><br>
+          生日身分組ID(挑戰直接PASS) <input id="cc-bday" style="width:200px"><br>
+          Webhook 名稱 <input id="cc-wname" style="width:160px"> 頭像網址 <input id="cc-wav" style="width:300px"><br>
+          管理員身分組ID(可按「挑戰成功」,一行一個)<br><textarea id="cc-admins" rows="3" style="width:260px"></textarea>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🍬 活動糖果盒(挑戰成功額外給)</div>
+          <label><input type="checkbox" id="cc-c-on"> 啟用</label> 貨幣名稱 <input id="cc-c-cur" style="width:150px"><br>
+          期間 <input type="date" id="cc-c-st"> ~ <input type="date" id="cc-c-en"> (含當天) 每次隨機 <input type="number" id="cc-c-min" style="width:70px" min="0"> ~ <input type="number" id="cc-c-max" style="width:70px" min="0"> 個
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">📅 每日倍數(一行一天:年|月|日/倍數/節慶文字)</div>
+          <div class="hint">例:2026|11|15/2/週末加碼。倍數 2/3/5/20 代表「保底到這個倍數、仍可能骰到更高」;其他數字就固定。沒列的日子 = 隨機(1%→20倍、1~10→5倍、…)。</div>
+          <textarea id="cc-sched" rows="8" style="width:100%"></textarea>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🔍 挑戰題目(一行一題)</div>
+          <textarea id="cc-puz" rows="10" style="width:100%"></textarea>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">✅ 成功獎勵(一行一種,隨機抽一種)</div>
+          <div class="hint">格式:「團任水晶額外X2」= 當日倍數×2;「團任水晶額外+3」= 固定 +3;其他文字 = 0。</div>
+          <textarea id="cc-rew" rows="6" style="width:100%"></textarea>
+        </div>
+        <div class="ct-card" style="padding:14px 18px">
+          <div style="font-weight:700;margin-bottom:8px">❌ 失敗懲罰(一行一種,目前只顯示文字,不扣東西;訊息顯示「無」)</div>
+          <textarea id="cc-fail" rows="4" style="width:100%"></textarea>
         </div>
       </div>
       <div id="page-group-stats" style="display:none">
@@ -3770,7 +3807,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','group-stats'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','group-stats','challenge-cfg'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3803,6 +3840,7 @@ function navTo(p) {
   }
   if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
   if (p==='group-reward') loadGroupReward();
+  if (p==='challenge-cfg') loadChallengeCfg();
   if (p==='group-stats') loadGroupStats();
 }
 
@@ -3860,6 +3898,33 @@ function grCall_(action, body) {
   return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
 }
 function grEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+async function loadChallengeCfg() {
+  try {
+    const d = await grCall_('adminChallengeCfgGet');
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    const c = d.cfg, g = (i) => document.getElementById(i), cd = c.candy || {};
+    g('cc-enabled').checked = !!c.enabled; g('cc-time').value = c.announceTime || '22:00';
+    g('cc-ch').value = c.channelId || ''; g('cc-ping').value = c.pingRoleId || ''; g('cc-bday').value = c.birthdayRoleId || '';
+    g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
+    g('cc-c-on').checked = !!cd.enabled; g('cc-c-cur').value = cd.currency || ''; g('cc-c-st').value = cd.start || ''; g('cc-c-en').value = cd.end || '';
+    g('cc-c-min').value = cd.min; g('cc-c-max').value = cd.max;
+    g('cc-sched').value = (c.schedule || []).join('\n'); g('cc-puz').value = (c.puzzles || []).join('\n');
+    g('cc-rew').value = (c.rewards || []).join('\n'); g('cc-fail').value = (c.failures || []).join('\n');
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+}
+async function saveChallengeCfg() {
+  const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
+  const cfg = { enabled: ck('cc-enabled'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
+    webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
+    candy: { enabled: ck('cc-c-on'), currency: g('cc-c-cur'), start: g('cc-c-st'), end: g('cc-c-en'), min: g('cc-c-min'), max: g('cc-c-max') },
+    schedule: g('cc-sched'), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
+  const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
+  try {
+    const d = await grCall_('adminChallengeCfgSave', { cfg });
+    if (d && d.status === 'success') { toast('已儲存'); await loadChallengeCfg(); } else toast((d && d.message) || '儲存失敗', false);
+  } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
+  btn.disabled = false;
+}
 async function loadGroupReward() {
   try {
     const d = await grCall_('adminGroupRewardGet');
