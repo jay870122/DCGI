@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.271</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.272</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4147,7 +4147,7 @@ function beRw_(path, list) {
   let h = '<div class="be-rw">';
   (list || []).forEach((r, i) => {
     const p = path + '.' + i;
-    h += '<div class="be-row"><select onchange="beSet_(\'' + p + '.type\',this.value)"><option value="currency"' + (r.type !== 'item' ? ' selected' : '') + '>貨幣</option><option value="item"' + (r.type === 'item' ? ' selected' : '') + '>道具</option></select>' + beIn_(p + '.name', r.name, 130, '名稱') + '×' + beIn_(p + '.amount', r.amount, 64, '數量') + '<button class="btn btn-edit" onclick="beDel_(\'' + path + '\',' + i + ')">✕</button></div>';
+    h += '<div class="be-row"><select onchange="beSet_(\'' + p + '.type\',this.value)"><option value="currency"' + (r.type !== 'item' ? ' selected' : '') + '>貨幣</option><option value="item"' + (r.type === 'item' ? ' selected' : '') + '>道具</option></select>' + beIn_(p + '.name', r.name, 130, '名稱') + '×' + beIn_(p + '.amount', r.amount, 64, '數量') + '<label class="pk-chk" style="margin:0" title="勾了:先放進玩家的禮物箱,玩家自己按領出才入帳"><input type="checkbox" ' + (r.box ? 'checked' : '') + ' onchange="beSet_(\'' + p + '.box\',this.checked)">📦禮物箱</label><button class="btn btn-edit" onclick="beDel_(\'' + path + '\',' + i + ')">✕</button></div>';
   });
   return h + '<button class="btn btn-edit" onclick="beAdd_(\'' + path + '\',BE_RW_)">➕ 獎勵</button></div>';
 }

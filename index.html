@@ -1063,7 +1063,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.277</div>
+    <div class="version-tag">系統版本：v5.4.278</div>
   </div>
 
   <script>
@@ -5254,7 +5254,7 @@
       bsLobby_ = d;
       const box = document.getElementById('bs-body');
       if (!d.tracks.length) { box.innerHTML = '<div style="color:#949BA4">目前沒有開放的賽道</div>'; return; }
-      box.innerHTML = '<div style="font-size:13px;color:#B9BBBE;margin-bottom:10px">選一條賽道挑戰 BOSS!每翻一張牌消耗 1 張「' + escapeHtml_(d.ticketCurrency) + '」(遊戲錢包沒有時會自動從你的貨幣補 ' + d.pull + ' 張)。目前遊戲錢包:<b>' + d.wallet + '</b> 張。</div>' +
+      box.innerHTML = '<div style="margin-bottom:8px"><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (d.giftCount ? ' <b style="color:#F0B232">(' + d.giftCount + ')</b>' : '') + '</button></div><div style="font-size:13px;color:#B9BBBE;margin-bottom:10px">選一條賽道挑戰 BOSS!每翻一張牌消耗 1 張「' + escapeHtml_(d.ticketCurrency) + '」(遊戲錢包沒有時會自動從你的貨幣補 ' + d.pull + ' 張)。目前遊戲錢包:<b>' + d.wallet + '</b> 張。</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">' + d.tracks.map((t) => {
           const pct = Math.max(0, Math.min(100, t.hp / t.maxHp * 100));
           return '<div style="background:#202225;border:1px solid #4F545C;border-radius:10px;padding:12px;cursor:pointer" onclick="bsEnter_(\'' + escapeHtml_(t.id) + '\')">' +
@@ -5290,7 +5290,7 @@
         if (first && first.idx === i) return '<button class="bs-card open" disabled>' + escapeHtml_(first.face.label) + '</button>';
         return '<button class="bs-card" ' + (dis || rest ? 'disabled' : '') + ' onclick="bsFlip_(' + i + ')">❓</button>';
       }).join('');
-      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsLoadLobby_()">← 賽道列表</button><b>' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><b>' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
         '<div class="bs-wrap"><div>' +
         '<div style="display:flex;gap:12px;align-items:center">' + (t.boss.img ? '<img src="' + escapeHtml_(t.boss.img) + '" style="width:90px;height:90px;object-fit:contain" onerror="this.style.display=\'none\'">' : '') +
         '<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">' + escapeHtml_(t.boss.name) + '</div><div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div>' +
@@ -5315,7 +5315,7 @@
       if (e.kind === 'reset') return '🔄 重置牌 ' + e.count + '/' + e.need;
       if (e.kind === 'reshuffle') return '🔀 牌面重新洗牌了!';
       if (e.kind === 'rest') return '😴 翻到休息牌,休息 ' + e.sec + ' 秒';
-      if (e.kind === 'reward') return '🎁 獎勵牌!獲得 ' + (e.rewards || []).map((r) => r.name + '×' + r.amount).join('、') + (e.granted ? '' : '(發放中/失敗,請稍後確認)');
+      if (e.kind === 'reward') return '🎁 獎勵牌!獲得 ' + (e.rewards || []).map((r) => r.name + '×' + r.amount).join('、') + (e.boxed ? '(部分放進📦禮物箱,可到禮物箱領出)' : '') + (e.granted ? '' : '(發放中/失敗,請稍後確認)');
       if (e.kind === 'kill') return '💥 BOSS「' + e.boss + '」被打倒了!獎勵結算中…';
       if (e.kind === 'late') return e.message;
       if (e.kind === 'miss') return '沒配對,蓋回去';
@@ -5340,6 +5340,22 @@
       bsRender_();
       const stay = (miss || d.pair || evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind))) ? 1100 : 0;
       setTimeout(async () => { bsFlash_ = {}; bsBusy_ = false; await bsRefresh_(false); if (evs.some((e) => e.kind === 'kill')) bsToast_ = bsToast_; }, stay || 50);
+    }
+    async function bsOpenGifts_() {
+      bsStopPoll_(); bsTrackId_ = null; bsTrack_ = null;
+      const box = document.getElementById('bs-body'); box.innerHTML = '<div style="color:#949BA4">載入中…</div>';
+      const d = await bsCall_('bossGiftList');
+      if (!d || d.status !== 'success') { box.innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
+      const gs = d.gifts || [];
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsLoadLobby_()">← 賽道列表</button><b>📦 禮物箱</b><span style="color:#949BA4;font-size:12px">' + gs.length + ' 件待領</span>' + (gs.length ? '<button style="margin-left:auto;background:#5865F2;color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer" onclick="bsClaimGift_(\'all\')">全部領出</button>' : '') + '</div>' +
+        (gs.length ? gs.map((g) => '<div style="display:flex;align-items:center;gap:8px;background:#202225;border:1px solid #4F545C;border-radius:8px;padding:8px 10px;margin-bottom:6px"><div style="flex:1;min-width:0"><b>' + escapeHtml_(g.name) + ' ×' + g.amount + '</b> <span style="color:#949BA4;font-size:12px">' + (g.type === 'item' ? '道具' : '貨幣') + ' ・ ' + escapeHtml_(g.src || '') + '</span></div><button style="background:#2f9e44;color:#fff;border:0;border-radius:6px;padding:5px 12px;cursor:pointer" onclick="bsClaimGift_(' + g.id + ')">領出</button></div>').join('') : '<div style="color:#949BA4">禮物箱是空的</div>');
+    }
+    async function bsClaimGift_(id) {
+      const d = await bsCall_('bossGiftClaim', { idx: String(id) });
+      if (!d || d.status !== 'success') { alert((d && d.message) || '領取失敗'); return; }
+      if (d.claimed && d.claimed.length) alert('已領出:' + d.claimed.join('、') + (d.failed ? '\n(另有 ' + d.failed + ' 件失敗,請再試一次)' : ''));
+      else alert(d.failed ? '領取失敗,請稍後再試' : '沒有可領的禮物');
+      await bsOpenGifts_();
     }
     async function bsRefund_() {
       if (!confirm('把遊戲錢包裡沒用完的翻牌券全部退回你的貨幣?')) return;
