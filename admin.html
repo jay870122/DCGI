@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.250</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.251</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1375,14 +1375,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <textarea id="cc-puz" rows="10" style="width:100%"></textarea>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">✅ 成功獎勵 <span class="hint">每列一種,依「機率」隨機抽一列;數量可選 ×當日倍數 或 +固定</span></div>
-          <div id="cc-rewards"></div>
-          <button class="btn btn-edit" style="margin-top:10px" onclick="ccRewAdd_()">➕ 新增一列</button>
-          <div id="cc-rew-calc" class="pk-calc" style="margin-top:10px"></div>
-        </div>
-        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">🎁 成功盲盒獎勵 <span class="hint">選填;玩家開啟挑戰時就直接抽出 1 份並顯示,管理員按「挑戰成功」才發(跟上面成功獎勵可以同時有)</span></div>
-          <div class="field" style="margin-top:8px"><label>盲盒規則 <span class="hint">一行一個獎項,寫法跟商店盲盒一樣;空白=不使用</span></label><textarea id="cc-blind" rows="6" style="width:100%" placeholder="萬聖節糖果盒,50%,1~3&#10;糖果大包裝,5%,[道具:糖果大包裝]糖果大包裝&#10;幻彩水晶,30%,2"></textarea></div>
+          <div style="font-weight:700;margin-bottom:8px">🎁 成功獎勵(盲盒) <span class="hint">玩家開啟挑戰時直接抽出 1 份並顯示,管理員按「挑戰成功」才發。留空=沿用舊的「幻彩水晶 ×當日倍數」</span></div>
+          <div class="field" style="margin-top:8px"><label>盲盒規則 <span class="hint">一行一個獎項,寫法跟商店盲盒一樣;空白=沿用舊設定</span></label><textarea id="cc-blind" rows="6" style="width:100%" placeholder="萬聖節糖果盒,50%,1~3&#10;糖果大包裝,5%,[道具:糖果大包裝]糖果大包裝&#10;幻彩水晶,30%,2"></textarea></div>
           <details class="gacha-guide" style="margin-top:8px"><summary style="cursor:pointer">📖 <b>寫法與限制</b></summary>
             一行 = 一個獎項,逗號分隔:<code>顯示名稱,機率%,數量</code>(玩家看到的名稱就是這個「顯示名稱」,例如想顯示自訂名稱就寫在第一格)(數量可寫範圍 <code>1~3</code>;名稱跟貨幣欄位不同時用 <code>名稱,30%,貨幣欄位:2</code>);多種一起發用 <code>+</code>:<code>粽子:1+黃金粽子:1</code>。<br>
             支援:貨幣、<code>[道具:模板名稱]</code>、<code>[背包]</code>/<code>[背包:參數]</code>、<code>[非即時]</code>(只顯示、不入帳,由管理員另外處理)。<br>
@@ -4152,7 +4146,7 @@ async function saveChallengeCfg() {
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
-    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail') };
+    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail') };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
