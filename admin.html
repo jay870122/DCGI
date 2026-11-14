@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.228</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.229</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3863,13 +3863,15 @@ function grCompute_(kindName, date, uploadMul) {
   let um = parseFloat(uploadMul); if (!isFinite(um) || um <= 0) um = 1; if (!k.allowMultiplier) um = 1;
   const act = grPeriods_.filter((p) => p.enabled && (!p.kinds.length || p.kinds.indexOf(kindName) !== -1) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
   const one = (r, m) => { let mul = um, add = 0; act.forEach((p) => { if (p.currency && p.currency !== r.currency) return; const v = grPick_(p.value, p.valueMax, m); if (p.mode === 'mul') mul *= v; else add += v; }); return Math.round((grPick_(r.amount, r.max, m) * mul + add) * 100) / 100; };
-  return { act, rows: k.rewards.map((r) => {
+  const lines = k.rewards.slice();
+  act.forEach((p) => { if (p.mode === 'add' && p.currency && !lines.some((r) => r.currency === p.currency)) lines.push({ currency: p.currency, amount: 0, max: '', extra: true }); });
+  return { act, rows: lines.map((r) => {
     const notes = [];
     if (um !== 1) notes.push('×' + um + '(倍數)');
     act.forEach((p) => { if (p.currency && p.currency !== r.currency) return; const rg = parseFloat(p.valueMax) > parseFloat(p.value) ? p.value + '~' + p.valueMax : (parseFloat(p.value) || 0); if (p.mode === 'mul') notes.push('×' + rg + '(' + (p.name || '期間') + ')'); else notes.push('+' + rg + '(' + (p.name || '期間') + ')'); });
     const lo = one(r, 'min'), hi = one(r, 'max');
     const base = parseFloat(r.max) > parseFloat(r.amount) ? r.amount + '~' + r.max + '(隨機)' : (parseFloat(r.amount) || 0);
-    return { currency: r.currency, base, fin: hi > lo ? lo + ' ~ ' + hi + '(隨機)' : lo, notes };
+    return { currency: r.currency + (r.extra ? '(期間額外)' : ''), base, fin: hi > lo ? lo + ' ~ ' + hi + '(隨機)' : lo, notes };
   }), enabled: k.enabled };
 }
 function grPreview_() {
