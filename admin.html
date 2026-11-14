@@ -338,7 +338,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.259</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.260</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1346,14 +1346,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
       </div>
       <div id="page-challenge-review" style="display:none">
-        <div class="page-header"><div class="page-title">🖼️ 挑戰回覆審查</div><div class="toolbar"><button class="btn btn-edit" onclick="crLoad_(true)">🔄 重新整理</button></div></div>
-        <div class="hint" style="line-height:1.7;margin-bottom:12px">列出玩家開啟的個人挑戰與他們的回覆(機器人上線後才開始記錄)。圖片網址會在你開頁面時由機器人重新抓最新的(約 5~10 秒),Discord 的圖片網址過一陣子會失效。可勾選多筆後<b>批量成功/放棄</b>:機器人會幫你發獎勵並更新 Discord 上那則訊息(同一筆不會重複發)。<br>需要機器人 v1.1.65 以上。</div>
+        <div class="page-header"><div class="page-title">🖼️ 挑戰回覆審查</div><div class="toolbar"></div></div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">選好條件後按「🔍 查詢」才會開始查詢。列出玩家開啟的個人挑戰與他們的回覆(機器人上線後才開始記錄)。圖片網址會在你開頁面時由機器人重新抓最新的(約 5~10 秒),Discord 的圖片網址過一陣子會失效。可勾選多筆後<b>批量成功/放棄</b>:機器人會幫你發獎勵並更新 Discord 上那則訊息(同一筆不會重複發)。<br>需要機器人 v1.1.65 以上。</div>
         <div class="ct-card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <label>日期 <input type="date" id="cr-date" onchange="crLoad_(true)"></label>
-          <label>狀態 <select id="cr-status" onchange="crLoad_(true)"><option value="">全部</option><option value="open">待審</option><option value="success">已成功</option><option value="fail">已放棄</option></select></label>
+          <label>日期 <input type="date" id="cr-date"></label>
+          <label>狀態 <select id="cr-status"><option value="">全部</option><option value="open">待審</option><option value="success">已成功</option><option value="fail">已放棄</option></select></label>
           <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-onlyrep" onchange="crRender_()"> 只看有回覆</label>
-          <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-allopen" onchange="crLoad_(true)"> 所有日期的待審</label>
-          <span id="cr-sum" class="hint"></span>
+          <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-allopen"> 所有日期的待審</label>
+          <button class="btn btn-primary" onclick="crLoad_(true)">🔍 查詢</button><span id="cr-sum" class="hint"></span>
         </div>
         <div class="ct-card" style="padding:10px 16px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-edit" onclick="crSelAll_(true)">☑️ 全選待審</button>
@@ -3984,16 +3984,16 @@ function grCall_(action, body) {
 function grEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 // ===== 🖼️ 挑戰回覆審查 =====
-let crEvents_ = [], crImg_ = {}, crSel_ = {}, crWatch_ = null, crJobTimer_ = null;
+let crQueried_ = false, crEvents_ = [], crImg_ = {}, crSel_ = {}, crWatch_ = null, crJobTimer_ = null;
 function crToday_() { return new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10); }
-function crInit_() { const d = document.getElementById('cr-date'); if (!d.value) d.value = crToday_(); crLoad_(true); }
+function crInit_() { const d = document.getElementById('cr-date'); if (!d.value) d.value = crToday_(); }
 async function crLoad_(withImgs) {
   const g = (i) => document.getElementById(i);
   const date = g('cr-allopen').checked ? '*' : (g('cr-date').value || crToday_());
   try {
     const d = await grCall_('adminChallengeReviewList', { date, status: g('cr-status').value });
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
-    crEvents_ = d.events || [];
+    crEvents_ = d.events || []; crQueried_ = true;
     crRender_();
     if (withImgs) crImgs_(false);
     return d;
@@ -4020,7 +4020,7 @@ function crRender_() {
       '<div class="hint">🎁 ' + (rw || '無額外獎勵') + (e.reviewer ? ' ・ 審核:' + grEsc_(e.reviewer) : '') + ' ・ <a href="' + grEsc_(e.url || '#') + '" target="_blank" rel="noopener">跳到挑戰訊息</a></div></div>' +
       (can ? '<div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="crOne_(\'' + e.id + '\',\'success\')">✅ 成功</button><button class="btn btn-danger" onclick="crOne_(\'' + e.id + '\',\'fail\')">❌ 放棄</button></div>' : '') +
       '</div>' + reps + '</div>';
-  }).join('') : '<div class="hint">這個條件下沒有資料(機器人更新到 v1.1.65 後,新開的挑戰才會出現在這裡)。</div>';
+  }).join('') : '<div class="hint">' + (crQueried_ ? '這個條件下沒有資料(機器人更新到 v1.1.65 後,新開的挑戰才會出現在這裡)。' : '選好日期/狀態後,按上面的「🔍 查詢」。') + '</div>';
 }
 function crSelAll_(on) { crEvents_.forEach((e) => { if (e.status === 'open' && !e.busy) crSel_[e.id] = !!on; }); crRender_(); }
 async function crImgs_(force) {
