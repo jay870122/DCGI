@@ -1033,7 +1033,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.273</div>
+    <div class="version-tag">系統版本：v5.4.274</div>
   </div>
 
   <script>
@@ -9306,7 +9306,7 @@ async function loadCurExpiry_() {
   const left = (ms) => { const dd = Math.ceil((ms - now) / 86400000); return dd <= 0 ? '今天' : dd + '天後'; };
   const lines = [], first = [];
   d.items.forEach((it) => {
-    const bs = it.batches || [], term = (it.unit === 'month' ? (it.days + ' 個月(同月取得的月底一起到期)') : (it.days + ' 天')) + (it.reserve > 0 ? ',🛡️保留 ' + it.reserve + ' 個不過期' : '');
+    const bs = it.batches || [], term = (it.unit === 'date' ? ('到 ' + fmt(it.days) + ' 為止,過後全部失效') : it.unit === 'month' ? (it.days + ' 個月(同月取得的月底一起到期)') : (it.days + ' 天')) + (it.reserve > 0 ? ',🛡️保留 ' + it.reserve + ' 個不過期' : '');
     if (!bs.length) { lines.push('<div style="color:#B9BBBE">' + escapeHtml_(it.display) + ' 有效 ' + term + ',目前沒有即將到期的</div>'); return; }
     first.push({ name: it.display, b: bs[0] });
     const parts = bs.slice(0, 4).map((b) => {
