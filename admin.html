@@ -341,7 +341,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.263</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.264</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2332,6 +2332,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>最低保證金(貨幣)</label><input id="cc2-lev-min" type="number" min="0" step="any" value="1"></div>
       <div class="field"><label>單人最大倉位數</label><input id="cc2-lev-pos" type="number" min="1" value="5"></div>
       <div class="field"><label><input id="cc2-lev-dm" type="checkbox" checked> 強制平倉時私訊通知玩家(包含保證金全賠)</label></div>
+      <div class="field"><label>開倉/平倉私訊通知 <select id="cc2-lev-tdm"><option value="ON">全部玩家</option><option value="TEST">🧪僅管理員測試</option><option value="OFF">關閉</option></select></label></div>
       <div class="field full"><label>測試報價</label>
         <div style="display:flex;gap:6px"><input id="cc2-diag-code" value="BTC" style="width:100px"><button class="btn" onclick="cryptoDiag()">🔍 測試</button></div>
         <pre id="cc2-diag-out" style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;max-height:200px;overflow:auto"></pre></div>
@@ -2369,6 +2370,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>單人最大倉位數</label><input id="sc-lev-pos" type="number" min="1" value="3"></div>
       <div class="field"><label>收盤前幾分鐘自動平倉 <span class="hint">同時禁止此時段新開倉;0=只在收盤後的下一次巡邏(每分鐘)平倉</span></label><input id="sc-lev-ac" type="number" min="0" max="120" value="5"></div>
       <div class="field"><label><input id="sc-lev-dm" type="checkbox" checked> 強平/收盤自動平倉時私訊通知玩家</label></div>
+      <div class="field"><label>開倉/平倉私訊通知 <select id="sc-lev-tdm"><option value="ON">全部玩家</option><option value="TEST">🧪僅管理員測試</option><option value="OFF">關閉</option></select></label></div>
       <div class="field full"><span class="hint">即使在開放時段內,證交所當天休市(例如國定假日)也會自動禁止交易。成交價為即時報價,市價單。</span></div>
       <div class="field full"><label>測試報價 <span class="hint">確認 Worker 連得到證交所即時行情</span></label>
         <div style="display:flex;gap:6px"><input id="sc-diag-code" value="2330" style="width:100px"><button class="btn" onclick="stockDiag()">🔍 測試</button></div>
@@ -4712,7 +4714,7 @@ async function openStockConfig() {
   document.getElementById('sc-wl').value = c.whitelist;
   document.getElementById('sc-max').value = c.maxShares;
   document.getElementById('sc-delayed').checked = !!c.allowDelayed;
-  { const L = c.lev || {}; document.getElementById('sc-lev-on').checked = !!L.enabled; document.getElementById('sc-lev-max').value = L.maxLev || 5; document.getElementById('sc-lev-liq').value = L.liqRatio || 0.9; document.getElementById('sc-lev-min').value = L.minMargin || 1; document.getElementById('sc-lev-pos').value = L.maxPositions || 3; document.getElementById('sc-lev-ac').value = L.autoCloseMin === undefined ? 5 : L.autoCloseMin; document.getElementById('sc-lev-dm').checked = L.liqDm !== false; }
+  { const L = c.lev || {}; document.getElementById('sc-lev-on').checked = !!L.enabled; document.getElementById('sc-lev-max').value = L.maxLev || 5; document.getElementById('sc-lev-liq').value = L.liqRatio || 0.9; document.getElementById('sc-lev-min').value = L.minMargin || 1; document.getElementById('sc-lev-pos').value = L.maxPositions || 3; document.getElementById('sc-lev-ac').value = L.autoCloseMin === undefined ? 5 : L.autoCloseMin; document.getElementById('sc-lev-dm').checked = L.liqDm !== false; document.getElementById('sc-lev-tdm').value = L.tradeDm || 'ON'; }
   document.getElementById('sc-diag-out').textContent = '';
   document.getElementById('stock-cfg-modal').classList.add('open');
 }
@@ -4723,7 +4725,7 @@ async function saveStockConfig() {
     const v = (id) => document.getElementById(id).value;
     const d = await apiCraftWrite_('adminSaveStockConfig', {
       enabled: document.getElementById('sc-enabled').checked, currency: v('sc-cur').trim(), rate: v('sc-rate'), feeRate: v('sc-fee'), feeMin: v('sc-feemin'),
-      taxRate: v('sc-tax'), etfTaxRate: v('sc-etftax'), dateFrom: v('sc-from'), dateTo: v('sc-to'), tradeFrom: v('sc-tfrom'), tradeTo: v('sc-tto'), days: v('sc-days'), windows: v('sc-windows'), levEnabled: document.getElementById('sc-lev-on').checked, levMax: v('sc-lev-max'), levLiq: v('sc-lev-liq'), levMinMargin: v('sc-lev-min'), levMaxPos: v('sc-lev-pos'), levAutoClose: v('sc-lev-ac'), levLiqDm: document.getElementById('sc-lev-dm').checked, whitelist: v('sc-wl'), maxShares: v('sc-max'), allowDelayed: document.getElementById('sc-delayed').checked,
+      taxRate: v('sc-tax'), etfTaxRate: v('sc-etftax'), dateFrom: v('sc-from'), dateTo: v('sc-to'), tradeFrom: v('sc-tfrom'), tradeTo: v('sc-tto'), days: v('sc-days'), windows: v('sc-windows'), levEnabled: document.getElementById('sc-lev-on').checked, levMax: v('sc-lev-max'), levLiq: v('sc-lev-liq'), levMinMargin: v('sc-lev-min'), levMaxPos: v('sc-lev-pos'), levAutoClose: v('sc-lev-ac'), levLiqDm: document.getElementById('sc-lev-dm').checked, levTradeDm: document.getElementById('sc-lev-tdm').value, whitelist: v('sc-wl'), maxShares: v('sc-max'), allowDelayed: document.getElementById('sc-delayed').checked,
     });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('stock-cfg-modal');
@@ -5841,7 +5843,7 @@ async function openCryptoConfig() {
   document.getElementById('cc2-enabled').checked = !!c.enabled;
   set('cc2-cur', c.currency ? ((c.currency === '升階2') ? '幻彩水晶' : c.currency) : ''); set('cc2-rate', c.rate); set('cc2-fee', c.feeRate); set('cc2-max', c.maxAmount);
   var dtl0_ = (x, end) => { x = (x||'').toString().trim(); if (!x) return ''; if (x.length <= 10) return x + (end ? 'T23:59:59' : 'T00:00'); return x.replace(' ','T'); }; set('cc2-from', dtl0_(c.dateFrom,false)); set('cc2-to', dtl0_(c.dateTo,true)); const dtl_ = (x, end) => { x = (x||'').toString().trim(); if (!x) return ''; if (x.length <= 10) return x + (end ? 'T23:59:59' : 'T00:00'); return x.replace(' ','T'); }; set('cc2-tfrom', dtl_(c.tradeFrom,false)); set('cc2-tto', dtl_(c.tradeTo,true));
-  const L = c.lev || {}; document.getElementById('cc2-lev-on').checked = !!L.enabled; set('cc2-lev-max', L.maxLev); set('cc2-lev-liq', L.liqRatio); set('cc2-lev-min', L.minMargin); set('cc2-lev-pos', L.maxPositions); document.getElementById('cc2-lev-dm').checked = L.liqDm !== false;
+  const L = c.lev || {}; document.getElementById('cc2-lev-on').checked = !!L.enabled; set('cc2-lev-max', L.maxLev); set('cc2-lev-liq', L.liqRatio); set('cc2-lev-min', L.minMargin); set('cc2-lev-pos', L.maxPositions); document.getElementById('cc2-lev-dm').checked = L.liqDm !== false; document.getElementById('cc2-lev-tdm').value = L.tradeDm || 'ON';
   set('cc2-days', c.days); set('cc2-windows', c.windows); set('cc2-wl', c.whitelist);
   document.getElementById('cc2-diag-out').textContent = '';
   document.getElementById('crypto-cfg-modal').classList.add('open');
@@ -5851,7 +5853,7 @@ async function saveCryptoConfig() {
   const orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 儲存中...';
   try {
     const v = (id) => document.getElementById(id).value;
-    const d = await apiCraftWrite_('adminSaveCryptoConfig', { enabled: document.getElementById('cc2-enabled').checked, currency: v('cc2-cur').trim(), rate: v('cc2-rate'), feeRate: v('cc2-fee'), maxAmount: v('cc2-max'), dateFrom: v('cc2-from'), dateTo: v('cc2-to'), tradeFrom: v('cc2-tfrom'), tradeTo: v('cc2-tto'), days: v('cc2-days'), windows: v('cc2-windows'), whitelist: v('cc2-wl'), levEnabled: document.getElementById('cc2-lev-on').checked, levMax: v('cc2-lev-max'), levLiq: v('cc2-lev-liq'), levMinMargin: v('cc2-lev-min'), levMaxPos: v('cc2-lev-pos'), levLiqDm: document.getElementById('cc2-lev-dm').checked });
+    const d = await apiCraftWrite_('adminSaveCryptoConfig', { enabled: document.getElementById('cc2-enabled').checked, currency: v('cc2-cur').trim(), rate: v('cc2-rate'), feeRate: v('cc2-fee'), maxAmount: v('cc2-max'), dateFrom: v('cc2-from'), dateTo: v('cc2-to'), tradeFrom: v('cc2-tfrom'), tradeTo: v('cc2-tto'), days: v('cc2-days'), windows: v('cc2-windows'), whitelist: v('cc2-wl'), levEnabled: document.getElementById('cc2-lev-on').checked, levMax: v('cc2-lev-max'), levLiq: v('cc2-lev-liq'), levMinMargin: v('cc2-lev-min'), levMaxPos: v('cc2-lev-pos'), levLiqDm: document.getElementById('cc2-lev-dm').checked, levTradeDm: document.getElementById('cc2-lev-tdm').value });
     if (!d || d.status !== 'success') { toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
     toast(d.message); closeModal('crypto-cfg-modal');
   } finally { btn.disabled = false; btn.textContent = orig; }
