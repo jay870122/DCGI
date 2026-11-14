@@ -341,7 +341,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.264</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.265</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2331,8 +2331,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>強平虧損比例 <span class="hint">0.9=虧損達保證金90%就強平</span></label><input id="cc2-lev-liq" type="number" min="0.5" max="1" step="0.01" value="0.9"></div>
       <div class="field"><label>最低保證金(貨幣)</label><input id="cc2-lev-min" type="number" min="0" step="any" value="1"></div>
       <div class="field"><label>單人最大倉位數</label><input id="cc2-lev-pos" type="number" min="1" value="5"></div>
-      <div class="field"><label><input id="cc2-lev-dm" type="checkbox" checked> 強制平倉時私訊通知玩家(包含保證金全賠)</label></div>
-      <div class="field"><label>開倉/平倉私訊通知 <select id="cc2-lev-tdm"><option value="ON">全部玩家</option><option value="TEST">🧪僅管理員測試</option><option value="OFF">關閉</option></select></label></div>
+      <div class="field" style="display:none"><label><input id="cc2-lev-dm" type="checkbox"> 私訊(已停用)</label></div>
+      <div class="field"><label>開倉/平倉/強平 機器人公告(貼大獎頻道,不私訊) <select id="cc2-lev-tdm"><option value="ON">全部玩家</option><option value="TEST">🧪僅管理員測試</option><option value="OFF">關閉</option></select></label></div>
       <div class="field full"><label>測試報價</label>
         <div style="display:flex;gap:6px"><input id="cc2-diag-code" value="BTC" style="width:100px"><button class="btn" onclick="cryptoDiag()">🔍 測試</button></div>
         <pre id="cc2-diag-out" style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;max-height:200px;overflow:auto"></pre></div>
@@ -2369,8 +2369,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field"><label>最低保證金(貨幣)</label><input id="sc-lev-min" type="number" min="0" step="any" value="1"></div>
       <div class="field"><label>單人最大倉位數</label><input id="sc-lev-pos" type="number" min="1" value="3"></div>
       <div class="field"><label>收盤前幾分鐘自動平倉 <span class="hint">同時禁止此時段新開倉;0=只在收盤後的下一次巡邏(每分鐘)平倉</span></label><input id="sc-lev-ac" type="number" min="0" max="120" value="5"></div>
-      <div class="field"><label><input id="sc-lev-dm" type="checkbox" checked> 強平/收盤自動平倉時私訊通知玩家</label></div>
-      <div class="field"><label>開倉/平倉私訊通知 <select id="sc-lev-tdm"><option value="ON">全部玩家</option><option value="TEST">🧪僅管理員測試</option><option value="OFF">關閉</option></select></label></div>
+      <div class="field" style="display:none"><label><input id="sc-lev-dm" type="checkbox"> 私訊(已停用)</label></div>
+      <div class="field"><label>開倉/平倉/強平 機器人公告(貼大獎頻道,不私訊) <select id="sc-lev-tdm"><option value="ON">全部玩家</option><option value="TEST">🧪僅管理員測試</option><option value="OFF">關閉</option></select></label></div>
       <div class="field full"><span class="hint">即使在開放時段內,證交所當天休市(例如國定假日)也會自動禁止交易。成交價為即時報價,市價單。</span></div>
       <div class="field full"><label>測試報價 <span class="hint">確認 Worker 連得到證交所即時行情</span></label>
         <div style="display:flex;gap:6px"><input id="sc-diag-code" value="2330" style="width:100px"><button class="btn" onclick="stockDiag()">🔍 測試</button></div>
