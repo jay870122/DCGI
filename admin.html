@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.270</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.271</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4178,9 +4178,9 @@ function beRender_() {
       h += '<div class="be-row">🔄 重置 ' + beIn_(bp + '.reset.count', b.reset.count, 46, '張', 'number') + '張 累計翻' + beIn_(bp + '.reset.need', b.reset.need, 46, '次', 'number') + '次才重洗</div>';
       h += '<div class="be-row">😴 休息 ' + beIn_(bp + '.rest.count', b.rest.count, 46, '張', 'number') + '張 休息秒數' + beIn_(bp + '.rest.sec', b.rest.sec, 80, '10~20') + '</div>';
       h += '<div class="be-sub">🏅 擊倒獎勵 — 保底(依攻擊次數,取達標最高一級)</div>';
-      f.rewards.participation.forEach((x, xi) => { const xp = fp + '.rewards.participation.' + xi; h += '<div class="be-row">攻擊滿' + beIn_(xp + '.min', x.min, 56, '次', 'number') + '次<button class="btn btn-edit" onclick="beDel_(\'' + fp + '.rewards.participation\',' + xi + ')">✕</button></div>' + beRw_(xp + '.rewards', x.rewards); });
-      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + fp + '.rewards.participation\',{min:1,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 保底級距</button>';
-      h += '<div class="be-sub">🏅 排行獎(依實際扣血量)</div>';
+      f.rewards.participation.forEach((x, xi) => { const xp = fp + '.rewards.participation.' + xi; h += '<div class="be-row">攻擊滿' + beIn_(xp + '.min', x.min, 56, '次', 'number') + '次 且 傷害達BOSS血量' + beIn_(xp + '.minPct', x.minPct || 0, 56, '0', 'number') + '%(0=不限)<button class="btn btn-edit" onclick="beDel_(\'' + fp + '.rewards.participation\',' + xi + ')">✕</button></div>' + beRw_(xp + '.rewards', x.rewards); });
+      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + fp + '.rewards.participation\',{min:1,minPct:0,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 保底級距</button>';
+      h += '<div class="be-sub">🏅 排行獎(依實際扣血量)</div><div class="be-row">門檻:攻擊滿(個人傷害達BOSS血量)' + beIn_(fp + '.rewards.rankingMinPct', f.rewards.rankingMinPct || 0, 56, '0', 'number') + '% 才有排行獎(0=不限)</div>';
       f.rewards.ranking.forEach((x, xi) => { const xp = fp + '.rewards.ranking.' + xi; h += '<div class="be-row">第' + beIn_(xp + '.from', x.from, 50, '1', 'number') + '~' + beIn_(xp + '.to', x.to, 50, '1', 'number') + '名<button class="btn btn-edit" onclick="beDel_(\'' + fp + '.rewards.ranking\',' + xi + ')">✕</button></div>' + beRw_(xp + '.rewards', x.rewards); });
       h += '<button class="btn btn-edit" onclick="beAdd_(\'' + fp + '.rewards.ranking\',{from:1,to:1,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 排行名次</button>';
       h += '<div class="be-sub">🎯 最後一擊獎</div>' + beRw_(fp + '.rewards.lastHit', f.rewards.lastHit);
