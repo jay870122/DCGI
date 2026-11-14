@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.237</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.238</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1322,6 +1322,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">⚙️ 基本</div>
           <label><input type="checkbox" id="cc-enabled"> 啟用每日自動公告</label><br>
+          <label><input type="checkbox" id="cc-relay"> 接管 Skript 的 webhook 公告/私訊(拍賣、賭博、貨幣調整、BINGO、抽獎、道具、序號、購買、玩家留言)</label>
+          <div class="hint">勾選前請先把 瓜.sk 的「on message received」那段和玩家留言按鈕關掉,否則會重複公告/私訊。機器人需有「管理訊息」(刪原始訊息)、「管理身分組」(發 [身分組] 獎勵)權限。</div>
           公告時間(台北) <input id="cc-time" type="time" style="width:110px"><br>
           公告頻道ID <input id="cc-ch" style="width:200px"> 提醒身分組ID <input id="cc-ping" style="width:200px"><br>
           生日身分組ID(挑戰直接PASS) <input id="cc-bday" style="width:200px"><br>
@@ -3903,7 +3905,7 @@ async function loadChallengeCfg() {
     const d = await grCall_('adminChallengeCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const c = d.cfg, g = (i) => document.getElementById(i), cd = c.candy || {};
-    g('cc-enabled').checked = !!c.enabled; g('cc-time').value = c.announceTime || '22:00';
+    g('cc-enabled').checked = !!c.enabled; g('cc-relay').checked = !!c.relayEnabled; g('cc-time').value = c.announceTime || '22:00';
     g('cc-ch').value = c.channelId || ''; g('cc-ping').value = c.pingRoleId || ''; g('cc-bday').value = c.birthdayRoleId || '';
     g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
     g('cc-c-on').checked = !!cd.enabled; g('cc-c-cur').value = cd.currency || ''; g('cc-c-st').value = cd.start || ''; g('cc-c-en').value = cd.end || '';
@@ -3914,7 +3916,7 @@ async function loadChallengeCfg() {
 }
 async function saveChallengeCfg() {
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
-  const cfg = { enabled: ck('cc-enabled'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
+  const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
     candy: { enabled: ck('cc-c-on'), currency: g('cc-c-cur'), start: g('cc-c-st'), end: g('cc-c-en'), min: g('cc-c-min'), max: g('cc-c-max') },
     schedule: g('cc-sched'), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
