@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.245</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.246</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4020,7 +4020,7 @@ function pkRenderEdit_() {
       </div>
       ${p.rewards.map((r, k) => `<div class="pk-rw">
         ${F(`獎勵名稱(貨幣或道具,自動判斷)<span class="pk-badge" id="pk-b-${i}-${k}">${pkBadge_(i, k)}</span>`, `<input value="${e(r.name)}" list="pk-name-list" placeholder="例:幻彩水晶、道具名稱"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].name=this.value;document.getElementById('pk-b-${i}-${k}').textContent=pkBadge_(${i},${k})">`)}
-        ${F('數量', `<input type="number" min="0" step="any" value="${r.amount}"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].amount=this.value">`)}
+        ${F('數量(貨幣填負數=陷阱扣除)', `<input type="number" step="any" value="${r.amount}"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].amount=this.value">`)}
         ${locked ? '<span></span>' : `<button class="btn btn-edit" onclick="pkCur_.prizes[${i}].rewards.splice(${k},1);pkRenderEdit_()">✕</button>`}</div>`).join('')}
       ${locked ? '' : `<button class="btn btn-edit" style="margin-top:10px" onclick="pkCur_.prizes[${i}].rewards.push({type:'currency',name:'',amount:1});pkRenderEdit_()">➕ 加一項獎勵</button>`}</div>`).join('')}
     ${locked ? '' : '<button class="btn btn-edit" onclick="pkCur_.prizes.push({name:\'\',count:1,emoji:\'🎁\',announce:false,show:true,rewards:[]});pkRenderEdit_()">➕ 新增獎品</button>'}
