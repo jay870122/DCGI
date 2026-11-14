@@ -1064,7 +1064,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.279</div>
+    <div class="version-tag">系統版本：v5.4.280</div>
   </div>
 
   <script>
@@ -5295,16 +5295,17 @@
         '<div class="bs-wrap"><div>' +
         '<div style="display:flex;gap:12px;align-items:center">' + (t.boss.img ? '<img src="' + escapeHtml_(t.boss.img) + '" style="width:90px;height:90px;object-fit:contain" onerror="this.style.display=\'none\'">' : '') +
         '<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">' + escapeHtml_(t.boss.name) + '</div><div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div>' +
-        '<div style="font-size:13px;color:#B9BBBE;margin-top:6px">我的傷害:<b>' + t.me.damage + '</b>(' + t.me.attacks + ' 次攻擊)' + (t.resetsNeed ? ' ・ 重置牌 ' + t.resets + '/' + t.resetsNeed : '') + '</div></div></div>' +
+        '<div style="font-size:13px;color:#B9BBBE;margin-top:6px">我的傷害:<b>' + bsNum_(t.me.damage) + '</b>(' + t.me.attacks + ' 次攻擊)' + (t.resetsNeed ? ' ・ 重置牌 ' + t.resets + '/' + t.resetsNeed : '') + '</div></div></div>' +
         '<div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : bsToast_))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
         '<div class="bs-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr))">' + cardHtml + '</div>' +
         '<div style="font-size:12px;color:#949BA4;margin-top:10px">遊戲錢包:<b>' + t.wallet + '</b> 張「' + escapeHtml_(t.ticketCurrency) + '」 <button style="background:none;border:1px solid #4F545C;color:#B9BBBE;border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:6px" onclick="bsRefund_()">退回背包</button><br>翻兩張「傷害數字一樣」的攻擊牌才會出手;獎勵牌要翻到兩張「獎勵一樣」;陷阱/重置/休息牌翻到就觸發。</div>' +
         '</div><div>' +
-        '<div style="font-weight:700;margin-bottom:6px">🏆 傷害排行</div><div class="bs-feed" style="max-height:150px">' + (t.top.length ? t.top.map((x) => '<div' + (x.me ? ' style="color:#F0B232"' : '') + '>#' + x.rank + ' ' + escapeHtml_(x.name) + ' — ' + x.damage + '(' + x.attacks + ' 次)</div>').join('') : '<div style="color:#949BA4">還沒有人出手</div>') + '</div>' +
+        '<div style="font-weight:700;margin-bottom:6px">🏆 傷害排行</div><div class="bs-feed" style="max-height:150px">' + (t.top.length ? t.top.map((x) => '<div' + (x.me ? ' style="color:#F0B232"' : '') + '>#' + x.rank + ' ' + escapeHtml_(x.name) + ' — ' + bsNum_(x.damage) + '(' + x.attacks + ' 次)</div>').join('') : '<div style="color:#949BA4">還沒有人出手</div>') + '</div>' +
         '<div style="font-weight:700;margin:10px 0 6px">📣 即時動態</div><div class="bs-feed">' + (t.feed.length ? t.feed.map((f) => '<div>' + escapeHtml_(f.text) + '</div>').join('') : '<div style="color:#949BA4">還沒有動態</div>') + '</div>' +
         '</div></div>';
       if (rest) { bsRestTick_(); if (!bsRestTimer_) bsRestTimer_ = setInterval(bsRestTick_, 500); }
     }
+    function bsNum_(n) { n = Number(n) || 0; return String(Math.round(n * 100) / 100); }
     function bsFace_(f) { return escapeHtml_(f.label || '') + (f.sub ? '<small>' + escapeHtml_(f.sub) + '</small>' : ''); }
     function bsRestTick_() {
       const el = document.getElementById('bs-rest'), left = Math.ceil((bsRestUntil_ - Date.now()) / 1000);
@@ -5312,8 +5313,8 @@
       if (el) el.textContent = '😴 休息中 ' + left + ' 秒';
     }
     function bsEventText_(e) {
-      if (e.kind === 'attack') return '⚔️ ' + (e.label || '') + ' 造成 ' + e.amount + ' 傷害!';
-      if (e.kind === 'trap') return '💣 踩到陷阱!BOSS 回復 ' + e.amount + ' 血…';
+      if (e.kind === 'attack') return '⚔️ ' + (e.label || '') + ' 造成 ' + bsNum_(e.amount) + ' 傷害!';
+      if (e.kind === 'trap') return '💣 踩到陷阱!BOSS 回復 ' + bsNum_(e.amount) + ' 血…';
       if (e.kind === 'reset') return '🔄 重置牌 ' + e.count + '/' + e.need;
       if (e.kind === 'reshuffle') return '🔀 牌面重新洗牌了!';
       if (e.kind === 'rest') return '😴 翻到休息牌,休息 ' + e.sec + ' 秒';
@@ -5340,9 +5341,9 @@
       const texts = evs.map(bsEventText_).filter(Boolean); bsToast_ = texts.join(' ');
       // 直接用回應更新畫面(不再多打一次 API):新盤面、BOSS 血量、錢包、我的傷害
       bsTrack_.board = d.board; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
-      evs.forEach((e) => { if (e.kind === 'attack' && bsTrack_.me) { bsTrack_.me.damage = Math.round((bsTrack_.me.damage + e.amount) * 100) / 100; bsTrack_.me.attacks++; } if (e.kind === 'reset') bsTrack_.resets = e.count; if (e.kind === 'reshuffle') bsTrack_.resets = 0; });
+      evs.forEach((e) => { if (e.kind === 'attack' && bsTrack_.me) { bsTrack_.me.damage = Math.round((Number(bsTrack_.me.damage) + e.amount) * 100) / 100; bsTrack_.me.attacks++; } if (e.kind === 'reset') bsTrack_.resets = e.count; if (e.kind === 'reshuffle') bsTrack_.resets = 0; });
       bsRender_();
-      const hold = miss ? 800 : (d.pair ? 450 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 600 : 0));
+      const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
       const needFull = evs.some((e) => ['attack', 'kill', 'reward', 'trap', 'reshuffle'].includes(e.kind));
       setTimeout(() => { bsFlash_ = {}; bsBusy_ = false; if (needFull) bsRefresh_(false); else bsRender_(); }, hold || 30);
     }
