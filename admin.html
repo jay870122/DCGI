@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.247</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.248</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1375,9 +1375,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <textarea id="cc-puz" rows="10" style="width:100%"></textarea>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">✅ 成功獎勵(一行一種,隨機抽一種)</div>
-          <div class="hint">格式:「團任水晶額外X2」= 當日倍數×2;「團任水晶額外+3」= 固定 +3;其他文字 = 0。</div>
-          <textarea id="cc-rew" rows="6" style="width:100%"></textarea>
+          <div style="font-weight:700;margin-bottom:8px">✅ 成功獎勵 <span class="hint">每列一種,依「機率」隨機抽一列;數量可選 ×當日倍數 或 +固定</span></div>
+          <div id="cc-rewards"></div>
+          <button class="btn btn-edit" style="margin-top:10px" onclick="ccRewAdd_()">➕ 新增一列</button>
+          <div id="cc-rew-calc" class="pk-calc" style="margin-top:10px"></div>
         </div>
         <div class="ct-card" style="padding:14px 18px">
           <div style="font-weight:700;margin-bottom:8px">❌ 失敗懲罰(一行一種,目前只顯示文字,不扣東西;訊息顯示「無」)</div>
@@ -4085,6 +4086,27 @@ function ccCalc_() {
     if (el) el.textContent = isFinite(m) ? (muls[m] ? '保底 ' + m + ' 倍(仍可能更高)' : '固定 ' + m + ' 倍') : '';
   });
 }
+let ccRew_ = [];
+function ccRewRender_() {
+  const el = document.getElementById('cc-rewards'); if (!el) return;
+  const e = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  el.innerHTML = ccRew_.length ? ccRew_.map((r, i) => `<div class="pk-rw" style="display:grid;grid-template-columns:90px 1fr 100px 130px 40px;gap:8px;align-items:end;margin-top:8px">
+    <div class="field"><label>機率(權重)</label><input type="number" min="0" step="any" value="${e(r.pct)}" oninput="ccRew_[${i}].pct=this.value;ccRewCalc_()"></div>
+    <div class="field"><label>貨幣</label><input list="dc-list" value="${e(r.currency)}" placeholder="例:幻彩水晶(留空+數量0=無獎勵)" oninput="ccRew_[${i}].currency=this.value"></div>
+    <div class="field"><label>數量</label><input type="number" min="0" step="any" value="${e(r.amount)}" oninput="ccRew_[${i}].amount=this.value;ccRewCalc_()"></div>
+    <div class="field"><label>方式</label><select onchange="ccRew_[${i}].mode=this.value;ccRewCalc_()"><option value="x" ${r.mode === 'x' ? 'selected' : ''}>× 當日倍數</option><option value="+" ${r.mode !== 'x' ? 'selected' : ''}>+ 固定</option></select></div>
+    <button class="btn btn-edit" onclick="ccRew_.splice(${i},1);ccRewRender_()">🗑</button></div>
+    <div class="hint" id="cc-rew-${i}" style="margin-left:4px"></div>`).join('') : '<div class="hint" style="margin-top:6px">還沒有任何一列(儲存時會補預設:幻彩水晶 ×1 倍數)</div>';
+  ccRewCalc_();
+}
+function ccRewAdd_() { ccRew_.push({ pct: 1, currency: '幻彩水晶', amount: 1, mode: 'x' }); ccRewRender_(); }
+function ccRewCalc_() {
+  const tot = ccRew_.reduce((a, r) => a + (parseFloat(r.pct) || 0), 0), el = document.getElementById('cc-rew-calc'); if (!el) return;
+  ccRew_.forEach((r, i) => { const h = document.getElementById('cc-rew-' + i); if (!h) return; const p = tot > 0 ? Math.round((parseFloat(r.pct) || 0) / tot * 1000) / 10 : 0, a = parseFloat(r.amount) || 0;
+    h.textContent = '實際機率 ' + p + '%' + (a > 0 ? '・1 倍日得 ' + a + (r.mode === 'x' ? '(×當日倍數,2 倍日得 ' + a * 2 + ')' : '(固定)') : '・沒有獎勵'); });
+  let ev = 0; ccRew_.forEach((r) => { const p = tot > 0 ? (parseFloat(r.pct) || 0) / tot : 0; ev += p * (parseFloat(r.amount) || 0); });
+  el.textContent = ccRew_.length ? '機率會自動換算成百分比(總權重 ' + tot + ')。1 倍日平均每次約 ' + Math.round(ev * 100) / 100 + '(依各貨幣數量粗算,不同貨幣不換算)' : '';
+}
 let ccCandies_ = [];
 function ccCandyRender_() {
   const el = document.getElementById('cc-candies'); if (!el) return;
@@ -4112,7 +4134,7 @@ async function loadChallengeCfg() {
     ccTiers_ = (c.rollTiers || []).map((x) => { const q = x.split('/'); return { mul: q[0], pct: q[1] }; });
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
     ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
-    g('cc-rew').value = (c.rewards || []).join('\n'); g('cc-fail').value = (c.failures || []).join('\n');
+    ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-fail').value = (c.failures || []).join('\n');
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function saveChallengeCfg() {
@@ -4121,7 +4143,7 @@ async function saveChallengeCfg() {
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
-    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
+    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), rewardRows: ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail') };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
