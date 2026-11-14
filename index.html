@@ -466,6 +466,11 @@
         <h2 style="margin:0;">📜 兌換與序號紀錄</h2>
       </div>
       <div class="modal-body">
+        <div id="history-kind-tabs" style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+          <button type="button" class="history-kind-btn" data-kind="all" onclick="setHistoryKind('all')">全部</button>
+          <button type="button" class="history-kind-btn" data-kind="buy" onclick="setHistoryKind('buy')">🛒 購買</button>
+          <button type="button" class="history-kind-btn" data-kind="grant" onclick="setHistoryKind('grant')">🎉 團任/團戰</button>
+        </div>
         <div id="history-list-container">
           <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
         </div>
@@ -1024,7 +1029,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.271</div>
+    <div class="version-tag">系統版本：v5.4.272</div>
   </div>
 
   <script>
@@ -1788,11 +1793,27 @@
 
     let currentHistoryPage = 1;
     const HISTORY_PAGE_SIZE = 10;
+    let currentHistoryKind = 'all'; // all=全部 buy=購買 grant=團任/團戰發放
+    function renderHistoryKindTabs_() {
+      document.querySelectorAll('.history-kind-btn').forEach(b => {
+        const on = b.dataset.kind === currentHistoryKind;
+        b.style.cssText = 'padding:6px 12px; border-radius:16px; border:1px solid ' + (on ? '#5865F2' : '#40444B') + '; background:' + (on ? '#5865F2' : '#2F3136') + '; color:#fff; cursor:pointer; font-size:13px;';
+      });
+    }
+    function setHistoryKind(k) {
+      if (k === currentHistoryKind) return;
+      currentHistoryKind = k;
+      renderHistoryKindTabs_();
+      currentHistoryPage = 1;
+      document.getElementById('history-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
+      loadHistoryPage(1, false);
+    }
 
     function showHistory() {
       if(!currentUser) return;
       document.getElementById('history-modal').style.display = 'flex';
       currentHistoryPage = 1;
+      renderHistoryKindTabs_();
       document.getElementById('history-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
       loadHistoryPage(1, false);
     }
@@ -1805,7 +1826,7 @@
         container.insertAdjacentHTML('beforeend', '<p id="history-loading-more" style="text-align:center; color:#B9BBBE;">載入更多中...</p>');
       }
 
-      fetch(`${DASHBOARD_WORKER_URL}?action=history&discordId=${currentUser.id}&page=${page}&pageSize=${HISTORY_PAGE_SIZE}&accessToken=${encodeURIComponent(getAccessToken())}`)
+      fetch(`${DASHBOARD_WORKER_URL}?action=history&discordId=${currentUser.id}&page=${page}&pageSize=${HISTORY_PAGE_SIZE}&kind=${currentHistoryKind}&accessToken=${encodeURIComponent(getAccessToken())}`)
       .then(res => res.json())
       .then(data => {
         const loadingMore = document.getElementById('history-loading-more');
@@ -1861,7 +1882,7 @@
             container.insertAdjacentHTML('beforeend', `<button id="history-load-more-btn" class="btn btn-action" style="width:100%; margin-top:10px; background-color:#5865F2;" onclick="loadHistoryPage(${page + 1}, true)">📜 載入更多</button>`);
           }
         } else if (!append) {
-          container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">目前尚無兌換紀錄</p>';
+          container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">' + (currentHistoryKind === 'grant' ? '目前尚無團任/團戰紀錄' : currentHistoryKind === 'buy' ? '目前尚無購買紀錄' : '目前尚無兌換紀錄') + '</p>';
         }
       }).catch(err => {
         const loadingMore = document.getElementById('history-loading-more');
