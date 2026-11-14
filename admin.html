@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.274</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.275</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1365,7 +1365,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <label>狀態 <select id="cr-status"><option value="">全部</option><option value="open">待審</option><option value="success">已成功</option><option value="fail">已放棄</option></select></label>
           <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-onlyrep" onchange="crRender_()"> 只看有回覆</label>
           <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-allopen"> 所有日期的待審</label>
-          <button class="btn btn-primary" id="cr-q-btn" onclick="crLoad_(true)">🔍 查詢</button><span id="cr-sum" class="hint"></span>
+          <button class="btn btn-primary" id="cr-q-btn" onclick="crLoad_(true)">🔍 查詢</button><button class="btn btn-edit" id="cr-bf-btn" onclick="crBlindFix_()" title="把今天已開啟、還沒審核、但訊息漏了「🎁 獎品」那行的挑戰,請機器人現在補上">🩹 補盲盒獎勵行</button><span id="cr-sum" class="hint"></span>
         </div>
         <div class="ct-card" style="padding:10px 16px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-edit" onclick="crSelAll_(true)">☑️ 全選待審</button>
@@ -4095,6 +4095,23 @@ async function crImgs_(force) {
       if (tries > 20 && crJobTimer_) { clearInterval(crJobTimer_); crJobTimer_ = null; m.textContent = '⚠️ 機器人沒回應(請確認機器人在線且是 v1.1.65 以上),圖片可先用「跳轉」看'; }
     }, 2500);
   } catch (e) { m.textContent = '抓圖要求失敗:' + (e && e.message || e); }
+}
+async function crBlindFix_() {
+  const m = document.getElementById('cr-msg'), btn = document.getElementById('cr-bf-btn'); btn.disabled = true; m.textContent = '🩹 請機器人補編輯中…';
+  try {
+    const d = await grCall_('adminChallengeBlindFix', {});
+    if (!d || d.status !== 'success' || !d.jobId) { m.textContent = (d && d.message) || '要求失敗'; btn.disabled = false; return; }
+    let tries = 0;
+    const t = setInterval(async () => {
+      tries++;
+      try {
+        const j = await grCall_('adminChallengeJobGet', { id: d.jobId });
+        if (j && j.state === 'done') { clearInterval(t); btn.disabled = false; m.textContent = '✅ 已補編輯 ' + ((j.result && j.result.fixed) || 0) + ' 則(0=今天沒有需要補的)'; }
+        else if (j && j.state === 'error') { clearInterval(t); btn.disabled = false; m.textContent = '機器人處理失敗'; }
+      } catch (e) {}
+      if (tries > 24) { clearInterval(t); btn.disabled = false; m.textContent = '⚠️ 機器人沒回應(請確認機器人在線且是 v1.1.71 以上)'; }
+    }, 2500);
+  } catch (e) { m.textContent = '要求失敗:' + (e && e.message || e); btn.disabled = false; }
 }
 async function crSubmit_(items, act) {
   const m = document.getElementById('cr-msg');
