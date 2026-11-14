@@ -341,7 +341,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.262</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.263</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1438,6 +1438,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">⚙️ 基本</div>
           <label class="pk-chk"><input type="checkbox" id="boss-enabled"> 啟用翻翻樂</label>
+          <label class="pk-chk"><input type="checkbox" id="boss-test"> 🧪 測試模式:只有管理員看得到、能玩(一般玩家完全看不到入口;不受賽道日期限制)。測完請按下方「🗑 重置賽道」清掉測試資料,再關掉測試模式正式開放。翻牌券/獎勵是真的會扣、會發,測試前先發自己一些翻牌券。</label>
           <div class="pk-grid">
             <div class="field"><label>翻牌券貨幣名稱</label><input id="boss-cur" placeholder="翻牌券"></div>
             <div class="field"><label>錢包每次補幾張<span class="hint">翻牌時錢包空了,自動從貨幣餘額領這麼多(不夠就領剩下的)</span></label><input id="boss-pull" type="number" min="1" max="200"></div>
@@ -4105,14 +4106,14 @@ async function bossLoad_() {
     const d = await grCall_('adminBossCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const c = d.cfg || {};
-    document.getElementById('boss-enabled').checked = !!c.enabled; document.getElementById('boss-cur').value = c.ticketCurrency || '翻牌券'; document.getElementById('boss-pull').value = c.pull || 20;
+    document.getElementById('boss-enabled').checked = !!c.enabled; document.getElementById('boss-test').checked = !!c.testMode; document.getElementById('boss-cur').value = c.ticketCurrency || '翻牌券'; document.getElementById('boss-pull').value = c.pull || 20;
     document.getElementById('boss-json').value = JSON.stringify({ tracks: c.tracks || [] }, null, 1);
     bossStatus_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function bossSave_() {
   let obj; try { obj = JSON.parse(document.getElementById('boss-json').value || '{"tracks":[]}'); } catch (e) { toast('JSON 格式有誤:' + e.message, false); return; }
-  const cfg = { enabled: document.getElementById('boss-enabled').checked, ticketCurrency: document.getElementById('boss-cur').value.trim(), pull: document.getElementById('boss-pull').value, tracks: Array.isArray(obj) ? obj : (obj.tracks || []) };
+  const cfg = { enabled: document.getElementById('boss-enabled').checked, testMode: document.getElementById('boss-test').checked, ticketCurrency: document.getElementById('boss-cur').value.trim(), pull: document.getElementById('boss-pull').value, tracks: Array.isArray(obj) ? obj : (obj.tracks || []) };
   try {
     const d = await grCall_('adminBossCfgSave', { cfg });
     if (d && d.status === 'success') { toast('已儲存'); await bossLoad_(); } else toast((d && d.message) || '儲存失敗', false);

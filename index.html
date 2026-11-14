@@ -1063,7 +1063,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.276</div>
+    <div class="version-tag">系統版本：v5.4.277</div>
   </div>
 
   <script>
@@ -1595,6 +1595,7 @@
     let cryptoAvailable = false;
     let stockAvailable = false; // 📈 台股模擬有沒有開放
     let contestAvailable = false; // 🎽 穿搭大賽有沒有賽道開放
+    let bossTest_ = false;
     let bossAvailable = false; // 🐲 翻翻樂打BOSS 有沒有開放的賽道
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
@@ -1623,7 +1624,7 @@
 
       if (bossAvailable) {
         bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#ED4245,#5865F2)" onclick="openBoss()">
-                   <span>🐲 翻翻樂打BOSS</span>
+                   <span>🐲 翻翻樂打BOSS${bossTest_ ? ' 🧪測試中' : ''}</span>
                  </div>`;
       }
 
@@ -5236,7 +5237,7 @@
     function bsName_() { return (currentUser && (currentUser.global_name || currentUser.username)) || '玩家'; }
     function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_() }, params || {})); }
     async function checkBossAvailability_() {
-      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success' && d.enabled && (d.tracks || []).length) { bossAvailable = true; renderSidebar(); } } catch (e) {}
+      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success' && d.enabled && (d.tracks || []).length) { bossAvailable = true; bossTest_ = !!d.testMode; renderSidebar(); } } catch (e) {}
     }
     async function openBoss() {
       document.getElementById('boss-modal').style.display = 'flex';
