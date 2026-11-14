@@ -471,6 +471,10 @@
           <button type="button" class="history-kind-btn" data-kind="buy" onclick="setHistoryKind('buy')">🛒 購買</button>
           <button type="button" class="history-kind-btn" data-kind="grant" onclick="setHistoryKind('grant')">🎉 團任/團戰</button>
         </div>
+        <div id="history-grant-controls" style="display:none; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
+          <select id="history-grant-kind" onchange="loadGrantStats_()" style="padding:6px 8px; border-radius:6px; background:#2F3136; color:#fff; border:1px solid #40444B;"><option value="">全部事件</option></select>
+          <input type="month" id="history-grant-month" onchange="loadGrantStats_()" style="padding:6px 8px; border-radius:6px; background:#2F3136; color:#fff; border:1px solid #40444B;">
+        </div>
         <div id="history-list-container">
           <p style="text-align:center; color:#B9BBBE;">讀取中...</p>
         </div>
@@ -1029,7 +1033,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.272</div>
+    <div class="version-tag">系統版本：v5.4.273</div>
   </div>
 
   <script>
@@ -1800,10 +1804,34 @@
         b.style.cssText = 'padding:6px 12px; border-radius:16px; border:1px solid ' + (on ? '#5865F2' : '#40444B') + '; background:' + (on ? '#5865F2' : '#2F3136') + '; color:#fff; cursor:pointer; font-size:13px;';
       });
     }
+    // 🎉 團任/團戰 統計:依月份與事件種類查「做了幾次、幾號做、總共獲得」
+    async function loadGrantStats_() {
+      const container = document.getElementById('history-list-container');
+      const monthEl = document.getElementById('history-grant-month'), kindEl = document.getElementById('history-grant-kind');
+      if (!monthEl.value) monthEl.value = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 7);
+      container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
+      try {
+        const res = await fetch(`${DASHBOARD_WORKER_URL}?action=groupTaskMine&discordId=${currentUser.id}&month=${encodeURIComponent(monthEl.value)}&kind=${encodeURIComponent(kindEl.value)}&accessToken=${encodeURIComponent(getAccessToken())}`);
+        const d = await res.json();
+        if (d.status !== 'success') { container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>'; return; }
+        if (kindEl.options.length <= 1 && d.kindList && d.kindList.length) { d.kindList.forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; kindEl.appendChild(o); }); kindEl.value = d.kind || ''; }
+        const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const md = (ds) => ds.slice(5).replace('-', '/');
+        const sm = d.summary || { count: 0, byKind: {}, totals: {} };
+        if (!sm.count) { container.innerHTML = '<p style="text-align:center; color:#B9BBBE;">這個月份沒有紀錄</p>'; return; }
+        const totalText = Object.keys(sm.totals).map(c => `${esc(c)} <b style="color:#58FF9C;">+${sm.totals[c]}</b>`).join('　');
+        const kindLines = Object.keys(sm.byKind).map(k => `<div style="margin-top:4px;"><b>${esc(k)}</b>：${sm.byKind[k].count} 次<span style="color:#99AAB5;">（${sm.byKind[k].dates.slice().reverse().map(md).join('、')}）</span></div>`).join('');
+        let html = `<div class="history-card"><div class="history-time">${esc(d.month)} 統計</div><div>共 <b>${sm.count}</b> 次</div>${kindLines}<div style="margin-top:8px; padding:6px; background-color:#2F3136; border-radius:4px; font-size:13px; border:1px solid #40444B;">📊 總共獲得：${totalText || '—'}</div></div>`;
+        d.records.forEach(r => { html += `<div class="history-card"><div class="history-time">${md(r.date)}</div><div class="history-name">${esc(r.kind)}</div><div style="margin-top:6px; font-size:13px; color:#FEE75C;">🎉 獲得：${esc(r.text)}</div></div>`; });
+        container.innerHTML = html;
+      } catch (e) { container.innerHTML = '<p style="text-align:center; color:#ED4245;">讀取失敗，請稍後再試</p>'; }
+    }
     function setHistoryKind(k) {
       if (k === currentHistoryKind) return;
       currentHistoryKind = k;
       renderHistoryKindTabs_();
+      document.getElementById('history-grant-controls').style.display = k === 'grant' ? 'flex' : 'none';
+      if (k === 'grant') { loadGrantStats_(); return; }
       currentHistoryPage = 1;
       document.getElementById('history-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
       loadHistoryPage(1, false);
@@ -1813,7 +1841,9 @@
       if(!currentUser) return;
       document.getElementById('history-modal').style.display = 'flex';
       currentHistoryPage = 1;
+      if (currentHistoryKind === 'grant') currentHistoryKind = 'all'; // 每次打開預設回到「全部」
       renderHistoryKindTabs_();
+      document.getElementById('history-grant-controls').style.display = 'none';
       document.getElementById('history-list-container').innerHTML = '<p style="text-align:center; color:#B9BBBE;">讀取資料中...</p>';
       loadHistoryPage(1, false);
     }
