@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.255</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.256</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1349,6 +1349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>生日身分組ID<span class="hint">挑戰直接PASS</span></label><input id="cc-bday"></div>
             <div class="field"><label>Webhook 名稱</label><input id="cc-wname"></div>
             <div class="field"><label>Webhook 頭像網址</label><input id="cc-wav"></div>
+            <div class="field"><label>公告圖片網址(選填,貼在每日公告下面)</label><input id="cc-img" placeholder="https://...png"></div>
           </div>
           <div class="field" style="margin-top:10px"><label>管理員身分組ID<span class="hint">可按「挑戰成功」,一行一個</span></label><textarea id="cc-admins" rows="3"></textarea></div>
         </div>
@@ -4159,7 +4160,7 @@ async function loadChallengeCfg() {
     const c = d.cfg, g = (i) => document.getElementById(i), cd = c.candy || {};
     g('cc-enabled').checked = !!c.enabled; g('cc-relay').checked = !!c.relayEnabled; g('cc-time').value = c.announceTime || '22:00';
     g('cc-ch').value = c.channelId || ''; g('cc-ping').value = c.pingRoleId || ''; g('cc-bday').value = c.birthdayRoleId || '';
-    g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
+    g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-img').value = c.announceImage || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
     ccCandies_ = JSON.parse(JSON.stringify(c.candies || (c.candy ? [c.candy] : []))); ccCandyRender_();
     ccTiers_ = (c.rollTiers || []).map((x) => { const q = x.split('/'); return { mul: q[0], pct: q[1] }; });
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
@@ -4170,7 +4171,7 @@ async function loadChallengeCfg() {
 async function saveChallengeCfg() {
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
   const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
-    webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
+    webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), announceImage: g('cc-img').trim(), adminRoleIds: g('cc-admins'),
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail') };
