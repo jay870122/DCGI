@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.238</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.239</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1336,8 +1336,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           期間 <input type="date" id="cc-c-st"> ~ <input type="date" id="cc-c-en"> (含當天) 每次隨機 <input type="number" id="cc-c-min" style="width:70px" min="0"> ~ <input type="number" id="cc-c-max" style="width:70px" min="0"> 個
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🎲 隨機倍數機率(沒指定日期的日子)</div>
+          <div class="hint">一行一種:倍數/機率%,最小 0.1%。例:20/0.1 = 20 倍機率 0.1%。沒中任何一行 = 1 倍。機率加起來不能超過 100%。每天只骰一次,當天固定。</div>
+          <textarea id="cc-tiers" rows="5" style="width:200px"></textarea>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">📅 每日倍數(一行一天:年|月|日/倍數/節慶文字)</div>
-          <div class="hint">例:2026|11|15/2/週末加碼。倍數 2/3/5/20 代表「保底到這個倍數、仍可能骰到更高」;其他數字就固定。沒列的日子 = 隨機(1%→20倍、1~10→5倍、…)。</div>
+          <div class="hint">例:2026|11|15/2/週末加碼。倍數 2/3/5/20 代表「保底到這個倍數、仍可能骰到更高」;其他數字就固定。沒列的日子 = 照上面的隨機倍數機率。保底只對「隨機倍數表」裡有的倍數有效。</div>
           <textarea id="cc-sched" rows="8" style="width:100%"></textarea>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
@@ -3910,7 +3915,7 @@ async function loadChallengeCfg() {
     g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
     g('cc-c-on').checked = !!cd.enabled; g('cc-c-cur').value = cd.currency || ''; g('cc-c-st').value = cd.start || ''; g('cc-c-en').value = cd.end || '';
     g('cc-c-min').value = cd.min; g('cc-c-max').value = cd.max;
-    g('cc-sched').value = (c.schedule || []).join('\n'); g('cc-puz').value = (c.puzzles || []).join('\n');
+    g('cc-sched').value = (c.schedule || []).join('\n'); g('cc-tiers').value = (c.rollTiers || []).join('\n'); g('cc-puz').value = (c.puzzles || []).join('\n');
     g('cc-rew').value = (c.rewards || []).join('\n'); g('cc-fail').value = (c.failures || []).join('\n');
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
@@ -3919,7 +3924,7 @@ async function saveChallengeCfg() {
   const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
     candy: { enabled: ck('cc-c-on'), currency: g('cc-c-cur'), start: g('cc-c-st'), end: g('cc-c-en'), min: g('cc-c-min'), max: g('cc-c-max') },
-    schedule: g('cc-sched'), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
+    schedule: g('cc-sched'), rollTiers: g('cc-tiers'), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
