@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.227</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.228</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3799,8 +3799,8 @@ async function loadGroupReward() {
   try {
     const d = await grCall_('adminGroupRewardGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
-    grKinds_ = Object.keys(d.cfg.kinds || {}).map((n) => ({ name: n, enabled: d.cfg.kinds[n].enabled !== false, allowMultiplier: !!d.cfg.kinds[n].allowMultiplier, rewards: (d.cfg.kinds[n].rewards || []).map((r) => ({ currency: r.currency, amount: r.amount })) }));
-    grPeriods_ = (d.cfg.periods || []).map((p) => ({ id: p.id, name: p.name || '', enabled: p.enabled !== false, start: p.start || '', end: p.end || '', kinds: (p.kinds || []).slice(), currency: p.currency || '', mode: p.mode === 'mul' ? 'mul' : 'add', value: p.value }));
+    grKinds_ = Object.keys(d.cfg.kinds || {}).map((n) => ({ name: n, enabled: d.cfg.kinds[n].enabled !== false, allowMultiplier: !!d.cfg.kinds[n].allowMultiplier, rewards: (d.cfg.kinds[n].rewards || []).map((r) => ({ currency: r.currency, amount: r.amount, max: r.max == null ? '' : r.max })) }));
+    grPeriods_ = (d.cfg.periods || []).map((p) => ({ id: p.id, name: p.name || '', enabled: p.enabled !== false, start: p.start || '', end: p.end || '', kinds: (p.kinds || []).slice(), currency: p.currency || '', mode: p.mode === 'mul' ? 'mul' : 'add', value: p.value, valueMax: p.valueMax == null ? '' : p.valueMax }));
     grRender_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
@@ -3817,7 +3817,9 @@ function grRender_() {
       <div style="margin-top:6px">${k.rewards.map((r, j) => `
         <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
           <input list="gr-cur-list" value="${grEsc_(r.currency)}" placeholder="貨幣名稱" style="width:170px" oninput="grKinds_[${i}].rewards[${j}].currency=this.value;grPreview_()">
-          <input type="number" min="0" step="any" value="${r.amount}" style="width:100px" oninput="grKinds_[${i}].rewards[${j}].amount=this.value;grPreview_()">
+          <input type="number" min="0" step="any" value="${r.amount}" style="width:90px" oninput="grKinds_[${i}].rewards[${j}].amount=this.value;grPreview_()" title="固定數量;若右邊填了最大值,這格就是最小值">
+          <span class="hint">~</span>
+          <input type="number" min="0" step="any" value="${r.max}" placeholder="最大(空=固定)" style="width:110px" oninput="grKinds_[${i}].rewards[${j}].max=this.value;grPreview_()" title="填了就是隨機:每次發放整批骰一次,所有人拿到一樣的數量">
           <button class="btn btn-edit" onclick="grKinds_[${i}].rewards.splice(${j},1);grRender_()">✕</button>
         </div>`).join('')}
         <button class="btn btn-edit" style="margin-top:6px" onclick="grKinds_[${i}].rewards.push({currency:'幻彩水晶',amount:1});grRender_()">➕ 加一項獎勵</button>
@@ -3832,7 +3834,9 @@ function grRender_() {
         <span>~</span>
         <input type="date" value="${grEsc_(p.end)}" onchange="grPeriods_[${i}].end=this.value;grPreview_()" title="結束日(含,空=不限)">
         <select onchange="grPeriods_[${i}].mode=this.value;grPreview_()"><option value="add" ${p.mode === 'add' ? 'selected' : ''}>+X(加成)</option><option value="mul" ${p.mode === 'mul' ? 'selected' : ''}>×X(倍數)</option></select>
-        <input type="number" step="any" value="${p.value}" style="width:90px" oninput="grPeriods_[${i}].value=this.value;grPreview_()">
+        <input type="number" step="any" value="${p.value}" style="width:80px" oninput="grPeriods_[${i}].value=this.value;grPreview_()" title="固定數值;若右邊填了最大值,這格就是最小值">
+        <span class="hint">~</span>
+        <input type="number" step="any" value="${p.valueMax}" placeholder="最大(空=固定)" style="width:110px" oninput="grPeriods_[${i}].valueMax=this.value;grPreview_()" title="填了就是隨機:每次發放整批骰一次">
         <input list="gr-cur-list" value="${grEsc_(p.currency)}" placeholder="貨幣(空=全部)" style="width:140px" oninput="grPeriods_[${i}].currency=this.value;grPreview_()">
         <button class="btn btn-edit" onclick="grPeriods_.splice(${i},1);grRender_()">🗑 刪除</button>
       </div>
@@ -3852,16 +3856,20 @@ function grAddKind_() { grKinds_.push({ name: '', enabled: true, allowMultiplier
 function grDelKind_(i) { if (!confirm('刪除事件「' + (grKinds_[i].name || '(未命名)') + '」?按「儲存全部」才會生效。')) return; grKinds_.splice(i, 1); grRender_(); }
 function grAddPeriod_() { grPeriods_.push({ id: '', name: '', enabled: true, start: '', end: '', kinds: [], currency: '', mode: 'add', value: 1 }); grRender_(); }
 function grTogglePeriodKind_(i, name, on) { const ks = grPeriods_[i].kinds, ix = ks.indexOf(name); if (on && ix === -1) ks.push(name); if (!on && ix !== -1) ks.splice(ix, 1); grPreview_(); }
+function grPick_(lo, hi, m) { lo = parseFloat(lo) || 0; hi = parseFloat(hi); return isFinite(hi) && hi > lo ? (m === 'max' ? hi : lo) : lo; }
 function grCompute_(kindName, date, uploadMul) {
   const k = grKinds_.find((x) => x.name === kindName);
   if (!k) return { error: '找不到事件' };
   let um = parseFloat(uploadMul); if (!isFinite(um) || um <= 0) um = 1; if (!k.allowMultiplier) um = 1;
   const act = grPeriods_.filter((p) => p.enabled && (!p.kinds.length || p.kinds.indexOf(kindName) !== -1) && (!p.start || p.start <= date) && (!p.end || date <= p.end));
+  const one = (r, m) => { let mul = um, add = 0; act.forEach((p) => { if (p.currency && p.currency !== r.currency) return; const v = grPick_(p.value, p.valueMax, m); if (p.mode === 'mul') mul *= v; else add += v; }); return Math.round((grPick_(r.amount, r.max, m) * mul + add) * 100) / 100; };
   return { act, rows: k.rewards.map((r) => {
-    let mul = um, add = 0; const notes = [];
+    const notes = [];
     if (um !== 1) notes.push('×' + um + '(倍數)');
-    act.forEach((p) => { if (p.currency && p.currency !== r.currency) return; const v = parseFloat(p.value) || 0; if (p.mode === 'mul') { mul *= v; notes.push('×' + v + '(' + (p.name || '期間') + ')'); } else { add += v; notes.push((v >= 0 ? '+' : '') + v + '(' + (p.name || '期間') + ')'); } });
-    return { currency: r.currency, base: parseFloat(r.amount) || 0, fin: Math.round(((parseFloat(r.amount) || 0) * mul + add) * 100) / 100, notes };
+    act.forEach((p) => { if (p.currency && p.currency !== r.currency) return; const rg = parseFloat(p.valueMax) > parseFloat(p.value) ? p.value + '~' + p.valueMax : (parseFloat(p.value) || 0); if (p.mode === 'mul') notes.push('×' + rg + '(' + (p.name || '期間') + ')'); else notes.push('+' + rg + '(' + (p.name || '期間') + ')'); });
+    const lo = one(r, 'min'), hi = one(r, 'max');
+    const base = parseFloat(r.max) > parseFloat(r.amount) ? r.amount + '~' + r.max + '(隨機)' : (parseFloat(r.amount) || 0);
+    return { currency: r.currency, base, fin: hi > lo ? lo + ' ~ ' + hi + '(隨機)' : lo, notes };
   }), enabled: k.enabled };
 }
 function grPreview_() {
@@ -3877,9 +3885,9 @@ async function grSave_() {
     if (!nm) { toast('有事件沒有填名稱', false); return; }
     if (names[nm]) { toast('事件名稱重複:' + nm, false); return; }
     names[nm] = 1;
-    kinds[nm] = { enabled: k.enabled, allowMultiplier: k.allowMultiplier, rewards: k.rewards.map((r) => ({ currency: (r.currency || '').trim(), amount: parseFloat(r.amount) })) };
+    kinds[nm] = { enabled: k.enabled, allowMultiplier: k.allowMultiplier, rewards: k.rewards.map((r) => { const o = { currency: (r.currency || '').trim(), amount: parseFloat(r.amount) }, mx = parseFloat(r.max); if (isFinite(mx) && mx > o.amount) o.max = mx; return o; }) };
   }
-  const periods = grPeriods_.map((p) => ({ id: p.id, name: (p.name || '').trim(), enabled: p.enabled, start: p.start || '', end: p.end || '', kinds: p.kinds.filter((n) => names[n]), currency: (p.currency || '').trim(), mode: p.mode, value: parseFloat(p.value) }));
+  const periods = grPeriods_.map((p) => ({ id: p.id, name: (p.name || '').trim(), enabled: p.enabled, start: p.start || '', end: p.end || '', kinds: p.kinds.filter((n) => names[n]), currency: (p.currency || '').trim(), mode: p.mode, value: parseFloat(p.value), valueMax: parseFloat(p.valueMax) }));
   const btn = document.getElementById('gr-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminGroupRewardSave', { cfg: { kinds, periods } });
