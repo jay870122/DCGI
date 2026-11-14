@@ -447,6 +447,25 @@
 /* 🎽 穿搭大賽視窗放大:寬度最多 1000px、高度 90vh(手機維持原本) */
 #contest-modal{padding:12px}
 #contest-modal .ct-mc{max-width:min(1000px,94vw);max-height:90vh}
+/* 🐲 翻翻樂打BOSS */
+#boss-modal .bs-mc{max-width:min(980px,96vw);max-height:92vh}
+#boss-modal .bs-wrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px}
+@media(max-width:760px){#boss-modal .bs-wrap{grid-template-columns:1fr}}
+#boss-modal .bs-hp{height:18px;background:#202225;border-radius:9px;overflow:hidden;position:relative;border:1px solid #4F545C}
+#boss-modal .bs-hp>i{display:block;height:100%;background:linear-gradient(90deg,#ED4245,#F0B232);transition:width .5s}
+#boss-modal .bs-hp>span{position:absolute;left:0;right:0;top:0;text-align:center;font-size:12px;line-height:18px;color:#fff;text-shadow:0 1px 2px #000}
+#boss-modal .bs-grid{display:grid;gap:8px;margin-top:10px}
+#boss-modal .bs-card{aspect-ratio:3/4;border-radius:10px;border:2px solid #5865F2;background:repeating-linear-gradient(45deg,#3b3f8f,#3b3f8f 8px,#4752c4 8px,#4752c4 16px);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .25s,background .25s;user-select:none;padding:0}
+#boss-modal .bs-card:hover:not(:disabled){transform:translateY(-3px)}
+#boss-modal .bs-card.open{background:#2F3136;border-color:#F0B232;transform:rotateY(0)}
+#boss-modal .bs-card.gone{visibility:hidden}
+#boss-modal .bs-card:disabled{cursor:not-allowed}
+#boss-modal .bs-card.hit{background:#1e5c3a;border-color:#57F287}
+#boss-modal .bs-card.bad{background:#5c1e1e;border-color:#ED4245}
+#boss-modal .bs-feed{max-height:230px;overflow:auto;font-size:13px;color:#DCDDDE;background:#202225;border-radius:8px;padding:8px 10px}
+#boss-modal .bs-feed div{padding:2px 0;border-bottom:1px dashed #36393f}
+#boss-modal .bs-toast{min-height:22px;font-size:14px;margin:8px 0;color:#F0B232}
+
 #contest-modal .ct-desc{font-size:14px}
 .ct-desc{font-size:13px;line-height:1.7;color:#DBDEE1;white-space:pre-wrap;background:rgba(0,0,0,.18);border-radius:8px;padding:10px 12px}
 @media(max-width:560px){.ct-imgs{flex-direction:column}.ct-imgbox{flex:0 0 auto}.ct-imgbox .ct-img{height:220px}}
@@ -691,6 +710,17 @@
         <div id="ct-mine"></div>
         <div id="ct-works"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 🐲 翻翻樂打BOSS -->
+  <div id="boss-modal" class="modal-overlay">
+    <div class="modal-content bs-mc">
+      <div class="modal-header">
+        <span class="modal-close" onclick="closeBoss()">×</span>
+        <h2 style="margin:0;">🐲 翻翻樂打BOSS</h2>
+      </div>
+      <div class="modal-body" id="bs-body"><div style="color:#949BA4">載入中…</div></div>
     </div>
   </div>
 
@@ -1033,7 +1063,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.275</div>
+    <div class="version-tag">系統版本：v5.4.276</div>
   </div>
 
   <script>
@@ -1372,6 +1402,7 @@
       try { checkCryptoAvailability_(); } catch (e) {}
       setTimeout(() => {
         if (!contestCheckStarted_) { contestCheckStarted_ = true; try { checkContestAvailability_(); } catch (e) {} }
+        try { checkBossAvailability_(); } catch (e) {}
         try { checkBingoAvailability(); } catch (e) {} // 🌟 查一下BINGO活動有沒有開放,決定要不要顯示按鈕(用GAS直接查,不走Worker快取,因為BINGO狀態變動頻繁)
       }, 700);
     }
@@ -1564,6 +1595,7 @@
     let cryptoAvailable = false;
     let stockAvailable = false; // 📈 台股模擬有沒有開放
     let contestAvailable = false; // 🎽 穿搭大賽有沒有賽道開放
+    let bossAvailable = false; // 🐲 翻翻樂打BOSS 有沒有開放的賽道
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
     function renderSidebar() {
@@ -1586,6 +1618,12 @@
       if (contestAvailable) {
         bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#5865F2,#EB459E)" onclick="openContest()">
                    <span>🎽 角色穿搭大賽</span>
+                 </div>`;
+      }
+
+      if (bossAvailable) {
+        bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#ED4245,#5865F2)" onclick="openBoss()">
+                   <span>🐲 翻翻樂打BOSS</span>
                  </div>`;
       }
 
@@ -5193,6 +5231,121 @@
     let ctAsPlayer_ = true; try { localStorage.removeItem('ct_admin_view'); } catch (e) {}
     let ctPreviewFromUrl_ = false; try { ctPreviewFromUrl_ = new URLSearchParams(location.search).get('ctPreview') === '1'; if (ctPreviewFromUrl_) ctAsPlayer_ = true; } catch (e) {}
     function ctTogglePreview_() { ctAsPlayer_ = !ctAsPlayer_; loadContest_(); }
+    // ===== 🐲 翻翻樂打BOSS(玩家) =====
+    let bsLobby_ = null, bsTrack_ = null, bsTrackId_ = null, bsBusy_ = false, bsPoll_ = null, bsRestTimer_ = null, bsToast_ = '', bsFlash_ = {}, bsRestUntil_ = 0;
+    function bsName_() { return (currentUser && (currentUser.global_name || currentUser.username)) || '玩家'; }
+    function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_() }, params || {})); }
+    async function checkBossAvailability_() {
+      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success' && d.enabled && (d.tracks || []).length) { bossAvailable = true; renderSidebar(); } } catch (e) {}
+    }
+    async function openBoss() {
+      document.getElementById('boss-modal').style.display = 'flex';
+      bsTrackId_ = null; bsTrack_ = null; bsToast_ = '';
+      document.getElementById('bs-body').innerHTML = '<div style="color:#949BA4">載入中…</div>';
+      await bsLoadLobby_();
+    }
+    function closeBoss() { document.getElementById('boss-modal').style.display = 'none'; bsStopPoll_(); }
+    function bsStopPoll_() { if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
+    async function bsLoadLobby_() {
+      bsStopPoll_();
+      const d = await bsCall_('bossLobby');
+      if (!d || d.status !== 'success') { document.getElementById('bs-body').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
+      bsLobby_ = d;
+      const box = document.getElementById('bs-body');
+      if (!d.tracks.length) { box.innerHTML = '<div style="color:#949BA4">目前沒有開放的賽道</div>'; return; }
+      box.innerHTML = '<div style="font-size:13px;color:#B9BBBE;margin-bottom:10px">選一條賽道挑戰 BOSS!每翻一張牌消耗 1 張「' + escapeHtml_(d.ticketCurrency) + '」(遊戲錢包沒有時會自動從你的貨幣補 ' + d.pull + ' 張)。目前遊戲錢包:<b>' + d.wallet + '</b> 張。</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">' + d.tracks.map((t) => {
+          const pct = Math.max(0, Math.min(100, t.hp / t.maxHp * 100));
+          return '<div style="background:#202225;border:1px solid #4F545C;border-radius:10px;padding:12px;cursor:pointer" onclick="bsEnter_(\'' + escapeHtml_(t.id) + '\')">' +
+            (t.img ? '<img src="' + escapeHtml_(t.img) + '" style="width:100%;height:120px;object-fit:contain;margin-bottom:6px" onerror="this.style.display=\'none\'">' : '') +
+            '<div style="font-weight:700">' + escapeHtml_(t.name) + (t.status === 'ended' ? ' <span style="color:#949BA4">(已結束)</span>' : '') + '</div>' +
+            '<div style="font-size:13px;color:#B9BBBE">BOSS:' + escapeHtml_(t.boss) + '(' + (t.formIdx + 1) + '/' + t.formCount + ')' + (t.end ? ' ・ 到 ' + escapeHtml_(t.end) : '') + '</div>' +
+            '<div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.hp) + ' / ' + t.maxHp + '</span></div></div>';
+        }).join('') + '</div>';
+    }
+    async function bsEnter_(id) {
+      bsTrackId_ = id; bsToast_ = ''; bsFlash_ = {};
+      document.getElementById('bs-body').innerHTML = '<div style="color:#949BA4">載入中…</div>';
+      await bsRefresh_(true);
+      bsStopPoll_();
+      bsPoll_ = setInterval(() => { if (!bsBusy_ && document.getElementById('boss-modal').style.display === 'flex' && bsTrackId_) bsRefresh_(false); }, 3000);
+    }
+    async function bsRefresh_(first) {
+      const d = await bsCall_('bossTrack', { trackId: bsTrackId_ });
+      if (!d || d.status !== 'success') { if (first) document.getElementById('bs-body').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
+      bsTrack_ = d.track; bsRestUntil_ = bsTrack_.restLeft ? Date.now() + bsTrack_.restLeft * 1000 : 0;
+      bsRender_();
+    }
+    function bsRender_() {
+      const t = bsTrack_, box = document.getElementById('bs-body'); if (!t) return;
+      const pct = Math.max(0, Math.min(100, t.boss.hp / t.boss.maxHp * 100));
+      const rest = bsRestUntil_ > Date.now();
+      const cells = (t.board && t.board.cells) || [], first = t.board && t.board.first, cols = (t.board && t.board.cols) || 4;
+      const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active;
+      const cardHtml = cells.map((g, i) => {
+        const fl = bsFlash_[i];
+        if (g && !fl) return '<button class="bs-card gone" disabled></button>';
+        if (fl) return '<button class="bs-card open ' + (fl.cls || '') + '" disabled>' + escapeHtml_(fl.label) + '</button>';
+        if (first && first.idx === i) return '<button class="bs-card open" disabled>' + escapeHtml_(first.face.label) + '</button>';
+        return '<button class="bs-card" ' + (dis || rest ? 'disabled' : '') + ' onclick="bsFlip_(' + i + ')">❓</button>';
+      }).join('');
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsLoadLobby_()">← 賽道列表</button><b>' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
+        '<div class="bs-wrap"><div>' +
+        '<div style="display:flex;gap:12px;align-items:center">' + (t.boss.img ? '<img src="' + escapeHtml_(t.boss.img) + '" style="width:90px;height:90px;object-fit:contain" onerror="this.style.display=\'none\'">' : '') +
+        '<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">' + escapeHtml_(t.boss.name) + '</div><div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div>' +
+        '<div style="font-size:13px;color:#B9BBBE;margin-top:6px">我的傷害:<b>' + t.me.damage + '</b>(' + t.me.attacks + ' 次攻擊)' + (t.resetsNeed ? ' ・ 重置牌 ' + t.resets + '/' + t.resetsNeed : '') + '</div></div></div>' +
+        '<div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : bsToast_))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
+        '<div class="bs-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr))">' + cardHtml + '</div>' +
+        '<div style="font-size:12px;color:#949BA4;margin-top:10px">遊戲錢包:<b>' + t.wallet + '</b> 張「' + escapeHtml_(t.ticketCurrency) + '」 <button style="background:none;border:1px solid #4F545C;color:#B9BBBE;border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:6px" onclick="bsRefund_()">退回背包</button><br>翻兩張一樣的攻擊牌就會出手;獎勵牌也要翻到兩張一樣;陷阱/重置/休息牌翻到就觸發。</div>' +
+        '</div><div>' +
+        '<div style="font-weight:700;margin-bottom:6px">🏆 傷害排行</div><div class="bs-feed" style="max-height:150px">' + (t.top.length ? t.top.map((x) => '<div' + (x.me ? ' style="color:#F0B232"' : '') + '>#' + x.rank + ' ' + escapeHtml_(x.name) + ' — ' + x.damage + '(' + x.attacks + ' 次)</div>').join('') : '<div style="color:#949BA4">還沒有人出手</div>') + '</div>' +
+        '<div style="font-weight:700;margin:10px 0 6px">📣 即時動態</div><div class="bs-feed">' + (t.feed.length ? t.feed.map((f) => '<div>' + escapeHtml_(f.text) + '</div>').join('') : '<div style="color:#949BA4">還沒有動態</div>') + '</div>' +
+        '</div></div>';
+      if (rest) { bsRestTick_(); if (!bsRestTimer_) bsRestTimer_ = setInterval(bsRestTick_, 500); }
+    }
+    function bsRestTick_() {
+      const el = document.getElementById('bs-rest'), left = Math.ceil((bsRestUntil_ - Date.now()) / 1000);
+      if (left <= 0) { if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } bsRestUntil_ = 0; if (bsTrack_) bsRender_(); return; }
+      if (el) el.textContent = '😴 休息中 ' + left + ' 秒';
+    }
+    function bsEventText_(e) {
+      if (e.kind === 'attack') return '⚔️ ' + (e.label || '') + ' 造成 ' + e.amount + ' 傷害!';
+      if (e.kind === 'trap') return '💣 踩到陷阱!BOSS 回復 ' + e.amount + ' 血…';
+      if (e.kind === 'reset') return '🔄 重置牌 ' + e.count + '/' + e.need;
+      if (e.kind === 'reshuffle') return '🔀 牌面重新洗牌了!';
+      if (e.kind === 'rest') return '😴 翻到休息牌,休息 ' + e.sec + ' 秒';
+      if (e.kind === 'reward') return '🎁 獎勵牌!獲得 ' + (e.rewards || []).map((r) => r.name + '×' + r.amount).join('、') + (e.granted ? '' : '(發放中/失敗,請稍後確認)');
+      if (e.kind === 'kill') return '💥 BOSS「' + e.boss + '」被打倒了!獎勵結算中…';
+      if (e.kind === 'late') return e.message;
+      if (e.kind === 'miss') return '沒配對,蓋回去';
+      return '';
+    }
+    async function bsFlip_(idx) {
+      if (bsBusy_ || !bsTrack_) return;
+      bsBusy_ = true; bsFlash_ = {}; bsToast_ = '翻牌中…';
+      const rid = Math.random().toString(36).slice(2, 12);
+      bsRender_();
+      const d = await bsCall_('bossFlip', { trackId: bsTrackId_, idx: String(idx), rid });
+      if (!d || d.status !== 'success') {
+        bsBusy_ = false; bsToast_ = '⚠️ ' + ((d && d.message) || '連線失敗,請再試一次'); if (d && d.restLeft) bsRestUntil_ = Date.now() + d.restLeft * 1000; await bsRefresh_(false); return;
+      }
+      const evs = d.events || [], miss = evs.find((e) => e.kind === 'miss');
+      bsFlash_ = {}; bsFlash_[idx] = { label: d.face.label, cls: '' };
+      if (miss) { const f0 = bsTrack_.board.first; if (f0) bsFlash_[f0.idx] = { label: miss.faces[0].label, cls: 'bad' }; bsFlash_[idx].cls = 'bad'; }
+      if (d.pair) d.pair.forEach((i) => { bsFlash_[i] = { label: (i === idx ? d.face.label : (bsTrack_.board.first ? bsTrack_.board.first.face.label : d.face.label)), cls: 'hit' }; });
+      const texts = evs.map(bsEventText_).filter(Boolean); bsToast_ = texts.join(' ');
+      // 先把結果畫上去:新盤面 + 暫時翻開的牌
+      bsTrack_.board = d.board; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
+      bsRender_();
+      const stay = (miss || d.pair || evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind))) ? 1100 : 0;
+      setTimeout(async () => { bsFlash_ = {}; bsBusy_ = false; await bsRefresh_(false); if (evs.some((e) => e.kind === 'kill')) bsToast_ = bsToast_; }, stay || 50);
+    }
+    async function bsRefund_() {
+      if (!confirm('把遊戲錢包裡沒用完的翻牌券全部退回你的貨幣?')) return;
+      const d = await bsCall_('bossRefund');
+      if (d && d.status === 'success') { bsToast_ = d.refunded ? '已退回 ' + d.refunded + ' 張' : '錢包是空的'; if (bsTrackId_) await bsRefresh_(false); else await bsLoadLobby_(); }
+      else alert((d && d.message) || '退回失敗');
+    }
     async function checkContestAvailability_() {
       try { const d = await chamberCall_('contestStateWorker'); if (d && d.status === 'success' && (d.tracks || []).length) { contestAvailable = true; renderSidebar(); } } catch (e) {}
       if (ctPreviewFromUrl_) { // 從後台按「一般玩家畫面預覽」進來 → 等確認是管理員(儀表板載完)後直接打開

@@ -193,6 +193,9 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 .cr-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .cr-imgs img{max-height:150px;max-width:240px;border-radius:6px;border:1px solid var(--bd);cursor:zoom-in}
 .cr-rep{font-size:13px;margin-top:6px}
+#page-boss-cfg input:not([type=checkbox]),#page-boss-cfg select{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:7px 10px}
+#boss-json{width:100%;min-height:420px;font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--s2);color:var(--t);border:1px solid var(--bd);border-radius:var(--r);padding:10px;box-sizing:border-box;line-height:1.5}
+.bs-hpbar{height:14px;background:var(--s2);border-radius:7px;overflow:hidden}.bs-hpbar>i{display:block;height:100%;background:#ED4245}
 /* form sections */
 .fsep{grid-column:span 2;font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
 /* save/cancel btn */
@@ -338,7 +341,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.261</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.262</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -383,6 +386,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('challenge-cfg')">🎯 個人挑戰設定</div>
       <div class="nav-item" onclick="navTo('challenge-review')">🖼️ 挑戰回覆審查</div>
       <div class="nav-item" onclick="navTo('poke')">🎁 戳戳樂</div>
+      <div class="nav-item" onclick="navTo('boss-cfg')">🐲 翻翻樂打BOSS</div>
       <div class="nav-item" onclick="navTo('group-stats')">📊 團任/團戰統計</div>
     </div>
     <div class="main" id="main-content">
@@ -1426,6 +1430,32 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="ct-card" style="padding:14px 18px">
           <div style="font-weight:700;margin-bottom:8px">❌ 失敗懲罰(一行一種,目前只顯示文字,不扣東西;訊息顯示「無」)</div>
           <textarea id="cc-fail" rows="4" style="width:100%"></textarea>
+        </div>
+      </div>
+      <div id="page-boss-cfg" style="display:none">
+        <div class="page-header"><div class="page-title">🐲 翻翻樂打BOSS</div><div class="toolbar"><button class="btn btn-edit" onclick="bossLoad_()">🔄 重新讀取</button><button class="btn btn-primary" onclick="bossSave_()">💾 儲存設定</button></div></div>
+        <div class="hint" style="line-height:1.8;margin-bottom:12px">玩家在商店左邊選單會看到「🐲 翻翻樂打BOSS」(<b>啟用且有在期間內的賽道</b>才會出現)。每翻一張牌扣 1 張「翻牌券」(玩家的貨幣欄位,請先在貨幣設定新增這個貨幣,再用商店/道具/盲盒/調整貨幣發給玩家);BOSS 血量全體共用,被打倒會依序進化成下一型態。<b>擊倒獎勵會自動發放</b>(保底 / 排行 / 最後一擊),發放失敗的下方可「重新結算」,不會重複發。</div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">⚙️ 基本</div>
+          <label class="pk-chk"><input type="checkbox" id="boss-enabled"> 啟用翻翻樂</label>
+          <div class="pk-grid">
+            <div class="field"><label>翻牌券貨幣名稱</label><input id="boss-cur" placeholder="翻牌券"></div>
+            <div class="field"><label>錢包每次補幾張<span class="hint">翻牌時錢包空了,自動從貨幣餘額領這麼多(不夠就領剩下的)</span></label><input id="boss-pull" type="number" min="1" max="200"></div>
+          </div>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">🗺️ 賽道 / BOSS / 牌盤(JSON)<button class="btn btn-edit" style="margin-left:10px" onclick="bossSample_()">📋 貼入範例</button></div>
+          <div class="hint" style="line-height:1.8;margin-bottom:8px">
+            一條<b>賽道</b>有多個<b>型態(forms)</b>,BOSS 依序進化。<code>repeat</code>=玩家打完前一型態後還能不能繼續打下去(false=只能打他一開始加入的那一型態);<code>loopBack</code>+<code>maxLoops</code>=最後型態倒下後回到第一型態重來,最多幾輪。<br>
+            牌盤 <code>board</code>:<code>attack</code>=攻擊牌(<code>pairs</code> 幾對、<code>dmg</code> 傷害)、<code>reward</code>=獎勵牌(要翻到一對才領)、<code>trap</code>=陷阱(翻到直接回血 <code>heal</code>)、<code>reset</code>=重置牌(累計翻到 <code>need</code> 次才重洗)、<code>rest</code>=休息牌(休息 <code>sec</code> 秒)。總張數上限 64。<br>
+            數值寫法:<code>100</code> 固定、<code>1~100</code> 隨機整數、<code>0.1~5</code> 隨機小數、<code>3%</code> / <code>1~3%</code> = BOSS 最大血量的百分比。獎勵 <code>type</code> 是 <code>currency</code>(貨幣)或 <code>item</code>(通用道具模板名稱)。<br>
+            擊倒獎勵 <code>rewards</code>:<code>participation</code>=保底(依攻擊次數 <code>min</code>,取達標的最高一級)、<code>ranking</code>=排行(依實際扣血量,<code>from</code>~<code>to</code> 名)、<code>lastHit</code>=最後一擊。超過血量的傷害不計。
+          </div>
+          <textarea id="boss-json" spellcheck="false"></textarea>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">📊 目前狀態 <button class="btn btn-edit" style="margin-left:10px" onclick="bossStatus_()">🔄 更新</button></div>
+          <div id="boss-status" class="hint">(按「更新」查看各賽道 BOSS 血量、排行與擊倒結算)</div>
         </div>
       </div>
       <div id="page-poke" style="display:none">
@@ -3889,7 +3919,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-review','poke','group-stats'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-review','poke','boss-cfg','group-stats'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3925,6 +3955,7 @@ function navTo(p) {
   if (p==='challenge-cfg') loadChallengeCfg();
   if (p==='challenge-review') crInit_();
   if (p==='poke') loadPoke();
+  if (p==='boss-cfg') bossLoad_();
   if (p==='group-stats') loadGroupStats();
 }
 
@@ -4065,6 +4096,53 @@ async function crSubmit_(items, act) {
     }, 4000);
     crLoad_(false);
   } catch (e) { toast('送出失敗:' + (e && e.message || e), false); }
+}
+// ===== 🐲 翻翻樂打BOSS 後台 =====
+const BOSS_SAMPLE_ = "{\n \"tracks\": [\n  {\n   \"id\": \"t1\",\n   \"name\": \"史萊姆森林\",\n   \"start\": \"2026-11-15\",\n   \"end\": \"2026-11-30\",\n   \"repeat\": true,\n   \"loopBack\": false,\n   \"maxLoops\": 1,\n   \"forms\": [\n    {\n     \"name\": \"小史萊姆\",\n     \"img\": \"\",\n     \"hp\": 5000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 2,\n        \"dmg\": \"10~30\"\n       },\n       {\n        \"label\": \"💥2\",\n        \"pairs\": 1,\n        \"dmg\": \"1~2%\"\n       }\n      ],\n      \"reward\": [\n       {\n        \"label\": \"🎁1\",\n        \"pairs\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       }\n      ],\n      \"trap\": {\n       \"count\": 1,\n       \"heal\": \"20~50\"\n      },\n      \"reset\": {\n       \"count\": 1,\n       \"need\": 2\n      },\n      \"rest\": {\n       \"count\": 1,\n       \"sec\": \"10~20\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [\n       {\n        \"min\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       },\n       {\n        \"min\": 20,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 3\n         }\n        ]\n       }\n      ],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 10\n         }\n        ]\n       },\n       {\n        \"from\": 2,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 5\n         }\n        ]\n       }\n      ],\n      \"lastHit\": [\n       {\n        \"type\": \"currency\",\n        \"name\": \"幻彩水晶\",\n        \"amount\": 2\n       }\n      ]\n     }\n    },\n    {\n     \"name\": \"史萊姆王\",\n     \"img\": \"\",\n     \"hp\": 12000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 3,\n        \"dmg\": \"20~60\"\n       }\n      ],\n      \"reward\": [],\n      \"trap\": {\n       \"count\": 2,\n       \"heal\": \"1~3%\"\n      },\n      \"reset\": {\n       \"count\": 0,\n       \"need\": 1\n      },\n      \"rest\": {\n       \"count\": 0,\n       \"sec\": \"\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 20\n         }\n        ]\n       }\n      ],\n      \"lastHit\": []\n     }\n    }\n   ]\n  }\n ]\n}";
+function bossSample_() { if (document.getElementById('boss-json').value.trim() && !confirm('會覆蓋目前的賽道 JSON,確定?')) return; document.getElementById('boss-json').value = BOSS_SAMPLE_; }
+async function bossLoad_() {
+  try {
+    const d = await grCall_('adminBossCfgGet');
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    const c = d.cfg || {};
+    document.getElementById('boss-enabled').checked = !!c.enabled; document.getElementById('boss-cur').value = c.ticketCurrency || '翻牌券'; document.getElementById('boss-pull').value = c.pull || 20;
+    document.getElementById('boss-json').value = JSON.stringify({ tracks: c.tracks || [] }, null, 1);
+    bossStatus_();
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+}
+async function bossSave_() {
+  let obj; try { obj = JSON.parse(document.getElementById('boss-json').value || '{"tracks":[]}'); } catch (e) { toast('JSON 格式有誤:' + e.message, false); return; }
+  const cfg = { enabled: document.getElementById('boss-enabled').checked, ticketCurrency: document.getElementById('boss-cur').value.trim(), pull: document.getElementById('boss-pull').value, tracks: Array.isArray(obj) ? obj : (obj.tracks || []) };
+  try {
+    const d = await grCall_('adminBossCfgSave', { cfg });
+    if (d && d.status === 'success') { toast('已儲存'); await bossLoad_(); } else toast((d && d.message) || '儲存失敗', false);
+  } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
+}
+async function bossStatus_() {
+  const box = document.getElementById('boss-status'); box.textContent = '讀取中…';
+  try {
+    const d = await grCall_('adminBossStatus');
+    if (!d || d.status !== 'success') { box.textContent = (d && d.message) || '讀取失敗'; return; }
+    if (!d.tracks.length) { box.textContent = '還沒有設定賽道'; return; }
+    box.innerHTML = d.tracks.map((t) => {
+      const pct = Math.max(0, Math.min(100, t.hp / t.maxHp * 100));
+      return '<div style="margin-bottom:16px"><div style="font-size:15px;color:var(--t)"><b>' + grEsc_(t.name) + '</b>(' + grEsc_(t.id) + ') ・ ' + (t.status === 'ended' ? '已結束' : '進行中') + ' ・ 第 ' + t.loop + ' 輪 型態 ' + (t.formIdx + 1) + ':' + grEsc_(t.boss) + ' <button class="btn btn-danger" style="margin-left:8px" onclick="bossReset_(\'' + grEsc_(t.id) + '\')">🗑 重置賽道</button></div>' +
+        '<div class="bs-hpbar" style="margin:6px 0"><i style="width:' + pct + '%"></i></div><div>血量 ' + Math.ceil(t.hp) + ' / ' + t.maxHp + '</div>' +
+        '<div style="margin-top:6px"><b>傷害排行(前 20)</b>:' + (t.top.length ? t.top.map((x, i) => '#' + (i + 1) + ' ' + grEsc_(x.name) + ' ' + x.damage + '(' + x.attacks + ')').join(' ・ ') : '還沒有人出手') + '</div>' +
+        '<div style="margin-top:6px"><b>擊倒紀錄</b>:' + (t.kills.length ? t.kills.map((k) => '<div>• 輪' + k.loop + ' 「' + grEsc_(k.form || '') + '」 最後一擊:' + grEsc_(k.last || '') + ' ・ ' + new Date(k.ts).toLocaleString('zh-TW', { hour12: false, timeZone: 'Asia/Taipei' }) + ' ・ ' + (k.status === 'done' ? '✅ 已發放' + (k.log ? '(' + k.log.grants + ' 筆)' : '') : '⏳ 待發放/失敗 <button class="btn btn-edit" onclick="bossSettle_(\'' + grEsc_(t.id) + '\',' + k.loop + ',' + k.formIdx + ')">重新結算</button>' + (k.log && k.log.failed ? '(上次失敗 ' + k.log.failed + ' 筆)' : '')) + '</div>').join('') : '尚未擊倒') + '</div></div>';
+    }).join('');
+  } catch (e) { box.textContent = '讀取失敗:' + (e && e.message || e); }
+}
+async function bossSettle_(id, loop, formIdx) {
+  const d = await grCall_('adminBossSettle', { trackId: id, loop, formIdx });
+  toast(d && d.status === 'success' ? (d.skipped ? '這筆已經發放過了' : (d.ok ? '已發放(' + d.grants + ' 筆)' : '仍有 ' + d.failed + ' 筆失敗(玩家資料列/道具名稱?),稍後可再按')) : ((d && d.message) || '失敗'), !!(d && d.status === 'success' && (d.skipped || d.ok)));
+  bossStatus_();
+}
+async function bossReset_(id) {
+  if (!confirm('確定重置賽道「' + id + '」?BOSS 回到第一型態滿血,所有玩家的牌盤、傷害、動態、擊倒紀錄都會清掉(玩家錢包裡的翻牌券不動),無法復原。')) return;
+  const d = await grCall_('adminBossReset', { trackId: id });
+  toast(d && d.status === 'success' ? '已重置' : ((d && d.message) || '失敗'), !!(d && d.status === 'success'));
+  bossStatus_();
 }
 function crOne_(id, act) { if (confirm((act === 'success' ? '確定這筆挑戰「成功」並發放獎勵?' : '確定這筆挑戰「放棄」?'))) crSubmit_([id], act); }
 function crBatch_(act) {
