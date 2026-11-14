@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.244</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.245</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4031,6 +4031,11 @@ function pkRenderEdit_() {
       ${F('每人最多戳(次)', `<input type="number" min="0" value="${c.maxPerPlayer}" oninput="pkCur_.maxPerPlayer=parseInt(this.value)||0">`)}
       ${F('每人每天最多(次)', `<input type="number" min="0" value="${c.maxPerDay}" oninput="pkCur_.maxPerDay=parseInt(this.value)||0">`)}
       ${F('截止時間', `<input type="datetime-local" value="${e(c.endAt)}" oninput="pkCur_.endAt=this.value">`)}
+    </div>
+    <div class="pk-sec" style="margin-top:18px">💸 每戳一次的費用 <span class="hint">數量 0 = 免費;餘額不夠不能戳;戳失敗(例如格子被搶先)會自動退費</span></div>
+    <div class="pk-grid">
+      ${F('扣的貨幣', `<input list="dc-list" value="${e((c.cost || {}).currency || '')}" placeholder="例:幻彩水晶" oninput="pkCur_.cost=pkCur_.cost||{};pkCur_.cost.currency=this.value.trim()">`)}
+      ${F('每次扣多少', `<input type="number" min="0" step="any" value="${(c.cost || {}).amount || 0}" oninput="pkCur_.cost=pkCur_.cost||{};pkCur_.cost.amount=parseFloat(this.value)||0">`)}
     </div>
     <div id="pk-calc" class="pk-calc" style="margin-top:14px"></div>
     <div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-primary" onclick="pkSave_()">💾 儲存</button><button class="btn btn-edit" onclick="document.getElementById('pk-edit').style.display='none'">取消</button></div>`;
