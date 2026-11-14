@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.234</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.235</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3988,7 +3988,7 @@ function dcfgRender_() {
   const inp = (v, cls, attr, w) => '<input class="' + cls + '" ' + attr + ' value="' + dcfgEsc_(v) + '" style="width:' + (w || 150) + 'px;padding:6px 8px;background:var(--bg,#1E1F22);color:var(--t,#fff);border:1px solid var(--bd);border-radius:6px">';
   const newVarRows = (dcfgData_.newVars || []).map((v, i) => '<tr style="background:rgba(240,178,50,0.07)">' + td(inp(v.display, 'vn-d', 'data-i="' + i + '" placeholder="顯示名稱,例如 萬聖節糖果"')) + td(inp(v.internal, 'vn-i', 'data-i="' + i + '" placeholder="留空=同顯示名稱"', 130)) + td(sel(VM, v.mode, 'vn-m', 'data-i="' + i + '"')) + td(inp(v.category, 'vn-c', 'data-i="' + i + '"', 110)) + '</tr>').join('');
   document.getElementById('dcfg-vars').innerHTML = (dcfgData_.vars.length || newVarRows)
-    ? '<table style="border-collapse:collapse;width:100%">' + th(['顯示名稱', '內部欄位(不可改)', '模式', '分類']) + dcfgData_.vars.map((v) => '<tr>' + td(inp(v.display, 'dv-d', 'data-row="' + v.row + '"')) + td('<code style="color:var(--mu)">' + dcfgEsc_(v.internal) + '</code>') + td(sel(VM, v.mode, 'dv-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dv-c', 'data-row="' + v.row + '"', 110)) + '</tr>').join('') + newVarRows + '</table>'
+    ? '<table style="border-collapse:collapse;width:100%">' + th(['顯示名稱', '內部欄位(不可改)', '模式', '分類', '']) + dcfgData_.vars.map((v) => '<tr>' + td(inp(v.display, 'dv-d', 'data-row="' + v.row + '"')) + td('<code style="color:var(--mu)">' + dcfgEsc_(v.internal) + '</code>') + td(sel(VM, v.mode, 'dv-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dv-c', 'data-row="' + v.row + '"', 110)) + td('<button class="btn" style="color:#ED4245" onclick="dcfgDelVar(' + v.row + ',\'' + dcfgEsc_(v.internal).replace(/\\/g, '\\\\').replace(/'/g, '&#39;') + '\')">🗑 移除</button>') + '</tr>').join('') + newVarRows + '</table>'
     : '<div class="hint">「自訂變數」表裡還沒有任何貨幣。</div>';
   const noList = !dcfgData_.dcRoles.length;
   const chk = dcfgData_.rows.filter((r) => r.bag).length;
@@ -3998,6 +3998,16 @@ function dcfgRender_() {
     + (dcfgData_.newRoles || []).map((v, i) => '<tr style="background:rgba(240,178,50,0.07)">' + td('<span class="hint">新增</span>') + td('<input type="checkbox" class="dn-s" data-i="' + i + '"' + (v.show ? ' checked' : '') + ' style="width:18px;height:18px" title="主頁顯示">') + td(inp(v.name, 'dn-n', 'data-i="' + i + '"')) + td(inp(v.id, 'dn-i', 'data-i="' + i + '" placeholder="貼上身分組 ID"', 170)) + td(inp(v.category, 'dn-c', 'data-i="' + i + '"', 110)) + '</tr>').join('') + '</table>';
 }
 function dcfgBagChg_(el) { const i = el.dataset.i, sh = document.querySelector('#page-display-cfg .dr-s[data-i="' + i + '"]'); if (sh) { sh.disabled = !el.checked; if (!el.checked) sh.checked = false; else if (!sh.dataset.touched) sh.checked = true; } dcfgCount_(); }
+async function dcfgDelVar(row, internal) {
+  const v = dcfgData_.vars.find((x) => x.row === row); if (!v) return;
+  if (!confirm('移除貨幣「' + (v.display || internal) + '」?\n只會從這份清單拿掉(玩家主頁/背包不再列出);玩家資料表的欄位和餘額不會動,之後想恢復可用「➕ 新增貨幣」填同樣的內部欄位名。')) return;
+  let d = await dcfgCall_({ op: 'deleteVar', row, internal });
+  if (d && d.status === 'confirm') {
+    if (!confirm('⚠️ 還有 ' + d.nonZero + ' 位玩家的「' + d.display + '」餘額不是 0(合計 ' + d.total + ')。\n移除後他們看不到這個貨幣,但餘額仍保留在資料表。確定要移除?')) return;
+    d = await dcfgCall_({ op: 'deleteVar', row, internal, force: 1 });
+  }
+  if (d && d.status === 'success') { toast(d.message); await loadDisplayCfg(); } else toast('移除失敗:' + ((d && d.message) || '未知錯誤'), false);
+}
 function dcfgAddVar() { dcfgCollect_(); (dcfgData_.newVars = dcfgData_.newVars || []).push({ display: '', internal: '', mode: '', category: '' }); dcfgRender_(); }
 function dcfgCount_() { const n = document.querySelectorAll('#page-display-cfg .dr-b:checked').length, el = document.getElementById('dcfg-cnt'); if (el) el.textContent = '已勾選背包 ' + n + ' 個'; }
 function dcfgFilter_() { const q = (document.getElementById('dcfg-q').value || '').trim().toLowerCase(); document.querySelectorAll('#page-display-cfg .dcfg-r').forEach((tr) => { tr.style.display = !q || tr.dataset.q.indexOf(q) !== -1 ? '' : 'none'; }); }
