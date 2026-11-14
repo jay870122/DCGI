@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.246</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.247</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1353,15 +1353,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="field" style="margin-top:10px"><label>管理員身分組ID<span class="hint">可按「挑戰成功」,一行一個</span></label><textarea id="cc-admins" rows="3"></textarea></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div class="pk-sec">🍬 活動糖果盒 <span class="hint">挑戰成功額外給</span></div>
-          <label class="pk-chk"><input type="checkbox" id="cc-c-on"> 啟用</label>
-          <div class="pk-grid">
-            <div class="field"><label>貨幣名稱</label><input id="cc-c-cur"></div>
-            <div class="field"><label>開始日期</label><input type="date" id="cc-c-st"></div>
-            <div class="field"><label>結束日期(含當天)</label><input type="date" id="cc-c-en"></div>
-            <div class="field"><label>每次最少</label><input type="number" id="cc-c-min" min="0"></div>
-            <div class="field"><label>每次最多</label><input type="number" id="cc-c-max" min="0"></div>
-          </div>
+          <div class="pk-sec">🍬 活動貨幣 <span class="hint">挑戰成功額外給;可新增多組(例:萬聖節糖果盒、聖誕襪),不用的按 🗑 刪除</span></div>
+          <div id="cc-candies"></div>
+          <button class="btn btn-edit" style="margin-top:10px" onclick="ccCandyAdd_()">➕ 新增活動貨幣</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎲 隨機倍數機率(沒指定日期的日子)</div>
@@ -4091,6 +4085,21 @@ function ccCalc_() {
     if (el) el.textContent = isFinite(m) ? (muls[m] ? '保底 ' + m + ' 倍(仍可能更高)' : '固定 ' + m + ' 倍') : '';
   });
 }
+let ccCandies_ = [];
+function ccCandyRender_() {
+  const el = document.getElementById('cc-candies'); if (!el) return;
+  const e = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  el.innerHTML = ccCandies_.length ? ccCandies_.map((x, i) => `<div class="pk-card" style="margin-top:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><label class="pk-chk"><input type="checkbox" ${x.enabled ? 'checked' : ''} onchange="ccCandies_[${i}].enabled=this.checked"> 啟用</label><button class="btn btn-edit" onclick="ccCandies_.splice(${i},1);ccCandyRender_()">🗑 刪除</button></div>
+    <div class="pk-grid">
+      <div class="field"><label>貨幣名稱</label><input value="${e(x.currency)}" list="dc-list" oninput="ccCandies_[${i}].currency=this.value"></div>
+      <div class="field"><label>開始日期</label><input type="date" value="${e(x.start)}" oninput="ccCandies_[${i}].start=this.value"></div>
+      <div class="field"><label>結束日期(含當天)</label><input type="date" value="${e(x.end)}" oninput="ccCandies_[${i}].end=this.value"></div>
+      <div class="field"><label>每次最少</label><input type="number" min="0" value="${e(x.min)}" oninput="ccCandies_[${i}].min=this.value"></div>
+      <div class="field"><label>每次最多</label><input type="number" min="0" value="${e(x.max)}" oninput="ccCandies_[${i}].max=this.value"></div>
+    </div></div>`).join('') : '<div class="hint" style="margin-top:6px">目前沒有活動貨幣(挑戰成功只給水晶)</div>';
+}
+function ccCandyAdd_() { ccCandies_.push({ enabled: true, currency: '', start: '', end: '', min: 1, max: 1 }); ccCandyRender_(); }
 async function loadChallengeCfg() {
   try {
     const d = await grCall_('adminChallengeCfgGet');
@@ -4099,8 +4108,7 @@ async function loadChallengeCfg() {
     g('cc-enabled').checked = !!c.enabled; g('cc-relay').checked = !!c.relayEnabled; g('cc-time').value = c.announceTime || '22:00';
     g('cc-ch').value = c.channelId || ''; g('cc-ping').value = c.pingRoleId || ''; g('cc-bday').value = c.birthdayRoleId || '';
     g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
-    g('cc-c-on').checked = !!cd.enabled; g('cc-c-cur').value = cd.currency || ''; g('cc-c-st').value = cd.start || ''; g('cc-c-en').value = cd.end || '';
-    g('cc-c-min').value = cd.min; g('cc-c-max').value = cd.max;
+    ccCandies_ = JSON.parse(JSON.stringify(c.candies || (c.candy ? [c.candy] : []))); ccCandyRender_();
     ccTiers_ = (c.rollTiers || []).map((x) => { const q = x.split('/'); return { mul: q[0], pct: q[1] }; });
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
     ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
@@ -4111,7 +4119,7 @@ async function saveChallengeCfg() {
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
   const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
-    candy: { enabled: ck('cc-c-on'), currency: g('cc-c-cur'), start: g('cc-c-st'), end: g('cc-c-en'), min: g('cc-c-min'), max: g('cc-c-max') },
+    candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
