@@ -183,6 +183,16 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 #page-poke input:focus,#page-challenge-cfg input:focus,#page-challenge-cfg textarea:focus{outline:none;border-color:var(--gold)}
 #page-poke .field input,#page-challenge-cfg .field input,#page-challenge-cfg .field textarea{width:100%}
 #page-challenge-cfg textarea{width:100%}
+#page-challenge-review input:not([type=checkbox]),#page-challenge-review select{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:7px 10px}
+.cr-card{background:var(--s1,#2b2d31);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
+.cr-card.cr-done{opacity:.75}
+.cr-top{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.cr-main{flex:1;min-width:220px}
+.cr-badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:var(--s2);margin-left:6px}
+.cr-badge.open{background:#5865f2;color:#fff}.cr-badge.success{background:#2d7d46;color:#fff}.cr-badge.fail{background:#8a3b3b;color:#fff}
+.cr-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cr-imgs img{max-height:150px;max-width:240px;border-radius:6px;border:1px solid var(--bd);cursor:zoom-in}
+.cr-rep{font-size:13px;margin-top:6px}
 /* form sections */
 .fsep{grid-column:span 2;font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
 /* save/cancel btn */
@@ -328,7 +338,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.258</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.259</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -371,6 +381,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
       <div class="nav-item" onclick="navTo('challenge-cfg')">🎯 個人挑戰設定</div>
+      <div class="nav-item" onclick="navTo('challenge-review')">🖼️ 挑戰回覆審查</div>
       <div class="nav-item" onclick="navTo('poke')">🎁 戳戳樂</div>
       <div class="nav-item" onclick="navTo('group-stats')">📊 團任/團戰統計</div>
     </div>
@@ -1333,6 +1344,26 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           </div>
           <div id="gr-pv-out" style="margin-top:8px;line-height:1.8"></div>
         </div>
+      </div>
+      <div id="page-challenge-review" style="display:none">
+        <div class="page-header"><div class="page-title">🖼️ 挑戰回覆審查</div><div class="toolbar"><button class="btn btn-edit" onclick="crLoad_(true)">🔄 重新整理</button></div></div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">列出玩家開啟的個人挑戰與他們的回覆(機器人上線後才開始記錄)。圖片網址會在你開頁面時由機器人重新抓最新的(約 5~10 秒),Discord 的圖片網址過一陣子會失效。可勾選多筆後<b>批量成功/放棄</b>:機器人會幫你發獎勵並更新 Discord 上那則訊息(同一筆不會重複發)。<br>需要機器人 v1.1.65 以上。</div>
+        <div class="ct-card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label>日期 <input type="date" id="cr-date" onchange="crLoad_(true)"></label>
+          <label>狀態 <select id="cr-status" onchange="crLoad_(true)"><option value="">全部</option><option value="open">待審</option><option value="success">已成功</option><option value="fail">已放棄</option></select></label>
+          <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-onlyrep" onchange="crRender_()"> 只看有回覆</label>
+          <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-allopen" onchange="crLoad_(true)"> 所有日期的待審</label>
+          <span id="cr-sum" class="hint"></span>
+        </div>
+        <div class="ct-card" style="padding:10px 16px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-edit" onclick="crSelAll_(true)">☑️ 全選待審</button>
+          <button class="btn btn-edit" onclick="crSelAll_(false)">⬜ 取消全選</button>
+          <button class="btn btn-primary" onclick="crBatch_('success')">✅ 批量成功</button>
+          <button class="btn btn-danger" onclick="crBatch_('fail')">❌ 批量放棄</button>
+          <button class="btn btn-edit" onclick="crImgs_(true)">🖼️ 重新載入圖片</button>
+          <span id="cr-msg" class="hint"></span>
+        </div>
+        <div id="cr-list"></div>
       </div>
       <div id="page-challenge-cfg" style="display:none">
         <div class="page-header"><div class="page-title">🎯 個人挑戰/團任公告</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="cc-save-btn" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
@@ -3858,7 +3889,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','group-stats','challenge-cfg','poke'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-review','poke','group-stats'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3892,6 +3923,7 @@ function navTo(p) {
   if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
   if (p==='group-reward') loadGroupReward();
   if (p==='challenge-cfg') loadChallengeCfg();
+  if (p==='challenge-review') crInit_();
   if (p==='poke') loadPoke();
   if (p==='group-stats') loadGroupStats();
 }
@@ -3950,6 +3982,93 @@ function grCall_(action, body) {
   return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
 }
 function grEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// ===== 🖼️ 挑戰回覆審查 =====
+let crEvents_ = [], crImg_ = {}, crSel_ = {}, crWatch_ = null, crJobTimer_ = null;
+function crToday_() { return new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10); }
+function crInit_() { const d = document.getElementById('cr-date'); if (!d.value) d.value = crToday_(); crLoad_(true); }
+async function crLoad_(withImgs) {
+  const g = (i) => document.getElementById(i);
+  const date = g('cr-allopen').checked ? '*' : (g('cr-date').value || crToday_());
+  try {
+    const d = await grCall_('adminChallengeReviewList', { date, status: g('cr-status').value });
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    crEvents_ = d.events || [];
+    crRender_();
+    if (withImgs) crImgs_(false);
+    return d;
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+}
+function crRender_() {
+  const only = document.getElementById('cr-onlyrep').checked;
+  const list = crEvents_.filter((e) => !only || (e.replies || []).length);
+  const open = crEvents_.filter((e) => e.status === 'open').length, rep = crEvents_.filter((e) => (e.replies || []).length).length;
+  document.getElementById('cr-sum').textContent = '共 ' + crEvents_.length + ' 筆・待審 ' + open + '・有回覆 ' + rep;
+  const STL = { open: '待審', success: '已成功', fail: '已放棄' };
+  document.getElementById('cr-list').innerHTML = list.length ? list.map((e) => {
+    const can = e.status === 'open' && !e.busy;
+    const reps = (e.replies || []).map((r) => {
+      const imgs = crImg_[r.id];
+      const body = r.img ? (imgs === undefined ? '<span class="hint">圖片載入中…</span>' : (imgs === null ? '<span class="hint">⚠️ 這則回覆已被刪除</span>' : (imgs.length ? imgs.map((u) => '<a href="' + grEsc_(u) + '" target="_blank" rel="noopener"><img loading="lazy" src="' + grEsc_(u) + '"></a>').join('') : '<span class="hint">(讀不到圖片,點跳轉看)</span>'))) : '';
+      return '<div class="cr-rep">💬 ' + grEsc_(r.ts || '') + ' ' + (r.uid !== e.uid ? '<b>(' + grEsc_(r.name || r.uid) + ')</b> ' : '') + (r.img ? '🖼️' : '文字') + ' <a href="' + grEsc_(r.url || '#') + '" target="_blank" rel="noopener">跳轉</a>' + (body ? '<div class="cr-imgs">' + body + '</div>' : '') + '</div>';
+    }).join('') || '<div class="cr-rep hint">還沒有回覆</div>';
+    const rw = (e.pts > 0 ? e.pts + ' ' + grEsc_(e.rcur || '幻彩水晶') : '') + (e.bingos ? ' 活動貨幣×' + grEsc_(e.bingos) : '') + (e.blind ? ' 盲盒' : '');
+    return '<div class="cr-card' + (e.status === 'open' ? '' : ' cr-done') + '"><div class="cr-top">' +
+      (e.status === 'open' ? '<input type="checkbox" ' + (e.busy ? 'disabled ' : '') + 'class="cr-ck" data-id="' + e.id + '"' + (crSel_[e.id] ? ' checked' : '') + ' onchange="crSel_[this.dataset.id]=this.checked">' : '<span style="width:16px"></span>') +
+      '<div class="cr-main"><b>' + grEsc_(e.name || e.uid) + '</b> <span class="hint">' + grEsc_(e.uid) + '</span><span class="cr-badge ' + e.status + '">' + (e.busy ? '⏳處理中' : (STL[e.status] || e.status)) + '</span>' +
+      '<div class="hint">' + grEsc_((e.date || '') + ' ' + ((e.createdAt || '').slice(11, 16) ? '(開啟 ' + new Date(e.createdAt).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Taipei' }) + ')' : '')) + ' ・ 🔍 ' + grEsc_(e.puzzle || '') + '</div>' +
+      '<div class="hint">🎁 ' + (rw || '無額外獎勵') + (e.reviewer ? ' ・ 審核:' + grEsc_(e.reviewer) : '') + ' ・ <a href="' + grEsc_(e.url || '#') + '" target="_blank" rel="noopener">跳到挑戰訊息</a></div></div>' +
+      (can ? '<div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="crOne_(\'' + e.id + '\',\'success\')">✅ 成功</button><button class="btn btn-danger" onclick="crOne_(\'' + e.id + '\',\'fail\')">❌ 放棄</button></div>' : '') +
+      '</div>' + reps + '</div>';
+  }).join('') : '<div class="hint">這個條件下沒有資料(機器人更新到 v1.1.65 後,新開的挑戰才會出現在這裡)。</div>';
+}
+function crSelAll_(on) { crEvents_.forEach((e) => { if (e.status === 'open' && !e.busy) crSel_[e.id] = !!on; }); crRender_(); }
+async function crImgs_(force) {
+  const ids = []; crEvents_.forEach((e) => (e.replies || []).forEach((r) => { if (r.img && (force || crImg_[r.id] === undefined)) ids.push(r.id); }));
+  if (!ids.length) return;
+  if (force) ids.forEach((i) => { delete crImg_[i]; }); crRender_();
+  const m = document.getElementById('cr-msg'); m.textContent = '🖼️ 請機器人重新抓圖片網址…(約 5~10 秒)';
+  try {
+    const d = await grCall_('adminChallengeImages', { replyIds: ids.slice(0, 80) });
+    if (!d || d.status !== 'success' || !d.jobId) { m.textContent = (d && d.message) || '抓圖要求失敗'; return; }
+    if (crJobTimer_) clearInterval(crJobTimer_);
+    let tries = 0;
+    crJobTimer_ = setInterval(async () => {
+      tries++;
+      try {
+        const j = await grCall_('adminChallengeJobGet', { id: d.jobId });
+        if (j && j.state === 'done') {
+          clearInterval(crJobTimer_); crJobTimer_ = null; Object.assign(crImg_, j.result || {}); m.textContent = ''; crRender_();
+        } else if (j && j.state === 'error') { clearInterval(crJobTimer_); crJobTimer_ = null; m.textContent = '機器人抓圖失敗'; }
+      } catch (e) {}
+      if (tries > 20 && crJobTimer_) { clearInterval(crJobTimer_); crJobTimer_ = null; m.textContent = '⚠️ 機器人沒回應(請確認機器人在線且是 v1.1.65 以上),圖片可先用「跳轉」看'; }
+    }, 2500);
+  } catch (e) { m.textContent = '抓圖要求失敗:' + (e && e.message || e); }
+}
+async function crSubmit_(items, act) {
+  const m = document.getElementById('cr-msg');
+  try {
+    const d = await grCall_('adminChallengeReview', { items: items.map((id) => ({ msgId: id, action: act })) });
+    if (!d || d.status !== 'success') { toast((d && d.message) || '送出失敗', false); return; }
+    toast('已送出 ' + d.queued + ' 筆' + (d.skipped ? '(略過 ' + d.skipped + ' 筆:已處理/重複)' : '') + ',機器人處理中');
+    items.forEach((id) => { delete crSel_[id]; });
+    m.textContent = '⏳ 機器人處理中…完成後自動更新';
+    if (crWatch_) clearInterval(crWatch_);
+    let n = 0;
+    crWatch_ = setInterval(async () => {
+      n++;
+      const r = await crLoad_(false);
+      if ((r && r.pendingJobs === 0) || n > 40) { clearInterval(crWatch_); crWatch_ = null; m.textContent = r && r.pendingJobs === 0 ? '✅ 處理完成' : '處理較久,稍後再重新整理看結果'; }
+    }, 4000);
+    crLoad_(false);
+  } catch (e) { toast('送出失敗:' + (e && e.message || e), false); }
+}
+function crOne_(id, act) { if (confirm((act === 'success' ? '確定這筆挑戰「成功」並發放獎勵?' : '確定這筆挑戰「放棄」?'))) crSubmit_([id], act); }
+function crBatch_(act) {
+  const ids = Object.keys(crSel_).filter((k) => crSel_[k] && crEvents_.some((e) => e.id === k && e.status === 'open' && !e.busy));
+  if (!ids.length) { toast('請先勾選待審的挑戰', false); return; }
+  if (confirm('確定把勾選的 ' + ids.length + ' 筆挑戰全部標為「' + (act === 'success' ? '成功(會發獎勵)' : '放棄') + '」?')) crSubmit_(ids, act);
+}
 let pkBoards_ = [], pkCur_ = null, pkId_ = null;
 const PK_ST = { draft: '📝 草稿', pending: '⏳ 待貼出', live: '🟢 進行中', closing: '⏹ 關閉中', closed: '⚪ 已結束' };
 function pkCall_(body) { return grCall_('adminPokeOp', body); }
