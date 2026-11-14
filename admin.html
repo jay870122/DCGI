@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.231</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.232</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -353,6 +353,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('lock-settings')">🔒 密碼鎖定管理</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
+      <div class="nav-item" onclick="navTo('group-stats')">📊 團任/團戰統計</div>
     </div>
     <div class="main" id="main-content">
       <!-- 商品管理 -->
@@ -1312,6 +1313,24 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <span class="hint">← 上傳倍數</span>
           </div>
           <div id="gr-pv-out" style="margin-top:8px;line-height:1.8"></div>
+        </div>
+      </div>
+      <div id="page-group-stats" style="display:none">
+        <div class="page-header"><div class="page-title">📊 團任/團戰統計</div><div class="toolbar">
+          <input type="month" id="gs-month" onchange="loadGroupStats()">
+          <select id="gs-kind" onchange="loadGroupStats()"><option value="">全部事件</option></select>
+          <button class="btn btn-edit" onclick="loadGroupStats()">🔄 查詢</button>
+          <button class="btn btn-primary" onclick="gsExportCsv_()">⬇️ 匯出 CSV</button>
+        </div></div>
+        <div class="hint" style="margin-bottom:10px">統計來源是「團任發放紀錄」(新機器人面板發放的才有,Skript 時期的不在內)。依事件日期算月份;玩家人次=每位玩家每次算一次。</div>
+        <div id="gs-summary" class="ct-card" style="padding:14px 18px;margin-bottom:14px"></div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">👤 每位玩家(點表頭排序)</div>
+          <div style="overflow-x:auto"><table id="gs-players" style="width:100%"></table></div>
+        </div>
+        <div class="ct-card" style="padding:14px 18px">
+          <div style="font-weight:700;margin-bottom:8px">🧾 每次發放</div>
+          <div style="overflow-x:auto"><table id="gs-events" style="width:100%"></table></div>
         </div>
       </div>
       <div id="page-cur-exp" style="display:none"><div class="page-header"><div class="page-title">⏳ 貨幣有效期</div></div><div class="pg-host" data-modal="curexp-modal"></div></div>
@@ -3751,7 +3770,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward'];
+const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','group-stats'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -3784,11 +3803,57 @@ function navTo(p) {
   }
   if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
   if (p==='group-reward') loadGroupReward();
+  if (p==='group-stats') loadGroupStats();
 }
 
 // ── Toast ──
 // 🏷️ 身分組 / 貨幣顯示設定(讀寫「身分組對照表」「自訂變數」兩張表,走 Worker adminDisplaySettingsWorker;機器人定期把伺服器全部身分組寫進「DC身分組清單」)
 // 👥 團任/團戰獎勵設定(走 Worker adminGroupRewardGet / adminGroupRewardSave;機器人發放時依這份設定計算)
+// 📊 團任/團戰統計(Worker adminGroupTaskStats)
+let gsData_ = null, gsSort_ = 'total', gsDesc_ = true;
+async function loadGroupStats() {
+  const mEl = document.getElementById('gs-month'), kEl = document.getElementById('gs-kind');
+  if (!mEl.value) mEl.value = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 7);
+  document.getElementById('gs-summary').textContent = '讀取中…';
+  try {
+    const qs = new URLSearchParams({ action: 'adminGroupTaskStats', discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '', month: mEl.value, kind: kEl.value });
+    const d = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000).then((r) => r.json());
+    if (!d || d.status !== 'success') { document.getElementById('gs-summary').textContent = (d && d.message) || '讀取失敗'; return; }
+    gsData_ = d;
+    if (kEl.options.length <= 1 && d.kindList) { d.kindList.forEach((k) => { const o = document.createElement('option'); o.value = k; o.textContent = k; kEl.appendChild(o); }); kEl.value = d.kind || ''; }
+    gsRender_();
+  } catch (e) { document.getElementById('gs-summary').textContent = '讀取失敗:' + (e && e.message || e); }
+}
+function gsMd_(ds) { return ds.slice(5).replace('-', '/'); }
+function gsSortBy_(k) { if (gsSort_ === k) gsDesc_ = !gsDesc_; else { gsSort_ = k; gsDesc_ = true; } gsRender_(); }
+function gsRender_() {
+  const d = gsData_; if (!d) return;
+  const kinds = d.kindList && d.kindList.length ? d.kindList : Object.keys(d.byKind);
+  const totalTxt = Object.keys(d.totals).map((c) => `${grEsc_(c)} <b>+${d.totals[c]}</b>`).join('　') || '—';
+  const evCount = d.events.length;
+  document.getElementById('gs-summary').innerHTML = `<div><b>${grEsc_(d.month)}</b>　發放 <b>${evCount}</b> 次　涉及 <b>${d.players.length}</b> 位玩家${d.truncated ? '　<span style="color:#ED4245">⚠ 資料超過上限,已截斷</span>' : ''}</div>` +
+    `<div style="margin-top:6px">` + Object.keys(d.byKind).map((k) => `${grEsc_(k)}:${d.byKind[k].events} 次發放 / ${d.byKind[k].count} 人次`).join('　') + `</div>` +
+    `<div style="margin-top:6px">📊 總發出:${totalTxt}</div>`;
+  const keyOf = (p) => gsSort_ === 'name' ? (p.name || p.id) : gsSort_ === 'total' ? p.total : (p.kinds[gsSort_] ? p.kinds[gsSort_].count : 0);
+  const ps = d.players.slice().sort((a, b) => { const x = keyOf(a), y = keyOf(b); const r = typeof x === 'string' ? x.localeCompare(y) : x - y; return gsDesc_ ? -r : r; });
+  const cur = Object.keys(d.totals);
+  const th = (k, t) => `<th style="cursor:pointer" onclick="gsSortBy_('${k.replace(/'/g, '')}')">${grEsc_(t)}${gsSort_ === k ? (gsDesc_ ? ' ▼' : ' ▲') : ''}</th>`;
+  document.getElementById('gs-players').innerHTML = '<thead><tr>' + th('name', '玩家') + th('total', '總次數') + Object.keys(d.byKind).map((k) => th(k, k + '(次數/日期)')).join('') + '<th>總獲得</th></tr></thead><tbody>' +
+    (ps.map((p) => `<tr><td>${grEsc_(p.name || '(未知)')}<div class="hint">${grEsc_(p.id)}</div></td><td><b>${p.total}</b></td>` +
+      Object.keys(d.byKind).map((k) => { const x = p.kinds[k]; return `<td>${x ? x.count + ' 次<div class="hint">' + x.dates.slice().reverse().map(gsMd_).join('、') + '</div>' : '—'}</td>`; }).join('') +
+      `<td>${Object.keys(p.totals).map((c) => grEsc_(c) + ' +' + p.totals[c]).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="9">這個月份沒有紀錄</td></tr>') + '</tbody>';
+  document.getElementById('gs-events').innerHTML = '<thead><tr><th>日期</th><th>事件</th><th>人數</th><th>每人獲得</th><th>操作人</th></tr></thead><tbody>' +
+    (d.events.map((e) => `<tr><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>`).join('') || '<tr><td colspan="5">沒有紀錄</td></tr>') + '</tbody>';
+}
+function gsExportCsv_() {
+  const d = gsData_; if (!d || !d.players.length) { toast('沒有資料可匯出', false); return; }
+  const kinds = Object.keys(d.byKind), cur = Object.keys(d.totals);
+  const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const rows = [['玩家ID', '暱稱', '總次數'].concat(kinds.map((k) => k + '次數'), kinds.map((k) => k + '日期'), cur.map((c) => '獲得' + c))];
+  d.players.forEach((p) => rows.push([p.id, p.name, p.total].concat(kinds.map((k) => p.kinds[k] ? p.kinds[k].count : 0), kinds.map((k) => p.kinds[k] ? p.kinds[k].dates.slice().reverse().map(gsMd_).join(' ') : ''), cur.map((c) => p.totals[c] || 0))));
+  const blob = new Blob(['﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '團任團戰統計_' + d.month + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+}
 let grKinds_ = [], grPeriods_ = [];
 function grCall_(action, body) {
   const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
