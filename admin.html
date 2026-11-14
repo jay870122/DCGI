@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.243</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.244</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3987,7 +3987,7 @@ async function pkDetail_(id) {
 }
 function pkNew_() {
   pkId_ = null;
-  pkCur_ = { name: '', desc: '', rows: 5, cols: 5, channelId: '', announceChannelId: '', prizes: [{ name: '大獎', count: 1, emoji: '🏆', announce: true, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 10 }] }], blankName: '銘謝惠顧', cooldownSec: 0, maxPerPlayer: 0, maxPerDay: 0, endAt: '' };
+  pkCur_ = { name: '', desc: '', rows: 5, cols: 5, channelId: '', announceChannelId: '', prizes: [{ name: '大獎', count: 1, emoji: '🏆', announce: true, show: true, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 10 }] }], blankName: '銘謝惠顧', cooldownSec: 0, maxPerPlayer: 0, maxPerDay: 0, endAt: '' };
   pkRenderEdit_();
 }
 function pkEdit_(id) { const b = pkBoards_.find((x) => x.id === id); if (!b) return; pkId_ = id; pkCur_ = JSON.parse(JSON.stringify(b.cfg)); if (pkCur_.cooldownSec === undefined) pkCur_.cooldownSec = (parseInt(pkCur_.cooldownMin) || 0) * 60; pkCur_._st = b.status; pkRenderEdit_(); }
@@ -4015,6 +4015,7 @@ function pkRenderEdit_() {
         ${F('獎品名稱', `<input value="${e(p.name)}"${dis} oninput="pkCur_.prizes[${i}].name=this.value">`, ' style="flex:2 1 160px"')}
         ${F('數量', `<input type="number" min="1" value="${p.count}"${dis} oninput="pkCur_.prizes[${i}].count=parseInt(this.value)||1;pkCalc_()">`, ' style="flex:0 0 90px"')}
         <label class="pk-chk"><input type="checkbox" ${p.announce ? 'checked' : ''}${dis} onchange="pkCur_.prizes[${i}].announce=this.checked"> 頻道公告</label>
+        <label class="pk-chk"><input type="checkbox" ${p.show !== false ? 'checked' : ''}${dis} onchange="pkCur_.prizes[${i}].show=this.checked"> 顯示獎品<span class="hint">(未勾=神秘獎品)</span></label>
         ${locked ? '' : `<button class="btn btn-edit" onclick="pkCur_.prizes.splice(${i},1);pkRenderEdit_()">🗑</button>`}
       </div>
       ${p.rewards.map((r, k) => `<div class="pk-rw">
@@ -4022,7 +4023,7 @@ function pkRenderEdit_() {
         ${F('數量', `<input type="number" min="0" step="any" value="${r.amount}"${dis} oninput="pkCur_.prizes[${i}].rewards[${k}].amount=this.value">`)}
         ${locked ? '<span></span>' : `<button class="btn btn-edit" onclick="pkCur_.prizes[${i}].rewards.splice(${k},1);pkRenderEdit_()">✕</button>`}</div>`).join('')}
       ${locked ? '' : `<button class="btn btn-edit" style="margin-top:10px" onclick="pkCur_.prizes[${i}].rewards.push({type:'currency',name:'',amount:1});pkRenderEdit_()">➕ 加一項獎勵</button>`}</div>`).join('')}
-    ${locked ? '' : '<button class="btn btn-edit" onclick="pkCur_.prizes.push({name:\'\',count:1,emoji:\'🎁\',announce:false,rewards:[]});pkRenderEdit_()">➕ 新增獎品</button>'}
+    ${locked ? '' : '<button class="btn btn-edit" onclick="pkCur_.prizes.push({name:\'\',count:1,emoji:\'🎁\',announce:false,show:true,rewards:[]});pkRenderEdit_()">➕ 新增獎品</button>'}
     <div class="pk-grid" style="margin-top:12px">${F('未中獎的格子顯示', `<input value="${e(c.blankName)}"${dis} oninput="pkCur_.blankName=this.value">`)}</div>
     <div class="pk-sec" style="margin-top:18px">⏱ 限制 <span class="hint">0 = 不限</span></div>
     <div class="pk-grid">
