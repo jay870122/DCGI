@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.268</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.269</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4142,7 +4142,8 @@ function beFix_() {
 }
 function beMirror_() { const ta = document.getElementById('boss-json'); if (ta) ta.value = JSON.stringify({ tracks: BED_.tracks }, null, 1); }
 function beFormTotal_(f) { const b = f.board || {}; const n = (x) => parseInt(x, 10) || 0; return (b.attack || []).reduce((a, x) => a + n(x.pairs) * 2, 0) + (b.reward || []).reduce((a, x) => a + n(x.pairs) * 2, 0) + n(b.trap && b.trap.count) + n(b.reset && b.reset.count) + n(b.rest && b.rest.count); }
-function beTot_() { document.querySelectorAll('.be-tot').forEach((el) => { const r = beRef_(el.dataset.p); const f = r[0][r[1]]; const t = beFormTotal_(f); el.innerHTML = '牌盤總張數 <b style="color:' + (t > 64 ? '#f04747' : '#43b581') + '">' + t + '</b> / 64'; }); }
+function beFill_(fp) { const r = beRef_(fp); const f = r[0][r[1]], b = f.board, rows = parseInt(b.rows, 10) || 0, cols = parseInt(b.cols, 10) || 4; if (!rows) { toast('先填列數才能補滿', false); return; } const gap = rows * cols - beFormTotal_(f); if (gap < 0) { toast('牌已經多了 ' + (-gap) + ' 張,請手動減少', false); return; } if (gap === 0) { toast('剛好,不用補'); return; } if (gap % 2) { toast('還差 ' + gap + ' 張(單數),請加一張陷阱/重置/休息牌後再補滿', false); return; } if (!b.attack.length) b.attack.push({ label: '', pairs: 0, dmg: '10' }); b.attack[0].pairs = (parseInt(b.attack[0].pairs, 10) || 0) + gap / 2; beRender_(); toast('已把第一種攻擊牌加了 ' + gap / 2 + ' 對'); }
+function beTot_() { document.querySelectorAll('.be-tot').forEach((el) => { const r = beRef_(el.dataset.p); const f = r[0][r[1]]; const t = beFormTotal_(f); const rr = parseInt(f.board.rows, 10) || 0, cc = parseInt(f.board.cols, 10) || 4, sz = rr * cc; el.innerHTML = rr ? ('牌盤 ' + rr + '×' + cc + ' = ' + sz + ' 格,已設 <b style="color:' + (t === sz ? '#43b581' : '#f04747') + '">' + t + '</b> 張' + (t === sz ? ' ✓' : (t < sz ? ',還差 ' + (sz - t) : ',多了 ' + (t - sz)))) : ('牌盤總張數 <b style="color:' + (t > 64 ? '#f04747' : '#43b581') + '">' + t + '</b> / 64(約 ' + Math.ceil(t / cc) + ' 列 × ' + cc + ' 欄)'); }); }
 function beRw_(path, list) {
   let h = '<div class="be-rw">';
   (list || []).forEach((r, i) => {
@@ -4166,7 +4167,7 @@ function beRender_() {
       h += '<div class="be-row">名稱' + beIn_(fp + '.name', f.name, 120, 'BOSS名稱') + '血量' + beIn_(fp + '.hp', f.hp, 90, '5000', 'number') + '</div>';
       h += '<div class="be-row">圖片網址' + beIn_(fp + '.img', f.img, 260, '(選填)') + '</div>';
       h += '<div class="be-sub">🃏 牌盤 <span class="be-tot" data-p="' + fp + '"></span></div>';
-      h += '<div class="be-row">每排幾張' + beIn_(bp + '.cols', b.cols, 50, '4', 'number') + '</div>';
+      h += '<div class="be-row">牌盤大小:' + beIn_(bp + '.rows', b.rows || '', 46, '自動', 'number') + '列 ×' + beIn_(bp + '.cols', b.cols, 46, '4', 'number') + '欄<span class="hint">(列數留空=依牌數自動;填了就要剛好等於張數)</span><button class="btn btn-edit" onclick="beFill_(\'' + fp + '\')">自動補滿</button></div>';
       h += '<div class="be-sub">⚔️ 攻擊牌(幾對、傷害)</div>';
       b.attack.forEach((a, ai) => { const ap = bp + '.attack.' + ai; h += '<div class="be-row">' + beIn_(ap + '.label', a.label, 56, '圖示') + beIn_(ap + '.pairs', a.pairs, 46, '對', 'number') + '對 傷害' + beIn_(ap + '.dmg', a.dmg, 90, '10~30 / 2%') + '<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.attack\',' + ai + ')">✕</button></div>'; });
       h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.attack\',{label:\'\',pairs:1,dmg:\'10\'})">➕ 攻擊牌</button>';
