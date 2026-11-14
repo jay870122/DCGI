@@ -338,7 +338,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.260</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.261</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1353,7 +1353,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <label>狀態 <select id="cr-status"><option value="">全部</option><option value="open">待審</option><option value="success">已成功</option><option value="fail">已放棄</option></select></label>
           <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-onlyrep" onchange="crRender_()"> 只看有回覆</label>
           <label class="pk-chk" style="margin:0"><input type="checkbox" id="cr-allopen"> 所有日期的待審</label>
-          <button class="btn btn-primary" onclick="crLoad_(true)">🔍 查詢</button><span id="cr-sum" class="hint"></span>
+          <button class="btn btn-primary" id="cr-q-btn" onclick="crLoad_(true)">🔍 查詢</button><span id="cr-sum" class="hint"></span>
         </div>
         <div class="ct-card" style="padding:10px 16px;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-edit" onclick="crSelAll_(true)">☑️ 全選待審</button>
@@ -3990,14 +3990,17 @@ function crInit_() { const d = document.getElementById('cr-date'); if (!d.value)
 async function crLoad_(withImgs) {
   const g = (i) => document.getElementById(i);
   const date = g('cr-allopen').checked ? '*' : (g('cr-date').value || crToday_());
+  const qb = g('cr-q-btn'), msg = g('cr-msg');
+  if (withImgs) { qb.disabled = true; qb.textContent = '⏳ 查詢中…'; msg.textContent = '⏳ 查詢中,請稍候…'; if (!crEvents_.length) g('cr-list').innerHTML = '<div class="hint">⏳ 查詢中…</div>'; }
   try {
     const d = await grCall_('adminChallengeReviewList', { date, status: g('cr-status').value });
-    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); msg.textContent = '❌ 查詢失敗'; return; }
     crEvents_ = d.events || []; crQueried_ = true;
     crRender_();
-    if (withImgs) crImgs_(false);
+    if (withImgs) { msg.textContent = '✅ 查詢完成(' + crEvents_.length + ' 筆)'; crImgs_(false); }
     return d;
-  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); msg.textContent = '❌ 查詢失敗'; }
+  finally { if (withImgs) { qb.disabled = false; qb.textContent = '🔍 查詢'; } }
 }
 function crRender_() {
   const only = document.getElementById('cr-onlyrep').checked;
