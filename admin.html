@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.235</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.236</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1280,7 +1280,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="page-header"><div class="page-title">🏷️ 身分組 / 貨幣顯示設定</div><div class="toolbar"><button class="btn btn-edit" onclick="loadDisplayCfg()">🔄 重新讀取</button><button class="btn-save" id="dcfg-save" onclick="saveDisplayCfg()">💾 儲存</button></div></div>
         <div class="tbl-wrap" style="padding:20px 24px">
           <div class="page-title" style="font-size:15px">💠 自訂貨幣(玩家主頁上方的數字方塊)</div>
-          <div class="hint" style="margin:6px 0 10px;line-height:1.7">顯示名稱可以改;「內部欄位」是玩家資料的欄位名,不能改。要新增貨幣請按下方的「➕ 新增貨幣」(會自動在玩家資料表加一欄)。<br>模式:<b>一律顯示</b> / <b>數值為 0 時隱藏</b> / <b>隱藏(只在背包看得到)</b>。分類只影響背包裡的分組。</div>
+          <div class="hint" style="margin:6px 0 10px;line-height:1.7">顯示名稱可以改;「內部欄位」是玩家資料的欄位名,不能改。要新增貨幣請按下方的「➕ 新增貨幣」(會自動在玩家資料表加一欄)。<br>模式:<b>一律顯示</b> / <b>數值為 0 時隱藏</b> / <b>隱藏(只在背包看得到)</b> / <b>全部隱藏(主頁與背包都看不到,數值還在)</b>。要連數值一起清掉請按「🗑 刪除」。分類只影響背包裡的分組。</div>
           <div id="dcfg-vars" style="overflow-x:auto"></div>
           <div style="margin-top:12px"><button class="btn btn-edit" onclick="dcfgAddVar()">➕ 新增貨幣</button></div>
         </div>
@@ -3982,13 +3982,13 @@ async function loadDisplayCfg() {
 }
 function dcfgRender_() {
   const sel = (opts, cur, cls, attr) => '<select class="' + cls + '" ' + attr + '>' + opts.map(([v, l]) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
-  const VM = [['', '一律顯示'], ['HIDE_ZERO', '數值為 0 時隱藏'], ['HIDDEN', '隱藏(只在背包)']];
+  const VM = [['', '一律顯示'], ['HIDE_ZERO', '數值為 0 時隱藏'], ['HIDDEN', '隱藏(只在背包)'], ['OFF', '全部隱藏(主頁與背包都不顯示)']];
   const th = (a) => '<tr>' + a.map((x) => '<th style="text-align:left;padding:6px 8px;color:var(--mu);font-weight:600;white-space:nowrap">' + x + '</th>').join('') + '</tr>';
   const td = (x) => '<td style="padding:4px 6px">' + x + '</td>';
   const inp = (v, cls, attr, w) => '<input class="' + cls + '" ' + attr + ' value="' + dcfgEsc_(v) + '" style="width:' + (w || 150) + 'px;padding:6px 8px;background:var(--bg,#1E1F22);color:var(--t,#fff);border:1px solid var(--bd);border-radius:6px">';
   const newVarRows = (dcfgData_.newVars || []).map((v, i) => '<tr style="background:rgba(240,178,50,0.07)">' + td(inp(v.display, 'vn-d', 'data-i="' + i + '" placeholder="顯示名稱,例如 萬聖節糖果"')) + td(inp(v.internal, 'vn-i', 'data-i="' + i + '" placeholder="留空=同顯示名稱"', 130)) + td(sel(VM, v.mode, 'vn-m', 'data-i="' + i + '"')) + td(inp(v.category, 'vn-c', 'data-i="' + i + '"', 110)) + '</tr>').join('');
   document.getElementById('dcfg-vars').innerHTML = (dcfgData_.vars.length || newVarRows)
-    ? '<table style="border-collapse:collapse;width:100%">' + th(['顯示名稱', '內部欄位(不可改)', '模式', '分類', '']) + dcfgData_.vars.map((v) => '<tr>' + td(inp(v.display, 'dv-d', 'data-row="' + v.row + '"')) + td('<code style="color:var(--mu)">' + dcfgEsc_(v.internal) + '</code>') + td(sel(VM, v.mode, 'dv-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dv-c', 'data-row="' + v.row + '"', 110)) + td('<button class="btn" style="color:#ED4245" onclick="dcfgDelVar(' + v.row + ',\'' + dcfgEsc_(v.internal).replace(/\\/g, '\\\\').replace(/'/g, '&#39;') + '\')">🗑 移除</button>') + '</tr>').join('') + newVarRows + '</table>'
+    ? '<table style="border-collapse:collapse;width:100%">' + th(['顯示名稱', '內部欄位(不可改)', '模式', '分類', '']) + dcfgData_.vars.map((v) => '<tr>' + td(inp(v.display, 'dv-d', 'data-row="' + v.row + '"')) + td('<code style="color:var(--mu)">' + dcfgEsc_(v.internal) + '</code>') + td(sel(VM, v.mode, 'dv-m', 'data-row="' + v.row + '"')) + td(inp(v.category, 'dv-c', 'data-row="' + v.row + '"', 110)) + td('<button class="btn" style="color:#ED4245" onclick="dcfgDelVar(' + v.row + ',\'' + dcfgEsc_(v.internal).replace(/\\/g, '\\\\').replace(/'/g, '&#39;') + '\')">🗑 刪除</button>') + '</tr>').join('') + newVarRows + '</table>'
     : '<div class="hint">「自訂變數」表裡還沒有任何貨幣。</div>';
   const noList = !dcfgData_.dcRoles.length;
   const chk = dcfgData_.rows.filter((r) => r.bag).length;
@@ -4000,13 +4000,13 @@ function dcfgRender_() {
 function dcfgBagChg_(el) { const i = el.dataset.i, sh = document.querySelector('#page-display-cfg .dr-s[data-i="' + i + '"]'); if (sh) { sh.disabled = !el.checked; if (!el.checked) sh.checked = false; else if (!sh.dataset.touched) sh.checked = true; } dcfgCount_(); }
 async function dcfgDelVar(row, internal) {
   const v = dcfgData_.vars.find((x) => x.row === row); if (!v) return;
-  if (!confirm('移除貨幣「' + (v.display || internal) + '」?\n只會從這份清單拿掉(玩家主頁/背包不再列出);玩家資料表的欄位和餘額不會動,之後想恢復可用「➕ 新增貨幣」填同樣的內部欄位名。')) return;
+  if (!confirm('刪除貨幣「' + (v.display || internal) + '」?\n會從清單拿掉,並把所有玩家的這個貨幣數值全部清空,無法復原。')) return;
   let d = await dcfgCall_({ op: 'deleteVar', row, internal });
   if (d && d.status === 'confirm') {
-    if (!confirm('⚠️ 還有 ' + d.nonZero + ' 位玩家的「' + d.display + '」餘額不是 0(合計 ' + d.total + ')。\n移除後他們看不到這個貨幣,但餘額仍保留在資料表。確定要移除?')) return;
+    if (!confirm('⚠️ 有 ' + d.nonZero + ' 位玩家的「' + d.display + '」不是 0(合計 ' + d.total + '),刪除後這些數值全部消失、無法復原。\n真的要刪除?')) return;
     d = await dcfgCall_({ op: 'deleteVar', row, internal, force: 1 });
   }
-  if (d && d.status === 'success') { toast(d.message); await loadDisplayCfg(); } else toast('移除失敗:' + ((d && d.message) || '未知錯誤'), false);
+  if (d && d.status === 'success') { toast(d.message); await loadDisplayCfg(); } else toast('刪除失敗:' + ((d && d.message) || '未知錯誤'), false);
 }
 function dcfgAddVar() { dcfgCollect_(); (dcfgData_.newVars = dcfgData_.newVars || []).push({ display: '', internal: '', mode: '', category: '' }); dcfgRender_(); }
 function dcfgCount_() { const n = document.querySelectorAll('#page-display-cfg .dr-b:checked').length, el = document.getElementById('dcfg-cnt'); if (el) el.textContent = '已勾選背包 ' + n + ' 個'; }

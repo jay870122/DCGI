@@ -1033,7 +1033,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.274</div>
+    <div class="version-tag">系統版本：v5.4.275</div>
   </div>
 
   <script>
@@ -6536,11 +6536,12 @@
     // 🌟 背包物品(自訂變數)依照試算表「自訂變數」工作表D欄設定的分類分組顯示,留空的歸類到「一般物品」
     function renderBackpackItems() {
       const container = document.getElementById('backpack-list-container');
-      if (latestCustomVars.length === 0) {
+      const bagVars_ = latestCustomVars.filter(v => (v.mode || '').toString().trim().toUpperCase() !== 'OFF'); // OFF=全部隱藏
+      if (bagVars_.length === 0) {
         container.innerHTML = '<p style="text-align:center;color:#B9BBBE;">目前沒有任何背包物品</p>';
         return;
       }
-      const { groups, groupOrder } = groupByCategory_(latestCustomVars, '一般物品');
+      const { groups, groupOrder } = groupByCategory_(bagVars_, '一般物品');
       container.innerHTML = groupOrder.map(g => {
         const closed = bpIsCollapsed_('i:' + g);
         return `
@@ -7297,7 +7298,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
             const container = document.getElementById('score-box-container');
             data.customVars.forEach(v => {
               const mode = (v.mode || '').toString().trim().toUpperCase();
-              if (mode === 'HIDDEN') return; // 一律不在主列顯示,只有背包看得到
+              if (mode === 'HIDDEN' || mode === 'OFF') return; // HIDDEN=不在主列顯示(背包看得到);OFF=主頁與背包都不顯示
               if (mode === 'HIDE_ZERO' && (parseInt(v.value) || 0) === 0) return; // 數值0時不在主列顯示
               container.insertAdjacentHTML('beforeend', `<div class="score-item dynamic-score-item">💠 ${v.display}: <span class="dynamic-score-value">${v.value}</span></div>`);
             });
