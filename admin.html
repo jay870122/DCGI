@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.229</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.230</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3890,6 +3890,10 @@ async function grSave_() {
     kinds[nm] = { enabled: k.enabled, allowMultiplier: k.allowMultiplier, rewards: k.rewards.map((r) => { const o = { currency: (r.currency || '').trim(), amount: parseFloat(r.amount) }, mx = parseFloat(r.max); if (isFinite(mx) && mx > o.amount) o.max = mx; return o; }) };
   }
   const periods = grPeriods_.map((p) => ({ id: p.id, name: (p.name || '').trim(), enabled: p.enabled, start: p.start || '', end: p.end || '', kinds: p.kinds.filter((n) => names[n]), currency: (p.currency || '').trim(), mode: p.mode, value: parseFloat(p.value), valueMax: parseFloat(p.valueMax) }));
+  // 提醒:×倍數的期間,指定的貨幣必須在該事件的「基本獎勵」裡(×倍數要有基本值才能乘),否則發放時不會套用
+  const warn = [];
+  periods.forEach((p) => { if (p.mode !== 'mul' || !p.currency) return; (p.kinds.length ? p.kinds : Object.keys(kinds)).forEach((kn) => { const k = kinds[kn]; if (k && !k.rewards.some((r) => r.currency === p.currency)) warn.push('「' + (p.name || '期間') + '」×倍數的「' + p.currency + '」不在「' + kn + '」的基本獎勵裡'); }); });
+  if (warn.length && !confirm('⚠️ 以下設定不會產生獎勵(×倍數需要基本值,要發固定數量請改用 +X,或把該貨幣加進基本獎勵):\n\n' + warn.join('\n') + '\n\n仍要儲存嗎?')) return;
   const btn = document.getElementById('gr-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminGroupRewardSave', { cfg: { kinds, periods } });
