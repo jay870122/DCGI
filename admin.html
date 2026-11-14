@@ -194,6 +194,14 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 .cr-imgs img{max-height:150px;max-width:240px;border-radius:6px;border:1px solid var(--bd);cursor:zoom-in}
 .cr-rep{font-size:13px;margin-top:6px}
 #page-boss-cfg input:not([type=checkbox]),#page-boss-cfg select{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:7px 10px}
+.be-track{border:1px solid var(--bd,#3a3d45);border-radius:10px;padding:10px 12px;margin-bottom:12px;background:var(--s2)}
+.be-form{border:1px dashed var(--bd,#3a3d45);border-radius:8px;padding:8px 10px;margin:8px 0}
+.be-h{font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.be-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+.be-row input,.be-row select{padding:5px 7px;font-size:13px;background:var(--s1,#1e1f22);color:var(--t);border:1px solid var(--bd,#3a3d45);border-radius:6px}
+.be-sub{font-size:12px;color:#aaa;margin:8px 0 2px;font-weight:600}
+.be-rw{margin-left:12px;padding-left:8px;border-left:2px solid #444}
+.be-tot{font-size:12px}
 #boss-json{width:100%;min-height:420px;font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--s2);color:var(--t);border:1px solid var(--bd);border-radius:var(--r);padding:10px;box-sizing:border-box;line-height:1.5}
 .bs-hpbar{height:14px;background:var(--s2);border-radius:7px;overflow:hidden}.bs-hpbar>i{display:block;height:100%;background:#ED4245}
 /* form sections */
@@ -341,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.266</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.267</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1445,14 +1453,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           </div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div class="pk-sec">🗺️ 賽道 / BOSS / 牌盤(JSON)<button class="btn btn-edit" style="margin-left:10px" onclick="bossSample_()">📋 貼入範例</button></div>
-          <div class="hint" style="line-height:1.8;margin-bottom:8px">
+          <div class="pk-sec">🗺️ 賽道 / BOSS / 牌盤<button class="btn btn-edit" style="margin-left:10px" onclick="bossSample_()">📋 載入範例</button></div>
+          <div class="hint" style="line-height:1.7;margin-bottom:8px">直接在下面填。<b>傷害/回血/秒數</b>可寫:<code>100</code> 固定、<code>1~100</code> 隨機、<code>0.1~5</code> 隨機小數、<code>3%</code> 或 <code>1~3%</code> = BOSS 最大血量的百分比。填完按上面「💾 儲存設定」。</div>
+          <div id="boss-ed"></div>
+          <button class="btn btn-primary" style="margin-top:10px" onclick="beAddTrack_()">➕ 新增賽道</button>
+          <details style="margin-top:14px"><summary class="hint" style="cursor:pointer">🔧 進階:JSON(可複製備份 / 貼上還原)與規則說明</summary>
+            <div style="margin-top:8px"><div class="hint" style="line-height:1.8;margin-bottom:8px">
             一條<b>賽道</b>有多個<b>型態(forms)</b>,BOSS 依序進化。<code>repeat</code>=玩家打完前一型態後還能不能繼續打下去(false=只能打他一開始加入的那一型態);<code>loopBack</code>+<code>maxLoops</code>=最後型態倒下後回到第一型態重來,最多幾輪。<br>
             牌盤 <code>board</code>:<code>attack</code>=攻擊牌(<code>pairs</code> 幾對、<code>dmg</code> 傷害)、<code>reward</code>=獎勵牌(要翻到一對才領)、<code>trap</code>=陷阱(翻到直接回血 <code>heal</code>)、<code>reset</code>=重置牌(累計翻到 <code>need</code> 次才重洗)、<code>rest</code>=休息牌(休息 <code>sec</code> 秒)。總張數上限 64。<br>
             數值寫法:<code>100</code> 固定、<code>1~100</code> 隨機整數、<code>0.1~5</code> 隨機小數、<code>3%</code> / <code>1~3%</code> = BOSS 最大血量的百分比。獎勵 <code>type</code> 是 <code>currency</code>(貨幣)或 <code>item</code>(通用道具模板名稱)。<br>
             擊倒獎勵 <code>rewards</code>:<code>participation</code>=保底(依攻擊次數 <code>min</code>,取達標的最高一級)、<code>ranking</code>=排行(依實際扣血量,<code>from</code>~<code>to</code> 名)、<code>lastHit</code>=最後一擊。超過血量的傷害不計。
           </div>
           <textarea id="boss-json" spellcheck="false"></textarea>
+            <button class="btn btn-edit" style="margin-top:6px" onclick="bossApplyJson_()">⬆️ 把 JSON 套用到上面的編輯器</button></div>
+          </details>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">📊 目前狀態 <button class="btn btn-edit" style="margin-left:10px" onclick="bossStatus_()">🔄 更新</button></div>
@@ -4101,20 +4115,98 @@ async function crSubmit_(items, act) {
   } catch (e) { toast('送出失敗:' + (e && e.message || e), false); }
 }
 // ===== 🐲 翻翻樂打BOSS 後台 =====
+// ===== 翻翻樂視覺化編輯器 =====
+let BED_ = { tracks: [] };
+const BE_RW_ = { type: 'currency', name: '', amount: 1 };
+const BE_FORM_ = { name: '新BOSS', img: '', hp: 5000, board: { cols: 4, attack: [{ label: '', pairs: 2, dmg: '10~30' }], reward: [], trap: { count: 0, heal: '' }, reset: { count: 0, need: 2 }, rest: { count: 0, sec: '' } }, rewards: { participation: [{ min: 1, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 1 }] }], ranking: [], lastHit: [] } };
+const beEsc_ = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const beClone_ = (o) => JSON.parse(JSON.stringify(o));
+function beRef_(path) { const ks = path.split('.'); let o = BED_; for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; return [o, ks[ks.length - 1]]; }
+function beSet_(path, v) { const r = beRef_(path); r[0][r[1]] = v; beTot_(); beMirror_(); }
+function beAdd_(path, item) { const r = beRef_(path); if (!Array.isArray(r[0][r[1]])) r[0][r[1]] = []; r[0][r[1]].push(beClone_(item)); beRender_(); }
+function beDel_(path, i) { const r = beRef_(path); r[0][r[1]].splice(i, 1); beRender_(); }
+function beDup_(path, i) { const r = beRef_(path); r[0][r[1]].splice(i + 1, 0, beClone_(r[0][r[1]][i])); beRender_(); }
+function beIn_(path, val, w, ph, type) { return '<input ' + (type ? 'type="' + type + '" ' : '') + 'value="' + beEsc_(val) + '" placeholder="' + beEsc_(ph || '') + '" style="width:' + w + 'px" oninput="beSet_(\'' + path + '\',this.value)">'; }
+function beChk_(path, val, label) { return '<label class="pk-chk" style="margin:0"><input type="checkbox" ' + (val ? 'checked' : '') + ' onchange="beSet_(\'' + path + '\',this.checked)"> ' + label + '</label>'; }
+function beFix_() {
+  if (!Array.isArray(BED_.tracks)) BED_.tracks = [];
+  BED_.tracks.forEach((t) => {
+    if (!Array.isArray(t.forms)) t.forms = [];
+    t.forms.forEach((f) => {
+      f.board = f.board || {}; const b = f.board;
+      b.attack = b.attack || []; b.reward = b.reward || [];
+      b.trap = b.trap || { count: 0, heal: '' }; b.reset = b.reset || { count: 0, need: 1 }; b.rest = b.rest || { count: 0, sec: '' };
+      f.rewards = f.rewards || {}; f.rewards.participation = f.rewards.participation || []; f.rewards.ranking = f.rewards.ranking || []; f.rewards.lastHit = f.rewards.lastHit || [];
+    });
+  });
+}
+function beMirror_() { const ta = document.getElementById('boss-json'); if (ta) ta.value = JSON.stringify({ tracks: BED_.tracks }, null, 1); }
+function beFormTotal_(f) { const b = f.board || {}; const n = (x) => parseInt(x, 10) || 0; return (b.attack || []).reduce((a, x) => a + n(x.pairs) * 2, 0) + (b.reward || []).reduce((a, x) => a + n(x.pairs) * 2, 0) + n(b.trap && b.trap.count) + n(b.reset && b.reset.count) + n(b.rest && b.rest.count); }
+function beTot_() { document.querySelectorAll('.be-tot').forEach((el) => { const r = beRef_(el.dataset.p); const f = r[0][r[1]]; const t = beFormTotal_(f); el.innerHTML = '牌盤總張數 <b style="color:' + (t > 64 ? '#f04747' : '#43b581') + '">' + t + '</b> / 64'; }); }
+function beRw_(path, list) {
+  let h = '<div class="be-rw">';
+  (list || []).forEach((r, i) => {
+    const p = path + '.' + i;
+    h += '<div class="be-row"><select onchange="beSet_(\'' + p + '.type\',this.value)"><option value="currency"' + (r.type !== 'item' ? ' selected' : '') + '>貨幣</option><option value="item"' + (r.type === 'item' ? ' selected' : '') + '>道具</option></select>' + beIn_(p + '.name', r.name, 130, '名稱') + '×' + beIn_(p + '.amount', r.amount, 64, '數量') + '<button class="btn btn-edit" onclick="beDel_(\'' + path + '\',' + i + ')">✕</button></div>';
+  });
+  return h + '<button class="btn btn-edit" onclick="beAdd_(\'' + path + '\',BE_RW_)">➕ 獎勵</button></div>';
+}
+function beRender_() {
+  const el = document.getElementById('boss-ed'); if (!el) return;
+  let h = '';
+  BED_.tracks.forEach((t, ti) => {
+    const tp = 'tracks.' + ti;
+    h += '<div class="be-track"><div class="be-h">🗺️ 賽道 ' + (ti + 1) + '<button class="btn btn-edit" onclick="beDel_(\'tracks\',' + ti + ')">🗑 刪除賽道</button></div>';
+    h += '<div class="be-row">名稱' + beIn_(tp + '.name', t.name, 130, '賽道名稱') + ' ID' + beIn_(tp + '.id', t.id, 60, 't1') + '</div>';
+    h += '<div class="be-row">期間' + beIn_(tp + '.start', t.start, 135, '', 'date') + '~' + beIn_(tp + '.end', t.end, 135, '', 'date') + '</div>';
+    h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '</div>';
+    (t.forms || []).forEach((f, fi) => {
+      const fp = tp + '.forms.' + fi, b = f.board, bp = fp + '.board';
+      h += '<div class="be-form"><div class="be-h">👹 型態 ' + (fi + 1) + '(依序進化)<button class="btn btn-edit" onclick="beDup_(\'' + tp + '.forms\',' + fi + ')">📑 複製</button><button class="btn btn-edit" onclick="beDel_(\'' + tp + '.forms\',' + fi + ')">🗑</button></div>';
+      h += '<div class="be-row">名稱' + beIn_(fp + '.name', f.name, 120, 'BOSS名稱') + '血量' + beIn_(fp + '.hp', f.hp, 90, '5000', 'number') + '</div>';
+      h += '<div class="be-row">圖片網址' + beIn_(fp + '.img', f.img, 260, '(選填)') + '</div>';
+      h += '<div class="be-sub">🃏 牌盤 <span class="be-tot" data-p="' + fp + '"></span></div>';
+      h += '<div class="be-row">每排幾張' + beIn_(bp + '.cols', b.cols, 50, '4', 'number') + '</div>';
+      h += '<div class="be-sub">⚔️ 攻擊牌(幾對、傷害)</div>';
+      b.attack.forEach((a, ai) => { const ap = bp + '.attack.' + ai; h += '<div class="be-row">' + beIn_(ap + '.label', a.label, 56, '圖示') + beIn_(ap + '.pairs', a.pairs, 46, '對', 'number') + '對 傷害' + beIn_(ap + '.dmg', a.dmg, 90, '10~30 / 2%') + '<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.attack\',' + ai + ')">✕</button></div>'; });
+      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.attack\',{label:\'\',pairs:1,dmg:\'10\'})">➕ 攻擊牌</button>';
+      h += '<div class="be-sub">🎁 獎勵牌(翻到一對才領)</div>';
+      b.reward.forEach((r, ri) => { const rp = bp + '.reward.' + ri; h += '<div class="be-row">' + beIn_(rp + '.label', r.label, 56, '圖示') + beIn_(rp + '.pairs', r.pairs, 46, '對', 'number') + '對<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.reward\',' + ri + ')">✕</button></div>' + beRw_(rp + '.rewards', r.rewards); });
+      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.reward\',{label:\'\',pairs:1,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 獎勵牌</button>';
+      h += '<div class="be-sub">特殊牌</div>';
+      h += '<div class="be-row">💣 陷阱 ' + beIn_(bp + '.trap.count', b.trap.count, 46, '張', 'number') + '張 回血' + beIn_(bp + '.trap.heal', b.trap.heal, 80, '20~50') + '</div>';
+      h += '<div class="be-row">🔄 重置 ' + beIn_(bp + '.reset.count', b.reset.count, 46, '張', 'number') + '張 累計翻' + beIn_(bp + '.reset.need', b.reset.need, 46, '次', 'number') + '次才重洗</div>';
+      h += '<div class="be-row">😴 休息 ' + beIn_(bp + '.rest.count', b.rest.count, 46, '張', 'number') + '張 休息秒數' + beIn_(bp + '.rest.sec', b.rest.sec, 80, '10~20') + '</div>';
+      h += '<div class="be-sub">🏅 擊倒獎勵 — 保底(依攻擊次數,取達標最高一級)</div>';
+      f.rewards.participation.forEach((x, xi) => { const xp = fp + '.rewards.participation.' + xi; h += '<div class="be-row">攻擊滿' + beIn_(xp + '.min', x.min, 56, '次', 'number') + '次<button class="btn btn-edit" onclick="beDel_(\'' + fp + '.rewards.participation\',' + xi + ')">✕</button></div>' + beRw_(xp + '.rewards', x.rewards); });
+      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + fp + '.rewards.participation\',{min:1,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 保底級距</button>';
+      h += '<div class="be-sub">🏅 排行獎(依實際扣血量)</div>';
+      f.rewards.ranking.forEach((x, xi) => { const xp = fp + '.rewards.ranking.' + xi; h += '<div class="be-row">第' + beIn_(xp + '.from', x.from, 50, '1', 'number') + '~' + beIn_(xp + '.to', x.to, 50, '1', 'number') + '名<button class="btn btn-edit" onclick="beDel_(\'' + fp + '.rewards.ranking\',' + xi + ')">✕</button></div>' + beRw_(xp + '.rewards', x.rewards); });
+      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + fp + '.rewards.ranking\',{from:1,to:1,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 排行名次</button>';
+      h += '<div class="be-sub">🎯 最後一擊獎</div>' + beRw_(fp + '.rewards.lastHit', f.rewards.lastHit);
+      h += '</div>';
+    });
+    h += '<button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',BE_FORM_)">➕ 新增 BOSS 型態</button></div>';
+  });
+  if (!BED_.tracks.length) h = '<div class="hint">還沒有賽道,按下面「➕ 新增賽道」開始。</div>';
+  el.innerHTML = h; beTot_(); beMirror_();
+}
+function beAddTrack_() { BED_.tracks.push({ id: 't' + (BED_.tracks.length + 1), name: '新賽道', start: '', end: '', repeat: true, loopBack: false, maxLoops: 1, forms: [beClone_(BE_FORM_)] }); beRender_(); }
+function bossApplyJson_() { let o; try { o = JSON.parse(document.getElementById('boss-json').value || '{"tracks":[]}'); } catch (e) { toast('JSON 格式有誤:' + e.message, false); return; } BED_ = { tracks: Array.isArray(o) ? o : (o.tracks || []) }; beFix_(); beRender_(); toast('已套用到編輯器'); }
 const BOSS_SAMPLE_ = "{\n \"tracks\": [\n  {\n   \"id\": \"t1\",\n   \"name\": \"史萊姆森林\",\n   \"start\": \"2026-11-15\",\n   \"end\": \"2026-11-30\",\n   \"repeat\": true,\n   \"loopBack\": false,\n   \"maxLoops\": 1,\n   \"forms\": [\n    {\n     \"name\": \"小史萊姆\",\n     \"img\": \"\",\n     \"hp\": 5000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 2,\n        \"dmg\": \"10~30\"\n       },\n       {\n        \"label\": \"💥2\",\n        \"pairs\": 1,\n        \"dmg\": \"1~2%\"\n       }\n      ],\n      \"reward\": [\n       {\n        \"label\": \"🎁1\",\n        \"pairs\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       }\n      ],\n      \"trap\": {\n       \"count\": 1,\n       \"heal\": \"20~50\"\n      },\n      \"reset\": {\n       \"count\": 1,\n       \"need\": 2\n      },\n      \"rest\": {\n       \"count\": 1,\n       \"sec\": \"10~20\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [\n       {\n        \"min\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       },\n       {\n        \"min\": 20,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 3\n         }\n        ]\n       }\n      ],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 10\n         }\n        ]\n       },\n       {\n        \"from\": 2,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 5\n         }\n        ]\n       }\n      ],\n      \"lastHit\": [\n       {\n        \"type\": \"currency\",\n        \"name\": \"幻彩水晶\",\n        \"amount\": 2\n       }\n      ]\n     }\n    },\n    {\n     \"name\": \"史萊姆王\",\n     \"img\": \"\",\n     \"hp\": 12000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 3,\n        \"dmg\": \"20~60\"\n       }\n      ],\n      \"reward\": [],\n      \"trap\": {\n       \"count\": 2,\n       \"heal\": \"1~3%\"\n      },\n      \"reset\": {\n       \"count\": 0,\n       \"need\": 1\n      },\n      \"rest\": {\n       \"count\": 0,\n       \"sec\": \"\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 20\n         }\n        ]\n       }\n      ],\n      \"lastHit\": []\n     }\n    }\n   ]\n  }\n ]\n}";
-function bossSample_() { if (document.getElementById('boss-json').value.trim() && !confirm('會覆蓋目前的賽道 JSON,確定?')) return; document.getElementById('boss-json').value = BOSS_SAMPLE_; }
+function bossSample_() { if (BED_.tracks.length && !confirm('會覆蓋目前編輯中的賽道,確定?')) return; BED_ = JSON.parse(BOSS_SAMPLE_); beFix_(); beRender_(); }
 async function bossLoad_() {
   try {
     const d = await grCall_('adminBossCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const c = d.cfg || {};
     document.getElementById('boss-enabled').checked = !!c.enabled; document.getElementById('boss-test').checked = !!c.testMode; document.getElementById('boss-cur').value = c.ticketCurrency || '翻牌券'; document.getElementById('boss-pull').value = c.pull || 20;
-    document.getElementById('boss-json').value = JSON.stringify({ tracks: c.tracks || [] }, null, 1);
+    BED_ = { tracks: c.tracks || [] }; beFix_(); beRender_();
     bossStatus_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function bossSave_() {
-  let obj; try { obj = JSON.parse(document.getElementById('boss-json').value || '{"tracks":[]}'); } catch (e) { toast('JSON 格式有誤:' + e.message, false); return; }
+  const obj = { tracks: BED_.tracks };
   const cfg = { enabled: document.getElementById('boss-enabled').checked, testMode: document.getElementById('boss-test').checked, ticketCurrency: document.getElementById('boss-cur').value.trim(), pull: document.getElementById('boss-pull').value, tracks: Array.isArray(obj) ? obj : (obj.tracks || []) };
   try {
     const d = await grCall_('adminBossCfgSave', { cfg });
