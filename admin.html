@@ -311,7 +311,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.239</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.240</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1337,13 +1337,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎲 隨機倍數機率(沒指定日期的日子)</div>
-          <div class="hint">一行一種:倍數/機率%,最小 0.1%。例:20/0.1 = 20 倍機率 0.1%。沒中任何一行 = 1 倍。機率加起來不能超過 100%。每天只骰一次,當天固定。</div>
-          <textarea id="cc-tiers" rows="5" style="width:200px"></textarea>
+          <div class="hint">每天只骰一次、當天固定。沒中任何一列 = 1 倍。機率最小 0.1%、加起來不能超過 100%。</div>
+          <div id="cc-tiers-rows"></div>
+          <button class="btn btn-edit" style="margin-top:6px" onclick="ccTierAdd_()">➕ 新增倍數</button>
+          <div id="cc-tiers-calc" style="margin-top:8px;line-height:1.8"></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">📅 每日倍數(一行一天:年|月|日/倍數/節慶文字)</div>
-          <div class="hint">例:2026|11|15/2/週末加碼。倍數 2/3/5/20 代表「保底到這個倍數、仍可能骰到更高」;其他數字就固定。沒列的日子 = 照上面的隨機倍數機率。保底只對「隨機倍數表」裡有的倍數有效。</div>
-          <textarea id="cc-sched" rows="8" style="width:100%"></textarea>
+          <div style="font-weight:700;margin-bottom:8px">📅 指定日期的倍數(節慶/活動日)</div>
+          <div class="hint">倍數填隨機表裡有的數字(例 2、3、5、20)=「保底」,當天至少這個倍數、仍可能更高;填其他數字=當天固定。沒列的日子照上面的隨機機率。</div>
+          <div id="cc-sched-rows"></div>
+          <button class="btn btn-edit" style="margin-top:6px" onclick="ccSchedAdd_()">➕ 新增日期</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🔍 挑戰題目(一行一題)</div>
@@ -3905,6 +3908,40 @@ function grCall_(action, body) {
   return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
 }
 function grEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+let ccTiers_ = [], ccSched_ = [];
+function ccTierAdd_() { ccTiers_.push({ mul: '', pct: '' }); ccRender_(); }
+function ccSchedAdd_() { ccSched_.push({ date: '', mul: '', note: '' }); ccRender_(); }
+function ccRender_() {
+  const e = grEsc_;
+  document.getElementById('cc-tiers-rows').innerHTML = ccTiers_.map((t, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+    <input type="number" min="0" step="any" value="${e(t.mul)}" placeholder="倍數" style="width:80px" oninput="ccTiers_[${i}].mul=this.value;ccCalc_()"> 倍
+    <input type="number" min="0" max="100" step="0.1" value="${e(t.pct)}" placeholder="機率" style="width:80px" oninput="ccTiers_[${i}].pct=this.value;ccCalc_()"> %
+    <span class="hint" id="cc-t-${i}"></span>
+    <button class="btn btn-edit" onclick="ccTiers_.splice(${i},1);ccRender_()">🗑</button></div>`).join('') || '<div class="hint">(沒有隨機倍數,每天都是 1 倍)</div>';
+  document.getElementById('cc-sched-rows').innerHTML = ccSched_.map((r, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+    <input type="date" value="${e(r.date)}" onchange="ccSched_[${i}].date=this.value">
+    <input type="number" min="0" step="any" value="${e(r.mul)}" placeholder="倍數" style="width:80px" oninput="ccSched_[${i}].mul=this.value;ccCalc_()"> 倍
+    <input value="${e(r.note)}" placeholder="節慶文字(可空)" style="width:200px" oninput="ccSched_[${i}].note=this.value">
+    <span class="hint" id="cc-s-${i}"></span>
+    <button class="btn btn-edit" onclick="ccSched_.splice(${i},1);ccRender_()">🗑</button></div>`).join('') || '<div class="hint">(沒有指定日期)</div>';
+  ccCalc_();
+}
+function ccCalc_() {
+  let sum = 0, exp = 0; const muls = {};
+  ccTiers_.forEach((t, i) => {
+    const m = parseFloat(t.mul), p = parseFloat(t.pct), el = document.getElementById('cc-t-' + i);
+    if (isFinite(m) && isFinite(p) && p > 0) { sum += p; exp += m * p / 100; muls[m] = 1; if (el) el.textContent = '平均每 ' + (Math.round(100 / p * 10) / 10) + ' 天一次'; } else if (el) el.textContent = '';
+  });
+  const rest = Math.round((100 - sum) * 10) / 10, ok = sum <= 100.0001;
+  exp += Math.max(0, rest) / 100;
+  document.getElementById('cc-tiers-calc').innerHTML = ok
+    ? '🧮 1 倍機率 = <b>' + rest + '%</b>　|　每天平均倍數 ≈ <b>' + (Math.round(exp * 100) / 100) + '</b> 倍'
+    : '<span style="color:#ED4245">⚠️ 機率加起來 ' + (Math.round(sum * 10) / 10) + '% 超過 100%,無法儲存</span>';
+  ccSched_.forEach((r, i) => {
+    const m = parseFloat(r.mul), el = document.getElementById('cc-s-' + i);
+    if (el) el.textContent = isFinite(m) ? (muls[m] ? '保底 ' + m + ' 倍(仍可能更高)' : '固定 ' + m + ' 倍') : '';
+  });
+}
 async function loadChallengeCfg() {
   try {
     const d = await grCall_('adminChallengeCfgGet');
@@ -3915,7 +3952,9 @@ async function loadChallengeCfg() {
     g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
     g('cc-c-on').checked = !!cd.enabled; g('cc-c-cur').value = cd.currency || ''; g('cc-c-st').value = cd.start || ''; g('cc-c-en').value = cd.end || '';
     g('cc-c-min').value = cd.min; g('cc-c-max').value = cd.max;
-    g('cc-sched').value = (c.schedule || []).join('\n'); g('cc-tiers').value = (c.rollTiers || []).join('\n'); g('cc-puz').value = (c.puzzles || []).join('\n');
+    ccTiers_ = (c.rollTiers || []).map((x) => { const q = x.split('/'); return { mul: q[0], pct: q[1] }; });
+    ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
+    ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
     g('cc-rew').value = (c.rewards || []).join('\n'); g('cc-fail').value = (c.failures || []).join('\n');
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
@@ -3924,7 +3963,8 @@ async function saveChallengeCfg() {
   const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), adminRoleIds: g('cc-admins'),
     candy: { enabled: ck('cc-c-on'), currency: g('cc-c-cur'), start: g('cc-c-st'), end: g('cc-c-en'), min: g('cc-c-min'), max: g('cc-c-max') },
-    schedule: g('cc-sched'), rollTiers: g('cc-tiers'), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
+    schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
+    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), rewards: g('cc-rew'), failures: g('cc-fail') };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
