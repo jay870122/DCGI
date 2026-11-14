@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.253</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.254</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1383,6 +1383,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             🔢 <b>[倍數]</b>:變數名前面加 <code>[倍數]</code>(例:<code>[倍數]幻彩水晶,30%,2</code>),數量會自動乘上當天的挑戰倍數(2 倍日就是 4)。<br>支援:貨幣、<code>[道具:模板名稱]</code>、<code>[背包]</code>/<code>[背包:參數]</code>、<code>[非即時]</code>(只顯示、不入帳,由管理員另外處理)。<br>
             ⚠️ 不支援 [序號]/[身分組]/[留言]/[統計];「份」庫存在這裡不生效(只看機率);機率加起來不滿 100% 時剩下的機率=抽不到盲盒。
           </details>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🧪 測試功能 <span class="hint">貼一則測試公告到指定頻道,按鈕可以完整走一遍流程,但不會發任何獎勵、不佔今日名額</span></div>
+          <div class="pk-grid"><div class="field"><label>測試頻道ID</label><input id="cc-test-ch" placeholder="右鍵頻道 → 複製頻道ID"></div></div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="ccTest_()">📣 貼出測試公告</button><span class="hint">要先儲存設定(題目、盲盒等)再測;機器人約 10 秒內貼出</span></div>
         </div>
         <div class="ct-card" style="padding:14px 18px">
           <div style="font-weight:700;margin-bottom:8px">❌ 失敗懲罰(一行一種,目前只顯示文字,不扣東西;訊息顯示「無」)</div>
@@ -4090,6 +4095,15 @@ function ccCalc_() {
     if (el) el.textContent = isFinite(m) ? (muls[m] ? '保底 ' + m + ' 倍(仍可能更高)' : '固定 ' + m + ' 倍') : '';
   });
 }
+async function ccTest_() {
+  const el = document.getElementById('cc-test-ch'), ch = (el.value || '').trim();
+  if (!/^\d{15,22}$/.test(ch)) { toast('請先填測試頻道ID(15~22 位數字)', false); return; }
+  try { localStorage.setItem('cc_test_ch', ch); } catch (e) {}
+  try {
+    const d = await grCall_('adminChallengeTest', { channelId: ch });
+    if (d && d.status === 'success') toast('已送出,機器人約 10 秒內會貼出測試公告'); else toast((d && d.message) || '送出失敗', false);
+  } catch (e) { toast('送出失敗:' + (e && e.message || e), false); }
+}
 let ccRew_ = [];
 function ccRewRender_() {
   const el = document.getElementById('cc-rewards'); if (!el) return;
@@ -4138,7 +4152,7 @@ async function loadChallengeCfg() {
     ccTiers_ = (c.rollTiers || []).map((x) => { const q = x.split('/'); return { mul: q[0], pct: q[1] }; });
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
     ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
-    ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-blind').value = c.blindRewards || ''; renderGachaPreview('cc-blind', 'cc-blind-preview'); g('cc-fail').value = (c.failures || []).join('\n');
+    ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; renderGachaPreview('cc-blind', 'cc-blind-preview'); g('cc-fail').value = (c.failures || []).join('\n');
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function saveChallengeCfg() {
