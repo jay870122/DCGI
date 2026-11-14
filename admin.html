@@ -328,7 +328,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.242</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.243</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3987,10 +3987,10 @@ async function pkDetail_(id) {
 }
 function pkNew_() {
   pkId_ = null;
-  pkCur_ = { name: '', desc: '', rows: 5, cols: 5, channelId: '', announceChannelId: '', prizes: [{ name: '大獎', count: 1, emoji: '🏆', announce: true, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 10 }] }], blankName: '銘謝惠顧', cooldownMin: 0, maxPerPlayer: 0, maxPerDay: 0, endAt: '' };
+  pkCur_ = { name: '', desc: '', rows: 5, cols: 5, channelId: '', announceChannelId: '', prizes: [{ name: '大獎', count: 1, emoji: '🏆', announce: true, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 10 }] }], blankName: '銘謝惠顧', cooldownSec: 0, maxPerPlayer: 0, maxPerDay: 0, endAt: '' };
   pkRenderEdit_();
 }
-function pkEdit_(id) { const b = pkBoards_.find((x) => x.id === id); if (!b) return; pkId_ = id; pkCur_ = JSON.parse(JSON.stringify(b.cfg)); pkCur_._st = b.status; pkRenderEdit_(); }
+function pkEdit_(id) { const b = pkBoards_.find((x) => x.id === id); if (!b) return; pkId_ = id; pkCur_ = JSON.parse(JSON.stringify(b.cfg)); if (pkCur_.cooldownSec === undefined) pkCur_.cooldownSec = (parseInt(pkCur_.cooldownMin) || 0) * 60; pkCur_._st = b.status; pkRenderEdit_(); }
 function pkTypeOf_(name) { return (itemTemplates || []).some((t) => t.name === name) ? 'item' : 'currency'; }
 function pkBadge_(i, k) { const r = pkCur_.prizes[i].rewards[k]; return r.name ? (pkTypeOf_(r.name) === 'item' ? '🎒 道具' : '💰 貨幣') : ''; }
 function pkRenderEdit_() {
@@ -4026,7 +4026,7 @@ function pkRenderEdit_() {
     <div class="pk-grid" style="margin-top:12px">${F('未中獎的格子顯示', `<input value="${e(c.blankName)}"${dis} oninput="pkCur_.blankName=this.value">`)}</div>
     <div class="pk-sec" style="margin-top:18px">⏱ 限制 <span class="hint">0 = 不限</span></div>
     <div class="pk-grid">
-      ${F('每人冷卻(分鐘)', `<input type="number" min="0" value="${c.cooldownMin}" oninput="pkCur_.cooldownMin=parseInt(this.value)||0">`)}
+      ${F('每人冷卻(秒)', `<input type="number" min="0" value="${c.cooldownSec}" oninput="pkCur_.cooldownSec=parseInt(this.value)||0">`)}
       ${F('每人最多戳(次)', `<input type="number" min="0" value="${c.maxPerPlayer}" oninput="pkCur_.maxPerPlayer=parseInt(this.value)||0">`)}
       ${F('每人每天最多(次)', `<input type="number" min="0" value="${c.maxPerDay}" oninput="pkCur_.maxPerDay=parseInt(this.value)||0">`)}
       ${F('截止時間', `<input type="datetime-local" value="${e(c.endAt)}" oninput="pkCur_.endAt=this.value">`)}
