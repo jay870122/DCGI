@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.276</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.277</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1395,6 +1395,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           </div>
           <div class="field" style="margin-top:10px"><label>公告圖片網址(選填,貼在每日公告下面)</label><input id="cc-img" placeholder="https://...png"></div>
           <div class="field" style="margin-top:10px"><label>公告自訂文字/廣告(選填,會加在每日團任公告文字最後;可換行、可用 Discord 語法)</label><textarea id="cc-extra" rows="4" style="width:100%" placeholder="例如:📢 本週末限時活動…"></textarea></div>
+          <div class="field" style="margin-top:6px"><label>📅 限定日期的文字 <span class="hint">只在指定日期加到公告最後(可多組、一天或一段);跟上面的平常文字一起顯示</span></label><div id="cc-sets-announce"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('announceSets')">➕ 新增限定日期文字</button></div>
           <div class="field" style="margin-top:10px"><label>管理員身分組ID<span class="hint">可按「挑戰成功」,一行一個</span></label><textarea id="cc-admins" rows="3"></textarea></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
@@ -1417,7 +1418,10 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🔍 挑戰題目(一行一題)</div>
+          <div class="hint" style="margin-bottom:6px">上面這欄=平常的題目。下面可新增「限定日期」的題目組(一天或一段):那幾天只會從符合的限定組抽題(取代平常題目);沒符合的日子才用平常題目。</div>
           <textarea id="cc-puz" rows="10" style="width:100%"></textarea>
+          <div style="font-weight:700;margin:10px 0 4px">📅 限定日期的題目</div>
+          <div id="cc-sets-puzzleSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('puzzleSets')">➕ 新增限定日期題目</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎁 成功獎勵(盲盒) <span class="hint">玩家開啟挑戰時直接抽出 1 份並顯示,管理員按「挑戰成功」才發。留空=沿用舊的「幻彩水晶 ×當日倍數」</span></div>
@@ -1429,6 +1433,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             🔢 <b>{倍數}</b>:規則裡任何地方(顯示名稱或數量)都可以寫 <code>{倍數}</code>、<code>{倍數*2}</code>、<code>{倍數+1}</code>、<code>{倍數-1}</code>、<code>{倍數/2}</code>,會自動代入當天的挑戰倍數計算(小數四捨五入成整數)。例:<code>幻彩水晶X{倍數*1}={倍數*1}, 幻彩水晶:{倍數*1}, 100%</code>;2 倍日就會抽到「幻彩水晶X2=2」給 2 個。上面可選預覽用的倍數。舊的 <code>[倍數]變數名</code> 寫法仍可用。<br>支援:貨幣、<code>[道具:模板名稱]</code>、<code>[背包]</code>/<code>[背包:參數]</code>、<code>[非即時]</code>(只顯示、不入帳,由管理員另外處理)。<br>
             ⚠️ 不支援 [序號]/[身分組]/[留言]/[統計];「份」庫存在這裡不生效(只看機率);機率加起來不滿 100% 時剩下的機率=抽不到盲盒。
           </details>
+          <div style="font-weight:700;margin:12px 0 4px">📅 限定日期的獎勵 <span class="hint">一天或一段日期;那幾天抽獎只用符合的限定組(取代上面平常的盲盒規則);同一天符合多組會合併一起抽</span></div>
+          <div id="cc-sets-blindSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('blindSets')">➕ 新增限定日期獎勵</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🧪 測試功能 <span class="hint">貼一則測試公告到指定頻道,按鈕可以完整走一遍流程,但不會發任何獎勵、不佔今日名額</span></div>
@@ -4434,6 +4440,21 @@ function ccBlindPreview_() {
   const box = document.getElementById('cc-blind-preview'), ta = document.getElementById('cc-blind'), sel = document.getElementById('cc-blind-mul'); if (!box || !ta) return;
   renderGachaPreviewToBox_(box, ccBlindSubst_(ta.value, parseFloat(sel && sel.value) || 1));
 }
+let ccSets_ = { announceSets: [], puzzleSets: [], blindSets: [] };
+const CC_SET_PH_ = { announceSets: '例如:📢 本週末限時活動…', puzzleSets: '一行一題', blindSets: '幻彩水晶X{倍數*2}={倍數*2}, 幻彩水晶:{倍數*2}, 100%' };
+function ccSetRender_(kind) {
+  const el = document.getElementById('cc-sets-' + kind); if (!el) return;
+  const e = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const arr = ccSets_[kind];
+  el.innerHTML = arr.length ? arr.map((x, i) => `<div class="pk-card" style="margin-top:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div class="field"><label>開始日期</label><input type="date" value="${e(x.start)}" oninput="ccSets_['${kind}'][${i}].start=this.value"></div>
+      <div class="field"><label>結束日期(含,空=只有當天)</label><input type="date" value="${e(x.end)}" oninput="ccSets_['${kind}'][${i}].end=this.value"></div>
+      <button class="btn btn-edit" onclick="ccSets_['${kind}'].splice(${i},1);ccSetRender_('${kind}')">🗑 刪除</button>
+    </div>
+    <textarea rows="${kind === 'announceSets' ? 3 : 5}" style="width:100%;margin-top:6px" placeholder="${e(CC_SET_PH_[kind])}" oninput="ccSets_['${kind}'][${i}].text=this.value">${e(x.text)}</textarea></div>`).join('') : '<div class="hint" style="margin-top:6px">(沒有限定日期的組)</div>';
+}
+function ccSetAdd_(kind) { ccSets_[kind].push({ start: '', end: '', text: '' }); ccSetRender_(kind); }
 let ccRew_ = [];
 function ccRewRender_() {
   const el = document.getElementById('cc-rewards'); if (!el) return;
@@ -4483,6 +4504,7 @@ async function loadChallengeCfg() {
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
     ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
     ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
+    for (const k of ['announceSets', 'puzzleSets', 'blindSets']) { ccSets_[k] = JSON.parse(JSON.stringify(c[k] || [])).map((x) => ({ start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccSetRender_(k); }
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function saveChallengeCfg() {
@@ -4491,7 +4513,8 @@ async function saveChallengeCfg() {
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), announceImage: g('cc-img').trim(), announceExtra: g('cc-extra'), adminRoleIds: g('cc-admins'),
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
-    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail') };
+    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
