@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.280</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.281</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4340,7 +4340,7 @@ async function pkDetail_(id) {
     const d = await pkCall_({ op: 'detail', id });
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const t = d.cells.filter((c) => c.by);
-    box.innerHTML = '<div style="margin-top:8px;max-height:260px;overflow:auto;font-size:13px;line-height:1.7">' + (t.map((c) => `#${c.idx} ${grEsc_(c.prize)} ← ${c.by} <span class="hint">${(c.at || '').slice(5, 16).replace('T', ' ')}${c.granted || c.prize.startsWith('❌') ? '' : ' ⚠️未入帳'}</span>`).join('<br>') || '(還沒有人戳)') + '</div>';
+    box.innerHTML = '<div style="margin-top:8px;max-height:260px;overflow:auto;font-size:13px;line-height:1.7">' + (t.map((c) => `#${c.idx} ${grEsc_(c.prize)} ← <span title="${grEsc_(c.by)}">${grEsc_(c.name || c.by)}</span> <span class="hint">${(c.at || '').slice(5, 16).replace('T', ' ')}${c.granted || c.prize.startsWith('❌') ? '' : ' ⚠️未入帳'}</span>`).join('<br>') || '(還沒有人戳)') + '</div>';
   } catch (e) { toast('讀取失敗', false); }
 }
 function pkNew_() {
