@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.281</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.282</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4383,6 +4383,21 @@ function pkRenderEdit_() {
         ${locked ? '<span></span>' : `<button class="btn btn-edit" onclick="pkCur_.prizes[${i}].rewards.splice(${k},1);pkRenderEdit_()">✕</button>`}</div>`).join('')}
       ${locked ? '' : `<button class="btn btn-edit" style="margin-top:10px" onclick="pkCur_.prizes[${i}].rewards.push({type:'currency',name:'',amount:1});pkRenderEdit_()">➕ 加一項獎勵</button>`}</div>`).join('')}
     ${locked ? '' : '<button class="btn btn-edit" onclick="pkCur_.prizes.push({name:\'\',count:1,emoji:\'🎁\',announce:false,show:true,rewards:[]});pkRenderEdit_()">➕ 新增獎品</button>'}
+    <div class="pk-sec" style="margin-top:18px">🏁 最後賞 <span class="hint">戳到「最後一格」的人,除了那格本身的獎品,再額外拿這份${locked ? '(已發佈不能改)' : ''}</span></div>
+    <div class="pk-card">
+      <div class="pk-row2">
+        <label class="pk-chk"><input type="checkbox" ${c.lastPrize && c.lastPrize.enabled ? 'checked' : ''}${dis} onchange="pkLastToggle_(this.checked)"> 啟用最後賞</label>
+        ${c.lastPrize && c.lastPrize.enabled ? `
+        ${F('圖示', `<input value="${e(c.lastPrize.emoji)}" maxlength="4"${dis} oninput="pkCur_.lastPrize.emoji=this.value">`, ' style="flex:0 0 70px"')}
+        ${F('名稱', `<input value="${e(c.lastPrize.name)}"${dis} oninput="pkCur_.lastPrize.name=this.value">`, ' style="flex:2 1 160px"')}
+        <label class="pk-chk"><input type="checkbox" ${c.lastPrize.announce !== false ? 'checked' : ''}${dis} onchange="pkCur_.lastPrize.announce=this.checked"> 頻道公告</label>` : ''}
+      </div>
+      ${c.lastPrize && c.lastPrize.enabled ? c.lastPrize.rewards.map((r, k) => `<div class="pk-rw">
+        ${F(`獎勵名稱(貨幣或道具,自動判斷)<span class="pk-badge" id="pk-lb-${k}">${r.name ? (pkTypeOf_(r.name) === 'item' ? '🎒 道具' : '💰 貨幣') : ''}</span>`, `<input value="${e(r.name)}" list="pk-name-list" placeholder="例:幻彩水晶、道具名稱"${dis} oninput="pkCur_.lastPrize.rewards[${k}].name=this.value;document.getElementById('pk-lb-${k}').textContent=this.value?(pkTypeOf_(this.value)==='item'?'🎒 道具':'💰 貨幣'):''">`)}
+        ${F('數量(要大於 0)', `<input type="number" step="any" min="0" value="${r.amount}"${dis} oninput="pkCur_.lastPrize.rewards[${k}].amount=this.value">`)}
+        ${locked ? '<span></span>' : `<button class="btn btn-edit" onclick="pkCur_.lastPrize.rewards.splice(${k},1);pkRenderEdit_()">✕</button>`}</div>`).join('')
+        + (locked ? '' : `<button class="btn btn-edit" style="margin-top:10px" onclick="pkCur_.lastPrize.rewards.push({type:'currency',name:'',amount:1});pkRenderEdit_()">➕ 加一項獎勵</button>`) : ''}
+    </div>
     <div class="pk-grid" style="margin-top:12px">${F('未中獎的格子顯示', `<input value="${e(c.blankName)}"${dis} oninput="pkCur_.blankName=this.value">`)}</div>
     <div class="pk-sec" style="margin-top:18px">⏱ 限制 <span class="hint">0 = 不限</span></div>
     <div class="pk-grid">
@@ -4400,6 +4415,11 @@ function pkRenderEdit_() {
     <div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-primary" onclick="pkSave_()">💾 儲存</button><button class="btn btn-edit" onclick="document.getElementById('pk-edit').style.display='none'">取消</button></div>`;
   pkCalc_();
 }
+function pkLastToggle_(on) {
+  if (on) { pkCur_.lastPrize = Object.assign({ name: '最後賞', emoji: '🏁', announce: true, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 1 }] }, pkCur_.lastPrize || {}); pkCur_.lastPrize.enabled = true; }
+  else if (pkCur_.lastPrize) pkCur_.lastPrize.enabled = false;
+  pkRenderEdit_();
+}
 function pkCalc_() {
   const c = pkCur_, el = document.getElementById('pk-calc'); if (!el) return;
   const cells = (c.rows || 0) * (c.cols || 0), total = c.prizes.reduce((a, p) => a + (parseInt(p.count) || 0), 0), blank = cells - total;
@@ -4411,6 +4431,7 @@ function e_(t) { return grEsc_(t || ''); }
 async function pkSave_() {
   const c = JSON.parse(JSON.stringify(pkCur_)); delete c._st;
   c.prizes.forEach((p) => p.rewards.forEach((r) => { r.type = pkTypeOf_(r.name); }));
+  if (c.lastPrize && c.lastPrize.enabled) c.lastPrize.rewards.forEach((r) => { r.type = pkTypeOf_(r.name); });
   try {
     const d = await pkCall_({ op: 'save', id: pkId_, cfg: c });
     if (d && d.status === 'success') { toast(d.note || '已儲存'); document.getElementById('pk-edit').style.display = 'none'; loadPoke(); } else toast((d && d.message) || '儲存失敗', false);
