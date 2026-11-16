@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.282</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.283</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4390,7 +4390,9 @@ function pkRenderEdit_() {
         ${c.lastPrize && c.lastPrize.enabled ? `
         ${F('圖示', `<input value="${e(c.lastPrize.emoji)}" maxlength="4"${dis} oninput="pkCur_.lastPrize.emoji=this.value">`, ' style="flex:0 0 70px"')}
         ${F('名稱', `<input value="${e(c.lastPrize.name)}"${dis} oninput="pkCur_.lastPrize.name=this.value">`, ' style="flex:2 1 160px"')}
-        <label class="pk-chk"><input type="checkbox" ${c.lastPrize.announce !== false ? 'checked' : ''}${dis} onchange="pkCur_.lastPrize.announce=this.checked"> 頻道公告</label>` : ''}
+        <label class="pk-chk"><input type="checkbox" ${c.lastPrize.announce !== false ? 'checked' : ''}${dis} onchange="pkCur_.lastPrize.announce=this.checked"> 頻道公告</label>
+        <label class="pk-chk"><input type="checkbox" ${c.lastPrize.show !== false ? 'checked' : ''}${dis} onchange="pkCur_.lastPrize.show=this.checked"> 顯示獎品<span class="hint">(未勾=神秘獎品)</span></label>
+        <label class="pk-chk"><input type="checkbox" ${c.lastPrize.showWinners ? 'checked' : ''} onchange="pkCur_.lastPrize.showWinners=this.checked"> 🏆 最上面列出得獎者<span class="hint">(已發佈也能改)</span></label>` : ''}
       </div>
       ${c.lastPrize && c.lastPrize.enabled ? c.lastPrize.rewards.map((r, k) => `<div class="pk-rw">
         ${F(`獎勵名稱(貨幣或道具,自動判斷)<span class="pk-badge" id="pk-lb-${k}">${r.name ? (pkTypeOf_(r.name) === 'item' ? '🎒 道具' : '💰 貨幣') : ''}</span>`, `<input value="${e(r.name)}" list="pk-name-list" placeholder="例:幻彩水晶、道具名稱"${dis} oninput="pkCur_.lastPrize.rewards[${k}].name=this.value;document.getElementById('pk-lb-${k}').textContent=this.value?(pkTypeOf_(this.value)==='item'?'🎒 道具':'💰 貨幣'):''">`)}
