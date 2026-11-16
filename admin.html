@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.277</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.278</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1187,6 +1187,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <button class="fab" onclick="openItemTemplateForm()">➕ 新增道具模板</button>
           </div>
         </div>
+        <div id="it-batchbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+          <span class="hint">已勾選 <b id="it-sel-count">0</b> 個</span>
+          <button class="btn btn-edit" onclick="itBatchEdit_()">✏️ 批次編輯</button>
+          <button class="btn btn-edit" id="it-arch-btn" onclick="itBatchArchive_()">📦 封存</button>
+          <button class="btn btn-del" onclick="itBatchDelete_()">🗑️ 批次刪除</button>
+          <label style="cursor:pointer;margin-left:auto"><input type="checkbox" id="it-show-arch" style="width:auto" onchange="itShowArch_=this.checked;itSel_.clear();renderItemTemplates()"> 顯示封存區(<span id="it-arch-n">0</span>)</label>
+        </div>
         <p class="hint" style="margin-bottom:12px">
           道具模板是「內容比照盲盒」的萬用道具:玩家取得的當下不知道裡面是什麼,要自己選擇打開才會像開盲盒一樣重新抽一次內容。
           可以在商品/里程碑/抽獎/拍賣安慰獎/BINGO連線與整卡獎勵的盲盒規則裡,用 <code>[道具:模板名稱]顯示名稱</code> 這個標籤來發放這個模板做出來的道具。
@@ -1194,8 +1201,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </p>
         <div class="tbl-wrap tbl-wrap-table">
           <table>
-            <thead><tr><th>模板名稱</th><th>內容獎池</th><th>使用次數上限</th><th>過期規則</th><th>操作</th></tr></thead>
-            <tbody id="item-template-tbody"><tr><td colspan="5" class="empty">讀取中...</td></tr></tbody>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="it-all" style="width:auto" onchange="itSelAll_(this.checked)"></th><th>模板名稱</th><th>內容獎池</th><th>使用次數上限</th><th>過期規則</th><th>操作</th></tr></thead>
+            <tbody id="item-template-tbody"><tr><td colspan="6" class="empty">讀取中...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2705,6 +2712,28 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="field full" style="text-align:right">
         <button class="btn btn-cancel" onclick="closeModal('grant-general-item-modal')">取消</button>
         <button class="btn btn-edit" onclick="submitGrantGeneralItem()">🎁 發放</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="it-batch-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h3>✏️ 批次編輯道具模板</h3><button class="modal-close" onclick="closeModal('it-batch-modal')">×</button></div>
+    <div class="modal-body">
+      <p class="hint">要修改 <b id="itb-count">0</b> 個模板。每個欄位預設「不變」,只有改了的才會套用(內容獎池不動)。</p>
+      <div class="field"><label>使用次數上限 <span class="hint">留空=不變</span></label><input id="itb-maxuses" type="number" min="1" placeholder="不變"></div>
+      <div class="field"><label>單次最多開啟數量 <span class="hint">留空=不變</span></label><input id="itb-maxopen" type="number" min="1" placeholder="不變"></div>
+      <div class="field"><label>過期規則</label><select id="itb-expmode" onchange="document.getElementById('itb-expval-box').style.display=(this.value==='HOURS'||this.value==='MINUTES'||this.value==='ABSOLUTE')?'':'none';document.getElementById('itb-expval').type=this.value==='ABSOLUTE'?'datetime-local':'number'"><option value="">不變</option><option value="NEVER">永不過期</option><option value="HOURS">取得後 N 小時過期</option><option value="MINUTES">取得後 N 分鐘過期</option><option value="ABSOLUTE">指定時間過期</option></select></div>
+      <div class="field" id="itb-expval-box" style="display:none"><label>過期數值/時間</label><input id="itb-expval" type="number"></div>
+      <div class="field"><label>可交易</label><select id="itb-tradable"><option value="">不變</option><option value="1">開放</option><option value="0">關閉</option></select></div>
+      <div class="field"><label>禁止丟棄</label><select id="itb-nodiscard"><option value="">不變</option><option value="1">禁止丟棄</option><option value="0">允許丟棄</option></select></div>
+      <div class="field"><label>過期自動開啟</label><select id="itb-autoopen"><option value="">不變</option><option value="1">是</option><option value="0">否</option></select></div>
+      <div class="field full"><label>備註 <span class="hint">勾選才修改(可留空=清除備註)</span></label><div style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="itb-remark-on" style="width:auto"><input id="itb-remark" style="flex:1" placeholder="玩家背包看得到的說明"></div></div>
+      <div class="field full" id="itb-progress" style="display:none"></div>
+      <div class="field full" style="text-align:right">
+        <button class="btn btn-cancel" onclick="closeModal('it-batch-modal')">取消</button>
+        <button class="btn btn-edit" id="itb-go" onclick="itBatchEditGo_()">💾 套用</button>
       </div>
     </div>
   </div>
@@ -9547,12 +9576,89 @@ async function loadItemTemplates() {
   const d = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' });
   if (d.status !== 'success') { toast('載入失敗: ' + d.message, false); return; }
   itemTemplates = d.templates || [];
+  try { const a = await grCall_('adminItemTplArchiveGet'); itArch_ = new Set((a && a.status === 'success' ? a.archived : []) || []); } catch (e) { itArch_ = new Set(); }
+  itSel_.clear();
   renderItemTemplates();
+}
+let itSel_ = new Set(), itArch_ = new Set(), itShowArch_ = false;
+function itVisible_() { return itemTemplates.filter((t) => itShowArch_ ? itArch_.has(t.name) : !itArch_.has(t.name)); }
+function itSelUpdate_() {
+  const c = document.getElementById('it-sel-count'); if (c) c.textContent = itSel_.size;
+  const n = document.getElementById('it-arch-n'); if (n) n.textContent = itemTemplates.filter((t) => itArch_.has(t.name)).length;
+  const b = document.getElementById('it-arch-btn'); if (b) b.textContent = itShowArch_ ? '📤 還原(取消封存)' : '📦 封存';
+  const all = document.getElementById('it-all'); if (all) { const v = itVisible_(); all.checked = v.length > 0 && v.every((t) => itSel_.has(t.name)); }
+}
+function itSelToggle_(name, on) { if (on) itSel_.add(name); else itSel_.delete(name); itSelUpdate_(); }
+function itSelAll_(on) { itVisible_().forEach((t) => { if (on) itSel_.add(t.name); else itSel_.delete(t.name); }); renderItemTemplates(); }
+function itSelNames_() { return itemTemplates.map((t) => t.name).filter((n) => itSel_.has(n)); }
+async function itBatchArchive_() {
+  const names = itSelNames_(); if (!names.length) { toast('請先勾選模板', false); return; }
+  const arch = !itShowArch_;
+  try {
+    const d = await grCall_('adminItemTplArchiveSet', { names, archived: arch });
+    if (!d || d.status !== 'success') { toast((d && d.message) || '失敗', false); return; }
+    itArch_ = new Set(d.archived || []); itSel_.clear(); renderItemTemplates();
+    toast((arch ? '已封存 ' : '已還原 ') + names.length + ' 個模板' + (arch ? '(玩家手上的道具與盲盒裡的 [道具:] 標籤照常運作,只是後台列表收起來)' : ''));
+  } catch (e) { toast('失敗:' + (e && e.message || e), false); }
+}
+async function itBatchDelete_() {
+  const names = itSelNames_(); if (!names.length) { toast('請先勾選模板', false); return; }
+  if (!confirm('確定要永久刪除這 ' + names.length + ' 個道具模板嗎?\n\n' + names.slice(0, 15).join('、') + (names.length > 15 ? '…等' : '') + '\n\n(玩家已持有的道具不會被刪,但這些模板之後不能再被盲盒抽到、也無法復原。只是想收起來的話請改用「📦 封存」)')) return;
+  let ok = 0; const fail = [];
+  for (let i = 0; i < names.length; i++) {
+    toast('刪除中 ' + (i + 1) + '/' + names.length + '…');
+    try { const d = await api({ action: 'adminDeleteItemTemplate', name: names[i] }); if (d && d.status === 'success') ok++; else fail.push(names[i]); } catch (e) { fail.push(names[i]); }
+  }
+  try { const a = await grCall_('adminItemTplArchiveSet', { names: names.filter((n) => !fail.includes(n)), archived: false }); } catch (e) {}
+  toast('已刪除 ' + ok + ' 個' + (fail.length ? ',失敗:' + fail.join('、') : ''), !fail.length);
+  loadItemTemplates();
+}
+function itBatchEdit_() {
+  const names = itSelNames_(); if (!names.length) { toast('請先勾選模板', false); return; }
+  document.getElementById('itb-count').textContent = names.length;
+  for (const id of ['itb-maxuses', 'itb-maxopen', 'itb-expval', 'itb-remark']) document.getElementById(id).value = '';
+  for (const id of ['itb-expmode', 'itb-tradable', 'itb-nodiscard', 'itb-autoopen']) document.getElementById(id).value = '';
+  document.getElementById('itb-remark-on').checked = false; document.getElementById('itb-expval-box').style.display = 'none';
+  const pg = document.getElementById('itb-progress'); pg.style.display = 'none'; pg.textContent = '';
+  document.getElementById('it-batch-modal').classList.add('open');
+}
+async function itBatchEditGo_() {
+  const names = itSelNames_(); if (!names.length) return;
+  const v = (id) => document.getElementById(id).value.trim();
+  const mu = v('itb-maxuses'), mo = v('itb-maxopen'), em = v('itb-expmode'), ev = v('itb-expval'), td = v('itb-tradable'), nd = v('itb-nodiscard'), ao = v('itb-autoopen');
+  const rem = document.getElementById('itb-remark-on').checked;
+  if (!mu && !mo && !em && !td && !nd && !ao && !rem) { toast('沒有要修改的欄位', false); return; }
+  if (mu && !(parseInt(mu, 10) >= 1)) { toast('使用次數上限至少 1', false); return; }
+  if (mo && !(parseInt(mo, 10) >= 1)) { toast('單次最多開啟至少 1', false); return; }
+  if ((em === 'HOURS' || em === 'MINUTES' || em === 'ABSOLUTE') && !ev) { toast('請填過期數值/時間', false); return; }
+  if (!confirm('確定要把這些變更套用到 ' + names.length + ' 個模板嗎?')) return;
+  const btn = document.getElementById('itb-go'), pg = document.getElementById('itb-progress'); btn.disabled = true; pg.style.display = '';
+  let ok = 0; const fail = [];
+  for (let i = 0; i < names.length; i++) {
+    const t = itemTemplates.find((x) => x.name === names[i]); if (!t) continue;
+    pg.textContent = '⏳ 處理中 ' + (i + 1) + '/' + names.length + ':' + t.name;
+    const p = {
+      action: 'adminSaveItemTemplate', name: t.name, poolRaw: t.poolRaw, maxUses: mu || t.maxUses,
+      expiryMode: em || t.expiryMode, expiryValue: em ? (em === 'NEVER' ? '' : ev) : t.expiryValue, usableFrom: t.usableFrom || '',
+      maxOpenPerRequest: mo || (t.maxOpenPerRequest || ''), tradable: td ? td === '1' : !!t.tradable,
+      requireTradeBeforeUse: td === '0' ? false : !!t.requireTradeBeforeUse, requireTradeCount: t.requireTradeCount || '', tradeCountLimit: t.tradeCountLimit || '',
+      openLimitRules: JSON.stringify(t.openLimitRules || []), perInstanceOpenLimit: !!t.perInstanceOpenLimit,
+      remark: rem ? v('itb-remark') : (t.remark || ''), autoOpenOnExpire: ao ? ao === '1' : !!t.autoOpenOnExpire,
+      discardDisabled: nd ? nd === '1' : !!t.discardDisabled, chamberOnly: !!t.chamberOnly,
+      chamberMinSec: t.chamberMinSec, chamberMaxSec: t.chamberMaxSec, chamberSpeedCurrency: t.chamberSpeedCurrency || '', chamberSpeedPrice: t.chamberSpeedPrice,
+    };
+    try { const d = await api(p); if (d && d.status === 'success') ok++; else fail.push(t.name + '(' + ((d && d.message) || '失敗') + ')'); } catch (e) { fail.push(t.name); }
+  }
+  btn.disabled = false;
+  pg.textContent = '完成:成功 ' + ok + ' 個' + (fail.length ? ',失敗 ' + fail.length + ':' + fail.join('、') : '');
+  toast('批次編輯完成:成功 ' + ok + ' 個' + (fail.length ? ',失敗 ' + fail.length : ''), !fail.length);
+  await loadItemTemplates();
 }
 
 function renderItemTemplates() {
   const tbody = document.getElementById('item-template-tbody');
-  if (itemTemplates.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">目前沒有任何道具模板</td></tr>'; return; }
+  const vis = itVisible_(); itSelUpdate_();
+  if (vis.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">' + (itShowArch_ ? '封存區是空的' : '目前沒有任何道具模板') + '</td></tr>'; return; }
   const expiryLabel = (t) => {
     if (t.expiryMode === 'NEVER' || !t.expiryMode) return '永不過期';
     if (t.expiryMode === 'MINUTES') return `取得後${t.expiryValue}分鐘過期`;
@@ -9565,14 +9671,15 @@ function renderItemTemplates() {
   // 🌟🔧 修正版面bug:內容獎池常常是多行文字(一個獎項一行),原本用white-space:pre-wrap整段攤開顯示,
   // 獎項一多整列就會被拉得很高、很難閱讀。改成預設只顯示第一行摘要+總共幾個獎項,超過1行的話
   // 額外給一個「展開查看全部」的按鈕,平常表格保持精簡,需要細看才展開。
-  tbody.innerHTML = itemTemplates.map((t, idx) => {
+  tbody.innerHTML = itemTemplates.map((t, idx) => ({ t, idx })).filter((o) => itShowArch_ ? itArch_.has(o.t.name) : !itArch_.has(o.t.name)).map(({ t, idx }) => {
     const poolLines = (t.poolRaw || '').split('\n').map(l => l.trim()).filter(Boolean);
     const firstLine = poolLines[0] || '';
     const firstLineShort = firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine;
     const moreCount = poolLines.length - 1;
     return `
     <tr>
-      <td><b>${t.name}</b>${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.autoOpenOnExpire ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">⏰過期自動開</span>' : ''}${t.discardDisabled ? ' <span class="hint" style="color:var(--red,#d9534f)">🚫禁丟棄</span>' : ''}${t.chamberOnly ? ' <span class="hint" style="color:var(--green)">🧊限開啟室</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.tradeCountLimit ? ` <span class="hint" style="color:var(--green)">🤝限交易${t.tradeCountLimit}次</span>` : ''}${(t.openLimitRules || []).map(r => ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(r.mode)}限${r.limit}次</span>`).join('')}${(t.openLimitRules && t.openLimitRules.length > 0 && t.perInstanceOpenLimit) ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">(每個實體各自計次)</span>' : ''}</td>
+      <td><input type="checkbox" style="width:auto" ${itSel_.has(t.name) ? 'checked' : ''} onchange="itSelToggle_(decodeURIComponent('${encodeURIComponent(t.name)}'), this.checked)"></td>
+      <td><b>${t.name}</b>${itArch_.has(t.name) ? ' <span class="hint">📦封存</span>' : ''}${t.tradable ? ' <span class="hint" style="color:var(--green)">🤝可交易</span>' : ''}${t.autoOpenOnExpire ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">⏰過期自動開</span>' : ''}${t.discardDisabled ? ' <span class="hint" style="color:var(--red,#d9534f)">🚫禁丟棄</span>' : ''}${t.chamberOnly ? ' <span class="hint" style="color:var(--green)">🧊限開啟室</span>' : ''}${t.requireTradeBeforeUse ? ' <span class="hint" style="color:var(--red,#d9534f)">⚠️強迫交易</span>' : ''}${t.tradeCountLimit ? ` <span class="hint" style="color:var(--green)">🤝限交易${t.tradeCountLimit}次</span>` : ''}${(t.openLimitRules || []).map(r => ` <span class="hint" style="color:var(--orange,#f0ad4e)">⏱️${openLimitModeLabel_(r.mode)}限${r.limit}次</span>`).join('')}${(t.openLimitRules && t.openLimitRules.length > 0 && t.perInstanceOpenLimit) ? ' <span class="hint" style="color:var(--orange,#f0ad4e)">(每個實體各自計次)</span>' : ''}</td>
       <td style="max-width:280px;font-size:12px;color:var(--muted)">
         <div>${firstLineShort}${moreCount > 0 ? `<span class="hint">　(共${poolLines.length}個獎項)</span>` : ''}</div>
         ${moreCount > 0 ? `
@@ -9757,7 +9864,7 @@ async function duplicateItemTemplate(name) {
 function openGrantGeneralItemModal() {
   if (itemTemplates.length === 0) { toast('請先新增至少一個道具模板', false); return; }
   document.getElementById('ggi-selected-count').textContent = pcSelectedIds.size;
-  document.getElementById('ggi-template').innerHTML = itemTemplates.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+  document.getElementById('ggi-template').innerHTML = itemTemplates.filter(t => !itArch_.has(t.name)).map(t => `<option value="${t.name}">${t.name}</option>`).join('');
   document.getElementById('ggi-displayname').value = '';
   document.getElementById('ggi-quantity').value = '1';
   document.getElementById('ggi-notify').checked = false;
