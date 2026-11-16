@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.279</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.280</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4374,6 +4374,7 @@ function pkRenderEdit_() {
         ${F('數量', `<input type="number" min="1" value="${p.count}"${dis} oninput="pkCur_.prizes[${i}].count=parseInt(this.value)||1;pkCalc_()">`, ' style="flex:0 0 90px"')}
         <label class="pk-chk"><input type="checkbox" ${p.announce ? 'checked' : ''}${dis} onchange="pkCur_.prizes[${i}].announce=this.checked"> 頻道公告</label>
         <label class="pk-chk"><input type="checkbox" ${p.show !== false ? 'checked' : ''}${dis} onchange="pkCur_.prizes[${i}].show=this.checked"> 顯示獎品<span class="hint">(未勾=神秘獎品)</span></label>
+        <label class="pk-chk"><input type="checkbox" ${p.showWinners ? 'checked' : ''} onchange="pkCur_.prizes[${i}].showWinners=this.checked"> 🏆 最上面列出得獎者<span class="hint">(需勾顯示獎品;已發佈也能改)</span></label>
         ${locked ? '' : `<button class="btn btn-edit" onclick="pkCur_.prizes.splice(${i},1);pkRenderEdit_()">🗑</button>`}
       </div>
       ${p.rewards.map((r, k) => `<div class="pk-rw">
