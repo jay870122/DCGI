@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.285</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.286</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4979,7 +4979,7 @@ function ctAdmRender_() {
   ctAdmRenderLinks_();
   const tn = {}; d.tracks.forEach((t) => { tn[t.id] = t.name; });
   document.getElementById('ct-adm-prophets').innerHTML = (d.prophets || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>玩家</th><th>命中優異獎(件數)</th><th>投出優異票</th><th>命中率</th></tr></thead><tbody>' + d.prophets.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + ctEsc_(p.name) + '<div class="hint">' + ctEsc_(p.user) + '</div></td><td><b>' + p.hits + '</b></td><td>' + p.total + '</td><td>' + (p.total ? Math.round(p.hits / p.total * 100) : 0) + '%</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">賽道截止後才會有資料</div>';
-  document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>參賽者</th><th>總分</th><th>已提交賽道</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td><b>' + o.total + '</b></td><td>' + (o.submitted || o.best).map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有成績</div>';
+  document.getElementById('ct-adm-overall').innerHTML = (d.overall || []).length ? '<div class="ct-tw"><table><thead><tr><th>#</th><th>參賽者</th><th>已提交賽道</th><th>總分</th><th>計入賽道</th><th>單賽道最高得票率</th><th>總計票</th></tr></thead><tbody>' + d.overall.map((o) => '<tr><td>' + o.rank + '</td><td>' + ctEsc_(o.name) + '</td><td>' + (o.submitted || o.best).map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td><b>' + o.total + '</b></td><td>' + o.best.map((b) => ctEsc_(tn[b] || b)).join('、') + '</td><td>' + (o.maxShare * 100).toFixed(1) + '%</td><td>' + o.raw + '</td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有成績</div>';
 }
 const CT_CFG_LABELS_ = [['champ', '🏅 優異獎(最高票)'], ['top10', '🏅 優異獎(前 10% 名額)'], ['join', '🎽 參與獎(每位參賽者)'], ['vote', '🗳️ 投票獎(該賽道投票達最低票數)'], ['prophet', '🔮 投票神預測獎']];
 const CT_CFG_INP_ = 'background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--t);padding:6px;';
