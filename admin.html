@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.283</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.284</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1559,7 +1559,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="ct-card">
-          <div class="ct-h"><div><h3>🔮 投票神預測獎</h3><div class="hint">把優異票投給「該賽道任一優異獎作品」的人;賽道「已截止」後才計入</div></div></div>
+          <div class="ct-h"><div><h3>🔮 投票神預測獎</h3><div class="hint">把優異票投給「該賽道冠軍(最高票,併列都算)」的人;賽道「已截止」後才計入</div></div></div>
           <div id="ct-adm-prophets"></div>
         </div>
 
@@ -1570,7 +1570,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="ct-card">
-          <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍)、參與獎、投票獎、投票神預測獎;金額在上面「獎勵設定」調整;貨幣要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」</div></div>
+          <div class="ct-h"><div><h3>🎁 獎勵結算與發放</h3><div class="hint" style="line-height:1.6">總排名獎看每人最高兩賽道總分;各賽道:優異獎(依賽道得分排名,至少 2 位,含冠軍)、參與獎、投票獎、投票神預測獎(優異票投中該賽道冠軍);金額在上面「獎勵設定」調整;貨幣要先在貨幣欄位建好;已發放的不會重複發;賽道「已截止」才算入、總排名獎要全部賽道「已公布」</div></div>
             <div class="ct-act" style="margin:0"><button class="btn btn-edit" onclick="ctAdmLoadRewards(true)">🧪 試算(假設全部公布)</button><button class="btn btn-edit" onclick="ctAdmLoadRewards()">🧮 計算獎勵</button><button class="btn btn-edit" style="background:var(--gold);color:#000" onclick="ctAdmGrantRewards()">🎁 全部一起發</button></div></div>
           <div id="ct-grant-bar" class="ct-act" style="flex-wrap:wrap;margin:6px 0"></div>
           <div id="ct-adm-rewards"></div>
