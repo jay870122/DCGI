@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.286</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.287</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4971,7 +4971,7 @@ function ctAdmRender_() {
   const byT = {}; d.works.forEach((w) => { (byT[w.track] = byT[w.track] || []).push(w); });
   document.getElementById('ct-adm-works').innerHTML = d.tracks.map((t) => {
     const ws = (byT[t.id] || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99));
-    return '<div><div class="ct-tb">' + ctEsc_(t.name) + ' <span class="hint" style="font-weight:400">第' + t.round + '輪 · ' + ctEsc_(t.effStatus || t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票</span></div>'
+    return '<div><div class="ct-tb">' + ctEsc_(t.name) + ' <span class="hint" style="font-weight:400">第' + t.round + '輪 · ' + ctEsc_(t.effStatus || t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票' + (((d.limits || {})[t.id] && ws.length) ? ' · 每人可投 ' + d.limits[t.id].total + ' 票(其中優異票最多 ' + d.limits[t.id].excellent + ' 張)' : '') + '</span></div>'
       + (ws.length ? '<div class="ct-tw"><table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.award ? ' <span title="優異獎(' + w.award + ')">🏅' + ctEsc_(w.award) + '</span>' : '') + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',0);return false">Talesbook</a>' : '', w.url2 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',1);return false">遊戲截圖</a>' : ''].filter(Boolean).join(' · ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有作品</div>') + '</div>';
   }).join('') || '<div class="hint">還沒有賽道</div>';
   ctAdmRenderBallots_();
