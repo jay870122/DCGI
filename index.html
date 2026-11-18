@@ -1064,7 +1064,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.283</div>
+    <div class="version-tag">系統版本：v5.4.284</div>
   </div>
 
   <script>
@@ -7770,6 +7770,11 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
         { const pb_ = (item.name || '').match(/\[單次上限[:：]?\s*(\d+)\]/); if (pb_ && parseInt(pb_[1], 10) > 0) limitsHtml += `<span class="limit-tag tag-total">🧮 單次最多兌換 ${parseInt(pb_[1], 10)} 個</span>`; }
         if (item.requiredRoleNames && item.requiredRoleNames.length > 0) {
           limitsHtml += buildRoleRequirementHtml_(item.requiredRoleNames, item.roleRequirementMode, item.roleRequirementMinCount, item.hasRolePermission, 'item-' + item.id);
+        }
+        if (item.catBudget && item.catBudget.rem && item.catBudget.rem.length) { // 📊 分類額度:顯示目前剩餘可兌換價值
+          const PN_ = { H: '每小時', D: '每日', W: '每週', M: '每月' }, cb_ = item.catBudget, lk_ = cb_.rem.some((r) => r.left <= 0);
+          const parts_ = cb_.rem.map((r) => `${r.sc === 'G' ? '全服' : '個人'}${PN_[r.p]}剩 ${Math.round(r.left * 100) / 100}/${r.lim}`).join('、');
+          limitsHtml += `<span class="limit-tag ${lk_ ? 'tag-role-locked' : 'tag-role-ok'}" title="每次兌換會消耗商品的價值;到期自動重置">📊 分類額度 ${parts_}(本商品每個 ${cb_.unit})</span>`;
         }
         {
           const gLk_ = !!item.groupLocked && (item.groupLockMsg || '').indexOf('全體選一') === 0; // 全體選一已鎖定
