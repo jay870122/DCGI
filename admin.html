@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.309</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.310</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4314,7 +4314,7 @@ function beRender_() {
       h += '<div class="be-sub">🎯 最後一擊獎</div>' + beRw_(fp + '.rewards.lastHit', f.rewards.lastHit);
       h += '</div>';
     });
-    h += '<button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',BE_FORM_)">➕ 新增 BOSS 型態</button></div>';
+    h += '<button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',BE_FORM_)">➕ 新增 BOSS 型態</button> <button class="btn btn-primary" onclick="bossSave_()">💾 儲存</button></div>';
   });
   if (!BED_.tracks.length) h = '<div class="hint">還沒有賽道,按下面「➕ 新增賽道」開始。</div>';
   el.innerHTML = h; beTot_(); beMirror_();
