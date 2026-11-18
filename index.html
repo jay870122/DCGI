@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.291</div>
+    <div class="version-tag">系統版本：v5.4.292</div>
   </div>
 
   <script>
@@ -5330,7 +5330,7 @@
         '<div style="display:flex;gap:12px;align-items:center">' + (t.boss.img ? '<img src="' + escapeHtml_(t.boss.img) + '" style="width:90px;height:90px;object-fit:contain" onerror="this.style.display=\'none\'">' : '') +
         '<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">' + escapeHtml_(t.boss.name) + '</div><div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div>' +
         '<div style="font-size:13px;color:#B9BBBE;margin-top:6px">我的傷害:<b>' + bsNum_(t.me.damage) + '</b>(' + t.me.attacks + ' 次攻擊)' + (t.resetsNeed ? ' ・ 重置牌 ' + t.resets + '/' + t.resetsNeed : '') + '</div></div></div>' +
-        '<div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : bsToast_))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
+        '<div id="bs-ms" style="font-size:11px;color:#6d6f78;min-height:14px"></div><div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : bsToast_))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
         '<div class="bs-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr))">' + cardHtml + '</div>' +
         '<div style="font-size:12px;color:#949BA4;margin-top:10px">遊戲錢包:<b>' + t.wallet + '</b> 張「' + escapeHtml_(t.ticketCurrency) + '」 <button style="background:none;border:1px solid #4F545C;color:#B9BBBE;border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:6px" onclick="bsRefund_()">退回背包</button><br>翻兩張「傷害數字一樣」的攻擊牌才會出手;獎勵牌要翻到兩張「獎勵一樣」;陷阱/重置/休息牌翻到就觸發。</div>' +
         '</div><div>' +
@@ -5371,8 +5371,18 @@
       if (!d || d.status !== 'success') {
         bsBusy_ = false; bsFlash_ = {}; bsToast_ = '⚠️ ' + ((d && d.message) || '連線失敗,請再試一次'); if (d && d.restLeft) bsRestUntil_ = Date.now() + d.restLeft * 1000; await bsRefresh_(false); return;
       }
-      { const w_ = 520 - (Date.now() - t0_); if (w_ > 0) await sleep_(w_); } // 等翻面動畫跑完再換成真正的牌面
+      const rtt_ = Date.now() - t0_;
       const evs = d.events || [], miss = evs.find((e) => e.kind === 'miss');
+      { // 回應一到就原地換上真正的牌面(翻面動畫還在跑也沒關係,背面轉過去之前看不到),不再硬等動畫
+        const el = document.querySelector('#bs-body .bs-card[data-i="' + idx + '"]'), fr = el && el.querySelector('.bs-front');
+        if (fr) { fr.innerHTML = bsFace_(d.face); if (miss) el.classList.add('bad'); else if (d.pair) el.classList.add('hit'); }
+        if (d.pair && d.pair.length) { const po = document.querySelector('#bs-body .bs-card[data-i="' + (d.pair[0] === idx ? d.pair[1] : d.pair[0]) + '"]'); if (po) po.classList.add('hit'); }
+        if (miss) { const pf = bsTrack_.board && bsTrack_.board.first, po = pf && document.querySelector('#bs-body .bs-card[data-i="' + pf.idx + '"]'); if (po) po.classList.add('bad'); }
+        const tt = document.getElementById('bs-toast'); if (tt) tt.textContent = evs.map(bsEventText_).filter(Boolean).join(' ');
+        const ms = document.getElementById('bs-ms'); if (ms) ms.textContent = '⏱ 往返 ' + rtt_ + 'ms' + (d._ms !== undefined ? '(伺服器 ' + d._ms + 'ms,驗證 ' + (d._auth || 0) + 'ms)' : '');
+        console.log('[翻牌] 往返', rtt_, 'ms', d._ms !== undefined ? ('伺服器 ' + d._ms + 'ms 驗證 ' + d._auth + 'ms') : '');
+      }
+      { const w_ = 520 - (Date.now() - t0_); if (w_ > 0) await sleep_(w_); } // 等翻面動畫跑完才整個重畫(重畫會中斷動畫)
       const f0 = bsTrack_.board && bsTrack_.board.first;
       bsFlash_ = {}; bsFlash_[idx] = { label: d.face.label, sub: d.face.sub, cls: '', anim: true };
       if (miss) { if (f0) bsFlash_[f0.idx] = { label: miss.faces[0].label, sub: miss.faces[0].sub, cls: 'bad' }; bsFlash_[idx].cls = 'bad'; }
