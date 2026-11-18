@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.292</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.293</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -768,6 +768,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <div class="role-hint" id="ns-role-hint"></div>
             </div>
             <div class="field"><label>選一群組(個人)</label><input id="ns-excl" placeholder="留空=不限;每人同組只能選一個"></div>
+            <div class="field"><label>📊 額度價值(沒填=不計入該額度)</label><div id="ns-cb" style="font-size:13px"></div></div>
             <div class="field"><label>全體選一群組</label><input id="ns-exclg" placeholder="留空=不限;同組任一個買完,整組對所有人鎖住"></div>
             <div class="fsep">替代貨幣折抵（選填,可同時開放多種,例如拍賣幣、活動幣）</div>
             <div class="field full">
@@ -1958,6 +1959,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="role-hint" id="em-role-hint"></div>
       </div>
       <div class="field"><label>選一群組(個人)</label><input id="em-excl" placeholder="留空=不限;每人同組只能選一個"></div>
+      <div class="field"><label>📊 額度價值(沒填=不計入該額度)</label><div id="em-cb" style="font-size:13px"></div></div>
       <div class="field"><label>全體選一群組</label><input id="em-exclg" placeholder="留空=不限;同組任一個買完,整組對所有人鎖住"></div>
       <div class="fsep">替代貨幣折抵（選填,可同時開放多種,例如拍賣幣、活動幣）</div>
       <div class="full field">
@@ -3987,7 +3989,7 @@ function navTo(p) {
   if (auctionBidsAutoRefreshInterval) { clearInterval(auctionBidsAutoRefreshInterval); auctionBidsAutoRefreshInterval = null; }
   if (p==='shop-list') loadShopItems();
   if (p==='auction-list') loadAuctionItems();
-  if (p==='add-shop') addShopAutosave.checkAndOffer();
+  if (p==='add-shop') { addShopAutosave.checkAndOffer(); cbFormLoad_('ns', ''); }
   if (p==='add-auction') addAuctionAutosave.checkAndOffer();
   if (p==='sort-settings') openSortSettings();
   if (p==='admin-users') loadAdminUsers();
@@ -7870,7 +7872,7 @@ function openEditShop(itemId) {
   f('em-lpt').value=i.limitPT||''; f('em-rvar').value=i.rewardVar||'';
   f('em-rqty').value=i.rewardQty||''; f('em-img').value=i.imageUrl||'';
   f('em-remark').value=i.remark||'';
-  {const _sp=exclSplitA_(i.exclusiveGroup);f('em-excl').value=_sp.p;f('em-exclg').value=_sp.g;}
+  {const _sp=exclSplitA_(i.exclusiveGroup);f('em-excl').value=_sp.p;f('em-exclg').value=_sp.g;cbFormLoad_('em',i.itemId||i.name);}
   setAltCurrencyRows('em', i.altCurrency||'', i.altCurrencyRate!==undefined&&i.altCurrencyRate!==''?i.altCurrencyRate:'');
   setExtraCostRows('em', i.extraCost||'', i.extraCostAmount||'');
   setReqItemRows('em', i.requiredItems || []);
@@ -7964,7 +7966,7 @@ async function saveShopItem() {
     upEnabled:document.getElementById('em-up').checked,upMin:f('em-up-min'),upMax:f('em-up-max'),
     upAnswer:f('em-up-answer'),upHideRange:document.getElementById('em-up-hiderange').checked,excludeSpend:document.getElementById('em-excludespend').checked,upResetNarrow:document.getElementById('em-up-resetnarrow').checked});
   btn.disabled=false; btn.textContent='💾 儲存變更';
-  if (d.status==='success') { toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
+  if (d.status==='success') { await cbFormSave_('em', f('em-id')); toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
 
@@ -8284,7 +8286,27 @@ async function duplicateAuction(id) {
 }
 
 // ── Add Shop ──
+// 📊 商品編輯頁的「額度價值」欄(每個自訂額度一格,存在 D1,不寫進商店試算表)
+let cbFormCfg_ = { cats: {} };
+async function cbFormLoad_(px, itemKey) {
+  const box = document.getElementById(px + '-cb'); if (!box) return;
+  box.innerHTML = '<span style="opacity:.6">讀取中…</span>';
+  try {
+    const d = await grCall_('adminCatBudgetLite'); cbFormCfg_ = (d && d.cfg) || { cats: {} };
+    const names = Object.keys(cbFormCfg_.cats || {});
+    box.dataset.key = itemKey || '';
+    box.innerHTML = names.length ? names.map((n) => { const g = cbFormCfg_.cats[n], v = itemKey && g.vals && g.vals[itemKey] !== undefined ? g.vals[itemKey] : ''; return `<label style="display:inline-flex;align-items:center;gap:4px;margin:2px 12px 2px 0">${grEsc_(n)}<input type="number" min="0" step="any" data-cbg="${grEsc_(n)}" data-orig="${v}" value="${v}" placeholder="不計" style="width:90px"> ${grEsc_(g.unit || '點數')}</label>`; }).join('') : '<span style="opacity:.6">還沒有額度,先到「📊 額度」頁建立</span>';
+  } catch (e) { box.innerHTML = '<span style="opacity:.6">額度設定讀取失敗</span>'; }
+}
+async function cbFormSave_(px, itemKey) {
+  const box = document.getElementById(px + '-cb'); if (!box || !itemKey) return;
+  const vals = {}; let changed = false;
+  box.querySelectorAll('input[data-cbg]').forEach((e) => { vals[e.dataset.cbg] = e.value; if (e.value !== e.dataset.orig) changed = true; });
+  if (!changed) return;
+  try { const d = await grCall_('adminCatBudgetSetVals', { itemKey, vals }); if (!d || d.status !== 'success') toast('⚠️ 額度價值沒存成功:' + ((d && d.message) || ''), false); } catch (e) { toast('⚠️ 額度價值沒存成功:' + (e && e.message || e), false); }
+}
 function resetAddShop() {
+  cbFormLoad_('ns', '');
   ['ns-name','ns-conds','ns-price','ns-sdate','ns-edate','ns-stock','ns-category',
    'ns-lgd','ns-lgw','ns-lgm','ns-lpd','ns-lpw','ns-lpm','ns-lpt',
    'ns-rvar','ns-rqty','ns-img','ns-remark','ns-role','ns-excl','ns-exclg',
@@ -8381,7 +8403,7 @@ async function submitAddShop(forceStatus) {
     upEnabled:document.getElementById('ns-up').checked,upMin:f('ns-up-min'),upMax:f('ns-up-max'),upAnswer:f('ns-up-answer'),
     upHideRange:document.getElementById('ns-up-hiderange').checked,excludeSpend:document.getElementById('ns-excludespend').checked});
   btn.disabled=false; btn.textContent=originalText;
-  if (d.status==='success') { toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
+  if (d.status==='success') { await cbFormSave_('ns', d.itemId); toast(isDraft ? `📝 草稿已儲存！ID: ${d.itemId}` : `✅ 商品已新增！ID: ${d.itemId}`); resetAddShop(); }
   else toast('❌ '+d.message, false);
 }
 
