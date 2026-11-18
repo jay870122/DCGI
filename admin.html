@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.311</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.312</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1468,8 +1468,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="pk-sec">⚙️ 基本</div>
           <label class="pk-chk"><input type="checkbox" id="boss-enabled"> 啟用翻翻樂</label>
           <label class="pk-chk"><input type="checkbox" id="boss-test"> 🧪 測試模式:只有管理員看得到、能玩(一般玩家完全看不到入口;不受賽道日期限制)。測完請按下方「🗑 重置賽道」清掉測試資料,再關掉測試模式正式開放。翻牌券/獎勵是真的會扣、會發,測試前先發自己一些翻牌券。</label>
-          <label class="pk-chk"><input type="checkbox" id="boss-dckill"> 📣 BOSS 被打倒時通報 DC <span class="hint">開啟後,每次擊倒結算完成會在機器人頻道公告(最後一擊的人);測試模式/測試賽道不公告。玩家領獎時的貨幣獎勵也會在 DC 顯示,不受此開關影響</span></label>
-          <div class="field" style="max-width:260px"><label>DC 公告附傷害排行前幾名 <span class="hint">0=不放排行,最多 20</span></label><input id="boss-dcrank" type="number" min="0" max="20" placeholder="0"></div>
           <div class="pk-grid">
             <div class="field"><label>翻牌券貨幣名稱 <span class="hint">可從現有貨幣挑選</span></label><input id="boss-cur" placeholder="翻牌券" list="be-cur-list"><datalist id="be-cur-list"></datalist><datalist id="be-item-list"></datalist></div>
             <div class="field"><label>(已停用)錢包每次補幾張<span class="hint">翻牌券現在直接扣貨幣餘額(翻一回合 2 張扣 1 張),這個欄位不再使用</span></label><input id="boss-pull" type="number" min="1" max="200"></div>
@@ -4290,6 +4288,7 @@ function beRender_() {
     h += '<div class="be-row">🎁 領獎期限(過期就不能領;全部留空/0=不限期)</div><div class="be-row" style="padding-left:18px">方式① 放進禮物箱起算:' + beIn_(tp + '.giftDays', t.giftDays || 0, 55, '0', 'number') + ' 天 ' + beIn_(tp + '.giftHours', t.giftHours || 0, 50, '0', 'number') + ' 時 ' + beIn_(tp + '.giftMins', t.giftMins || 0, 50, '0', 'number') + ' 分</div><div class="be-row" style="padding-left:18px">方式② 指定到期時間(台北時間,月/日/時/分):' + beIn_(tp + '.giftUntil', t.giftUntil || '', 200, '', 'datetime-local') + ' <span style="color:#949BA4;font-size:12px">有填就優先用這個,所有獎品都在這個時間點到期</span></div>';
     h += '<div class="be-row">' + beChk_(tp + '.shared', !!t.shared, '👥 全場共用同一個牌面(多人輪流翻、翻開的牌大家都看得到;不勾=每人各自一盤)') + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '</div>';
+    h += '<div class="be-row">' + beChk_(tp + '.dcKill', t.dcKill, '📣 BOSS 被打倒時通報 DC(含進化/重新降臨/結束)') + '附傷害排行前' + beIn_(tp + '.dcKillRank', t.dcKillRank || 0, 50, '0', 'number') + '名 <span class="hint">0=不放排行,最多 20;測試模式/測試賽道不公告</span></div>';
     (t.forms || []).forEach((f, fi) => {
       const fp = tp + '.forms.' + fi, b = f.board, bp = fp + '.board';
       h += '<div class="be-form"><div class="be-h">👹 型態 ' + (fi + 1) + '(依序進化)<button class="btn btn-edit" onclick="beDup_(\'' + tp + '.forms\',' + fi + ')">📑 複製</button><button class="btn btn-edit" onclick="beDel_(\'' + tp + '.forms\',' + fi + ')">🗑</button></div>';
@@ -4321,7 +4320,7 @@ function beRender_() {
   if (!BED_.tracks.length) h = '<div class="hint">還沒有賽道,按下面「➕ 新增賽道」開始。</div>';
   el.innerHTML = h; beTot_(); beMirror_();
 }
-function beAddTrack_() { BED_.tracks.push({ id: 't' + (BED_.tracks.length + 1), name: '新賽道', start: '', end: '', repeat: true, shared: false, ticketCurrency: '', ticketCost: 1, loopBack: false, maxLoops: 1, forms: [beClone_(BE_FORM_)] }); beRender_(); }
+function beAddTrack_() { BED_.tracks.push({ id: 't' + (BED_.tracks.length + 1), name: '新賽道', start: '', end: '', repeat: true, shared: false, ticketCurrency: '', ticketCost: 1, loopBack: false, maxLoops: 1, dcKill: false, dcKillRank: 0, forms: [beClone_(BE_FORM_)] }); beRender_(); }
 function bossApplyJson_() { let o; try { o = JSON.parse(document.getElementById('boss-json').value || '{"tracks":[]}'); } catch (e) { toast('JSON 格式有誤:' + e.message, false); return; } BED_ = { tracks: Array.isArray(o) ? o : (o.tracks || []) }; beFix_(); beRender_(); toast('已套用到編輯器'); }
 const BOSS_SAMPLE_ = "{\n \"tracks\": [\n  {\n   \"id\": \"t1\",\n   \"name\": \"史萊姆森林\",\n   \"start\": \"2026-11-15\",\n   \"end\": \"2026-11-30\",\n   \"repeat\": true,\n   \"loopBack\": false,\n   \"maxLoops\": 1,\n   \"forms\": [\n    {\n     \"name\": \"小史萊姆\",\n     \"img\": \"\",\n     \"hp\": 5000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 2,\n        \"dmg\": \"10~30\"\n       },\n       {\n        \"label\": \"💥2\",\n        \"pairs\": 1,\n        \"dmg\": \"1~2%\"\n       }\n      ],\n      \"reward\": [\n       {\n        \"label\": \"🎁1\",\n        \"pairs\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       }\n      ],\n      \"trap\": {\n       \"count\": 1,\n       \"heal\": \"20~50\"\n      },\n      \"reset\": {\n       \"count\": 1,\n       \"need\": 2\n      },\n      \"rest\": {\n       \"count\": 1,\n       \"sec\": \"10~20\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [\n       {\n        \"min\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       },\n       {\n        \"min\": 20,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 3\n         }\n        ]\n       }\n      ],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 10\n         }\n        ]\n       },\n       {\n        \"from\": 2,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 5\n         }\n        ]\n       }\n      ],\n      \"lastHit\": [\n       {\n        \"type\": \"currency\",\n        \"name\": \"幻彩水晶\",\n        \"amount\": 2\n       }\n      ]\n     }\n    },\n    {\n     \"name\": \"史萊姆王\",\n     \"img\": \"\",\n     \"hp\": 12000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 3,\n        \"dmg\": \"20~60\"\n       }\n      ],\n      \"reward\": [],\n      \"trap\": {\n       \"count\": 2,\n       \"heal\": \"1~3%\"\n      },\n      \"reset\": {\n       \"count\": 0,\n       \"need\": 1\n      },\n      \"rest\": {\n       \"count\": 0,\n       \"sec\": \"\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 20\n         }\n        ]\n       }\n      ],\n      \"lastHit\": []\n     }\n    }\n   ]\n  }\n ]\n}";
 function bossSample_() { if (BED_.tracks.length && !confirm('會覆蓋目前編輯中的賽道,確定?')) return; BED_ = JSON.parse(BOSS_SAMPLE_);
@@ -4335,14 +4334,14 @@ async function bossLoad_() {
     const d = await grCall_('adminBossCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const c = d.cfg || {};
-    document.getElementById('boss-enabled').checked = !!c.enabled; document.getElementById('boss-test').checked = !!c.testMode; document.getElementById('boss-dckill').checked = !!c.dcKill; document.getElementById('boss-dcrank').value = c.dcKillRank || 0; document.getElementById('boss-cur').value = c.ticketCurrency || '翻牌券'; document.getElementById('boss-pull').value = c.pull || 20;
+    document.getElementById('boss-enabled').checked = !!c.enabled; document.getElementById('boss-test').checked = !!c.testMode; document.getElementById('boss-cur').value = c.ticketCurrency || '翻牌券'; document.getElementById('boss-pull').value = c.pull || 20;
     BED_ = { tracks: c.tracks || [] }; beFix_(); beRender_();
     bossStatus_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function bossSave_() {
   const obj = { tracks: BED_.tracks };
-  const cfg = { enabled: document.getElementById('boss-enabled').checked, testMode: document.getElementById('boss-test').checked, ticketCurrency: document.getElementById('boss-cur').value.trim(), pull: document.getElementById('boss-pull').value, dcKill: document.getElementById('boss-dckill').checked, dcKillRank: parseInt(document.getElementById('boss-dcrank').value, 10) || 0, tracks: Array.isArray(obj) ? obj : (obj.tracks || []) };
+  const cfg = { enabled: document.getElementById('boss-enabled').checked, testMode: document.getElementById('boss-test').checked, ticketCurrency: document.getElementById('boss-cur').value.trim(), pull: document.getElementById('boss-pull').value, tracks: Array.isArray(obj) ? obj : (obj.tracks || []) };
   try {
     const d = await grCall_('adminBossCfgSave', { cfg });
     if (d && d.status === 'success') { toast('已儲存'); await bossLoad_(); } else toast((d && d.message) || '儲存失敗', false);
