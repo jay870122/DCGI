@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.297</div>
+    <div class="version-tag">系統版本：v5.4.298</div>
   </div>
 
   <script>
@@ -5275,7 +5275,19 @@
       const myId = String(currentUser.id);
       t.top = (m.top || []).map((x) => ({ rank: x.rank, name: x.name, damage: x.damage, attacks: x.attacks, me: x.uid === myId }));
       t.feed = m.feed || t.feed;
-      if (!bsBusy_) bsRender_();
+      if (!bsBusy_) { if (m.board) t.board = m.board; if (m.room) { t.room = m.room; bsShowLast_(m.room.last); } bsRender_(); }
+    }
+    let bsLastTs_ = null;
+    function bsShowLast_(last) { // 別人剛翻完的牌:所有人都看得到(記憶用),1.5 秒後蓋回去
+      if (!last) return;
+      if (bsLastTs_ === null) { bsLastTs_ = last.ts; return; }
+      if (last.ts <= bsLastTs_) return;
+      bsLastTs_ = last.ts;
+      if (String(last.uid) === String(currentUser.id) || Date.now() - last.ts > 6000) return;
+      const keys = [];
+      (last.cards || []).forEach((c) => { bsFlash_[c.idx] = { label: c.face.label, sub: c.face.sub, cls: last.kind === 'miss' ? 'bad' : (last.kind === 'pair' ? 'hit' : '') }; keys.push(c.idx); });
+      bsToast_ = '👀 ' + last.by + (last.kind === 'pair' ? ' 配對成功!' : last.kind === 'miss' ? ' 沒配對到' : ' 翻到特殊牌');
+      setTimeout(() => { keys.forEach((k) => { delete bsFlash_[k]; }); if (bsTrack_ && !bsBusy_) bsRender_(); }, 1500);
     }
     function bsStopPoll_() { bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
     async function bsLoadLobby_() {
@@ -5296,7 +5308,7 @@
         }).join('') + '</div>';
     }
     async function bsEnter_(id) {
-      bsTrackId_ = id; bsToast_ = ''; bsFlash_ = {};
+      bsTrackId_ = id; bsToast_ = ''; bsFlash_ = {}; bsLastTs_ = null;
       document.getElementById('bs-body').innerHTML = '<div style="color:#949BA4">載入中…</div>';
       await bsRefresh_(true);
       bsStopPoll_();
@@ -5308,6 +5320,7 @@
       const d = await bsCall_('bossTrack', { trackId: bsTrackId_ });
       if (!d || d.status !== 'success') { if (first) document.getElementById('bs-body').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
       bsTrack_ = d.track; bsRestUntil_ = bsTrack_.restLeft ? Date.now() + bsTrack_.restLeft * 1000 : 0;
+      if (bsTrack_.room) bsShowLast_(bsTrack_.room.last);
       bsRender_();
     }
     function bsRender_() {
@@ -5315,7 +5328,12 @@
       const pct = Math.max(0, Math.min(100, t.boss.hp / t.boss.maxHp * 100));
       const rest = bsRestUntil_ > Date.now();
       const cells = (t.board && t.board.cells) || [], first = t.board && t.board.first, cols = (t.board && t.board.cols) || 4;
-      const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active;
+      const myId_ = String(currentUser.id); if (t.room && t.room._at === undefined) t.room._at = Date.now();
+      const holdLeft_ = t.room && t.room.holdLeft ? Math.ceil(t.room.holdLeft - (Date.now() - t.room._at) / 1000) : 0;
+      const turnLocked_ = holdLeft_ > 0 && t.room.holder && t.room.holder !== myId_;
+      if (window.bsLockT_) { clearTimeout(window.bsLockT_); window.bsLockT_ = null; }
+      if (holdLeft_ > 0) window.bsLockT_ = setTimeout(() => { window.bsLockT_ = null; if (bsTrack_ && !bsBusy_) bsRefresh_(false); }, holdLeft_ * 1000 + 400); // 對方逾時放棄後重新抓牌面
+      const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active || turnLocked_;
       const cardOf_ = (cls, face, attrs) => '<button class="bs-card ' + cls + '" ' + attrs + '><div class="bs-in"><div class="bs-back"><span class="bs-ring">點我</span></div><div class="bs-front">' + face + '</div></div></button>';
       const cardHtml = cells.map((g, i) => {
         const fl = bsFlash_[i];
@@ -5330,7 +5348,7 @@
         '<div style="display:flex;gap:12px;align-items:center">' + (t.boss.img ? '<img src="' + escapeHtml_(t.boss.img) + '" style="width:90px;height:90px;object-fit:contain" onerror="this.style.display=\'none\'">' : '') +
         '<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">' + escapeHtml_(t.boss.name) + '</div><div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div>' +
         '<div style="font-size:13px;color:#B9BBBE;margin-top:6px">我的傷害:<b>' + bsNum_(t.me.damage) + '</b>(' + t.me.attacks + ' 次攻擊)' + (t.resetsNeed ? ' ・ 重置牌 ' + t.resets + '/' + t.resetsNeed : '') + '</div></div></div>' +
-        '<div id="bs-ms" style="font-size:11px;color:#6d6f78;min-height:14px"></div><div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : bsToast_))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
+        '<div id="bs-ms" style="font-size:11px;color:#6d6f78;min-height:14px"></div><div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : (turnLocked_ ? '⏳ 輪到「' + t.room.holderName + '」翻牌,請稍等…' : bsToast_)))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
         '<div class="bs-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr))">' + cardHtml + '</div>' +
         '<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#202225;border:1px solid #3a3d44;border-radius:10px;padding:8px 12px"><div style="flex:1;min-width:150px"><div style="font-size:11px;color:#949BA4">🎟️ 目前持有</div><div style="font-size:18px;font-weight:700;color:#fff;line-height:1.2">' + t.wallet + ' <span style="font-size:13px;font-weight:400;color:#B9BBBE">' + escapeHtml_(t.ticketCurrency) + '</span></div></div><div style="font-size:11px;color:#949BA4">翻完一回合(翻 2 張牌)扣 1</div></div><div style="font-size:12px;color:#949BA4;margin-top:8px;line-height:1.6">翻兩張「傷害數字一樣」的攻擊牌才會出手;獎勵牌要翻到兩張「獎勵一樣」;陷阱/重置/休息牌翻到就觸發。</div>' +
         '</div><div>' +
@@ -5389,7 +5407,7 @@
       if (d.pair) d.pair.forEach((i) => { const ff = i === idx ? d.face : (f0 ? f0.face : d.face); bsFlash_[i] = { label: ff.label, sub: ff.sub, cls: 'hit', anim: i === idx }; });
       const texts = evs.map(bsEventText_).filter(Boolean); bsToast_ = texts.join(' ');
       // 直接用回應更新畫面(不再多打一次 API):新盤面、BOSS 血量、錢包、我的傷害
-      bsTrack_.board = d.board; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
+      bsTrack_.board = d.board; if (d.room) bsTrack_.room = d.room; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
       evs.forEach((e) => { if (e.kind === 'attack' && bsTrack_.me) { bsTrack_.me.damage = Math.round((Number(bsTrack_.me.damage) + e.amount) * 100) / 100; bsTrack_.me.attacks++; } if (e.kind === 'reset') bsTrack_.resets = e.count; if (e.kind === 'reshuffle') bsTrack_.resets = 0; });
       bsRender_();
       const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
