@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.322</div>
+    <div class="version-tag">系統版本：v5.4.323</div>
   </div>
 
   <script>
@@ -5525,7 +5525,7 @@
       const ga = document.getElementById('bs-gall'); if (ga && all) ga.textContent = '領取中…';
       if (msg) { msg.style.color = '#F0B232'; msg.textContent = '⏳ 領取中,請稍候…'; }
       let d = null; try { d = await bsCall_('bossGiftClaim', { idx: String(id) }); } catch (e) { d = null; }
-      bsClaiming_ = false;
+      bsClaiming_ = false; if (d && d._ms !== undefined) console.log('[領禮物] 伺服器 ' + d._ms + 'ms');
       if (!d || d.status !== 'success') { if (msg) { msg.style.color = '#ED4245'; msg.textContent = '⚠️ ' + ((d && d.message) || '領取失敗,請再試一次'); } document.querySelectorAll('#bs-body .bs-gbtn').forEach((b) => { b.disabled = false; b.style.opacity = ''; }); if (one) one.textContent = '領出'; if (ga) ga.textContent = '全部領出'; return; }
       if (d.claimed && d.claimed.length) bsDirty_ = true;
       (d.claimedIds || []).forEach((gid) => { const el = document.getElementById('bs-g-' + gid); if (el) el.remove(); });
