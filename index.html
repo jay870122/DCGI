@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.331</div>
+    <div class="version-tag">系統版本：v5.4.332</div>
   </div>
 
   <script>
@@ -5265,7 +5265,7 @@
     function ctTogglePreview_() { ctAsPlayer_ = !ctAsPlayer_; loadContest_(); }
     // ===== 🐲 翻翻樂打BOSS(玩家) =====
     let bsWsDirty_ = false, bsWs_ = null, bsWsOk_ = false, bsWsRetry_ = 0, bsWsTimer_ = null, bsLobby_ = null, bsTrack_ = null, bsTrackId_ = null, bsBusy_ = false, bsPoll_ = null, bsRestTimer_ = null, bsToast_ = '', bsFlash_ = {}, bsRestUntil_ = 0;
-    function bsName_() { return (currentUser && (currentUser.global_name || currentUser.username)) || '玩家'; }
+    function bsName_() { return (window.myNick_ || ((document.getElementById('user-name') || {}).innerText !== '玩家名稱' && (document.getElementById('user-name') || {}).innerText) || (currentUser && (currentUser.global_name || currentUser.username)) || '玩家').toString().trim().slice(0, 30); } // 優先用系統裡的 DC 暱稱(跟主畫面顯示的一樣),不是帳號本身的顯示名稱
     const bsCid_ = Math.random().toString(36).slice(2, 10); // 每個分頁一個代號:同帳號開兩個分頁測試時,也能分辨哪張牌是「別的分頁」翻的
     function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_(), cid: bsCid_ }, params || {})); }
     let bsGiftPollT_ = null;
@@ -7676,7 +7676,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
         const data = result.scores;
         if(data && data.status === "success") {
           // 🌟 優先顯示系統裡的暱稱(DC暱稱/B欄備援),不是Discord帳號本身的global_name/username
-          if (data.nickname) document.getElementById('user-name').innerText = data.nickname;
+          if (data.nickname) { document.getElementById('user-name').innerText = data.nickname; window.myNick_ = String(data.nickname); }
           document.getElementById('score-s1').innerText = data.s1;
           document.getElementById('score-s2').innerText = data.s2;
           document.getElementById('score-s3').innerText = data.s3;
