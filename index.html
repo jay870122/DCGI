@@ -1064,7 +1064,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.285</div>
+    <div class="version-tag">系統版本：v5.4.286</div>
   </div>
 
   <script>
@@ -7774,7 +7774,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
         if (item.catBudget && item.catBudget.rem && item.catBudget.rem.length) { // 📊 分類額度:顯示目前剩餘可兌換價值
           const PN_ = { H: '每小時', D: '每日', W: '每週', M: '每月' }, cb_ = item.catBudget;
           const fmt_ = (sc) => cb_.rem.filter((r) => r.sc === sc).map((r) => `${PN_[r.p]}剩 ${Math.round(r.left * 100) / 100}/${r.lim}`).join('、');
-          [['G', '全服'], ['P', '個人']].forEach(([sc, nm]) => { const t_ = fmt_(sc); if (t_) limitsHtml += `<span class="limit-tag ${cb_.rem.some((r) => r.sc === sc && r.left <= 0) ? 'tag-role-locked' : 'tag-role-ok'}" title="本商品每個消耗 ${cb_.unit} 點;到期自動重置">${nm}額度(點數): ${t_}</span>`; });
+          [['G', '全服'], ['P', '個人']].forEach(([sc, nm]) => { const t_ = fmt_(sc); if (t_) limitsHtml += `<span class="limit-tag ${cb_.rem.some((r) => r.sc === sc && r.left <= 0) ? 'tag-role-locked' : 'tag-total'}" title="本商品每個消耗 ${cb_.unit} 點;到期自動重置">📊 ${nm}額度(點數): ${t_}</span>`; });
         }
         {
           const gLk_ = !!item.groupLocked && (item.groupLockMsg || '').indexOf('全體選一') === 0; // 全體選一已鎖定
