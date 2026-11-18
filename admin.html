@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.315</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.316</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -8895,6 +8895,15 @@ function addItemOption(prefix) {
   itemOptionsState[prefix].push({ name: '', price: 0, rewardRules: '', stock: '', limitGD: '', limitGM: '', limitGW: '', limitPD: '', limitPM: '', limitPW: '', limitPT: '', catVals: '' });
   renderItemOptions(prefix);
 }
+// 選項自己的分類額度價值:畫面用一列一列編輯(_cr),存的時候轉成 catVals 字串「額度名:價值, …」
+function optCatRows_(opt) {
+  if (!opt._cr) { opt._cr = String(opt.catVals || '').split(/[,，、\n]+/).map((x) => x.trim().match(/^(.+?)\s*[:：]\s*([\d.]+)$/)).filter(Boolean).map((m) => ({ n: m[1].trim(), v: m[2] })); if (!opt._cr.length) opt._cr = [{ n: '', v: '' }]; }
+  return opt._cr;
+}
+function optCatSync_(opt) { opt.catVals = (opt._cr || []).filter((r) => (r.n || '').trim() && r.v !== '' && r.v !== undefined).map((r) => r.n.trim() + ':' + r.v).join(', '); }
+function optCatSet_(prefix, idx, ri, k, val) { const opt = itemOptionsState[prefix][idx]; optCatRows_(opt)[ri][k] = val; optCatSync_(opt); }
+function optCatAdd_(prefix, idx) { optCatRows_(itemOptionsState[prefix][idx]).push({ n: '', v: '' }); renderItemOptions(prefix); }
+function optCatDel_(prefix, idx, ri) { const opt = itemOptionsState[prefix][idx], r = optCatRows_(opt); r.splice(ri, 1); if (!r.length) r.push({ n: '', v: '' }); optCatSync_(opt); renderItemOptions(prefix); }
 function removeItemOption(prefix, idx) {
   itemOptionsState[prefix].splice(idx, 1);
   renderItemOptions(prefix);
@@ -8936,8 +8945,9 @@ function renderItemOptions(prefix) {
           <input placeholder="留空=不掛勾" value="${(opt.linkedSerialPool||'').replace(/"/g,'&quot;')}" style="width:100%" oninput="updateItemOptionField('${prefix}',${idx},'linkedSerialPool',this.value)">
         </div>
         <div style="margin-top:8px">
-          <label style="font-size:11px;color:#B9BBBE;display:block;margin-bottom:2px">📊 這個選項的分類額度價值 <span class="hint">選填。格式「額度名:價值」,多個用逗號分隔,例如 GASH月額度:150, 全服額度:150。有填就以這裡為準(蓋過商品本身在該額度的價值),額度要先在「分類額度」頁建立並設好上限</span></label>
-          <input placeholder="例:GASH月額度:150" value="${(opt.catVals||'').toString().replace(/"/g,'&quot;')}" style="width:100%" oninput="updateItemOptionField('${prefix}',${idx},'catVals',this.value)">
+          <label style="font-size:11px;color:#B9BBBE;display:block;margin-bottom:2px">📊 額度(填入額度名稱,再填價值;沒填=不計入) <span class="hint">這個選項自己的價值,有填就蓋過商品本身在該額度的價值</span></label>
+          ${optCatRows_(opt).map((r, ri) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><input list="${prefix}-cb-dl" value="${(r.n||'').replace(/"/g,'&quot;')}" placeholder="填入額度(可自動帶入)" style="width:170px" oninput="optCatSet_('${prefix}',${idx},${ri},'n',this.value)"><input type="number" min="0" step="any" value="${r.v === undefined ? '' : r.v}" placeholder="價值" style="width:90px" oninput="optCatSet_('${prefix}',${idx},${ri},'v',this.value)"><button type="button" class="btn btn-edit" onclick="optCatDel_('${prefix}',${idx},${ri})">✕</button></div>`).join('')}
+          <button type="button" class="btn btn-edit" onclick="optCatAdd_('${prefix}',${idx})">➕ 再加一欄</button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
           ${limitFieldDefs.map(([field, label, hint]) => `
@@ -8967,7 +8977,7 @@ function renderGachaPreviewInline(textareaEl, previewId) {
 
 // 🌟 把目前的選項陣列序列化成JSON字串,存回商品資料裡(空陣列的話回傳空字串,代表不啟用選項功能)
 function serializeItemOptions(prefix) {
-  const list = itemOptionsState[prefix].filter(o => (o.name||'').trim());
+  const list = itemOptionsState[prefix].filter(o => (o.name||'').trim()).map((o) => { const c = Object.assign({}, o); delete c._cr; return c; });
   return list.length > 0 ? JSON.stringify(list) : '';
 }
 
