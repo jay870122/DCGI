@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.313</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.314</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -3985,7 +3985,7 @@ const pages = ['cat-budget','shop-list','auction-list','add-shop','add-auction',
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
-  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', pages[i] === p));
+  document.querySelectorAll('.nav-item').forEach((el) => el.classList.toggle('active', (el.getAttribute('onclick') || '').indexOf("navTo('" + p + "')") === 0)); // 依按鈕自己的目標頁判斷(原本用順序對照,選單項目增減後會亮錯)
   if (auctionBidsAutoRefreshInterval) { clearInterval(auctionBidsAutoRefreshInterval); auctionBidsAutoRefreshInterval = null; }
   if (p==='shop-list') loadShopItems();
   if (p==='auction-list') loadAuctionItems();
