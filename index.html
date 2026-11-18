@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.308</div>
+    <div class="version-tag">系統版本：v5.4.309</div>
   </div>
 
   <script>
@@ -5289,7 +5289,7 @@
       (p.cards || []).forEach((x) => rows.push('<div>🎁 ' + escapeHtml_(x.label) + ' 獎勵牌(出現機率 ' + x.chance + '%,翻到一對):' + bsItemsText_(x.items) + '</div>'));
       return rows.length ? rows.join('') : '<div style="color:#949BA4">這個型態沒有設定獎勵</div>';
     }
-    let bsPrizeOpen_ = false, bsLastTs_ = null;
+    let bsPrizeOpen_ = false, bsLastTs_ = null, bsSeenFirst_ = -1;
     async function bsReset_() { // 管理員重置了這條賽道:清掉本地狀態、整份重抓
       bsFlash_ = {}; bsLastTs_ = null; bsRestUntil_ = 0; bsWsDirty_ = false;
       bsToast_ = '🔄 管理員重置了這條賽道,牌面已重新開始';
@@ -5301,11 +5301,11 @@
       if (bsLastTs_ === null) { bsLastTs_ = last.ts; return; }
       if (last.ts <= bsLastTs_) return;
       bsLastTs_ = last.ts;
-      if (String(last.uid) === String(currentUser.id) || Date.now() - last.ts > 6000) return;
+      if (String(last.uid) === String(currentUser.id)) return;
       const keys = [];
-      (last.cards || []).forEach((c) => { bsFlash_[c.idx] = { label: c.face.label, sub: c.face.sub, cls: last.kind === 'miss' ? 'bad' : (last.kind === 'pair' ? 'hit' : '') }; keys.push(c.idx); });
+      (last.cards || []).forEach((c) => { bsFlash_[c.idx] = { label: c.face.label, sub: c.face.sub, cls: last.kind === 'miss' ? 'bad' : (last.kind === 'pair' ? 'hit' : ''), ws: c.idx !== bsSeenFirst_ }; keys.push(c.idx); });
       bsToast_ = '👀 ' + last.by + (last.kind === 'pair' ? ' 配對成功!' : last.kind === 'miss' ? ' 沒配對到' : ' 翻到特殊牌');
-      setTimeout(() => { keys.forEach((k) => { delete bsFlash_[k]; }); if (bsTrack_ && !bsBusy_) bsRender_(); }, 1500);
+      setTimeout(async () => { if (last.kind === 'miss') { keys.forEach((k) => { const el = document.querySelector('#bs-body .bs-card[data-i="' + k + '"]'); if (el) el.classList.remove('open', 'flipped', 'bad'); }); await new Promise((r) => setTimeout(r, 480)); } keys.forEach((k) => { delete bsFlash_[k]; }); if (bsTrack_ && !bsBusy_) bsRender_(); }, 2000);
     }
     function bsStopPoll_() { bsAsleep_ = false; if (bsSleepT_) { clearTimeout(bsSleepT_); bsSleepT_ = null; } bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
     async function bsLoadLobby_() {
@@ -5385,8 +5385,9 @@
         const fl = bsFlash_[i];
         if (g && !fl) return '<button class="bs-card gone" disabled></button>';
         if (fl && fl.pending) return cardOf_('flipped', '⏳', 'disabled data-i="' + i + '"');
+        if (fl && fl.ws) return cardOf_('', bsFace_(fl), 'disabled data-i="' + i + '" data-ws="open ' + (fl.cls || '') + '"');
         if (fl) return cardOf_('open ' + (fl.cls || ''), bsFace_(fl), 'disabled data-i="' + i + '"');
-        if (first && first.idx === i) return cardOf_('open', bsFace_(first.face), 'disabled data-i="' + i + '"');
+        if (first && first.idx === i) return cardOf_(turnLocked_ && bsSeenFirst_ !== i ? '' : 'open', bsFace_(first.face), 'disabled data-i="' + i + '"' + (turnLocked_ && bsSeenFirst_ !== i ? ' data-ws="open"' : ''));
         return cardOf_('', '', (dis || rest ? 'disabled ' : '') + 'data-i="' + i + '" onclick="bsFlip_(' + i + ')"');
       }).join('');
       box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;white-space:nowrap;min-width:0"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><b style="overflow:hidden;text-overflow:ellipsis;min-width:0">' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px;flex:none">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
@@ -5406,6 +5407,8 @@
         '<div style="font-weight:700;margin-bottom:6px">🏆 傷害排行</div><div class="bs-feed" style="max-height:150px">' + (t.top.length ? t.top.map((x) => { const tier = ((t.prizes && t.prizes.ranking) || []).find((r) => x.rank >= r.from && x.rank <= r.to); return '<div' + (x.me ? ' style="color:#F0B232"' : '') + '>#' + x.rank + ' ' + escapeHtml_(x.name) + ' — ' + bsNum_(x.damage) + '(' + x.attacks + ' 次)' + (tier ? ' <span style="color:#949BA4;font-size:12px">🎁 ' + bsItemsText_(tier.items) + '</span>' : '') + '</div>'; }).join('') : '<div style="color:#949BA4">還沒有人出手</div>') + '</div>' +
         '<div style="font-weight:700;margin:10px 0 6px">📣 即時動態</div><div class="bs-feed">' + (t.feed.length ? t.feed.map((f) => '<div>' + escapeHtml_(f.text) + '</div>').join('') : '<div style="color:#949BA4">還沒有動態</div>') + '</div>' +
         '</div></div>';
+      bsSeenFirst_ = first ? first.idx : -1;
+      box.querySelectorAll('[data-ws]').forEach((el) => { requestAnimationFrame(() => requestAnimationFrame(() => { if (el.isConnected) el.classList.add.apply(el.classList, el.getAttribute('data-ws').split(' ').filter(Boolean)); })); }); // 別人翻的牌:先蓋著再轉過去,看得到翻牌動畫
       if (holdLeft_ > 0) { bsHoldTick_(); if (!window.bsHoldT_) window.bsHoldT_ = setInterval(bsHoldTick_, 250); } else if (window.bsHoldT_) { clearInterval(window.bsHoldT_); window.bsHoldT_ = null; }
       if (rest) { bsRestTick_(); if (!bsRestTimer_) bsRestTimer_ = setInterval(bsRestTick_, 500); }
     }
