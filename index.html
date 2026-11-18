@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.292</div>
+    <div class="version-tag">系統版本：v5.4.293</div>
   </div>
 
   <script>
@@ -5332,7 +5332,7 @@
         '<div style="font-size:13px;color:#B9BBBE;margin-top:6px">我的傷害:<b>' + bsNum_(t.me.damage) + '</b>(' + t.me.attacks + ' 次攻擊)' + (t.resetsNeed ? ' ・ 重置牌 ' + t.resets + '/' + t.resetsNeed : '') + '</div></div></div>' +
         '<div id="bs-ms" style="font-size:11px;color:#6d6f78;min-height:14px"></div><div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : bsToast_))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
         '<div class="bs-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr))">' + cardHtml + '</div>' +
-        '<div style="font-size:12px;color:#949BA4;margin-top:10px">遊戲錢包:<b>' + t.wallet + '</b> 張「' + escapeHtml_(t.ticketCurrency) + '」 <button style="background:none;border:1px solid #4F545C;color:#B9BBBE;border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:6px" onclick="bsRefund_()">退回背包</button><br>翻兩張「傷害數字一樣」的攻擊牌才會出手;獎勵牌要翻到兩張「獎勵一樣」;陷阱/重置/休息牌翻到就觸發。</div>' +
+        '<div style="font-size:12px;color:#949BA4;margin-top:10px">遊戲錢包:<b>' + t.wallet + '</b> 張「' + escapeHtml_(t.ticketCurrency) + '」 <button style="background:#5865F2;border:0;color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;margin-left:6px" onclick="bsTopup_()">➕ 加值</button> <button style="background:none;border:1px solid #4F545C;color:#B9BBBE;border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:6px" onclick="bsRefund_()">退回背包</button><br>翻兩張「傷害數字一樣」的攻擊牌才會出手;獎勵牌要翻到兩張「獎勵一樣」;陷阱/重置/休息牌翻到就觸發。</div>' +
         '</div><div>' +
         '<div style="font-weight:700;margin-bottom:6px">🏆 傷害排行</div><div class="bs-feed" style="max-height:150px">' + (t.top.length ? t.top.map((x) => '<div' + (x.me ? ' style="color:#F0B232"' : '') + '>#' + x.rank + ' ' + escapeHtml_(x.name) + ' — ' + bsNum_(x.damage) + '(' + x.attacks + ' 次)</div>').join('') : '<div style="color:#949BA4">還沒有人出手</div>') + '</div>' +
         '<div style="font-weight:700;margin:10px 0 6px">📣 即時動態</div><div class="bs-feed">' + (t.feed.length ? t.feed.map((f) => '<div>' + escapeHtml_(f.text) + '</div>').join('') : '<div style="color:#949BA4">還沒有動態</div>') + '</div>' +
@@ -5411,6 +5411,13 @@
       if (d.claimed && d.claimed.length) alert('已領出:' + d.claimed.join('、') + (d.failed ? '\n(另有 ' + d.failed + ' 件失敗,請再試一次)' : ''));
       else alert(d.failed ? '領取失敗,請稍後再試' : '沒有可領的禮物');
       await bsOpenGifts_();
+    }
+    async function bsTopup_() {
+      const v = prompt('要加值幾張翻牌券?(會從你的貨幣餘額扣除)', '20'); if (v === null) return;
+      const n = Math.floor(Number(v)); if (!(n >= 1)) { alert('請輸入大於 0 的張數'); return; }
+      const d = await bsCall_('bossTopup', { n: String(n) });
+      if (d && d.status === 'success') { bsToast_ = '已加值 ' + d.added + ' 張'; if (bsTrackId_) await bsRefresh_(false); else await bsLoadLobby_(); }
+      else alert((d && d.message) || '加值失敗');
     }
     async function bsRefund_() {
       if (!confirm('把遊戲錢包裡沒用完的翻牌券全部退回你的貨幣?')) return;
