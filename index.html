@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.301</div>
+    <div class="version-tag">系統版本：v5.4.302</div>
   </div>
 
   <script>
@@ -5320,13 +5320,23 @@
     function bsStartPoll_() {
       if (bsPoll_) clearInterval(bsPoll_);
       let bsTick_ = 0;
-      bsPoll_ = setInterval(() => { bsTick_++; if (bsWsOk_ && bsTick_ % 5) return; /* 即時連線正常時只每 15 秒保險重抓一次 */ if (!bsBusy_ && document.getElementById('boss-modal').style.display === 'flex' && bsTrackId_) bsRefresh_(false); }, 3000);
+      bsLastAct_ = Date.now();
+      bsPoll_ = setInterval(() => { bsTick_++; if (!bsAsleep_ && !bsBusy_ && Date.now() - bsLastAct_ > BS_IDLE_MS_) { bsSleep_(true); return; } if (bsWsOk_ && bsTick_ % 5) return; /* 即時連線正常時只每 15 秒保險重抓一次 */ if (!bsBusy_ && document.getElementById('boss-modal').style.display === 'flex' && bsTrackId_) bsRefresh_(false); }, 3000);
     }
     // 😴 休眠:翻翻樂頁面切到背景(換分頁/切 App/鎖螢幕)超過 20 秒就斷開即時連線、停止輪詢(不再算在線、不耗費用);回到畫面自動重連並重抓
-    let bsSleepT_ = null, bsAsleep_ = false;
-    function bsSleep_() { bsSleepT_ = null; if (!bsTrackId_ || !document.hidden) return; bsAsleep_ = true; bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } }
+    let bsSleepT_ = null, bsAsleep_ = false, bsLastAct_ = Date.now();
+    const BS_IDLE_MS_ = 5 * 60 * 1000; // 畫面在前景但超過 5 分鐘沒任何操作也算閒置,一樣休眠
+    function bsSleep_(idle) {
+      bsSleepT_ = null; if (!bsTrackId_ || (!idle && !document.hidden)) return;
+      bsAsleep_ = true; bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; }
+      if (idle) { bsToast_ = '😴 閒置太久,已自動休眠(點一下畫面繼續)'; if (bsTrack_) bsRender_(); }
+    }
+    ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach((ev) => document.addEventListener(ev, () => {
+      bsLastAct_ = Date.now();
+      if (bsAsleep_ && bsTrackId_ && !document.hidden) bsWake_();
+    }, { passive: true, capture: true }));
     async function bsWake_() {
-      bsAsleep_ = false; if (!bsTrackId_ || document.getElementById('boss-modal').style.display !== 'flex') return;
+      bsAsleep_ = false; bsToast_ = ''; bsLastAct_ = Date.now(); if (!bsTrackId_ || document.getElementById('boss-modal').style.display !== 'flex') return;
       await bsRefresh_(false); bsWsRetry_ = 0; bsWsOpen_(); bsStartPoll_();
     }
     document.addEventListener('visibilitychange', () => {
@@ -5351,7 +5361,7 @@
       const turnLocked_ = holdLeft_ > 0 && t.room.holder && t.room.holder !== myId_;
       if (window.bsLockT_) { clearTimeout(window.bsLockT_); window.bsLockT_ = null; }
       if (holdLeft_ > 0) window.bsLockT_ = setTimeout(() => { window.bsLockT_ = null; if (bsTrack_ && !bsBusy_) bsRefresh_(false); }, holdLeft_ * 1000 + 400); // 對方逾時放棄後重新抓牌面
-      const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active || turnLocked_;
+      const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active || turnLocked_ || bsAsleep_;
       const cardOf_ = (cls, face, attrs) => '<button class="bs-card ' + cls + '" ' + attrs + '><div class="bs-in"><div class="bs-back"><span class="bs-ring">點我</span></div><div class="bs-front">' + face + '</div></div></button>';
       const cardHtml = cells.map((g, i) => {
         const fl = bsFlash_[i];
