@@ -455,20 +455,20 @@
 #boss-modal .bs-hp>i{display:block;height:100%;background:linear-gradient(90deg,#ED4245,#F0B232);transition:width .5s}
 #boss-modal .bs-hp>span{position:absolute;left:0;right:0;top:0;text-align:center;font-size:12px;line-height:18px;color:#fff;text-shadow:0 1px 2px #000}
 #boss-modal .bs-grid{display:grid;gap:8px;margin-top:10px}
-#boss-modal .bs-card{aspect-ratio:3/4;border-radius:10px;border:2px solid #5865F2;background:repeating-linear-gradient(45deg,#3b3f8f,#3b3f8f 8px,#4752c4 8px,#4752c4 16px);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .25s,background .25s;user-select:none;padding:0}
-#boss-modal .bs-card:hover:not(:disabled){transform:translateY(-3px)}
-#boss-modal .bs-card.open{background:#2F3136;border-color:#F0B232;transform:rotateY(0)}
+#boss-modal .bs-card{aspect-ratio:3/4;border:0;background:none;padding:0;cursor:pointer;perspective:800px;user-select:none;color:#fff;font-size:20px;transition:transform .2s}
+#boss-modal .bs-card:hover:not(:disabled):not(.flipped):not(.open){transform:translateY(-3px)}
 #boss-modal .bs-card.gone{visibility:hidden}
-#boss-modal .bs-grid{perspective:700px}
-#boss-modal .bs-card.spin{animation:bsSpin .45s ease-in-out infinite alternate}
-#boss-modal .bs-card.anim{animation:bsFlipIn .32s cubic-bezier(.2,.8,.3,1)}
-@keyframes bsSpin{from{transform:rotateY(0)}to{transform:rotateY(70deg)}}
-@keyframes bsFlipIn{from{transform:rotateY(-90deg) scale(.96)}60%{transform:rotateY(8deg) scale(1.04)}to{transform:rotateY(0) scale(1)}}
-@media(prefers-reduced-motion:reduce){#boss-modal .bs-card.spin,#boss-modal .bs-card.anim{animation:none}}
+#boss-modal .bs-in{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.3,.7,.25,1)}
+#boss-modal .bs-card.open .bs-in,#boss-modal .bs-card.flipped .bs-in{transform:rotateY(180deg)}
+#boss-modal .bs-back,#boss-modal .bs-front{position:absolute;inset:0;border-radius:10px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+#boss-modal .bs-back{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 133' preserveAspectRatio='none'%3E%3Cpath d='M30 0C20 45 20 88 30 133M70 0C80 45 80 88 70 133' fill='none' stroke='%23c9b896' stroke-opacity='.55' stroke-width='.8'/%3E%3C/svg%3E") center/100% 100% no-repeat,linear-gradient(165deg,#0b2a6e 0%,#031038 100%)}
+#boss-modal .bs-ring{width:58%;aspect-ratio:1;border-radius:50%;border:3px solid transparent;background:linear-gradient(#071a4e,#071a4e) padding-box,linear-gradient(135deg,#f6e7c8,#b99d74) border-box;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#f3e9d6}
+#boss-modal .bs-front{transform:rotateY(180deg);background:linear-gradient(160deg,#fbf1dc 0%,#c9b08a 100%);color:#5b4630;font-weight:700;text-align:center;padding:4px;font-size:20px}
+#boss-modal .bs-card.hit .bs-front{background:linear-gradient(160deg,#2c8f5a,#16452c);color:#fff}
+#boss-modal .bs-card.bad .bs-front{background:linear-gradient(160deg,#a83a3a,#4a1616);color:#fff}
 #boss-modal .bs-card small{display:block;font-size:11px;font-weight:400;margin-top:2px;line-height:1.2;word-break:break-all}
 #boss-modal .bs-card:disabled{cursor:not-allowed}
-#boss-modal .bs-card.hit{background:#1e5c3a;border-color:#57F287}
-#boss-modal .bs-card.bad{background:#5c1e1e;border-color:#ED4245}
+#boss-modal .bs-card:disabled:not(.flipped):not(.open) .bs-back{filter:saturate(.6) brightness(.8)}
 #boss-modal .bs-feed{max-height:230px;overflow:auto;font-size:13px;color:#DCDDDE;background:#202225;border-radius:8px;padding:8px 10px}
 #boss-modal .bs-feed div{padding:2px 0;border-bottom:1px dashed #36393f}
 #boss-modal .bs-toast{min-height:22px;font-size:14px;margin:8px 0;color:#F0B232}
@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.290</div>
+    <div class="version-tag">系統版本：v5.4.291</div>
   </div>
 
   <script>
@@ -5316,13 +5316,14 @@
       const rest = bsRestUntil_ > Date.now();
       const cells = (t.board && t.board.cells) || [], first = t.board && t.board.first, cols = (t.board && t.board.cols) || 4;
       const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active;
+      const cardOf_ = (cls, face, attrs) => '<button class="bs-card ' + cls + '" ' + attrs + '><div class="bs-in"><div class="bs-back"><span class="bs-ring">點我</span></div><div class="bs-front">' + face + '</div></div></button>';
       const cardHtml = cells.map((g, i) => {
         const fl = bsFlash_[i];
         if (g && !fl) return '<button class="bs-card gone" disabled></button>';
-        if (fl && fl.pending) return '<button class="bs-card spin" disabled>❓</button>';
-        if (fl) return '<button class="bs-card open ' + (fl.cls || '') + (fl.anim ? ' anim' : '') + '" disabled>' + bsFace_(fl) + '</button>';
-        if (first && first.idx === i) return '<button class="bs-card open" disabled>' + bsFace_(first.face) + '</button>';
-        return '<button class="bs-card" ' + (dis || rest ? 'disabled' : '') + ' onclick="bsFlip_(' + i + ')">❓</button>';
+        if (fl && fl.pending) return cardOf_('flipped', '⏳', 'disabled data-i="' + i + '"');
+        if (fl) return cardOf_('open ' + (fl.cls || ''), bsFace_(fl), 'disabled data-i="' + i + '"');
+        if (first && first.idx === i) return cardOf_('open', bsFace_(first.face), 'disabled data-i="' + i + '"');
+        return cardOf_('', '', (dis || rest ? 'disabled ' : '') + 'data-i="' + i + '" onclick="bsFlip_(' + i + ')"');
       }).join('');
       box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><b>' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
         '<div class="bs-wrap"><div>' +
@@ -5360,12 +5361,17 @@
     async function bsFlip_(idx) {
       if (bsBusy_ || !bsTrack_) return;
       bsBusy_ = true; bsFlash_ = {}; bsFlash_[idx] = { label: '⏳', cls: '', pending: true }; bsToast_ = '翻牌中…';
-      const rid = Math.random().toString(36).slice(2, 12);
-      bsRender_();
+      const rid = Math.random().toString(36).slice(2, 12), t0_ = Date.now(), sleep_ = (ms) => new Promise((r) => setTimeout(r, ms));
+      { // 點下去立刻在原地 3D 翻面(不重畫整個畫面,動畫才不會被打斷),牌面內容等伺服器回來再換
+        const el = document.querySelector('#bs-body .bs-card[data-i="' + idx + '"]');
+        if (el) { el.classList.add('flipped'); el.disabled = true; const fr = el.querySelector('.bs-front'); if (fr) fr.innerHTML = '⏳'; } else bsRender_();
+        const tt = document.getElementById('bs-toast'); if (tt) tt.textContent = '翻牌中…';
+      }
       const d = await bsCall_('bossFlip', { trackId: bsTrackId_, idx: String(idx), rid });
       if (!d || d.status !== 'success') {
         bsBusy_ = false; bsFlash_ = {}; bsToast_ = '⚠️ ' + ((d && d.message) || '連線失敗,請再試一次'); if (d && d.restLeft) bsRestUntil_ = Date.now() + d.restLeft * 1000; await bsRefresh_(false); return;
       }
+      { const w_ = 520 - (Date.now() - t0_); if (w_ > 0) await sleep_(w_); } // 等翻面動畫跑完再換成真正的牌面
       const evs = d.events || [], miss = evs.find((e) => e.kind === 'miss');
       const f0 = bsTrack_.board && bsTrack_.board.first;
       bsFlash_ = {}; bsFlash_[idx] = { label: d.face.label, sub: d.face.sub, cls: '', anim: true };
@@ -5378,7 +5384,7 @@
       bsRender_();
       const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
       const needFull = evs.some((e) => ['attack', 'kill', 'reward', 'trap', 'reshuffle'].includes(e.kind));
-      setTimeout(() => { bsFlash_ = {}; bsBusy_ = false; if (needFull || bsWsDirty_) { bsWsDirty_ = false; bsRefresh_(false); } else bsRender_(); }, hold || 30);
+      setTimeout(async () => { if (miss) { document.querySelectorAll('#bs-body .bs-card.open').forEach((el) => el.classList.remove('open', 'flipped', 'bad')); await sleep_(480); } /* 沒配對:兩張翻回去的動畫 */ bsFlash_ = {}; bsBusy_ = false; if (needFull || bsWsDirty_) { bsWsDirty_ = false; bsRefresh_(false); } else bsRender_(); }, hold || 30);
     }
     async function bsOpenGifts_() {
       bsStopPoll_(); bsTrackId_ = null; bsTrack_ = null;
