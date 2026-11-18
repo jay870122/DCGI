@@ -454,7 +454,8 @@
 #boss-modal .bs-hp{height:18px;background:#202225;border-radius:9px;overflow:hidden;position:relative;border:1px solid #4F545C}
 #boss-modal .bs-hp>i{display:block;height:100%;background:linear-gradient(90deg,#ED4245,#F0B232);transition:width .5s}
 #boss-modal .bs-hp>span{position:absolute;left:0;right:0;top:0;text-align:center;font-size:12px;line-height:18px;color:#fff;text-shadow:0 1px 2px #000}
-#bs-chat{position:fixed;left:12px;bottom:12px;z-index:5;display:none}
+#bs-chat{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;display:none}
+@media(max-width:760px){#bs-chat{bottom:calc(84px + env(safe-area-inset-bottom))}}
 #bs-chat .bc-btn{background:#5865F2;color:#fff;border:0;border-radius:20px;padding:8px 14px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px #0008}
 #bs-chat .bc-btn b{background:#ED4245;border-radius:9px;padding:0 6px;margin-left:4px;font-size:12px}
 #bs-chat .bc-panel{display:none;width:min(320px,92vw);background:#2B2D31;border:1px solid #4F545C;border-radius:10px;box-shadow:0 4px 16px #000a;overflow:hidden}
@@ -1085,7 +1086,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.326</div>
+    <div class="version-tag">系統版本：v5.4.327</div>
   </div>
 
   <script>
