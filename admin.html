@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.312</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.313</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4252,11 +4252,11 @@ function beFix_() {
   });
 }
 function beMirror_() { const ta = document.getElementById('boss-json'); if (ta) ta.value = JSON.stringify({ tracks: BED_.tracks }, null, 1); }
-function beFormTotal_(f) { const b = f.board || {}; const n = (x) => { if (x === undefined || x === null) return 0; const t = String(x).trim().replace(/～/g, '~'); if (t === '') return 3; const m = t.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; }; const sp = (o, k, kk) => (o && o[kk] !== undefined ? o[kk] : (o ? o[k] : undefined)); return (b.attack || []).reduce((a, x) => a + n(sp(x, 'pairs', 'pairsSpec')) * 2, 0) + (b.reward || []).reduce((a, x) => a + n(sp(x, 'pairs', 'pairsSpec')) * 2, 0) + n(sp(b.trap, 'count', 'countSpec')) + n(sp(b.reset, 'count', 'countSpec')) + n(sp(b.rest, 'count', 'countSpec')); }
+function beFormTotal_(f) { const b = f.board || {}; const n = (x) => { if (x === undefined || x === null) return 0; const t = String(x).trim().replace(/～/g, '~'); if (t === '') return 0; const m = t.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; }; const sp = (o, k, kk) => (o && o[kk] !== undefined ? o[kk] : (o ? o[k] : undefined)); return (b.attack || []).reduce((a, x) => a + n(sp(x, 'pairs', 'pairsSpec')) * 2, 0) + (b.reward || []).reduce((a, x) => a + n(sp(x, 'pairs', 'pairsSpec')) * 2, 0) + n(sp(b.trap, 'count', 'countSpec')) + n(sp(b.reset, 'count', 'countSpec')) + n(sp(b.rest, 'count', 'countSpec')); }
 // 選一群組欄:「個人||全體:群組」同存一格
 function exclSplitA_(raw){let p='',g='';String(raw||'').split('||').forEach(x=>{x=x.trim();if(!x)return;const m=x.match(/^(全體|全服)\s*[:：]\s*(.+)$/);if(m)g=m[2].trim();else p=x;});return {p,g};}
 function exclJoinA_(p,g){p=(p||'').trim();g=(g||'').trim();return g?(p?p+'||':'')+'全體:'+g:p;}
-function beTot_() { document.querySelectorAll('.be-tot').forEach((el) => { const r = beRef_(el.dataset.p); const f = r[0][r[1]]; const t = beFormTotal_(f); const rr = parseInt(f.board.rows, 10) || 0, cc = parseInt(f.board.cols, 10) || 4, sz = rr * cc; el.innerHTML = rr ? ('牌盤 ' + rr + '×' + cc + ' = ' + sz + ' 格;你設的牌最多 <b style="color:' + (t > sz ? '#f04747' : '#43b581') + '">' + t + '</b> 張' + (t > sz ? ',超過格數了!' : ',其餘 ' + (sz - t) + '+ 格(含機率沒出現的陷阱/獎勵)自動用攻擊牌補滿')) : ('牌盤總張數 <b style="color:' + (t > 64 ? '#f04747' : '#43b581') + '">' + t + '</b> / 64(約 ' + Math.ceil(t / cc) + ' 列 × ' + cc + ' 欄)'); }); }
+function beTot_() { document.querySelectorAll('.be-tot').forEach((el) => { const r = beRef_(el.dataset.p); const f = r[0][r[1]]; const t = beFormTotal_(f); const rr = parseInt(f.board.rows, 10) || 0, cc = parseInt(f.board.cols, 10) || 4, sz = rr * cc; el.innerHTML = rr ? ('牌盤 ' + rr + '×' + cc + ' = ' + sz + ' 格;你設的牌最多 <b style="color:' + (t > sz ? '#f04747' : '#43b581') + '">' + t + '</b> 張' + (t > sz ? ',超過格數了!' : ',其餘 ' + (sz - t) + ' 格由「留空」的牌依機率逐張補,仍不夠再用攻擊牌補滿(留空的牌不計入張數)')) : ('牌盤總張數 <b style="color:' + (t > 64 ? '#f04747' : '#43b581') + '">' + t + '</b> / 64(約 ' + Math.ceil(t / cc) + ' 列 × ' + cc + ' 欄)'); }); }
 function beRw_(path, list) {
   let h = '<div class="be-rw">';
   (list || []).forEach((r, i) => {
