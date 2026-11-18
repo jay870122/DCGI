@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.300</div>
+    <div class="version-tag">系統版本：v5.4.301</div>
   </div>
 
   <script>
@@ -5290,7 +5290,7 @@
       bsToast_ = '👀 ' + last.by + (last.kind === 'pair' ? ' 配對成功!' : last.kind === 'miss' ? ' 沒配對到' : ' 翻到特殊牌');
       setTimeout(() => { keys.forEach((k) => { delete bsFlash_[k]; }); if (bsTrack_ && !bsBusy_) bsRender_(); }, 1500);
     }
-    function bsStopPoll_() { bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
+    function bsStopPoll_() { bsAsleep_ = false; if (bsSleepT_) { clearTimeout(bsSleepT_); bsSleepT_ = null; } bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
     async function bsLoadLobby_() {
       bsStopPoll_();
       const d = await bsCall_('bossLobby');
@@ -5315,9 +5315,25 @@
       await bsRefresh_(true);
       bsStopPoll_();
       bsWsOpen_();
+      bsStartPoll_();
+    }
+    function bsStartPoll_() {
+      if (bsPoll_) clearInterval(bsPoll_);
       let bsTick_ = 0;
       bsPoll_ = setInterval(() => { bsTick_++; if (bsWsOk_ && bsTick_ % 5) return; /* 即時連線正常時只每 15 秒保險重抓一次 */ if (!bsBusy_ && document.getElementById('boss-modal').style.display === 'flex' && bsTrackId_) bsRefresh_(false); }, 3000);
     }
+    // 😴 休眠:翻翻樂頁面切到背景(換分頁/切 App/鎖螢幕)超過 20 秒就斷開即時連線、停止輪詢(不再算在線、不耗費用);回到畫面自動重連並重抓
+    let bsSleepT_ = null, bsAsleep_ = false;
+    function bsSleep_() { bsSleepT_ = null; if (!bsTrackId_ || !document.hidden) return; bsAsleep_ = true; bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } }
+    async function bsWake_() {
+      bsAsleep_ = false; if (!bsTrackId_ || document.getElementById('boss-modal').style.display !== 'flex') return;
+      await bsRefresh_(false); bsWsRetry_ = 0; bsWsOpen_(); bsStartPoll_();
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.getElementById('boss-modal').style.display !== 'flex' || !bsTrackId_) return;
+      if (document.hidden) { if (bsSleepT_) clearTimeout(bsSleepT_); bsSleepT_ = setTimeout(bsSleep_, 20000); }
+      else { if (bsSleepT_) { clearTimeout(bsSleepT_); bsSleepT_ = null; } if (bsAsleep_) bsWake_(); }
+    });
     async function bsRefresh_(first) {
       const d = await bsCall_('bossTrack', { trackId: bsTrackId_ });
       if (!d || d.status !== 'success') { if (first) document.getElementById('bs-body').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
