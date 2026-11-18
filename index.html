@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.311</div>
+    <div class="version-tag">系統版本：v5.4.312</div>
   </div>
 
   <script>
@@ -5290,7 +5290,7 @@
       (p.cards || []).forEach((x) => rows.push('<div>🎁 ' + escapeHtml_(x.label) + ' 獎勵牌(出現機率 ' + x.chance + '%,翻到一對):' + bsItemsText_(x.items) + '</div>'));
       return rows.length ? rows.join('') : '<div style="color:#949BA4">這個型態沒有設定獎勵</div>';
     }
-    let bsPrizeOpen_ = false, bsLastTs_ = null, bsSeenFirst_ = -1;
+    let bsPrizeOpen_ = false, bsLastTs_ = null, bsSeenFirst_ = -1, bsCoolUntil_ = 0;
     async function bsReset_() { // 管理員重置了這條賽道:清掉本地狀態、整份重抓
       bsFlash_ = {}; bsLastTs_ = null; bsRestUntil_ = 0; bsWsDirty_ = false;
       bsToast_ = '🔄 管理員重置了這條賽道,牌面已重新開始';
@@ -5329,7 +5329,7 @@
         }).join('') + '</div>';
     }
     async function bsEnter_(id) {
-      bsTrackId_ = id; bsToast_ = ''; bsFlash_ = {}; bsLastTs_ = null;
+      bsTrackId_ = id; bsCoolUntil_ = 0; bsToast_ = ''; bsFlash_ = {}; bsLastTs_ = null;
       document.getElementById('bs-body').innerHTML = '<div style="color:#949BA4">載入中…</div>';
       await bsRefresh_(true);
       bsStopPoll_();
@@ -5380,7 +5380,7 @@
       const turnLocked_ = holdLeft_ > 0 && t.room.holder && t.room.holder !== myId_;
       if (window.bsLockT_) { clearTimeout(window.bsLockT_); window.bsLockT_ = null; }
       if (holdLeft_ > 0) window.bsLockT_ = setTimeout(() => { window.bsLockT_ = null; if (bsTrack_ && !bsBusy_) bsRefresh_(false); }, holdLeft_ * 1000 + 400); // 對方逾時放棄後重新抓牌面
-      const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active || turnLocked_ || bsAsleep_;
+      const ended = t.status !== 'live', dis = bsBusy_ || ended || !!t.blocked || !t.active || turnLocked_ || bsAsleep_ || Date.now() < bsCoolUntil_;
       const cardOf_ = (cls, face, attrs) => '<button class="bs-card ' + cls + '" ' + attrs + '><div class="bs-in"><div class="bs-back"><span class="bs-ring">點我</span></div><div class="bs-front">' + face + '</div></div></button>';
       const cardHtml = cells.map((g, i) => {
         const fl = bsFlash_[i];
@@ -5473,9 +5473,9 @@
       bsSeenFirst_ = d.board && d.board.first ? d.board.first.idx : -1; bsTrack_.board = d.board; if (d.room) bsTrack_.room = d.room; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
       evs.forEach((e) => { if (e.kind === 'attack' && bsTrack_.me) { bsTrack_.me.damage = Math.round((Number(bsTrack_.me.damage) + e.amount) * 100) / 100; bsTrack_.me.attacks++; } if (e.kind === 'reset') bsTrack_.resets = e.count; if (e.kind === 'reshuffle') bsTrack_.resets = 0; });
       bsRender_();
-      const hold = miss ? (bsTrack_.shared ? 2200 : 650) : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
+      const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
       const needFull = evs.some((e) => ['attack', 'kill', 'reward', 'trap', 'reshuffle'].includes(e.kind));
-      setTimeout(async () => { if (miss) { document.querySelectorAll('#bs-body .bs-card.open').forEach((el) => el.classList.remove('open', 'flipped', 'bad')); await sleep_(480); } /* 沒配對:兩張翻回去的動畫 */ bsFlash_ = {}; bsBusy_ = false; if (needFull || bsWsDirty_) { bsWsDirty_ = false; bsRefresh_(false); } else bsRender_(); }, hold || 30);
+      setTimeout(async () => { if (miss) { document.querySelectorAll('#bs-body .bs-card.open').forEach((el) => el.classList.remove('open', 'flipped', 'bad')); await sleep_(480); if (bsTrack_.shared) { bsCoolUntil_ = t0_ + 2600; setTimeout(() => { if (bsTrack_ && !bsBusy_) bsRender_(); }, Math.max(50, bsCoolUntil_ - Date.now())); } } /* 沒配對:兩張翻回去的動畫;共用牌面翻錯者鎖住約2.5秒,期間仍看得到別人翻牌 */ bsFlash_ = {}; bsBusy_ = false; if (needFull || bsWsDirty_) { bsWsDirty_ = false; bsRefresh_(false); } else bsRender_(); }, hold || 30);
     }
     async function bsOpenGifts_() {
       bsStopPoll_(); bsTrackId_ = null; bsTrack_ = null;
