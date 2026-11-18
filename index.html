@@ -455,14 +455,14 @@
 #boss-modal .bs-hp>i{display:block;height:100%;background:linear-gradient(90deg,#ED4245,#F0B232);transition:width .5s}
 #boss-modal .bs-hp>span{position:absolute;left:0;right:0;top:0;text-align:center;font-size:12px;line-height:18px;color:#fff;text-shadow:0 1px 2px #000}
 #bs-chat{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;display:none}
-@media(max-width:760px){#bs-chat{bottom:calc(84px + env(safe-area-inset-bottom))}}
-#bs-chat .bc-btn{background:#5865F2;color:#fff;border:0;border-radius:20px;padding:8px 14px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px #0008}
-#bs-chat .bc-btn b{background:#ED4245;border-radius:9px;padding:0 6px;margin-left:4px;font-size:12px}
+@media(max-width:760px){#bs-chat{bottom:calc(72px + env(safe-area-inset-bottom))}}
+#boss-modal .bc-btn{display:none;position:absolute;right:52px;top:50%;margin-top:-16px;background:#5865F2;color:#fff;border:0;border-radius:18px;padding:6px 12px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px #0008}
+#boss-modal .bc-btn b{background:#ED4245;border-radius:9px;padding:0 6px;margin-left:4px;font-size:12px}
 #bs-chat .bc-panel{display:none;width:min(320px,92vw);background:#2B2D31;border:1px solid #4F545C;border-radius:10px;box-shadow:0 4px 16px #000a;overflow:hidden}
 @keyframes bcPulse{0%,100%{transform:scale(1)}30%{transform:scale(1.18)}60%{transform:scale(.96)}}
-#bs-chat .bc-btn.ping{animation:bcPulse .6s 2}
-#bs-chat .bc-pop{display:none;position:absolute;left:0;bottom:46px;width:max-content;max-width:min(280px,80vw);background:#2B2D31;border:1px solid #5865F2;border-radius:10px;padding:6px 10px;font-size:13px;color:#DCDDDE;box-shadow:0 2px 10px #0009;cursor:pointer;word-break:break-all}
-#bs-chat.open .bc-panel{display:block}#bs-chat.open .bc-btn{display:none}
+#boss-modal .bc-btn.ping{animation:bcPulse .6s 2}
+#boss-modal .bc-pop{display:none;position:absolute;right:10px;top:calc(100% + 4px);z-index:6;width:max-content;max-width:min(280px,80vw);background:#2B2D31;border:1px solid #5865F2;border-radius:10px;padding:6px 10px;font-size:13px;color:#DCDDDE;box-shadow:0 2px 10px #0009;cursor:pointer;word-break:break-all}
+#bs-chat.open .bc-panel{display:block}
 #bs-chat .bc-h{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#202225;font-size:13px;font-weight:700}
 #bs-chat .bc-log{height:180px;overflow:auto;padding:6px 10px;font-size:13px;color:#DCDDDE;word-break:break-all}
 #bs-chat .bc-log div{padding:2px 0}#bs-chat .bc-log .me{color:#F0B232}#bs-chat .bc-log small{color:#6d6f78;margin-right:4px}
@@ -741,10 +741,11 @@
       <div class="modal-header">
         <span class="modal-close" onclick="closeBoss()">×</span>
         <h2 style="margin:0;">🐲 翻翻樂打BOSS</h2>
+        <button class="bc-btn" id="bc-btn" onclick="bsChatToggle_(true)">💬 聊天<b id="bc-n" style="display:none"></b></button><div class="bc-pop" id="bc-pop" onclick="bsChatToggle_(true)"></div>
       </div>
       <div class="modal-body" id="bs-body"><div style="color:#949BA4">載入中…</div></div>
     </div>
-    <div id="bs-chat"><div class="bc-pop" id="bc-pop" onclick="bsChatToggle_(true)"></div><button class="bc-btn" id="bc-btn" onclick="bsChatToggle_(true)">💬 聊天<b id="bc-n" style="display:none"></b></button><div class="bc-panel"><div class="bc-h"><span>💬 房間聊天</span><span style="cursor:pointer;padding:0 4px" onclick="bsChatToggle_(false)">✕</span></div><div class="bc-log" id="bc-log"></div><div class="bc-in"><input id="bc-text" maxlength="100" placeholder="說點什麼…(最多 100 字)" onkeydown="if(event.key==='Enter')bsChatSend_()"><button onclick="bsChatSend_()">送出</button></div></div></div>
+    <div id="bs-chat"><div class="bc-panel"><div class="bc-h"><span>💬 房間聊天</span><span style="cursor:pointer;padding:0 4px" onclick="bsChatToggle_(false)">✕</span></div><div class="bc-log" id="bc-log"></div><div class="bc-in"><input id="bc-text" maxlength="100" placeholder="說點什麼…(最多 100 字)" onkeydown="if(event.key==='Enter')bsChatSend_()"><button onclick="bsChatSend_()">送出</button></div></div></div>
   </div>
 
   <!-- 📈 台股模擬(虛擬貨幣買賣台股,Worker專屬) -->
@@ -1086,7 +1087,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.327</div>
+    <div class="version-tag">系統版本：v5.4.328</div>
   </div>
 
   <script>
@@ -5287,7 +5288,7 @@
     let bsChatLog_ = [], bsChatOpen_ = false, bsChatUnread_ = 0;
     function bsChatRender_() {
       const box = document.getElementById('bs-chat'); if (!box) return;
-      box.style.display = bsWsOk_ && bsTrackId_ ? 'block' : 'none'; box.classList.toggle('open', bsChatOpen_);
+      const on = bsWsOk_ && bsTrackId_; box.style.display = on && bsChatOpen_ ? 'block' : 'none'; box.classList.toggle('open', bsChatOpen_); const bb = document.getElementById('bc-btn'); if (bb) bb.style.display = on && !bsChatOpen_ ? 'block' : 'none';
       const n = document.getElementById('bc-n'); if (n) { n.style.display = bsChatUnread_ > 0 ? 'inline' : 'none'; n.textContent = bsChatUnread_ > 99 ? '99+' : bsChatUnread_; }
       const lg = document.getElementById('bc-log'); if (!lg || !bsChatOpen_) return;
       const stick = lg.scrollHeight - lg.scrollTop - lg.clientHeight < 40;
