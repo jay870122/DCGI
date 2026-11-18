@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.330</div>
+    <div class="version-tag">系統版本：v5.4.331</div>
   </div>
 
   <script>
@@ -5413,6 +5413,7 @@
             '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:' + (t.shared ? '#5865F2' : '#4F545C') + ';color:#fff">' + (t.shared ? '👥 全場共用牌面' : '🧍 個人牌面') + '</span><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#3a3320;color:#F0B232">🎟️ 每回合 ' + bsNum_(t.ticketCost || 1) + ' ' + escapeHtml_(t.ticketCurrency || '') + '</span><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#1e3a2b;color:#57F287">🟢 ' + (t.online || 0) + ' 人在房間</span>' + (t.access === 'test' ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#3b2a4a;color:#C9A0FF">🧪 測試中(只有管理員看得到)</span>' : t.access === 'roles' ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#3b2a4a;color:#C9A0FF">🔒 限定身分組</span>' : '') + '</div>' +
             '<details style="font-size:12px;color:#B9BBBE;margin:4px 0" onclick="event.stopPropagation()"><summary style="cursor:pointer;color:#F0B232">🎁 查看獎勵</summary><div style="line-height:1.7;margin-top:4px">' + bsPrizeHtml_(t.prizes) + '</div></details>' +
             '<div style="font-size:13px;color:#B9BBBE">BOSS:' + escapeHtml_(t.boss) + '(' + (t.formIdx + 1) + '/' + t.formCount + ')' + (t.end ? ' ・ 到 ' + escapeHtml_(t.end) : '') + '</div>' +
+            (bsRemain_(t) !== null ? '<div style="font-size:12px;color:#F0B232;margin-top:2px">👹 剩餘 ' + bsRemain_(t) + ' 隻 BOSS' + ((t.maxLoops || 1) > 1 ? '(第 ' + t.loop + '/' + t.maxLoops + ' 輪)' : '') + '</div>' : '') +
             '<div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.hp) + ' / ' + t.maxHp + '</span></div></div>';
         }).join('') + '</div>';
     }
@@ -5479,7 +5480,7 @@
         if (first && first.idx === i) return cardOf_(bsSeenFirst_ !== i ? '' : 'open', bsFace_(first.face), 'disabled data-i="' + i + '"' + (bsSeenFirst_ !== i ? ' data-ws="open"' : ''));
         return cardOf_('', '', (dis || rest ? 'disabled ' : '') + 'data-i="' + i + '" onclick="bsFlip_(' + i + ')"');
       }).join('');
-      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;white-space:nowrap;min-width:0"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><button title="複製這條賽道的連結" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 9px;cursor:pointer" onclick="bsShareLink_()">🔗</button><b style="overflow:hidden;text-overflow:ellipsis;min-width:0">' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px;flex:none">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;white-space:nowrap;min-width:0"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><button title="複製這條賽道的連結" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 9px;cursor:pointer" onclick="bsShareLink_()">🔗</button><b style="overflow:hidden;text-overflow:ellipsis;min-width:0">' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px;flex:none">第 ' + t.loop + (t.maxLoops > 1 ? '/' + t.maxLoops : '') + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + (bsRemain_(t) !== null ? ' ・ <b style="color:#F0B232">剩 ' + bsRemain_(t) + ' 隻</b>' : '') + '</span></div>' +
         '<div class="bs-wrap"><div>' +
         '<div style="display:flex;align-items:center;gap:8px"><b style="white-space:nowrap">' + escapeHtml_(t.boss.name) + '</b><div class="bs-hp" style="flex:1"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div></div>' +
         '<div style="height:38px;margin-top:6px">' + (holdLeft_ > 0 && t.room && t.room.holder ? '<div id="bs-hold" style="padding:4px 10px;border-radius:8px;background:#3a3320;border:1px solid #F0B232;font-size:13px;color:#F0B232">🎴 ' + (t.room.holder === myId_ ? '輪到你了!請在時間內翻第二張' : escapeHtml_(t.room.holderName) + ' 翻牌中') + ' ⏱ <b id="bs-hold-t">' + holdLeft_ + '</b> 秒<div style="height:4px;border-radius:2px;background:#4a4228;margin-top:4px;overflow:hidden"><i id="bs-hold-bar" style="display:block;height:100%;width:' + Math.min(100, holdLeft_ * 10) + '%;background:#F0B232"></i></div></div>' : '') + '</div>' +
@@ -5507,6 +5508,10 @@
       if (left <= 0) { if (window.bsHoldT_) { clearInterval(window.bsHoldT_); window.bsHoldT_ = null; } const el0 = document.getElementById('bs-hold'); if (el0) el0.style.display = 'none'; return; }
       const el = document.getElementById('bs-hold-t'), bar = document.getElementById('bs-hold-bar');
       if (el) el.textContent = Math.ceil(left); if (bar) bar.style.width = Math.min(100, left * 10) + '%';
+    }
+    function bsRemain_(t) { // 還剩幾隻 BOSS(含目前這隻):目前輪剩下的型態 + 之後還沒打的輪數 × 每輪型態數;已結束=0
+      if (!t || t.status === 'ended' || t.loop === undefined) return null;
+      const ml = t.maxLoops || 1, fc = t.formCount || 1; return Math.max(0, (fc - (t.formIdx || 0)) + (ml - (t.loop || 1)) * fc);
     }
     function bsNum_(n) { n = Number(n) || 0; return String(Math.round(n * 100) / 100); }
     function bsFace_(f) { return escapeHtml_(f.label || '') + (f.sub ? '<small>' + escapeHtml_(f.sub) + '</small>' : ''); }
