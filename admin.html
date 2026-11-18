@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.305</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.306</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4296,15 +4296,15 @@ function beRender_() {
       h += '<div class="be-sub">🃏 牌盤 <span class="be-tot" data-p="' + fp + '"></span></div>';
       h += '<div class="be-row">牌盤大小:' + beIn_(bp + '.rows', b.rows || '', 46, '自動', 'number') + '列 ×' + beIn_(bp + '.cols', b.cols, 46, '4', 'number') + '欄<span class="hint">(填了列數:牌不夠的格子自動用攻擊牌補滿;留空=依牌數自動)</span></div>';
       h += '<div class="be-sub">⚔️ 攻擊牌(幾對、傷害)</div>';
-      b.attack.forEach((a, ai) => { const ap = bp + '.attack.' + ai; h += '<div class="be-row">' + beIn_(ap + '.label', a.label, 56, '圖示') + beIn_(ap + '.pairs', a.pairs, 46, '對', 'number') + '對 傷害' + beIn_(ap + '.dmg', a.dmg, 90, '10~30 / 2%') + '<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.attack\',' + ai + ')">✕</button></div>'; });
-      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.attack\',{label:\'\',pairs:1,dmg:\'10\'})">➕ 攻擊牌</button>';
+      b.attack.forEach((a, ai) => { const ap = bp + '.attack.' + ai; h += '<div class="be-row">' + beIn_(ap + '.label', a.label, 56, '圖示') + beIn_(ap + '.pairs', a.pairs, 46, '對', 'number') + '對 傷害' + beIn_(ap + '.dmg', a.dmg, 90, '10~30 / 2%') + (ai === 0 ? ' <span style="color:#57F287;font-size:12px">必定出現</span>' : ' 出現機率' + beIn_(ap + '.chance', a.chance === undefined ? 100 : a.chance, 50, '100', 'number') + '%') + '<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.attack\',' + ai + ')">✕</button></div>'; });
+      h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.attack\',{label:\'\',pairs:1,dmg:\'10\',chance:100})">➕ 攻擊牌</button>';
       h += '<div class="be-sub">🎁 獎勵牌(翻到一對才領)</div>';
       b.reward.forEach((r, ri) => { const rp = bp + '.reward.' + ri; h += '<div class="be-row">' + beIn_(rp + '.label', r.label, 56, '圖示') + beIn_(rp + '.pairs', r.pairs, 46, '對', 'number') + '對 出現機率' + beIn_(rp + '.chance', r.chance === undefined ? 100 : r.chance, 50, '100', 'number') + '%<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.reward\',' + ri + ')">✕</button></div>' + beRw_(rp + '.rewards', r.rewards); });
       h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.reward\',{label:\'\',pairs:1,chance:100,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 獎勵牌</button>';
       h += '<div class="be-sub">特殊牌</div>';
       h += '<div class="be-row">💣 陷阱 ' + beIn_(bp + '.trap.count', b.trap.count, 46, '張', 'number') + '張 回血' + beIn_(bp + '.trap.heal', b.trap.heal, 80, '20~50') + '出現機率' + beIn_(bp + '.trap.chance', b.trap.chance === undefined ? 100 : b.trap.chance, 50, '100', 'number') + '%</div>';
-      h += '<div class="be-row">🔄 重置 ' + beIn_(bp + '.reset.count', b.reset.count, 46, '張', 'number') + '張 累計翻' + beIn_(bp + '.reset.need', b.reset.need, 46, '次', 'number') + '次才重洗</div>';
-      h += '<div class="be-row">😴 休息 ' + beIn_(bp + '.rest.count', b.rest.count, 46, '張', 'number') + '張 休息秒數' + beIn_(bp + '.rest.sec', b.rest.sec, 80, '10~20') + '</div>';
+      h += '<div class="be-row">🔄 重置 ' + beIn_(bp + '.reset.count', b.reset.count, 46, '張', 'number') + '張 累計翻' + beIn_(bp + '.reset.need', b.reset.need, 46, '次', 'number') + '次才重洗 出現機率' + beIn_(bp + '.reset.chance', b.reset.chance === undefined ? 100 : b.reset.chance, 50, '100', 'number') + '%</div>';
+      h += '<div class="be-row">😴 休息 ' + beIn_(bp + '.rest.count', b.rest.count, 46, '張', 'number') + '張 休息秒數' + beIn_(bp + '.rest.sec', b.rest.sec, 80, '10~20') + ' 出現機率' + beIn_(bp + '.rest.chance', b.rest.chance === undefined ? 100 : b.rest.chance, 50, '100', 'number') + '%</div>';
       h += '<div class="be-sub">🏅 擊倒獎勵 — 保底(依攻擊次數,取達標最高一級)</div>';
       f.rewards.participation.forEach((x, xi) => { const xp = fp + '.rewards.participation.' + xi; h += '<div class="be-row">攻擊滿' + beIn_(xp + '.min', x.min, 56, '次', 'number') + '次 且 傷害達BOSS血量' + beIn_(xp + '.minPct', x.minPct || 0, 56, '0', 'number') + '%(0=不限)<button class="btn btn-edit" onclick="beDel_(\'' + fp + '.rewards.participation\',' + xi + ')">✕</button></div>' + beRw_(xp + '.rewards', x.rewards); });
       h += '<button class="btn btn-edit" onclick="beAdd_(\'' + fp + '.rewards.participation\',{min:1,minPct:0,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 保底級距</button>';
