@@ -1064,7 +1064,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.288</div>
+    <div class="version-tag">系統版本：v5.4.289</div>
   </div>
 
   <script>
@@ -5234,7 +5234,7 @@
     let ctPreviewFromUrl_ = false; try { ctPreviewFromUrl_ = new URLSearchParams(location.search).get('ctPreview') === '1'; if (ctPreviewFromUrl_) ctAsPlayer_ = true; } catch (e) {}
     function ctTogglePreview_() { ctAsPlayer_ = !ctAsPlayer_; loadContest_(); }
     // ===== 🐲 翻翻樂打BOSS(玩家) =====
-    let bsLobby_ = null, bsTrack_ = null, bsTrackId_ = null, bsBusy_ = false, bsPoll_ = null, bsRestTimer_ = null, bsToast_ = '', bsFlash_ = {}, bsRestUntil_ = 0;
+    let bsWsDirty_ = false, bsWs_ = null, bsWsOk_ = false, bsWsRetry_ = 0, bsWsTimer_ = null, bsLobby_ = null, bsTrack_ = null, bsTrackId_ = null, bsBusy_ = false, bsPoll_ = null, bsRestTimer_ = null, bsToast_ = '', bsFlash_ = {}, bsRestUntil_ = 0;
     function bsName_() { return (currentUser && (currentUser.global_name || currentUser.username)) || '玩家'; }
     function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_() }, params || {})); }
     async function checkBossAvailability_() {
@@ -5247,7 +5247,31 @@
       await bsLoadLobby_();
     }
     function closeBoss() { document.getElementById('boss-modal').style.display = 'none'; bsStopPoll_(); }
-    function bsStopPoll_() { if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
+    // 🐲 即時連線(WebSocket):伺服器有人翻牌就推 BOSS 血量/排行/動態;連不上就退回輪詢(每 3 秒),連上後輪詢放慢到 15 秒當保險
+    function bsWsClose_() { bsWsOk_ = false; if (bsWsTimer_) { clearTimeout(bsWsTimer_); bsWsTimer_ = null; } if (bsWs_) { try { bsWs_.onclose = null; bsWs_.close(); } catch (e) {} bsWs_ = null; } }
+    function bsWsOpen_() {
+      bsWsClose_();
+      const tid = bsTrackId_; if (!tid || !window.WebSocket) return;
+      try {
+        const qs = new URLSearchParams({ action: 'bossWs', discordId: currentUser.id, accessToken: getAccessToken(), trackId: tid });
+        const ws = new WebSocket(DASHBOARD_WORKER_URL.replace(/^http/, 'ws') + '?' + qs); bsWs_ = ws;
+        let pingT = null;
+        ws.onopen = () => { bsWsOk_ = true; bsWsRetry_ = 0; pingT = setInterval(() => { try { ws.send('ping'); } catch (e) {} }, 25000); };
+        ws.onmessage = (ev) => { let m = null; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m && m.t === 'pub' && m.trackId === bsTrackId_) bsWsApply_(m); };
+        ws.onclose = () => { if (pingT) clearInterval(pingT); bsWsOk_ = false; if (bsWs_ === ws) { bsWs_ = null; if (bsTrackId_ === tid && document.getElementById('boss-modal').style.display === 'flex' && bsWsRetry_ < 6) { bsWsRetry_++; bsWsTimer_ = setTimeout(bsWsOpen_, Math.min(15000, 1000 * bsWsRetry_ * 2)); } } };
+        ws.onerror = () => { try { ws.close(); } catch (e) {} };
+      } catch (e) { bsWsOk_ = false; }
+    }
+    function bsWsApply_(m) { // 套用推播:型態/輪次/狀態變了就整份重抓,否則只更新血量、排行、動態
+      const t = bsTrack_; if (!t) return;
+      if (m.loop !== t.loop || m.formIdx !== t.formIdx || m.status !== t.status) { if (!bsBusy_) bsRefresh_(false); else bsWsDirty_ = true; return; }
+      t.boss = Object.assign({}, t.boss, m.boss);
+      const myId = String(currentUser.id);
+      t.top = (m.top || []).map((x) => ({ rank: x.rank, name: x.name, damage: x.damage, attacks: x.attacks, me: x.uid === myId }));
+      t.feed = m.feed || t.feed;
+      if (!bsBusy_) bsRender_();
+    }
+    function bsStopPoll_() { bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
     async function bsLoadLobby_() {
       bsStopPoll_();
       const d = await bsCall_('bossLobby');
@@ -5270,7 +5294,9 @@
       document.getElementById('bs-body').innerHTML = '<div style="color:#949BA4">載入中…</div>';
       await bsRefresh_(true);
       bsStopPoll_();
-      bsPoll_ = setInterval(() => { if (!bsBusy_ && document.getElementById('boss-modal').style.display === 'flex' && bsTrackId_) bsRefresh_(false); }, 3000);
+      bsWsOpen_();
+      let bsTick_ = 0;
+      bsPoll_ = setInterval(() => { bsTick_++; if (bsWsOk_ && bsTick_ % 5) return; /* 即時連線正常時只每 15 秒保險重抓一次 */ if (!bsBusy_ && document.getElementById('boss-modal').style.display === 'flex' && bsTrackId_) bsRefresh_(false); }, 3000);
     }
     async function bsRefresh_(first) {
       const d = await bsCall_('bossTrack', { trackId: bsTrackId_ });
@@ -5345,7 +5371,7 @@
       bsRender_();
       const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
       const needFull = evs.some((e) => ['attack', 'kill', 'reward', 'trap', 'reshuffle'].includes(e.kind));
-      setTimeout(() => { bsFlash_ = {}; bsBusy_ = false; if (needFull) bsRefresh_(false); else bsRender_(); }, hold || 30);
+      setTimeout(() => { bsFlash_ = {}; bsBusy_ = false; if (needFull || bsWsDirty_) { bsWsDirty_ = false; bsRefresh_(false); } else bsRender_(); }, hold || 30);
     }
     async function bsOpenGifts_() {
       bsStopPoll_(); bsTrackId_ = null; bsTrack_ = null;
