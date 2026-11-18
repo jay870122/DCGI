@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.289</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.290</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -391,6 +391,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('lock-settings')">🔒 密碼鎖定管理</div>
       <hr class="nav-sep">
       <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
+      <div class="nav-item" onclick="navTo('cat-budget')">📊 分類額度(貨幣價值)</div>
       <div class="nav-item" onclick="navTo('challenge-cfg')">🎯 個人挑戰設定</div>
       <div class="nav-item" onclick="navTo('challenge-review')">🖼️ 挑戰回覆審查</div>
       <div class="nav-item" onclick="navTo('poke')">🎁 戳戳樂</div>
@@ -1340,6 +1341,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div id="dcfg-roles" style="overflow-x:auto"></div>
           <div style="margin-top:12px"><button class="btn btn-edit" onclick="dcfgAddRole()">➕ 手動新增(清單裡找不到時貼 ID)</button></div>
         </div>
+      </div>
+      <div id="page-cat-budget" style="display:none">
+        <div class="page-header"><div class="page-title">📊 分類額度(貨幣價值)</div><div class="toolbar"><button class="btn btn-edit" onclick="loadCatBudget()">🔄 重新讀取</button><button class="btn btn-primary" id="cb-save-btn" onclick="cbSave_()">💾 儲存全部</button></div></div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">每個分類可設「每小時/每日/每週/每月」的兌換價值上限(0 或留空=不限)。<b>買了商品就把「該商品價值 × 數量」累加到分類用量,某期間的用量達到上限,整個分類就鎖住,直到下個週期(整點/隔日 00:00/下週一 00:00/下月 1 日)自動解鎖。</b>「全服」是所有玩家合計,「個人」是每人各自計算。商品價值留空=用商品的標價。以台北時間計算;調整價值或上限不會清掉已累計的用量。</div>
+        <div id="cb-body"></div>
       </div>
       <div id="page-group-reward" style="display:none">
         <div class="page-header"><div class="page-title">👥 團任/團戰獎勵</div><div class="toolbar"><button class="btn btn-edit" onclick="loadGroupReward()">🔄 重新讀取</button><button class="btn btn-primary" id="gr-save-btn" onclick="grSave_()">💾 儲存全部</button></div></div>
@@ -3973,7 +3979,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-review','poke','boss-cfg','group-stats'];
+const pages = ['cat-budget','shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-review','poke','boss-cfg','group-stats'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -4006,6 +4012,7 @@ function navTo(p) {
   }
   if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
   if (p==='group-reward') loadGroupReward();
+  if (p==='cat-budget') loadCatBudget();
   if (p==='challenge-cfg') loadChallengeCfg();
   if (p==='challenge-review') crInit_();
   if (p==='poke') loadPoke();
@@ -4065,6 +4072,41 @@ let grKinds_ = [], grPeriods_ = [];
 function grCall_(action, body) {
   const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
   return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
+}
+// ===== 📊 分類額度(貨幣價值) =====
+let cbCfg_ = { cats: {} }, cbCats_ = {}, cbLocked_ = {};
+async function loadCatBudget() {
+  try {
+    const d = await grCall_('adminCatBudgetGet');
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    cbCfg_ = d.cfg || { cats: {} }; cbCats_ = d.categories || {}; cbLocked_ = d.locked || {};
+    cbRender_();
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+}
+function cbRender_() {
+  const P = [['H', '每小時'], ['D', '每日'], ['W', '每週'], ['M', '每月']];
+  const names = Object.keys(cbCats_).sort();
+  document.getElementById('cb-body').innerHTML = names.length ? names.map((n, ci) => {
+    const c = (cbCfg_.cats && cbCfg_.cats[n]) || { shared: {}, personal: {}, vals: {} };
+    const ins = (sc) => P.map(([p, l]) => `<label style="display:inline-flex;align-items:center;gap:4px;margin-right:10px">${l}<input type="number" min="0" step="any" data-cb="${ci}|${sc}|${p}" value="${(c[sc] && c[sc][p]) || ''}" placeholder="不限" style="width:90px"></label>`).join('');
+    const items = cbCats_[n].map((it, ii) => `<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0" title="標價 ${it.price}">${grEsc_(it.name)}<input type="number" min="0" step="any" data-cbv="${ci}|${ii}" value="${(c.vals && c.vals[it.key] !== undefined) ? c.vals[it.key] : ''}" placeholder="${it.price}" style="width:80px"></label>`).join('');
+    return `<div class="ct-card" style="padding:12px 16px;margin-bottom:10px"><div style="font-weight:700;margin-bottom:6px">📁 ${grEsc_(n)}${cbLocked_[n] ? ' <span style="color:#f04747;font-weight:400">🔒 目前鎖定中:' + grEsc_(cbLocked_[n]) + '</span>' : ''}</div>
+      <div style="margin:4px 0">🌐 全服上限:${ins('shared')}</div><div style="margin:4px 0">👤 個人上限:${ins('personal')}</div>
+      <details style="margin-top:6px"><summary style="cursor:pointer">商品貨幣價值(${cbCats_[n].length} 個,留空=用標價)</summary><div style="margin-top:6px">${items}</div></details></div>`;
+  }).join('') : '<div class="empty">商店還沒有分類</div>';
+}
+async function cbSave_() {
+  const cats = {};
+  Object.keys(cbCats_).forEach((n) => { cats[n] = { shared: {}, personal: {}, vals: {} }; });
+  const names = Object.keys(cbCats_).sort();
+  document.querySelectorAll('#cb-body [data-cb]').forEach((el) => { const [ci, sc, p] = el.dataset.cb.split('|'); cats[names[+ci]][sc][p] = el.value; });
+  document.querySelectorAll('#cb-body [data-cbv]').forEach((el) => { const [ci, ii] = el.dataset.cbv.split('|'); if (el.value !== '') cats[names[+ci]].vals[cbCats_[names[+ci]][+ii].key] = el.value; });
+  const btn = document.getElementById('cb-save-btn'); btn.disabled = true;
+  try {
+    const d = await grCall_('adminCatBudgetSave', { cfg: { cats } });
+    if (d && d.status === 'success') { toast('已儲存'); await loadCatBudget(); } else toast((d && d.message) || '儲存失敗', false);
+  } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
+  btn.disabled = false;
 }
 function grEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
