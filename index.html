@@ -458,6 +458,9 @@
 #bs-chat .bc-btn{background:#5865F2;color:#fff;border:0;border-radius:20px;padding:8px 14px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px #0008}
 #bs-chat .bc-btn b{background:#ED4245;border-radius:9px;padding:0 6px;margin-left:4px;font-size:12px}
 #bs-chat .bc-panel{display:none;width:min(320px,92vw);background:#2B2D31;border:1px solid #4F545C;border-radius:10px;box-shadow:0 4px 16px #000a;overflow:hidden}
+@keyframes bcPulse{0%,100%{transform:scale(1)}30%{transform:scale(1.18)}60%{transform:scale(.96)}}
+#bs-chat .bc-btn.ping{animation:bcPulse .6s 2}
+#bs-chat .bc-pop{display:none;position:absolute;left:0;bottom:46px;width:max-content;max-width:min(280px,80vw);background:#2B2D31;border:1px solid #5865F2;border-radius:10px;padding:6px 10px;font-size:13px;color:#DCDDDE;box-shadow:0 2px 10px #0009;cursor:pointer;word-break:break-all}
 #bs-chat.open .bc-panel{display:block}#bs-chat.open .bc-btn{display:none}
 #bs-chat .bc-h{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#202225;font-size:13px;font-weight:700}
 #bs-chat .bc-log{height:180px;overflow:auto;padding:6px 10px;font-size:13px;color:#DCDDDE;word-break:break-all}
@@ -740,7 +743,7 @@
       </div>
       <div class="modal-body" id="bs-body"><div style="color:#949BA4">載入中…</div></div>
     </div>
-    <div id="bs-chat"><button class="bc-btn" onclick="bsChatToggle_(true)">💬 聊天<b id="bc-n" style="display:none"></b></button><div class="bc-panel"><div class="bc-h"><span>💬 房間聊天</span><span style="cursor:pointer;padding:0 4px" onclick="bsChatToggle_(false)">✕</span></div><div class="bc-log" id="bc-log"></div><div class="bc-in"><input id="bc-text" maxlength="100" placeholder="說點什麼…(最多 100 字)" onkeydown="if(event.key==='Enter')bsChatSend_()"><button onclick="bsChatSend_()">送出</button></div></div></div>
+    <div id="bs-chat"><div class="bc-pop" id="bc-pop" onclick="bsChatToggle_(true)"></div><button class="bc-btn" id="bc-btn" onclick="bsChatToggle_(true)">💬 聊天<b id="bc-n" style="display:none"></b></button><div class="bc-panel"><div class="bc-h"><span>💬 房間聊天</span><span style="cursor:pointer;padding:0 4px" onclick="bsChatToggle_(false)">✕</span></div><div class="bc-log" id="bc-log"></div><div class="bc-in"><input id="bc-text" maxlength="100" placeholder="說點什麼…(最多 100 字)" onkeydown="if(event.key==='Enter')bsChatSend_()"><button onclick="bsChatSend_()">送出</button></div></div></div>
   </div>
 
   <!-- 📈 台股模擬(虛擬貨幣買賣台股,Worker專屬) -->
@@ -1082,7 +1085,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.325</div>
+    <div class="version-tag">系統版本：v5.4.326</div>
   </div>
 
   <script>
@@ -5290,11 +5293,18 @@
       lg.innerHTML = bsChatLog_.length ? bsChatLog_.map((r) => { const d = new Date(r.ts); return '<div class="' + (String(r.uid) === String(currentUser.id) ? 'me' : '') + '"><small>' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</small><b>' + escapeHtml_(r.name) + '</b>:' + escapeHtml_(r.text) + '</div>'; }).join('') : '<div style="color:#949BA4">還沒有人說話</div>';
       if (stick) lg.scrollTop = lg.scrollHeight;
     }
-    function bsChatToggle_(on) { bsChatOpen_ = !!on; if (on) bsChatUnread_ = 0; bsChatRender_(); if (on) { const lg = document.getElementById('bc-log'); if (lg) lg.scrollTop = lg.scrollHeight; const i = document.getElementById('bc-text'); if (i && window.innerWidth > 760) i.focus(); } }
+    let bsPopT_ = null;
+    function bsChatNotify_(r) { // 收起時有新訊息:按鈕跳動 + 預覽泡泡 4 秒
+      const b = document.getElementById('bc-btn'), p = document.getElementById('bc-pop'); if (!b || !p) return;
+      b.classList.remove('ping'); void b.offsetWidth; b.classList.add('ping');
+      p.innerHTML = '<b>' + escapeHtml_(r.name) + '</b>:' + escapeHtml_(r.text.length > 40 ? r.text.slice(0, 40) + '…' : r.text); p.style.display = 'block';
+      clearTimeout(bsPopT_); bsPopT_ = setTimeout(() => { p.style.display = 'none'; }, 4000);
+    }
+    function bsChatToggle_(on) { if (on) { const p = document.getElementById('bc-pop'); if (p) p.style.display = 'none'; } bsChatOpen_ = !!on; if (on) bsChatUnread_ = 0; bsChatRender_(); if (on) { const lg = document.getElementById('bc-log'); if (lg) lg.scrollTop = lg.scrollHeight; const i = document.getElementById('bc-text'); if (i && window.innerWidth > 760) i.focus(); } }
     function bsChatSend_() { const i = document.getElementById('bc-text'); if (!i) return; const text = i.value.trim(); if (!text || !bsWs_ || !bsWsOk_) return; try { bsWs_.send(JSON.stringify({ t: 'chat', text })); i.value = ''; } catch (e) {} }
     function bsChatOnMsg_(m) {
       if (m.t === 'chatlog') { bsChatLog_ = m.list || []; bsChatRender_(); }
-      else if (m.t === 'chat' && m.row) { bsChatLog_.push(m.row); if (bsChatLog_.length > 60) bsChatLog_ = bsChatLog_.slice(-60); if (!bsChatOpen_ && String(m.row.uid) !== String(currentUser.id)) bsChatUnread_++; bsChatRender_(); }
+      else if (m.t === 'chat' && m.row) { bsChatLog_.push(m.row); if (bsChatLog_.length > 60) bsChatLog_ = bsChatLog_.slice(-60); if (!bsChatOpen_ && String(m.row.uid) !== String(currentUser.id)) { bsChatUnread_++; bsChatNotify_(m.row); } bsChatRender_(); }
       else if (m.t === 'chatErr') { const i = document.getElementById('bc-text'); if (i) { i.placeholder = m.msg || '說話太快了'; setTimeout(() => { i.placeholder = '說點什麼…(最多 100 字)'; }, 1800); } }
     }
     function bsWsClose_() { setTimeout(bsChatRender_, 0); bsWsOk_ = false; if (bsWsTimer_) { clearTimeout(bsWsTimer_); bsWsTimer_ = null; } if (bsWs_) { try { bsWs_.onclose = null; bsWs_.close(); } catch (e) {} bsWs_ = null; } }
