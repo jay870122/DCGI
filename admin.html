@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.290</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.291</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1344,7 +1344,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div id="page-cat-budget" style="display:none">
         <div class="page-header"><div class="page-title">📊 分類額度(貨幣價值)</div><div class="toolbar"><button class="btn btn-edit" onclick="loadCatBudget()">🔄 重新讀取</button><button class="btn btn-primary" id="cb-save-btn" onclick="cbSave_()">💾 儲存全部</button></div></div>
-        <div class="hint" style="line-height:1.7;margin-bottom:12px">每個分類可設「每小時/每日/每週/每月」的兌換價值上限(0 或留空=不限)。<b>買了商品就把「該商品價值 × 數量」累加到分類用量,某期間的用量達到上限,整個分類就鎖住,直到下個週期(整點/隔日 00:00/下週一 00:00/下月 1 日)自動解鎖。</b>「全服」是所有玩家合計,「個人」是每人各自計算。商品價值留空=用商品的標價。以台北時間計算;調整價值或上限不會清掉已累計的用量。</div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">每個分類可設「每小時/每日/每週/每月」的兌換價值上限(0 或留空=不限)。<b>買了商品就把「該商品價值 × 數量」累加到分類用量,某期間的用量達到上限,整個分類就鎖住,直到下個週期(整點/隔日 00:00/下週一 00:00/下月 1 日)自動解鎖。</b>「全服」是所有玩家合計,「個人」是每人各自計算。商品「貨幣價值」是獨立的點數,不跟商品標價;<b>沒填價值的商品不計入額度、不受鎖定、前台也不顯示額度標籤</b>。以台北時間計算;調整價值或上限不會清掉已累計的用量。</div>
         <div id="cb-body"></div>
       </div>
       <div id="page-group-reward" style="display:none">
@@ -4089,10 +4089,10 @@ function cbRender_() {
   document.getElementById('cb-body').innerHTML = names.length ? names.map((n, ci) => {
     const c = (cbCfg_.cats && cbCfg_.cats[n]) || { shared: {}, personal: {}, vals: {} };
     const ins = (sc) => P.map(([p, l]) => `<label style="display:inline-flex;align-items:center;gap:4px;margin-right:10px">${l}<input type="number" min="0" step="any" data-cb="${ci}|${sc}|${p}" value="${(c[sc] && c[sc][p]) || ''}" placeholder="不限" style="width:90px"></label>`).join('');
-    const items = cbCats_[n].map((it, ii) => `<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0" title="標價 ${it.price}">${grEsc_(it.name)}<input type="number" min="0" step="any" data-cbv="${ci}|${ii}" value="${(c.vals && c.vals[it.key] !== undefined) ? c.vals[it.key] : ''}" placeholder="${it.price}" style="width:80px"></label>`).join('');
+    const items = cbCats_[n].map((it, ii) => `<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0" title="標價 ${it.price}">${grEsc_(it.name)}<input type="number" min="0" step="any" data-cbv="${ci}|${ii}" value="${(c.vals && c.vals[it.key] !== undefined) ? c.vals[it.key] : ''}" placeholder="不計" style="width:80px"></label>`).join('');
     return `<div class="ct-card" style="padding:12px 16px;margin-bottom:10px"><div style="font-weight:700;margin-bottom:6px">📁 ${grEsc_(n)}${cbLocked_[n] ? ' <span style="color:#f04747;font-weight:400">🔒 目前鎖定中:' + grEsc_(cbLocked_[n]) + '</span>' : ''}</div>
       <div style="margin:4px 0">🌐 全服上限:${ins('shared')}</div><div style="margin:4px 0">👤 個人上限:${ins('personal')}</div>
-      <details style="margin-top:6px"><summary style="cursor:pointer">商品貨幣價值(${cbCats_[n].length} 個,留空=用標價)</summary><div style="margin-top:6px">${items}</div></details></div>`;
+      <details style="margin-top:6px"><summary style="cursor:pointer">商品貨幣價值(${cbCats_[n].length} 個,留空=不計入額度)</summary><div style="margin-top:6px">${items}</div></details></div>`;
   }).join('') : '<div class="empty">商店還沒有分類</div>';
 }
 async function cbSave_() {
