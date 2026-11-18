@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.316</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.317</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1550,7 +1550,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="ct-card">
-          <div class="ct-h"><div><h3>📊 作品與即時成績</h3><div class="hint">後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到</div></div></div>
+          <div class="ct-h"><div><h3>📊 作品與即時成績</h3><div class="hint">後台看得到參賽者與得票;玩家要等該賽道「已公布」才看得到</div></div><button class="btn btn-edit ct-rf" onclick="ctAdmRefresh_()">🔄 重新整理</button></div>
           <div id="ct-adm-works"></div>
         </div>
 
@@ -1561,7 +1561,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
         <div class="ct-card">
           <div class="ct-h"><div><h3>🗳️ 投票明細</h3><div class="hint">誰投給哪件作品;含已撤回的票。官方可取消有問題的票(直接刪掉、當作沒投過,額度退回,玩家可以重新投)</div></div>
-            <div class="ct-act" style="margin:0;flex-wrap:wrap"><input id="ct-bal-q" placeholder="🔍 搜尋投票者或參賽者" oninput="ctAdmRenderBallots_()" style="width:220px"><select id="ct-bal-track" onchange="ctAdmRenderBallots_()" style="width:160px"></select><select id="ct-bal-view" onchange="ctAdmRenderBallots_()" style="width:150px"><option value="list">📋 全部列表</option><option value="voter">👤 依投票者分組</option><option value="work">🖼️ 依作品分組</option></select><select id="ct-bal-st" onchange="ctAdmRenderBallots_()" style="width:120px"><option value="">全部狀態</option><option value="on">只看有效</option><option value="off">只看無效</option></select></div></div>
+            <div class="ct-act" style="margin:0;flex-wrap:wrap"><button class="btn btn-edit ct-rf" onclick="ctAdmRefresh_()">🔄 重新整理</button><input id="ct-bal-q" placeholder="🔍 搜尋投票者或參賽者" oninput="ctAdmRenderBallots_()" style="width:220px"><select id="ct-bal-track" onchange="ctAdmRenderBallots_()" style="width:160px"></select><select id="ct-bal-view" onchange="ctAdmRenderBallots_()" style="width:150px"><option value="list">📋 全部列表</option><option value="voter">👤 依投票者分組</option><option value="work">🖼️ 依作品分組</option></select><select id="ct-bal-st" onchange="ctAdmRenderBallots_()" style="width:120px"><option value="">全部狀態</option><option value="on">只看有效</option><option value="off">只看無效</option></select></div></div>
           <div id="ct-bal-bulk" class="ct-act" style="display:none;margin:6px 0"><span class="hint" id="ct-bal-n"></span><button class="btn btn-del" onclick="ctAdmCancelVotes_(ctBalSel_(),false)">🛑 取消勾選的票</button><button class="btn btn-edit" onclick="document.querySelectorAll('.ct-bal-ck').forEach((c)=>{c.checked=false});ctBalUpd_()">清除勾選</button></div>
           <div id="ct-adm-ballots"></div>
         </div>
@@ -1585,7 +1585,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
 
         <div class="ct-card">
-          <div class="ct-h"><div><h3>🏆 總排名</h3><div class="hint">取每人最高的兩個賽道;同分比單一賽道得票率、再比總得票</div></div></div>
+          <div class="ct-h"><div><h3>🏆 總排名</h3><div class="hint">取每人最高的兩個賽道;同分比單一賽道得票率、再比總得票</div></div><button class="btn btn-edit ct-rf" onclick="ctAdmRefresh_()">🔄 重新整理</button></div>
           <div id="ct-adm-overall"></div>
         </div>
       </div>
@@ -5012,8 +5012,8 @@ async function loadContestAdmin() {
   return true;
 }
 async function ctAdmRefresh_() {
-  const b = document.getElementById('ct-refresh-btn'); if (b) { b.disabled = true; b.textContent = '⏳ 重新整理中...'; }
-  try { if (await loadContestAdmin()) toast('✅ 已重新整理'); } finally { if (b) { b.disabled = false; b.textContent = '🔄 重新整理'; } }
+  const bs = Array.from(document.querySelectorAll('#ct-refresh-btn, .ct-rf')); bs.forEach((b) => { b.disabled = true; b.textContent = '⏳ 重新整理中...'; });
+  try { if (await loadContestAdmin()) toast('✅ 已重新整理'); } finally { bs.forEach((b) => { b.disabled = false; b.textContent = '🔄 重新整理'; }); }
 }
 let ctImg_ = { w: null, i: 0 };
 function ctAdmImg_(id, i) {
