@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.308</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.309</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4296,12 +4296,12 @@ function beRender_() {
       h += '<div class="be-sub">🃏 牌盤 <span class="be-tot" data-p="' + fp + '"></span></div>';
       h += '<div class="be-row">牌盤大小:' + beIn_(bp + '.rows', b.rows || '', 46, '自動', 'number') + '列 ×' + beIn_(bp + '.cols', b.cols, 46, '4', 'number') + '欄<span class="hint">(填了列數:牌不夠的格子自動用攻擊牌補滿;留空=依牌數自動)</span></div>';
       h += '<div class="be-sub">⚔️ 攻擊牌(幾對、傷害)</div>';
-      b.attack.forEach((a, ai) => { const ap = bp + '.attack.' + ai; h += '<div class="be-row">' + beIn_(ap + '.label', a.label, 56, '圖示') + beIn_(ap + '.pairsSpec', a.pairsSpec !== undefined ? a.pairsSpec : a.pairs, 60, '1~3', undefined) + '對(範圍如 1~3,留空=系統隨機) 傷害' + beIn_(ap + '.dmg', a.dmg, 90, '10~30 / 2%') + (ai === 0 ? ' <span style="color:#57F287;font-size:12px">必定出現</span>' : ' 出現機率' + beIn_(ap + '.chance', a.chance === undefined ? 100 : a.chance, 50, '100', 'number') + '%') + '<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.attack\',' + ai + ')">✕</button></div>'; });
+      b.attack.forEach((a, ai) => { const ap = bp + '.attack.' + ai; h += '<div class="be-row">' + beIn_(ap + '.label', a.label, 56, '圖示') + beIn_(ap + '.pairsSpec', a.pairsSpec !== undefined ? a.pairsSpec : a.pairs, 60, '1~3', undefined) + '對(範圍如 1~3;留空=1~999 對都有機率,依出現機率逐對擲到盤面放滿) 傷害' + beIn_(ap + '.dmg', a.dmg, 90, '10~30 / 2%') + (ai === 0 ? ' <span style="color:#57F287;font-size:12px">必定出現</span>' : ' 出現機率' + beIn_(ap + '.chance', a.chance === undefined ? 100 : a.chance, 50, '100', 'number') + '%') + '<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.attack\',' + ai + ')">✕</button></div>'; });
       h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.attack\',{label:\'\',pairs:1,dmg:\'10\',chance:100})">➕ 攻擊牌</button>';
       h += '<div class="be-sub">🎁 獎勵牌(翻到一對才領)</div>';
       b.reward.forEach((r, ri) => { const rp = bp + '.reward.' + ri; h += '<div class="be-row">' + beIn_(rp + '.label', r.label, 56, '圖示') + beIn_(rp + '.pairsSpec', r.pairsSpec !== undefined ? r.pairsSpec : r.pairs, 60, '1~2', undefined) + '對 出現機率' + beIn_(rp + '.chance', r.chance === undefined ? 100 : r.chance, 50, '100', 'number') + '%<button class="btn btn-edit" onclick="beDel_(\'' + bp + '.reward\',' + ri + ')">✕</button></div>' + beRw_(rp + '.rewards', r.rewards); });
       h += '<button class="btn btn-edit" onclick="beAdd_(\'' + bp + '.reward\',{label:\'\',pairs:1,chance:100,rewards:[{type:\'currency\',name:\'\',amount:1}]})">➕ 獎勵牌</button>';
-      h += '<div class="be-sub">特殊牌 <span style="color:#949BA4;font-weight:normal">(張數可填 2、1~3 範圍、0=不放;留空=系統每次洗牌隨機 1~3 張;「出現機率」是每一張/每一對各擲一次)</span></div>';
+      h += '<div class="be-sub">特殊牌 <span style="color:#949BA4;font-weight:normal">(張數可填 2、1~3 範圍、0=不放;留空=1~999 張都有機率,依「出現機率」逐張擲到盤面放滿(沒設列×欄上限 24 張);「出現機率」是每一張/每一對各擲一次)</span></div>';
       h += '<div class="be-row">💣 陷阱 ' + beIn_(bp + '.trap.countSpec', b.trap.countSpec !== undefined ? b.trap.countSpec : b.trap.count, 60, '0/1~3', undefined) + '張 回血' + beIn_(bp + '.trap.heal', b.trap.heal, 80, '20~50') + '出現機率' + beIn_(bp + '.trap.chance', b.trap.chance === undefined ? 100 : b.trap.chance, 50, '100', 'number') + '%</div>';
       h += '<div class="be-row">🔄 重置 ' + beIn_(bp + '.reset.countSpec', b.reset.countSpec !== undefined ? b.reset.countSpec : b.reset.count, 60, '0/1~3', undefined) + '張 累計翻' + beIn_(bp + '.reset.need', b.reset.need, 46, '次', 'number') + '次才重洗 出現機率' + beIn_(bp + '.reset.chance', b.reset.chance === undefined ? 100 : b.reset.chance, 50, '100', 'number') + '%</div>';
       h += '<div class="be-row">😴 休息 ' + beIn_(bp + '.rest.countSpec', b.rest.countSpec !== undefined ? b.rest.countSpec : b.rest.count, 60, '0/1~3', undefined) + '張 休息秒數' + beIn_(bp + '.rest.sec', b.rest.sec, 80, '10~20') + ' 出現機率' + beIn_(bp + '.rest.chance', b.rest.chance === undefined ? 100 : b.rest.chance, 50, '100', 'number') + '%</div>';
