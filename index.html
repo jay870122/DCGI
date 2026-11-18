@@ -471,7 +471,7 @@
 #boss-modal .bs-card:disabled:not(.flipped):not(.open) .bs-back{filter:saturate(.6) brightness(.8)}
 #boss-modal .bs-feed{max-height:230px;overflow:auto;font-size:13px;color:#DCDDDE;background:#202225;border-radius:8px;padding:8px 10px}
 #boss-modal .bs-feed div{padding:2px 0;border-bottom:1px dashed #36393f}
-#boss-modal .bs-toast{min-height:22px;font-size:14px;margin:8px 0;color:#F0B232}
+#boss-modal .bs-toast{height:22px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px;margin:4px 0;color:#F0B232}
 
 #contest-modal .ct-desc{font-size:14px}
 .ct-desc{font-size:13px;line-height:1.7;color:#DBDEE1;white-space:pre-wrap;background:rgba(0,0,0,.18);border-radius:8px;padding:10px 12px}
@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.307</div>
+    <div class="version-tag">系統版本：v5.4.308</div>
   </div>
 
   <script>
@@ -5389,10 +5389,10 @@
         if (first && first.idx === i) return cardOf_('open', bsFace_(first.face), 'disabled data-i="' + i + '"');
         return cardOf_('', '', (dis || rest ? 'disabled ' : '') + 'data-i="' + i + '" onclick="bsFlip_(' + i + ')"');
       }).join('');
-      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><b>' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;white-space:nowrap;min-width:0"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><b style="overflow:hidden;text-overflow:ellipsis;min-width:0">' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px;flex:none">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
         '<div class="bs-wrap"><div>' +
         '<div style="display:flex;align-items:center;gap:8px"><b style="white-space:nowrap">' + escapeHtml_(t.boss.name) + '</b><div class="bs-hp" style="flex:1"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div></div>' +
-        (holdLeft_ > 0 && t.room && t.room.holder ? '<div id="bs-hold" style="margin-top:8px;padding:6px 10px;border-radius:8px;background:#3a3320;border:1px solid #F0B232;font-size:13px;color:#F0B232">🎴 ' + (t.room.holder === myId_ ? '輪到你了!請在時間內翻第二張' : escapeHtml_(t.room.holderName) + ' 翻牌中') + ' ⏱ <b id="bs-hold-t">' + holdLeft_ + '</b> 秒<div style="height:4px;border-radius:2px;background:#4a4228;margin-top:4px;overflow:hidden"><i id="bs-hold-bar" style="display:block;height:100%;width:' + Math.min(100, holdLeft_ * 10) + '%;background:#F0B232"></i></div></div>' : '') +
+        '<div style="height:38px;margin-top:6px">' + (holdLeft_ > 0 && t.room && t.room.holder ? '<div id="bs-hold" style="padding:4px 10px;border-radius:8px;background:#3a3320;border:1px solid #F0B232;font-size:13px;color:#F0B232">🎴 ' + (t.room.holder === myId_ ? '輪到你了!請在時間內翻第二張' : escapeHtml_(t.room.holderName) + ' 翻牌中') + ' ⏱ <b id="bs-hold-t">' + holdLeft_ + '</b> 秒<div style="height:4px;border-radius:2px;background:#4a4228;margin-top:4px;overflow:hidden"><i id="bs-hold-bar" style="display:block;height:100%;width:' + Math.min(100, holdLeft_ * 10) + '%;background:#F0B232"></i></div></div>' : '') + '</div>' +
         '<div id="bs-ms" style="font-size:11px;color:#6d6f78;min-height:14px"></div><div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : (turnLocked_ ? '⏳ 輪到「' + t.room.holderName + '」翻牌,請稍等…' : bsToast_)))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
         '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#202225;border:1px solid #3a3d44;border-radius:8px;padding:5px 10px;font-size:12px;color:#949BA4">🎟️ <b style="font-size:16px;color:#fff">' + t.wallet + '</b> <span style="color:#B9BBBE">' + escapeHtml_(t.ticketCurrency) + '</span><span style="margin-left:auto">翻完一回合(2 張)扣 ' + bsNum_(t.ticketCost || 1) + '</span></div>' +
         '<div class="bs-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr));--bs-cols:' + cols + ';--bs-rows:' + Math.max(1, Math.ceil(cells.length / cols)) + '">' + cardHtml + '</div>' +
