@@ -450,7 +450,8 @@
 /* 🐲 翻翻樂打BOSS */
 #boss-modal .bs-mc{max-width:min(980px,96vw);max-height:92vh}
 #boss-modal .bs-wrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px}
-@media(max-width:760px){#boss-modal .bs-wrap{grid-template-columns:1fr}}
+@media(max-width:760px){#boss-modal .bs-wrap{grid-template-columns:minmax(0,1fr)}}
+#boss-modal .bs-wrap>div{min-width:0}
 #boss-modal .bs-hp{height:18px;background:#202225;border-radius:9px;overflow:hidden;position:relative;border:1px solid #4F545C}
 #boss-modal .bs-hp>i{display:block;height:100%;background:linear-gradient(90deg,#ED4245,#F0B232);transition:width .5s}
 #boss-modal .bs-hp>span{position:absolute;left:0;right:0;top:0;text-align:center;font-size:12px;line-height:18px;color:#fff;text-shadow:0 1px 2px #000}
@@ -486,7 +487,7 @@
 #boss-modal .bs-card:disabled:not(.flipped):not(.open) .bs-back{filter:saturate(.6) brightness(.8)}
 #boss-modal .bs-feed{max-height:230px;overflow:auto;font-size:13px;color:#DCDDDE;background:#202225;border-radius:8px;padding:8px 10px}
 #boss-modal .bs-feed div{padding:2px 0;border-bottom:1px dashed #36393f}
-#boss-modal .bs-toast{height:22px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px;margin:4px 0;color:#F0B232}
+#boss-modal .bs-toast{height:38px;overflow:hidden;white-space:normal;word-break:break-all;line-height:18px;font-size:13px;margin:4px 0;color:#F0B232}
 
 #contest-modal .ct-desc{font-size:14px}
 .ct-desc{font-size:13px;line-height:1.7;color:#DBDEE1;white-space:pre-wrap;background:rgba(0,0,0,.18);border-radius:8px;padding:10px 12px}
@@ -1087,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.328</div>
+    <div class="version-tag">系統版本：v5.4.329</div>
   </div>
 
   <script>
