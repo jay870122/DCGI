@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.314</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.315</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -8892,7 +8892,7 @@ function setupFieldAutosave(fieldIds, keyFn) {
 const itemOptionsState = { ns: [], em: [] };
 
 function addItemOption(prefix) {
-  itemOptionsState[prefix].push({ name: '', price: 0, rewardRules: '', stock: '', limitGD: '', limitGM: '', limitGW: '', limitPD: '', limitPM: '', limitPW: '', limitPT: '' });
+  itemOptionsState[prefix].push({ name: '', price: 0, rewardRules: '', stock: '', limitGD: '', limitGM: '', limitGW: '', limitPD: '', limitPM: '', limitPW: '', limitPT: '', catVals: '' });
   renderItemOptions(prefix);
 }
 function removeItemOption(prefix, idx) {
@@ -8918,7 +8918,7 @@ function renderItemOptions(prefix) {
     ['limitPD', '個人/日', ''], ['limitPW', '個人/週', ''], ['limitPM', '個人/月', ''], ['limitPT', '個人/總計', ''],
   ];
   container.innerHTML = list.map((opt, idx) => {
-    const hasAnyLimit = limitFieldDefs.some(([f]) => opt[f] !== undefined && opt[f] !== '' && opt[f] !== null) || !!(opt.linkedSerialPool && opt.linkedSerialPool.trim());
+    const hasAnyLimit = limitFieldDefs.some(([f]) => opt[f] !== undefined && opt[f] !== '' && opt[f] !== null) || !!(opt.linkedSerialPool && opt.linkedSerialPool.trim()) || !!(opt.catVals && String(opt.catVals).trim());
     return `
     <div style="background:#2F3136;border-radius:8px;padding:12px;margin-bottom:10px">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
@@ -8934,6 +8934,10 @@ function renderItemOptions(prefix) {
         <div style="margin-top:8px">
           <label style="font-size:11px;color:#B9BBBE;display:block;margin-bottom:2px">連結序號庫存 <span class="hint">填「序號庫」A欄的名稱,設定後這個選項的庫存自動等於該序號剩餘量(下面的「總庫存」欄位會失效),序號發完就自動無法選這個選項,留空=不掛勾</span></label>
           <input placeholder="留空=不掛勾" value="${(opt.linkedSerialPool||'').replace(/"/g,'&quot;')}" style="width:100%" oninput="updateItemOptionField('${prefix}',${idx},'linkedSerialPool',this.value)">
+        </div>
+        <div style="margin-top:8px">
+          <label style="font-size:11px;color:#B9BBBE;display:block;margin-bottom:2px">📊 這個選項的分類額度價值 <span class="hint">選填。格式「額度名:價值」,多個用逗號分隔,例如 GASH月額度:150, 全服額度:150。有填就以這裡為準(蓋過商品本身在該額度的價值),額度要先在「分類額度」頁建立並設好上限</span></label>
+          <input placeholder="例:GASH月額度:150" value="${(opt.catVals||'').toString().replace(/"/g,'&quot;')}" style="width:100%" oninput="updateItemOptionField('${prefix}',${idx},'catVals',this.value)">
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
           ${limitFieldDefs.map(([field, label, hint]) => `
