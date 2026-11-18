@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.316</div>
+    <div class="version-tag">系統版本：v5.4.317</div>
   </div>
 
   <script>
@@ -1603,6 +1603,7 @@
     let stockAvailable = false; // 📈 台股模擬有沒有開放
     let contestAvailable = false; // 🎽 穿搭大賽有沒有賽道開放
     let bossTest_ = false;
+    let bossGiftN_ = 0; // 🎁 禮物箱未領數量(顯示在側邊欄入口的紅色數字)
     let bossAvailable = false; // 🐲 翻翻樂打BOSS 有沒有開放的賽道
     let bingoAvailable = false; // 🌟 BINGO活動有沒有開放,決定側邊欄要不要顯示這個入口
 
@@ -1631,7 +1632,7 @@
 
       if (bossAvailable) {
         bingoEntryHtml += `<div class="cat-item" style="background:linear-gradient(90deg,#ED4245,#5865F2)" onclick="openBoss()">
-                   <span>🐲 翻翻樂打BOSS${bossTest_ ? ' 🧪測試中' : ''}</span>
+                   <span>🐲 翻翻樂打BOSS${bossTest_ ? ' 🧪測試中' : ''}${bossGiftN_ > 0 ? ` <b style="background:#ED4245;color:#fff;border-radius:10px;padding:1px 7px;font-size:12px;margin-left:4px">🎁 ${bossGiftN_}</b>` : ''}</span>
                  </div>`;
       }
 
@@ -5245,15 +5246,16 @@
     const bsCid_ = Math.random().toString(36).slice(2, 10); // 每個分頁一個代號:同帳號開兩個分頁測試時,也能分辨哪張牌是「別的分頁」翻的
     function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_(), cid: bsCid_ }, params || {})); }
     async function checkBossAvailability_() {
-      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success' && d.enabled && (d.tracks || []).length) { bossAvailable = true; bossTest_ = !!d.testMode; renderSidebar(); } } catch (e) {}
+      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success') { bossGiftN_ = d.giftCount || 0; if (d.enabled && ((d.tracks || []).length || bossGiftN_)) { bossAvailable = true; bossTest_ = !!d.testMode; } renderSidebar(); } } catch (e) {}
     }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && bossAvailable && document.getElementById('boss-modal').style.display !== 'flex') checkBossAvailability_(); }); // 切回來時更新禮物箱數字
     async function openBoss() {
       document.getElementById('boss-modal').style.display = 'flex';
       bsTrackId_ = null; bsTrack_ = null; bsToast_ = '';
       document.getElementById('bs-body').innerHTML = '<div style="color:#949BA4">載入中…</div>';
       await bsLoadLobby_();
     }
-    function closeBoss() { document.getElementById('boss-modal').style.display = 'none'; bsStopPoll_(); }
+    function closeBoss() { document.getElementById('boss-modal').style.display = 'none'; bsStopPoll_(); if (bossAvailable) checkBossAvailability_(); }
     // 🐲 即時連線(WebSocket):伺服器有人翻牌就推 BOSS 血量/排行/動態;連不上就退回輪詢(每 3 秒),連上後輪詢放慢到 15 秒當保險
     function bsWsClose_() { bsWsOk_ = false; if (bsWsTimer_) { clearTimeout(bsWsTimer_); bsWsTimer_ = null; } if (bsWs_) { try { bsWs_.onclose = null; bsWs_.close(); } catch (e) {} bsWs_ = null; } }
     function bsWsOpen_() {
@@ -5484,7 +5486,7 @@
       const box = document.getElementById('bs-body'); box.innerHTML = '<div style="color:#949BA4">載入中…</div>';
       const d = await bsCall_('bossGiftList');
       if (!d || d.status !== 'success') { box.innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
-      const gs = d.gifts || [];
+      const gs = d.gifts || []; bossGiftN_ = gs.length; try { renderSidebar(); } catch (e) {}
       box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsLoadLobby_()">← 賽道列表</button><b>📦 禮物箱</b><span style="color:#949BA4;font-size:12px">' + gs.length + ' 件待領</span>' + (gs.length ? '<button style="margin-left:auto;background:#5865F2;color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer" onclick="bsClaimGift_(\'all\')">全部領出</button>' : '') + '</div>' +
         (gs.length ? gs.map((g) => '<div style="display:flex;align-items:center;gap:8px;background:#202225;border:1px solid #4F545C;border-radius:8px;padding:8px 10px;margin-bottom:6px"><div style="flex:1;min-width:0"><b>' + escapeHtml_(g.name) + ' ×' + g.amount + '</b> <span style="color:#949BA4;font-size:12px">' + (g.type === 'item' ? '道具' : '貨幣') + ' ・ ' + escapeHtml_(g.src || '') + '</span></div><button style="background:#2f9e44;color:#fff;border:0;border-radius:6px;padding:5px 12px;cursor:pointer" onclick="bsClaimGift_(' + g.id + ')">領出</button></div>').join('') : '<div style="color:#949BA4">禮物箱是空的</div>');
     }
