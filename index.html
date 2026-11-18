@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.312</div>
+    <div class="version-tag">系統版本：v5.4.313</div>
   </div>
 
   <script>
@@ -5303,6 +5303,7 @@
       if (last.ts <= bsLastTs_) return;
       bsLastTs_ = last.ts;
       if (last.cid ? last.cid === bsCid_ : String(last.uid) === String(currentUser.id)) return;
+      bsCoolUntil_ = Date.now() + (last.kind === 'miss' ? 2400 : 700); setTimeout(() => { if (bsTrack_ && !bsBusy_) bsRender_(); }, (last.kind === 'miss' ? 2400 : 700) + 60); // 別人這回合還在顯示:全場同步等
       const keys = [];
       (last.cards || []).forEach((c) => { bsFlash_[c.idx] = { label: c.face.label, sub: c.face.sub, cls: last.kind === 'miss' ? 'bad' : (last.kind === 'pair' ? 'hit' : ''), ws: c.idx !== bsSeenFirst_ }; keys.push(c.idx); });
       bsToast_ = '👀 ' + last.by + (last.kind === 'pair' ? ' 配對成功!' : last.kind === 'miss' ? ' 沒配對到' : ' 翻到特殊牌');
@@ -5473,6 +5474,7 @@
       bsSeenFirst_ = d.board && d.board.first ? d.board.first.idx : -1; bsTrack_.board = d.board; if (d.room) bsTrack_.room = d.room; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
       evs.forEach((e) => { if (e.kind === 'attack' && bsTrack_.me) { bsTrack_.me.damage = Math.round((Number(bsTrack_.me.damage) + e.amount) * 100) / 100; bsTrack_.me.attacks++; } if (e.kind === 'reset') bsTrack_.resets = e.count; if (e.kind === 'reshuffle') bsTrack_.resets = 0; });
       bsRender_();
+      if (bsTrack_.shared && !(d.board && d.board.first) && !miss) { bsCoolUntil_ = t0_ + 900; setTimeout(() => { if (bsTrack_ && !bsBusy_) bsRender_(); }, Math.max(50, bsCoolUntil_ - Date.now()) + 30); }
       const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
       const needFull = evs.some((e) => ['attack', 'kill', 'reward', 'trap', 'reshuffle'].includes(e.kind));
       setTimeout(async () => { if (miss) { document.querySelectorAll('#bs-body .bs-card.open').forEach((el) => el.classList.remove('open', 'flipped', 'bad')); await sleep_(480); if (bsTrack_.shared) { bsCoolUntil_ = t0_ + 2600; setTimeout(() => { if (bsTrack_ && !bsBusy_) bsRender_(); }, Math.max(50, bsCoolUntil_ - Date.now())); } } /* 沒配對:兩張翻回去的動畫;共用牌面翻錯者鎖住約2.5秒,期間仍看得到別人翻牌 */ bsFlash_ = {}; bsBusy_ = false; if (needFull || bsWsDirty_) { bsWsDirty_ = false; bsRefresh_(false); } else bsRender_(); }, hold || 30);
