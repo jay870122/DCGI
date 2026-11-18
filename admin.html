@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.295</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.296</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -8300,7 +8300,6 @@ async function cbFormLoad_(px, itemKey) {
   try {
     const d = await grCall_('adminCatBudgetLite'); cbFormCfg_ = (d && d.cfg) || { cats: {} };
     const names = Object.keys(cbFormCfg_.cats || {}), orig = {};
-    if (!names.length) { box.innerHTML = '<span style="opacity:.6">還沒有額度,先到「📊 額度」頁建立</span>'; box.dataset.orig = '{}'; return; }
     const rows = names.filter((n) => itemKey && cbFormCfg_.cats[n].vals && cbFormCfg_.cats[n].vals[itemKey] !== undefined);
     rows.forEach((n) => { orig[n] = String(cbFormCfg_.cats[n].vals[itemKey]); });
     box.dataset.orig = JSON.stringify(orig);
