@@ -1064,7 +1064,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.282</div>
+    <div class="version-tag">系統版本：v5.4.283</div>
   </div>
 
   <script>
@@ -7771,12 +7771,11 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
         if (item.requiredRoleNames && item.requiredRoleNames.length > 0) {
           limitsHtml += buildRoleRequirementHtml_(item.requiredRoleNames, item.roleRequirementMode, item.roleRequirementMinCount, item.hasRolePermission, 'item-' + item.id);
         }
-        if (item.exclusiveGroup) {
-          const groupTagClass = item.groupLocked ? 'tag-role-locked' : 'tag-role-ok';
-          const groupIcon = item.groupLocked ? '🔒' : '🎯';
-          const gInfo_ = /^(全體|全服)\s*[:：]\s*(.+)$/.exec(item.exclusiveGroup || ''); // 全體選一:同組任一個買完,整組對所有人鎖住
-          const groupMsg = item.groupLocked ? (gInfo_ ? (item.groupLockMsg || '同組已有商品買完,整組鎖定') : `已選擇同組其他商品`) : (gInfo_ ? `全體選一群組` : `選一群組`);
-          limitsHtml += `<span class="limit-tag ${groupTagClass}">${groupIcon} ${groupMsg}: ${gInfo_ ? gInfo_[2] : item.exclusiveGroup}</span>`;
+        {
+          const gLk_ = !!item.groupLocked && (item.groupLockMsg || '').indexOf('全體選一') === 0; // 全體選一已鎖定
+          const pLk_ = !!item.groupLocked && !gLk_;
+          if (item.exclusiveGroup) limitsHtml += `<span class="limit-tag ${pLk_ ? 'tag-role-locked' : 'tag-role-ok'}">${pLk_ ? '🔒' : '🎯'} ${pLk_ ? '已選擇同組其他商品' : '選一群組'}: ${item.exclusiveGroup}</span>`;
+          if (item.exclusiveGlobal) limitsHtml += `<span class="limit-tag ${gLk_ ? 'tag-role-locked' : 'tag-role-ok'}">${gLk_ ? '🔒' : '🌐'} ${gLk_ ? (item.groupLockMsg || '全體選一:整組鎖定') : '全體選一群組'}: ${item.exclusiveGlobal}</span>`;
         }
         limitsHtml += `</div>`;
         if (limitsHtml === `<div class="limit-tags"></div>`) limitsHtml = "";
