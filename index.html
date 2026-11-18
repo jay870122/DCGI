@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.310</div>
+    <div class="version-tag">系統版本：v5.4.311</div>
   </div>
 
   <script>
@@ -5473,7 +5473,7 @@
       bsSeenFirst_ = d.board && d.board.first ? d.board.first.idx : -1; bsTrack_.board = d.board; if (d.room) bsTrack_.room = d.room; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
       evs.forEach((e) => { if (e.kind === 'attack' && bsTrack_.me) { bsTrack_.me.damage = Math.round((Number(bsTrack_.me.damage) + e.amount) * 100) / 100; bsTrack_.me.attacks++; } if (e.kind === 'reset') bsTrack_.resets = e.count; if (e.kind === 'reshuffle') bsTrack_.resets = 0; });
       bsRender_();
-      const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
+      const hold = miss ? (bsTrack_.shared ? 2200 : 650) : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
       const needFull = evs.some((e) => ['attack', 'kill', 'reward', 'trap', 'reshuffle'].includes(e.kind));
       setTimeout(async () => { if (miss) { document.querySelectorAll('#bs-body .bs-card.open').forEach((el) => el.classList.remove('open', 'flipped', 'bad')); await sleep_(480); } /* 沒配對:兩張翻回去的動畫 */ bsFlash_ = {}; bsBusy_ = false; if (needFull || bsWsDirty_) { bsWsDirty_ = false; bsRefresh_(false); } else bsRender_(); }, hold || 30);
     }
