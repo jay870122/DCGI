@@ -459,6 +459,12 @@
 #boss-modal .bs-card:hover:not(:disabled){transform:translateY(-3px)}
 #boss-modal .bs-card.open{background:#2F3136;border-color:#F0B232;transform:rotateY(0)}
 #boss-modal .bs-card.gone{visibility:hidden}
+#boss-modal .bs-grid{perspective:700px}
+#boss-modal .bs-card.spin{animation:bsSpin .45s ease-in-out infinite alternate}
+#boss-modal .bs-card.anim{animation:bsFlipIn .32s cubic-bezier(.2,.8,.3,1)}
+@keyframes bsSpin{from{transform:rotateY(0)}to{transform:rotateY(70deg)}}
+@keyframes bsFlipIn{from{transform:rotateY(-90deg) scale(.96)}60%{transform:rotateY(8deg) scale(1.04)}to{transform:rotateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){#boss-modal .bs-card.spin,#boss-modal .bs-card.anim{animation:none}}
 #boss-modal .bs-card small{display:block;font-size:11px;font-weight:400;margin-top:2px;line-height:1.2;word-break:break-all}
 #boss-modal .bs-card:disabled{cursor:not-allowed}
 #boss-modal .bs-card.hit{background:#1e5c3a;border-color:#57F287}
@@ -1064,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.289</div>
+    <div class="version-tag">系統版本：v5.4.290</div>
   </div>
 
   <script>
@@ -5313,7 +5319,8 @@
       const cardHtml = cells.map((g, i) => {
         const fl = bsFlash_[i];
         if (g && !fl) return '<button class="bs-card gone" disabled></button>';
-        if (fl) return '<button class="bs-card open ' + (fl.cls || '') + '" disabled>' + bsFace_(fl) + '</button>';
+        if (fl && fl.pending) return '<button class="bs-card spin" disabled>❓</button>';
+        if (fl) return '<button class="bs-card open ' + (fl.cls || '') + (fl.anim ? ' anim' : '') + '" disabled>' + bsFace_(fl) + '</button>';
         if (first && first.idx === i) return '<button class="bs-card open" disabled>' + bsFace_(first.face) + '</button>';
         return '<button class="bs-card" ' + (dis || rest ? 'disabled' : '') + ' onclick="bsFlip_(' + i + ')">❓</button>';
       }).join('');
@@ -5352,7 +5359,7 @@
     }
     async function bsFlip_(idx) {
       if (bsBusy_ || !bsTrack_) return;
-      bsBusy_ = true; bsFlash_ = {}; bsFlash_[idx] = { label: '⏳', cls: '' }; bsToast_ = '翻牌中…';
+      bsBusy_ = true; bsFlash_ = {}; bsFlash_[idx] = { label: '⏳', cls: '', pending: true }; bsToast_ = '翻牌中…';
       const rid = Math.random().toString(36).slice(2, 12);
       bsRender_();
       const d = await bsCall_('bossFlip', { trackId: bsTrackId_, idx: String(idx), rid });
@@ -5361,9 +5368,9 @@
       }
       const evs = d.events || [], miss = evs.find((e) => e.kind === 'miss');
       const f0 = bsTrack_.board && bsTrack_.board.first;
-      bsFlash_ = {}; bsFlash_[idx] = { label: d.face.label, sub: d.face.sub, cls: '' };
+      bsFlash_ = {}; bsFlash_[idx] = { label: d.face.label, sub: d.face.sub, cls: '', anim: true };
       if (miss) { if (f0) bsFlash_[f0.idx] = { label: miss.faces[0].label, sub: miss.faces[0].sub, cls: 'bad' }; bsFlash_[idx].cls = 'bad'; }
-      if (d.pair) d.pair.forEach((i) => { const ff = i === idx ? d.face : (f0 ? f0.face : d.face); bsFlash_[i] = { label: ff.label, sub: ff.sub, cls: 'hit' }; });
+      if (d.pair) d.pair.forEach((i) => { const ff = i === idx ? d.face : (f0 ? f0.face : d.face); bsFlash_[i] = { label: ff.label, sub: ff.sub, cls: 'hit', anim: i === idx }; });
       const texts = evs.map(bsEventText_).filter(Boolean); bsToast_ = texts.join(' ');
       // 直接用回應更新畫面(不再多打一次 API):新盤面、BOSS 血量、錢包、我的傷害
       bsTrack_.board = d.board; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
