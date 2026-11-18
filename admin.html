@@ -4272,7 +4272,8 @@ function beRender_() {
     h += '<div class="be-track"><div class="be-h">🗺️ 賽道 ' + (ti + 1) + '<button class="btn btn-edit" onclick="beDel_(\'tracks\',' + ti + ')">🗑 刪除賽道</button></div>';
     h += '<div class="be-row">名稱' + beIn_(tp + '.name', t.name, 130, '賽道名稱') + ' ID' + beIn_(tp + '.id', t.id, 60, 't1') + '</div>';
     h += '<div class="be-row">期間' + beIn_(tp + '.start', t.start, 135, '', 'date') + '~' + beIn_(tp + '.end', t.end, 135, '', 'date') + '</div>';
-    h += '<div class="be-row">🎟️ 這條賽道的翻牌貨幣 ' + beIn_(tp + '.ticketCurrency', t.ticketCurrency || '', 160, '留空=用上面的全域貨幣') + ' 每回合(翻 2 張)扣 ' + beIn_(tp + '.ticketCost', t.ticketCost === undefined ? 1 : t.ticketCost, 70, '1', 'number') + '</div>\n    h += '<div class="be-row">' + beChk_(tp + '.shared', !!t.shared, '👥 全場共用同一個牌面(多人輪流翻、翻開的牌大家都看得到;不勾=每人各自一盤)') + '</div>';
+    h += '<div class="be-row">🎟️ 這條賽道的翻牌貨幣 ' + beIn_(tp + '.ticketCurrency', t.ticketCurrency || '', 160, '留空=用上面的全域貨幣') + ' 每回合(翻 2 張)扣 ' + beIn_(tp + '.ticketCost', t.ticketCost === undefined ? 1 : t.ticketCost, 70, '1', 'number') + '</div>';
+    h += '<div class="be-row">' + beChk_(tp + '.shared', !!t.shared, '👥 全場共用同一個牌面(多人輪流翻、翻開的牌大家都看得到;不勾=每人各自一盤)') + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '</div>';
     (t.forms || []).forEach((f, fi) => {
       const fp = tp + '.forms.' + fi, b = f.board, bp = fp + '.board';
