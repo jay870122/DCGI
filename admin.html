@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.301</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.302</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1469,7 +1469,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <label class="pk-chk"><input type="checkbox" id="boss-enabled"> 啟用翻翻樂</label>
           <label class="pk-chk"><input type="checkbox" id="boss-test"> 🧪 測試模式:只有管理員看得到、能玩(一般玩家完全看不到入口;不受賽道日期限制)。測完請按下方「🗑 重置賽道」清掉測試資料,再關掉測試模式正式開放。翻牌券/獎勵是真的會扣、會發,測試前先發自己一些翻牌券。</label>
           <div class="pk-grid">
-            <div class="field"><label>翻牌券貨幣名稱</label><input id="boss-cur" placeholder="翻牌券"></div>
+            <div class="field"><label>翻牌券貨幣名稱 <span class="hint">可從現有貨幣挑選</span></label><input id="boss-cur" placeholder="翻牌券" list="be-cur-list"><datalist id="be-cur-list"></datalist><datalist id="be-item-list"></datalist></div>
             <div class="field"><label>(已停用)錢包每次補幾張<span class="hint">翻牌券現在直接扣貨幣餘額(翻一回合 2 張扣 1 張),這個欄位不再使用</span></label><input id="boss-pull" type="number" min="1" max="200"></div>
           </div>
         </div>
@@ -4236,7 +4236,7 @@ function beSet_(path, v) { const r = beRef_(path); r[0][r[1]] = v; beTot_(); beM
 function beAdd_(path, item) { const r = beRef_(path); if (!Array.isArray(r[0][r[1]])) r[0][r[1]] = []; r[0][r[1]].push(beClone_(item)); beRender_(); }
 function beDel_(path, i) { const r = beRef_(path); r[0][r[1]].splice(i, 1); beRender_(); }
 function beDup_(path, i) { const r = beRef_(path); r[0][r[1]].splice(i + 1, 0, beClone_(r[0][r[1]][i])); beRender_(); }
-function beIn_(path, val, w, ph, type) { return '<input ' + (type ? 'type="' + type + '" ' : '') + 'value="' + beEsc_(val) + '" placeholder="' + beEsc_(ph || '') + '" style="width:' + w + 'px" oninput="beSet_(\'' + path + '\',this.value)">'; }
+function beIn_(path, val, w, ph, type, list) { return '<input ' + (type ? 'type="' + type + '" ' : '') + (list ? 'list="' + list + '" ' : '') + 'value="' + beEsc_(val) + '" placeholder="' + beEsc_(ph || '') + '" style="width:' + w + 'px" oninput="beSet_(\'' + path + '\',this.value)">'; }
 function beChk_(path, val, label) { return '<label class="pk-chk" style="margin:0"><input type="checkbox" ' + (val ? 'checked' : '') + ' onchange="beSet_(\'' + path + '\',this.checked)"> ' + label + '</label>'; }
 function beFix_() {
   if (!Array.isArray(BED_.tracks)) BED_.tracks = [];
@@ -4260,19 +4260,28 @@ function beRw_(path, list) {
   let h = '<div class="be-rw">';
   (list || []).forEach((r, i) => {
     const p = path + '.' + i;
-    h += '<div class="be-row"><select onchange="beSet_(\'' + p + '.type\',this.value)"><option value="currency"' + (r.type !== 'item' ? ' selected' : '') + '>貨幣</option><option value="item"' + (r.type === 'item' ? ' selected' : '') + '>道具</option></select>' + beIn_(p + '.name', r.name, 130, '名稱') + '×' + beIn_(p + '.amount', r.amount, 64, '數量') + '<label class="pk-chk" style="margin:0" title="勾了:先放進玩家的禮物箱,玩家自己按領出才入帳"><input type="checkbox" ' + (r.box ? 'checked' : '') + ' onchange="beSet_(\'' + p + '.box\',this.checked)">📦禮物箱</label><button class="btn btn-edit" onclick="beDel_(\'' + path + '\',' + i + ')">✕</button></div>';
+    h += '<div class="be-row"><select onchange="beSet_(\'' + p + '.type\',this.value);beRender_()"><option value="currency"' + (r.type !== 'item' ? ' selected' : '') + '>貨幣</option><option value="item"' + (r.type === 'item' ? ' selected' : '') + '>道具</option></select>' + beIn_(p + '.name', r.name, 130, r.type === 'item' ? '道具模板名稱' : '貨幣名稱', undefined, r.type === 'item' ? 'be-item-list' : 'be-cur-list') + '×' + beIn_(p + '.amount', r.amount, 64, '數量') + '<label class="pk-chk" style="margin:0" title="勾了:先放進玩家的禮物箱,玩家自己按領出才入帳"><input type="checkbox" ' + (r.box ? 'checked' : '') + ' onchange="beSet_(\'' + p + '.box\',this.checked)">📦禮物箱</label><button class="btn btn-edit" onclick="beDel_(\'' + path + '\',' + i + ')">✕</button></div>';
   });
   return h + '<button class="btn btn-edit" onclick="beAdd_(\'' + path + '\',BE_RW_)">➕ 獎勵</button></div>';
 }
+function beFillLists_() { // 貨幣/道具名稱自動帶入清單(來源:玩家資料欄位、道具模板)
+  try {
+    const cl = document.getElementById('be-cur-list'), il = document.getElementById('be-item-list'); if (!cl || !il) return;
+    const cur = Array.from(new Set(Array.from(document.querySelectorAll('#dc-list option')).map((o) => o.value).concat(['幻彩水晶']))).filter(Boolean);
+    cl.innerHTML = cur.map((n) => '<option value="' + beEsc_(n) + '">').join('');
+    il.innerHTML = (itemTemplates || []).map((t) => '<option value="' + beEsc_(t.name) + '">').join('');
+  } catch (e) {}
+}
 function beRender_() {
   const el = document.getElementById('boss-ed'); if (!el) return;
+  beFillLists_();
   let h = '';
   BED_.tracks.forEach((t, ti) => {
     const tp = 'tracks.' + ti;
     h += '<div class="be-track"><div class="be-h">🗺️ 賽道 ' + (ti + 1) + '<button class="btn btn-edit" onclick="beDel_(\'tracks\',' + ti + ')">🗑 刪除賽道</button></div>';
     h += '<div class="be-row">名稱' + beIn_(tp + '.name', t.name, 130, '賽道名稱') + ' ID' + beIn_(tp + '.id', t.id, 60, 't1') + '</div>';
     h += '<div class="be-row">期間' + beIn_(tp + '.start', t.start, 135, '', 'date') + '~' + beIn_(tp + '.end', t.end, 135, '', 'date') + '</div>';
-    h += '<div class="be-row">🎟️ 這條賽道的翻牌貨幣 ' + beIn_(tp + '.ticketCurrency', t.ticketCurrency || '', 160, '留空=用上面的全域貨幣') + ' 每回合(翻 2 張)扣 ' + beIn_(tp + '.ticketCost', t.ticketCost === undefined ? 1 : t.ticketCost, 70, '1', 'number') + '</div>';
+    h += '<div class="be-row">🎟️ 這條賽道的翻牌貨幣 ' + beIn_(tp + '.ticketCurrency', t.ticketCurrency || '', 160, '留空=用上面的全域貨幣', undefined, 'be-cur-list') + ' 每回合(翻 2 張)扣 ' + beIn_(tp + '.ticketCost', t.ticketCost === undefined ? 1 : t.ticketCost, 70, '1', 'number') + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.shared', !!t.shared, '👥 全場共用同一個牌面(多人輪流翻、翻開的牌大家都看得到;不勾=每人各自一盤)') + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '</div>';
     (t.forms || []).forEach((f, fi) => {
@@ -4316,6 +4325,7 @@ function bossSample_() { if (BED_.tracks.length && !confirm('會覆蓋目前編�
   beFix_(); beRender_(); }
 async function bossLoad_() {
   try {
+    if (!(itemTemplates || []).length) { try { const dt = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' }); if (dt && dt.status === 'success') itemTemplates = dt.templates || []; } catch (e) {} }
     const d = await grCall_('adminBossCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const c = d.cfg || {};
