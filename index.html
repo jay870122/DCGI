@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.309</div>
+    <div class="version-tag">系統版本：v5.4.310</div>
   </div>
 
   <script>
@@ -5242,7 +5242,8 @@
     // ===== 🐲 翻翻樂打BOSS(玩家) =====
     let bsWsDirty_ = false, bsWs_ = null, bsWsOk_ = false, bsWsRetry_ = 0, bsWsTimer_ = null, bsLobby_ = null, bsTrack_ = null, bsTrackId_ = null, bsBusy_ = false, bsPoll_ = null, bsRestTimer_ = null, bsToast_ = '', bsFlash_ = {}, bsRestUntil_ = 0;
     function bsName_() { return (currentUser && (currentUser.global_name || currentUser.username)) || '玩家'; }
-    function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_() }, params || {})); }
+    const bsCid_ = Math.random().toString(36).slice(2, 10); // 每個分頁一個代號:同帳號開兩個分頁測試時,也能分辨哪張牌是「別的分頁」翻的
+    function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_(), cid: bsCid_ }, params || {})); }
     async function checkBossAvailability_() {
       try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success' && d.enabled && (d.tracks || []).length) { bossAvailable = true; bossTest_ = !!d.testMode; renderSidebar(); } } catch (e) {}
     }
@@ -5301,7 +5302,7 @@
       if (bsLastTs_ === null) { bsLastTs_ = last.ts; return; }
       if (last.ts <= bsLastTs_) return;
       bsLastTs_ = last.ts;
-      if (String(last.uid) === String(currentUser.id)) return;
+      if (last.cid ? last.cid === bsCid_ : String(last.uid) === String(currentUser.id)) return;
       const keys = [];
       (last.cards || []).forEach((c) => { bsFlash_[c.idx] = { label: c.face.label, sub: c.face.sub, cls: last.kind === 'miss' ? 'bad' : (last.kind === 'pair' ? 'hit' : ''), ws: c.idx !== bsSeenFirst_ }; keys.push(c.idx); });
       bsToast_ = '👀 ' + last.by + (last.kind === 'pair' ? ' 配對成功!' : last.kind === 'miss' ? ' 沒配對到' : ' 翻到特殊牌');
@@ -5387,7 +5388,7 @@
         if (fl && fl.pending) return cardOf_('flipped', '⏳', 'disabled data-i="' + i + '"');
         if (fl && fl.ws) return cardOf_('', bsFace_(fl), 'disabled data-i="' + i + '" data-ws="open ' + (fl.cls || '') + '"');
         if (fl) return cardOf_('open ' + (fl.cls || ''), bsFace_(fl), 'disabled data-i="' + i + '"');
-        if (first && first.idx === i) return cardOf_(turnLocked_ && bsSeenFirst_ !== i ? '' : 'open', bsFace_(first.face), 'disabled data-i="' + i + '"' + (turnLocked_ && bsSeenFirst_ !== i ? ' data-ws="open"' : ''));
+        if (first && first.idx === i) return cardOf_(bsSeenFirst_ !== i ? '' : 'open', bsFace_(first.face), 'disabled data-i="' + i + '"' + (bsSeenFirst_ !== i ? ' data-ws="open"' : ''));
         return cardOf_('', '', (dis || rest ? 'disabled ' : '') + 'data-i="' + i + '" onclick="bsFlip_(' + i + ')"');
       }).join('');
       box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;white-space:nowrap;min-width:0"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><b style="overflow:hidden;text-overflow:ellipsis;min-width:0">' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px;flex:none">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
@@ -5469,7 +5470,7 @@
       if (d.pair) d.pair.forEach((i) => { const ff = i === idx ? d.face : (f0 ? f0.face : d.face); bsFlash_[i] = { label: ff.label, sub: ff.sub, cls: 'hit', anim: i === idx }; });
       const texts = evs.map(bsEventText_).filter(Boolean); bsToast_ = texts.join(' ');
       // 直接用回應更新畫面(不再多打一次 API):新盤面、BOSS 血量、錢包、我的傷害
-      bsTrack_.board = d.board; if (d.room) bsTrack_.room = d.room; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
+      bsSeenFirst_ = d.board && d.board.first ? d.board.first.idx : -1; bsTrack_.board = d.board; if (d.room) bsTrack_.room = d.room; bsTrack_.boss = d.boss; bsTrack_.wallet = d.wallet; bsRestUntil_ = d.restLeft ? Date.now() + d.restLeft * 1000 : 0;
       evs.forEach((e) => { if (e.kind === 'attack' && bsTrack_.me) { bsTrack_.me.damage = Math.round((Number(bsTrack_.me.damage) + e.amount) * 100) / 100; bsTrack_.me.attacks++; } if (e.kind === 'reset') bsTrack_.resets = e.count; if (e.kind === 'reshuffle') bsTrack_.resets = 0; });
       bsRender_();
       const hold = miss ? 650 : (d.pair ? 350 : (evs.some((e) => ['trap', 'reset', 'rest', 'reshuffle', 'kill'].includes(e.kind)) ? 450 : 0));
