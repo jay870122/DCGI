@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.319</div>
+    <div class="version-tag">系統版本：v5.4.320</div>
   </div>
 
   <script>
@@ -5263,9 +5263,9 @@
       document.getElementById('boss-modal').style.display = 'flex';
       bsTrackId_ = null; bsTrack_ = null; bsToast_ = '';
       document.getElementById('bs-body').innerHTML = '<div style="color:#949BA4">載入中…</div>';
-      await bsLoadLobby_();
+      await bsLoadLobby_(); bsLobbyAuto_(true);
     }
-    function closeBoss() { document.getElementById('boss-modal').style.display = 'none'; bsStopPoll_(); if (bossAvailable) checkBossAvailability_(); }
+    function closeBoss() { document.getElementById('boss-modal').style.display = 'none'; bsStopPoll_(); bsLobbyAuto_(false); if (bossAvailable) checkBossAvailability_(); }
     // 🐲 即時連線(WebSocket):伺服器有人翻牌就推 BOSS 血量/排行/動態;連不上就退回輪詢(每 3 秒),連上後輪詢放慢到 15 秒當保險
     function bsWsClose_() { bsWsOk_ = false; if (bsWsTimer_) { clearTimeout(bsWsTimer_); bsWsTimer_ = null; } if (bsWs_) { try { bsWs_.onclose = null; bsWs_.close(); } catch (e) {} bsWs_ = null; } }
     function bsWsOpen_() {
@@ -5328,9 +5328,18 @@
       setTimeout(async () => { if (last.kind === 'miss') { keys.forEach((k) => { const el = document.querySelector('#bs-body .bs-card[data-i="' + k + '"]'); if (el) el.classList.remove('open', 'flipped', 'bad'); }); await new Promise((r) => setTimeout(r, 480)); } keys.forEach((k) => { delete bsFlash_[k]; }); if (bsTrack_ && !bsBusy_) bsRender_(); }, 1000);
     }
     function bsStopPoll_() { bsAsleep_ = false; if (bsSleepT_) { clearTimeout(bsSleepT_); bsSleepT_ = null; } bsWsClose_(); if (bsPoll_) { clearInterval(bsPoll_); bsPoll_ = null; } if (bsRestTimer_) { clearInterval(bsRestTimer_); bsRestTimer_ = null; } }
-    async function bsLoadLobby_() {
-      bsStopPoll_();
+    let bsLobbyT_ = null;
+    function bsLobbyAuto_(on) { // 大廳畫面每 15 秒自動更新(賽道、在線人數、禮物箱數字);進房間/禮物箱/分頁在背景時不更新
+      if (!on) { if (bsLobbyT_) { clearInterval(bsLobbyT_); bsLobbyT_ = null; } return; }
+      if (bsLobbyT_) return;
+      bsLobbyT_ = setInterval(() => { if (document.hidden || bsTrackId_ || document.getElementById('bs-gifts-open') || document.getElementById('boss-modal').style.display !== 'flex') return; bsLoadLobby_(true); }, 15000);
+    }
+    async function bsLoadLobby_(silent) {
+      if (silent !== true) { bsStopPoll_(); bsTrackId_ = null; bsTrack_ = null; } silent = silent === true;
       const d = await bsCall_('bossLobby');
+      if (silent && (bsTrackId_ || document.getElementById('bs-gifts-open'))) return; // 更新途中玩家已經點進別的畫面
+      if (d && d.status === 'success') { bossGiftN_ = bsGiftUnread_(d); try { renderSidebar(); } catch (e) {} }
+      if (silent && (!d || d.status !== 'success' || document.querySelector('#bs-body details[open]'))) return; // 自動更新失敗/玩家正展開獎勵一覽就不重畫,避免打斷
       if (!d || d.status !== 'success') { document.getElementById('bs-body').innerHTML = '<div style="color:#ED4245">' + escapeHtml_((d && d.message) || '載入失敗') + '</div>'; return; }
       bsLobby_ = d;
       const box = document.getElementById('bs-body');
