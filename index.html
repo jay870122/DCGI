@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.329</div>
+    <div class="version-tag">系統版本：v5.4.330</div>
   </div>
 
   <script>
@@ -1358,6 +1358,8 @@
     (function () { try { const q = new URLSearchParams(location.search), c = q.get('card'); if (c) { localStorage.setItem('ic_link_target', JSON.stringify({ card: c, cm: q.get('cm') || '', t: Date.now() })); history.replaceState(null, '', location.pathname + location.hash); } } catch (e) {} })();
     // 🎽 穿搭大賽直達連結:?contest=all(總入口) / ?contest=<賽道ID> / ?contest=mine(我的得獎資訊);先記下來,登入+確認開放後再自動打開
     (function () { try { const q = new URLSearchParams(location.search), c = q.get('contest'); if (c) { localStorage.setItem('ct_link_target', JSON.stringify({ t: c.slice(0, 40), at: Date.now() })); q.delete('contest'); const r = q.toString(); history.replaceState(null, '', location.pathname + (r ? '?' + r : '') + location.hash); } } catch (e) {} })();
+    // 🐲 翻翻樂賽道分享連結:?boss=<賽道ID>;先記下來,登入+確認開放後自動進入該賽道
+    (function () { try { const q = new URLSearchParams(location.search), c = q.get('boss'); if (c) { localStorage.setItem('boss_link_target', JSON.stringify({ t: c.slice(0, 60), at: Date.now() })); q.delete('boss'); const r = q.toString(); history.replaceState(null, '', location.pathname + (r ? '?' + r : '') + location.hash); } } catch (e) {} })();
     let icLinkCards_ = false, icLinkShop_ = false;
     // 🔗 資訊卡/說明裡的「本商城」連結:不開新視窗,直接在目前頁面跳轉(能在頁內處理的就不重新整理)
     document.addEventListener('click', (ev) => {
@@ -1506,6 +1508,7 @@
             const ctl_ = JSON.parse(localStorage.getItem('ct_link_target') || 'null');
             if ((ctl_ && Date.now() - (ctl_.at || 0) < 15 * 60 * 1000) || ctPreviewFromUrl_) { contestCheckStarted_ = true; checkContestAvailability_(); }
           } catch (e) {}
+          try { const bl_ = JSON.parse(localStorage.getItem('boss_link_target') || 'null'); if (bl_ && Date.now() - (bl_.at || 0) < 15 * 60 * 1000) checkBossAvailability_(); } catch (e) {} // 🐲 從賽道分享連結進來:立刻查入口並直接進賽道
           updatePushToggleButton(); // 🌟 檢查瀏覽器目前的推播訂閱狀態,更新按鈕顯示「開啟」或「關閉」
           maybeShowPushPrompt(); // 🌟 網址如果帶 ?subscribe=1(用來分享邀請大家訂閱推播的連結),自動跳出引導視窗
           maybeShowSharedRedeemCode(); // 🌟 網址如果帶 ?redeem=兌換碼(分享兌換碼連結用),自動打開兌換彈窗、把碼預先填好
@@ -5274,9 +5277,23 @@
       }, 60000);
     }
     async function checkBossAvailability_() {
-      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success') { bossGiftN_ = bsGiftUnread_(d); if (d.enabled && ((d.tracks || []).length || d.giftCount)) { bossAvailable = true; bossTest_ = !!d.testMode; bsGiftPoll_(); } renderSidebar(); } } catch (e) {}
+      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success') { bossGiftN_ = bsGiftUnread_(d); if (d.enabled && ((d.tracks || []).length || d.giftCount)) { bossAvailable = true; bossTest_ = !!d.testMode; bsGiftPoll_(); } renderSidebar(); bsLinkGo_(d); } } catch (e) {}
     }
     document.addEventListener('visibilitychange', () => { if (!document.hidden && bossAvailable && document.getElementById('boss-modal').style.display !== 'flex') checkBossAvailability_(); }); // 切回來時更新禮物箱數字
+    async function bsLinkGo_(d) { // 賽道分享連結:有 ?boss= 就直接打開並進入該賽道(找不到/沒開放就停在賽道列表並提示)
+      let lt = null; try { lt = JSON.parse(localStorage.getItem('boss_link_target') || 'null'); localStorage.removeItem('boss_link_target'); } catch (e) {}
+      if (!lt || Date.now() - (lt.at || 0) > 15 * 60 * 1000) return;
+      if (!bossAvailable) { alert('🐲 翻翻樂打BOSS目前沒有開放,開放後再點連結就能直接進入喔!'); return; }
+      await openBoss();
+      const tk = ((d && d.tracks) || []).find((x) => x.id === lt.t);
+      if (tk) await bsEnter_(tk.id); else alert('🐲 這條賽道目前沒有開放或你沒有權限進入,已為你顯示賽道列表。');
+    }
+    function bsShareLink_() {
+      const id = bsTrackId_; if (!id) return;
+      const url = location.origin + location.pathname + '?boss=' + encodeURIComponent(id);
+      const done = () => { const tt = document.getElementById('bs-toast'); if (tt) tt.textContent = '🔗 賽道連結已複製,貼給朋友就能直接進來'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt('複製這個連結:', url)); else prompt('複製這個連結:', url);
+    }
     async function openBoss() {
       document.getElementById('boss-modal').style.display = 'flex';
       bsTrackId_ = null; bsTrack_ = null; bsToast_ = '';
@@ -5462,7 +5479,7 @@
         if (first && first.idx === i) return cardOf_(bsSeenFirst_ !== i ? '' : 'open', bsFace_(first.face), 'disabled data-i="' + i + '"' + (bsSeenFirst_ !== i ? ' data-ws="open"' : ''));
         return cardOf_('', '', (dis || rest ? 'disabled ' : '') + 'data-i="' + i + '" onclick="bsFlip_(' + i + ')"');
       }).join('');
-      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;white-space:nowrap;min-width:0"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><b style="overflow:hidden;text-overflow:ellipsis;min-width:0">' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px;flex:none">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;white-space:nowrap;min-width:0"><button class="btn" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap" onclick="bsLoadLobby_()">← 賽道列表</button><button style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer" onclick="bsOpenGifts_()">📦 禮物箱' + (t.giftCount ? ' <b style=\'color:#F0B232\'>(' + t.giftCount + ')</b>' : '') + '</button><button title="複製這條賽道的連結" style="background:#4F545C;color:#fff;border:0;border-radius:6px;padding:5px 9px;cursor:pointer" onclick="bsShareLink_()">🔗</button><b style="overflow:hidden;text-overflow:ellipsis;min-width:0">' + escapeHtml_(t.name) + '</b><span style="color:#949BA4;font-size:12px;flex:none">第 ' + t.loop + ' 輪 ・ 型態 ' + (t.formIdx + 1) + '/' + t.formCount + '</span></div>' +
         '<div class="bs-wrap"><div>' +
         '<div style="display:flex;align-items:center;gap:8px"><b style="white-space:nowrap">' + escapeHtml_(t.boss.name) + '</b><div class="bs-hp" style="flex:1"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div></div>' +
         '<div style="height:38px;margin-top:6px">' + (holdLeft_ > 0 && t.room && t.room.holder ? '<div id="bs-hold" style="padding:4px 10px;border-radius:8px;background:#3a3320;border:1px solid #F0B232;font-size:13px;color:#F0B232">🎴 ' + (t.room.holder === myId_ ? '輪到你了!請在時間內翻第二張' : escapeHtml_(t.room.holderName) + ' 翻牌中') + ' ⏱ <b id="bs-hold-t">' + holdLeft_ + '</b> 秒<div style="height:4px;border-radius:2px;background:#4a4228;margin-top:4px;overflow:hidden"><i id="bs-hold-bar" style="display:block;height:100%;width:' + Math.min(100, holdLeft_ * 10) + '%;background:#F0B232"></i></div></div>' : '') + '</div>' +
