@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.318</div>
+    <div class="version-tag">系統版本：v5.4.319</div>
   </div>
 
   <script>
@@ -5247,8 +5247,16 @@
     function bsName_() { return (currentUser && (currentUser.global_name || currentUser.username)) || '玩家'; }
     const bsCid_ = Math.random().toString(36).slice(2, 10); // 每個分頁一個代號:同帳號開兩個分頁測試時,也能分辨哪張牌是「別的分頁」翻的
     function bsCall_(action, params) { return chamberCall_(action, Object.assign({ name: bsName_(), cid: bsCid_ }, params || {})); }
+    let bsGiftPollT_ = null;
+    function bsGiftPoll_() { // 主畫面每 60 秒悄悄更新禮物箱數字(分頁在背景或 BOSS 視窗開著時不查;輕量 API)
+      if (bsGiftPollT_) return;
+      bsGiftPollT_ = setInterval(async () => {
+        if (document.hidden || !bossAvailable || document.getElementById('boss-modal').style.display === 'flex') return;
+        try { const d = await bsCall_('bossGiftCount'); if (d && d.status === 'success') { const n = bsGiftUnread_(d); if (n !== bossGiftN_) { bossGiftN_ = n; renderSidebar(); } } } catch (e) {}
+      }, 60000);
+    }
     async function checkBossAvailability_() {
-      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success') { bossGiftN_ = bsGiftUnread_(d); if (d.enabled && ((d.tracks || []).length || d.giftCount)) { bossAvailable = true; bossTest_ = !!d.testMode; } renderSidebar(); } } catch (e) {}
+      try { const d = await bsCall_('bossLobby'); if (d && d.status === 'success') { bossGiftN_ = bsGiftUnread_(d); if (d.enabled && ((d.tracks || []).length || d.giftCount)) { bossAvailable = true; bossTest_ = !!d.testMode; bsGiftPoll_(); } renderSidebar(); } } catch (e) {}
     }
     document.addEventListener('visibilitychange', () => { if (!document.hidden && bossAvailable && document.getElementById('boss-modal').style.display !== 'flex') checkBossAvailability_(); }); // 切回來時更新禮物箱數字
     async function openBoss() {
