@@ -454,7 +454,7 @@
 #boss-modal .bs-hp{height:18px;background:#202225;border-radius:9px;overflow:hidden;position:relative;border:1px solid #4F545C}
 #boss-modal .bs-hp>i{display:block;height:100%;background:linear-gradient(90deg,#ED4245,#F0B232);transition:width .5s}
 #boss-modal .bs-hp>span{position:absolute;left:0;right:0;top:0;text-align:center;font-size:12px;line-height:18px;color:#fff;text-shadow:0 1px 2px #000}
-#boss-modal .bs-grid{display:grid;gap:8px;margin:10px auto 0;width:max(min(100%,150px),min(100%,calc((100vh - 290px) * .75 * var(--bs-cols,4) / var(--bs-rows,4))))} /* 牌盤依視窗高度縮放,整盤一眼看完不用捲動 */
+#boss-modal .bs-grid{display:grid;gap:8px;margin:10px auto 0;width:max(min(100%,150px),min(100%,calc((100vh - 320px) * .75 * var(--bs-cols,4) / var(--bs-rows,4))))} /* 牌盤依視窗高度縮放,整盤一眼看完不用捲動 */
 #boss-modal .bs-card{aspect-ratio:3/4;border:0;background:none;padding:0;cursor:pointer;perspective:800px;user-select:none;color:#fff;font-size:20px;transition:transform .2s}
 #boss-modal .bs-card:hover:not(:disabled):not(.flipped):not(.open){transform:translateY(-3px)}
 #boss-modal .bs-card.gone{visibility:hidden}
@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.306</div>
+    <div class="version-tag">系統版本：v5.4.307</div>
   </div>
 
   <script>
@@ -5394,9 +5394,10 @@
         '<div style="display:flex;align-items:center;gap:8px"><b style="white-space:nowrap">' + escapeHtml_(t.boss.name) + '</b><div class="bs-hp" style="flex:1"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.boss.hp) + ' / ' + t.boss.maxHp + '</span></div></div>' +
         (holdLeft_ > 0 && t.room && t.room.holder ? '<div id="bs-hold" style="margin-top:8px;padding:6px 10px;border-radius:8px;background:#3a3320;border:1px solid #F0B232;font-size:13px;color:#F0B232">🎴 ' + (t.room.holder === myId_ ? '輪到你了!請在時間內翻第二張' : escapeHtml_(t.room.holderName) + ' 翻牌中') + ' ⏱ <b id="bs-hold-t">' + holdLeft_ + '</b> 秒<div style="height:4px;border-radius:2px;background:#4a4228;margin-top:4px;overflow:hidden"><i id="bs-hold-bar" style="display:block;height:100%;width:' + Math.min(100, holdLeft_ * 10) + '%;background:#F0B232"></i></div></div>' : '') +
         '<div id="bs-ms" style="font-size:11px;color:#6d6f78;min-height:14px"></div><div class="bs-toast" id="bs-toast">' + escapeHtml_(ended ? '這條賽道已經結束了' : (t.blocked || (!t.active ? '這條賽道目前沒有開放' : (turnLocked_ ? '⏳ 輪到「' + t.room.holderName + '」翻牌,請稍等…' : bsToast_)))) + (rest ? ' <span id="bs-rest"></span>' : '') + '</div>' +
+        '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#202225;border:1px solid #3a3d44;border-radius:8px;padding:5px 10px;font-size:12px;color:#949BA4">🎟️ <b style="font-size:16px;color:#fff">' + t.wallet + '</b> <span style="color:#B9BBBE">' + escapeHtml_(t.ticketCurrency) + '</span><span style="margin-left:auto">翻完一回合(2 張)扣 ' + bsNum_(t.ticketCost || 1) + '</span></div>' +
         '<div class="bs-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr));--bs-cols:' + cols + ';--bs-rows:' + Math.max(1, Math.ceil(cells.length / cols)) + '">' + cardHtml + '</div>' +
-        '<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#202225;border:1px solid #3a3d44;border-radius:10px;padding:8px 12px"><div style="flex:1;min-width:150px"><div style="font-size:11px;color:#949BA4">🎟️ 目前持有</div><div style="font-size:18px;font-weight:700;color:#fff;line-height:1.2">' + t.wallet + ' <span style="font-size:13px;font-weight:400;color:#B9BBBE">' + escapeHtml_(t.ticketCurrency) + '</span></div></div><div style="font-size:11px;color:#949BA4">翻完一回合(翻 2 張牌)扣 ' + bsNum_(t.ticketCost || 1) + '</div></div><div style="font-size:12px;color:#949BA4;margin-top:8px;line-height:1.6">翻兩張「傷害數字一樣」的攻擊牌才會出手;獎勵牌要翻到兩張「獎勵一樣」;陷阱/重置/休息牌翻到就觸發。</div>' +
         '</div><div>' +
+        '<div style="font-size:12px;color:#949BA4;margin-bottom:8px;line-height:1.6">翻兩張「傷害數字一樣」的攻擊牌才會出手;獎勵牌要翻到兩張「獎勵一樣」;陷阱/重置/休息牌翻到就觸發。</div>' +
         '<div style="display:flex;gap:12px;align-items:center">' + (t.boss.img ? '<img src="' + escapeHtml_(t.boss.img) + '" style="width:90px;height:90px;object-fit:contain" onerror="this.style.display=\'none\'">' : '') +
         '<div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">' + escapeHtml_(t.boss.name) + '</div>' +
         '<div style="font-size:13px;color:#B9BBBE;margin-top:6px">我的傷害:<b>' + bsNum_(t.me.damage) + '</b>(' + t.me.attacks + ' 次攻擊)' + (t.resetsNeed ? ' ・ 重置牌 ' + t.resets + '/' + t.resetsNeed : '') + '</div></div></div>' +
