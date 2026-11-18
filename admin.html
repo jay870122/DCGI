@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.294</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.295</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -8292,7 +8292,7 @@ function cbRowHtml_(px, name, val) {
   const g = cbFormCfg_.cats[name];
   return `<div class="cb-row" style="display:flex;gap:6px;align-items:center;margin:3px 0"><input list="${px}-cb-dl" data-cbn value="${grEsc_(name || '')}" placeholder="填入額度(可自動帶入)" oninput="cbRowUnit_(this)" style="width:170px"><input type="number" min="0" step="any" data-cbv value="${val === undefined ? '' : val}" placeholder="加值" style="width:90px"><span class="cb-unit" style="opacity:.8">${grEsc_(g ? (g.unit || '點數') : '')}</span><button class="btn btn-edit" type="button" onclick="this.parentNode.remove()">✖</button></div>`;
 }
-function cbRowUnit_(el) { const g = cbFormCfg_.cats[el.value.trim()]; el.parentNode.querySelector('.cb-unit').textContent = g ? (g.unit || '點數') : (el.value.trim() ? '⚠️ 找不到這個額度' : ''); }
+function cbRowUnit_(el) { const g = cbFormCfg_.cats[el.value.trim()]; el.parentNode.querySelector('.cb-unit').textContent = g ? (g.unit || '點數') : (el.value.trim() ? '🆕 新額度(存檔時自動建立,單位點數)' : ''); }
 function cbRowAdd_(px) { document.getElementById(px + '-cb-rows').insertAdjacentHTML('beforeend', cbRowHtml_(px, '', '')); }
 async function cbFormLoad_(px, itemKey) {
   const box = document.getElementById(px + '-cb'); if (!box) return;
@@ -8310,11 +8310,10 @@ async function cbFormLoad_(px, itemKey) {
 async function cbFormSave_(px, itemKey) {
   const box = document.getElementById(px + '-cb'); if (!box || !itemKey || !document.getElementById(px + '-cb-rows')) return;
   let orig = {}; try { orig = JSON.parse(box.dataset.orig || '{}'); } catch (e) {}
-  const cur = {}, bad = [];
-  box.querySelectorAll('.cb-row').forEach((r) => { const n = r.querySelector('[data-cbn]').value.trim(), v = r.querySelector('[data-cbv]').value; if (!n) return; if (!cbFormCfg_.cats[n]) { bad.push(n); return; } if (v !== '') cur[n] = v; });
-  if (bad.length) toast('⚠️ 找不到額度:' + bad.join('、') + '(要先到「📊 額度」頁建立)', false);
+  const cur = {};
+  box.querySelectorAll('.cb-row').forEach((r) => { const n = r.querySelector('[data-cbn]').value.trim(), v = r.querySelector('[data-cbv]').value; if (!n) return; if (v !== '') cur[n] = v; });
   const vals = {}; let changed = false;
-  Object.keys(cbFormCfg_.cats).forEach((n) => { const c = cur[n] === undefined ? '' : cur[n], o = orig[n] === undefined ? '' : orig[n]; vals[n] = c; if (c !== o) changed = true; });
+  Object.keys(Object.assign({}, cbFormCfg_.cats, cur)).forEach((n) => { const c = cur[n] === undefined ? '' : cur[n], o = orig[n] === undefined ? '' : orig[n]; vals[n] = c; if (c !== o) changed = true; });
   if (!changed) return;
   try { const d = await grCall_('adminCatBudgetSetVals', { itemKey, vals }); if (!d || d.status !== 'success') toast('⚠️ 額度價值沒存成功:' + ((d && d.message) || ''), false); } catch (e) { toast('⚠️ 額度價值沒存成功:' + (e && e.message || e), false); }
 }
