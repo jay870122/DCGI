@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.297</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.298</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -768,7 +768,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <div class="role-hint" id="ns-role-hint"></div>
             </div>
             <div class="field"><label>選一群組(個人)</label><input id="ns-excl" placeholder="留空=不限;每人同組只能選一個"></div>
-            <div class="field"><label>📊 額度(填入額度名稱,再填加值;沒填=不計入)</label><div id="ns-cb" style="font-size:13px"></div></div>
+            <div class="field"><label>📊 額度(填入額度名稱,再填價值;沒填=不計入)</label><div id="ns-cb" style="font-size:13px"></div></div>
             <div class="field"><label>全體選一群組</label><input id="ns-exclg" placeholder="留空=不限;同組任一個買完,整組對所有人鎖住"></div>
             <div class="fsep">替代貨幣折抵（選填,可同時開放多種,例如拍賣幣、活動幣）</div>
             <div class="field full">
@@ -1959,7 +1959,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="role-hint" id="em-role-hint"></div>
       </div>
       <div class="field"><label>選一群組(個人)</label><input id="em-excl" placeholder="留空=不限;每人同組只能選一個"></div>
-      <div class="field"><label>📊 額度(填入額度名稱,再填加值;沒填=不計入)</label><div id="em-cb" style="font-size:13px"></div></div>
+      <div class="field"><label>📊 額度(填入額度名稱,再填價值;沒填=不計入)</label><div id="em-cb" style="font-size:13px"></div></div>
       <div class="field"><label>全體選一群組</label><input id="em-exclg" placeholder="留空=不限;同組任一個買完,整組對所有人鎖住"></div>
       <div class="fsep">替代貨幣折抵（選填,可同時開放多種,例如拍賣幣、活動幣）</div>
       <div class="full field">
@@ -8290,7 +8290,7 @@ async function duplicateAuction(id) {
 let cbFormCfg_ = { cats: {} };
 function cbRowHtml_(px, name, val) {
   const g = cbFormCfg_.cats[name];
-  return `<div class="cb-row" style="display:flex;gap:6px;align-items:center;margin:3px 0"><input list="${px}-cb-dl" data-cbn value="${grEsc_(name || '')}" placeholder="填入額度(可自動帶入)" oninput="cbRowUnit_(this)" style="width:170px"><input type="number" min="0" step="any" data-cbv value="${val === undefined ? '' : val}" placeholder="加值" style="width:90px"><span class="cb-unit" style="opacity:.8">${grEsc_(g ? (g.unit || '點數') : '')}</span><button class="btn btn-edit" type="button" onclick="this.parentNode.remove()">✖</button></div>`;
+  return `<div class="cb-row" style="display:flex;gap:6px;align-items:center;margin:3px 0"><input list="${px}-cb-dl" data-cbn value="${grEsc_(name || '')}" placeholder="填入額度(可自動帶入)" oninput="cbRowUnit_(this)" style="width:170px"><input type="number" min="0" step="any" data-cbv value="${val === undefined ? '' : val}" placeholder="價值" style="width:90px"><span class="cb-unit" style="opacity:.8">${grEsc_(g ? (g.unit || '點數') : '')}</span><button class="btn btn-edit" type="button" onclick="this.parentNode.remove()">✖</button></div>`;
 }
 function cbRowUnit_(el) { const g = cbFormCfg_.cats[el.value.trim()]; el.parentNode.querySelector('.cb-unit').textContent = g ? (g.unit || '點數') : (el.value.trim() ? '🆕 新額度(存檔時自動建立,單位點數)' : ''); }
 function cbRowAdd_(px) { document.getElementById(px + '-cb-rows').insertAdjacentHTML('beforeend', cbRowHtml_(px, '', '')); }
