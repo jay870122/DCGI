@@ -454,6 +454,17 @@
 #boss-modal .bs-hp{height:18px;background:#202225;border-radius:9px;overflow:hidden;position:relative;border:1px solid #4F545C}
 #boss-modal .bs-hp>i{display:block;height:100%;background:linear-gradient(90deg,#ED4245,#F0B232);transition:width .5s}
 #boss-modal .bs-hp>span{position:absolute;left:0;right:0;top:0;text-align:center;font-size:12px;line-height:18px;color:#fff;text-shadow:0 1px 2px #000}
+#bs-chat{position:fixed;left:12px;bottom:12px;z-index:5;display:none}
+#bs-chat .bc-btn{background:#5865F2;color:#fff;border:0;border-radius:20px;padding:8px 14px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px #0008}
+#bs-chat .bc-btn b{background:#ED4245;border-radius:9px;padding:0 6px;margin-left:4px;font-size:12px}
+#bs-chat .bc-panel{display:none;width:min(320px,92vw);background:#2B2D31;border:1px solid #4F545C;border-radius:10px;box-shadow:0 4px 16px #000a;overflow:hidden}
+#bs-chat.open .bc-panel{display:block}#bs-chat.open .bc-btn{display:none}
+#bs-chat .bc-h{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#202225;font-size:13px;font-weight:700}
+#bs-chat .bc-log{height:180px;overflow:auto;padding:6px 10px;font-size:13px;color:#DCDDDE;word-break:break-all}
+#bs-chat .bc-log div{padding:2px 0}#bs-chat .bc-log .me{color:#F0B232}#bs-chat .bc-log small{color:#6d6f78;margin-right:4px}
+#bs-chat .bc-in{display:flex;gap:6px;padding:6px;border-top:1px solid #3a3d44}
+#bs-chat .bc-in input{flex:1;min-width:0;background:#202225;border:1px solid #4F545C;border-radius:6px;color:#fff;padding:6px 8px;font-size:16px}
+#bs-chat .bc-in button{background:#5865F2;color:#fff;border:0;border-radius:6px;padding:0 12px;cursor:pointer}
 #boss-modal .bs-grid{display:grid;gap:8px;margin:10px auto 0;width:max(min(100%,150px),min(100%,calc((100vh - 320px) * .75 * var(--bs-cols,4) / var(--bs-rows,4))))} /* 牌盤依視窗高度縮放,整盤一眼看完不用捲動 */
 #boss-modal .bs-card{aspect-ratio:3/4;border:0;background:none;padding:0;cursor:pointer;perspective:800px;user-select:none;color:#fff;font-size:20px;transition:transform .2s}
 #boss-modal .bs-card:hover:not(:disabled):not(.flipped):not(.open){transform:translateY(-3px)}
@@ -729,6 +740,7 @@
       </div>
       <div class="modal-body" id="bs-body"><div style="color:#949BA4">載入中…</div></div>
     </div>
+    <div id="bs-chat"><button class="bc-btn" onclick="bsChatToggle_(true)">💬 聊天<b id="bc-n" style="display:none"></b></button><div class="bc-panel"><div class="bc-h"><span>💬 房間聊天</span><span style="cursor:pointer;padding:0 4px" onclick="bsChatToggle_(false)">✕</span></div><div class="bc-log" id="bc-log"></div><div class="bc-in"><input id="bc-text" maxlength="100" placeholder="說點什麼…(最多 100 字)" onkeydown="if(event.key==='Enter')bsChatSend_()"><button onclick="bsChatSend_()">送出</button></div></div></div>
   </div>
 
   <!-- 📈 台股模擬(虛擬貨幣買賣台股,Worker專屬) -->
@@ -1070,7 +1082,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.324</div>
+    <div class="version-tag">系統版本：v5.4.325</div>
   </div>
 
   <script>
@@ -5267,17 +5279,35 @@
     }
     function closeBoss() { document.getElementById('boss-modal').style.display = 'none'; bsStopPoll_(); bsLobbyAuto_(false); if (bsDirty_) { bsDirty_ = false; try { refreshData(); } catch (e) {} } /* 翻過牌或領過禮物 → 關掉視窗時自動「重整庫存」 */ if (bossAvailable) checkBossAvailability_(); }
     // 🐲 即時連線(WebSocket):伺服器有人翻牌就推 BOSS 血量/排行/動態;連不上就退回輪詢(每 3 秒),連上後輪詢放慢到 15 秒當保險
-    function bsWsClose_() { bsWsOk_ = false; if (bsWsTimer_) { clearTimeout(bsWsTimer_); bsWsTimer_ = null; } if (bsWs_) { try { bsWs_.onclose = null; bsWs_.close(); } catch (e) {} bsWs_ = null; } }
+    // 💬 房間聊天(走同一條 WebSocket;最近 30 句進房時補齊,每人 1.5 秒一句)
+    let bsChatLog_ = [], bsChatOpen_ = false, bsChatUnread_ = 0;
+    function bsChatRender_() {
+      const box = document.getElementById('bs-chat'); if (!box) return;
+      box.style.display = bsWsOk_ && bsTrackId_ ? 'block' : 'none'; box.classList.toggle('open', bsChatOpen_);
+      const n = document.getElementById('bc-n'); if (n) { n.style.display = bsChatUnread_ > 0 ? 'inline' : 'none'; n.textContent = bsChatUnread_ > 99 ? '99+' : bsChatUnread_; }
+      const lg = document.getElementById('bc-log'); if (!lg || !bsChatOpen_) return;
+      const stick = lg.scrollHeight - lg.scrollTop - lg.clientHeight < 40;
+      lg.innerHTML = bsChatLog_.length ? bsChatLog_.map((r) => { const d = new Date(r.ts); return '<div class="' + (String(r.uid) === String(currentUser.id) ? 'me' : '') + '"><small>' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</small><b>' + escapeHtml_(r.name) + '</b>:' + escapeHtml_(r.text) + '</div>'; }).join('') : '<div style="color:#949BA4">還沒有人說話</div>';
+      if (stick) lg.scrollTop = lg.scrollHeight;
+    }
+    function bsChatToggle_(on) { bsChatOpen_ = !!on; if (on) bsChatUnread_ = 0; bsChatRender_(); if (on) { const lg = document.getElementById('bc-log'); if (lg) lg.scrollTop = lg.scrollHeight; const i = document.getElementById('bc-text'); if (i && window.innerWidth > 760) i.focus(); } }
+    function bsChatSend_() { const i = document.getElementById('bc-text'); if (!i) return; const text = i.value.trim(); if (!text || !bsWs_ || !bsWsOk_) return; try { bsWs_.send(JSON.stringify({ t: 'chat', text })); i.value = ''; } catch (e) {} }
+    function bsChatOnMsg_(m) {
+      if (m.t === 'chatlog') { bsChatLog_ = m.list || []; bsChatRender_(); }
+      else if (m.t === 'chat' && m.row) { bsChatLog_.push(m.row); if (bsChatLog_.length > 60) bsChatLog_ = bsChatLog_.slice(-60); if (!bsChatOpen_ && String(m.row.uid) !== String(currentUser.id)) bsChatUnread_++; bsChatRender_(); }
+      else if (m.t === 'chatErr') { const i = document.getElementById('bc-text'); if (i) { i.placeholder = m.msg || '說話太快了'; setTimeout(() => { i.placeholder = '說點什麼…(最多 100 字)'; }, 1800); } }
+    }
+    function bsWsClose_() { setTimeout(bsChatRender_, 0); bsWsOk_ = false; if (bsWsTimer_) { clearTimeout(bsWsTimer_); bsWsTimer_ = null; } if (bsWs_) { try { bsWs_.onclose = null; bsWs_.close(); } catch (e) {} bsWs_ = null; } }
     function bsWsOpen_() {
       bsWsClose_();
-      const tid = bsTrackId_; if (!tid || !window.WebSocket) return;
+      const tid = bsTrackId_; if (!tid || !window.WebSocket) return; bsChatLog_ = []; bsChatUnread_ = 0;
       try {
         const qs = new URLSearchParams({ action: 'bossWs', discordId: currentUser.id, accessToken: getAccessToken(), trackId: tid, name: bsName_() });
         const ws = new WebSocket(DASHBOARD_WORKER_URL.replace(/^http/, 'ws') + '?' + qs); bsWs_ = ws;
         let pingT = null;
-        ws.onopen = () => { bsWsOk_ = true; bsWsRetry_ = 0; pingT = setInterval(() => { try { ws.send('ping'); } catch (e) {} }, 25000); };
-        ws.onmessage = (ev) => { let m = null; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m && m.t === 'pub' && m.trackId === bsTrackId_) bsWsApply_(m); else if (m && m.t === 'reset' && m.trackId === bsTrackId_) bsReset_(); };
-        ws.onclose = () => { if (pingT) clearInterval(pingT); bsWsOk_ = false; if (bsWs_ === ws) { bsWs_ = null; if (bsTrackId_ === tid && document.getElementById('boss-modal').style.display === 'flex' && bsWsRetry_ < 6) { bsWsRetry_++; bsWsTimer_ = setTimeout(bsWsOpen_, Math.min(15000, 1000 * bsWsRetry_ * 2)); } } };
+        ws.onopen = () => { bsWsOk_ = true; bsWsRetry_ = 0; bsChatRender_(); pingT = setInterval(() => { try { ws.send('ping'); } catch (e) {} }, 25000); };
+        ws.onmessage = (ev) => { let m = null; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m && m.t === 'pub' && m.trackId === bsTrackId_) bsWsApply_(m); else if (m && m.t === 'reset' && m.trackId === bsTrackId_) bsReset_(); else if (m && (m.t === 'chat' || m.t === 'chatlog' || m.t === 'chatErr') && (!m.trackId || m.trackId === bsTrackId_)) bsChatOnMsg_(m); };
+        ws.onclose = () => { if (pingT) clearInterval(pingT); bsWsOk_ = false; bsChatRender_(); if (bsWs_ === ws) { bsWs_ = null; if (bsTrackId_ === tid && document.getElementById('boss-modal').style.display === 'flex' && bsWsRetry_ < 6) { bsWsRetry_++; bsWsTimer_ = setTimeout(bsWsOpen_, Math.min(15000, 1000 * bsWsRetry_ * 2)); } } };
         ws.onerror = () => { try { ws.close(); } catch (e) {} };
       } catch (e) { bsWsOk_ = false; }
     }
