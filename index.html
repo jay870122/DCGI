@@ -1070,7 +1070,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.302</div>
+    <div class="version-tag">系統版本：v5.4.303</div>
   </div>
 
   <script>
@@ -5263,7 +5263,7 @@
         const ws = new WebSocket(DASHBOARD_WORKER_URL.replace(/^http/, 'ws') + '?' + qs); bsWs_ = ws;
         let pingT = null;
         ws.onopen = () => { bsWsOk_ = true; bsWsRetry_ = 0; pingT = setInterval(() => { try { ws.send('ping'); } catch (e) {} }, 25000); };
-        ws.onmessage = (ev) => { let m = null; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m && m.t === 'pub' && m.trackId === bsTrackId_) bsWsApply_(m); };
+        ws.onmessage = (ev) => { let m = null; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m && m.t === 'pub' && m.trackId === bsTrackId_) bsWsApply_(m); else if (m && m.t === 'reset' && m.trackId === bsTrackId_) bsReset_(); };
         ws.onclose = () => { if (pingT) clearInterval(pingT); bsWsOk_ = false; if (bsWs_ === ws) { bsWs_ = null; if (bsTrackId_ === tid && document.getElementById('boss-modal').style.display === 'flex' && bsWsRetry_ < 6) { bsWsRetry_++; bsWsTimer_ = setTimeout(bsWsOpen_, Math.min(15000, 1000 * bsWsRetry_ * 2)); } } };
         ws.onerror = () => { try { ws.close(); } catch (e) {} };
       } catch (e) { bsWsOk_ = false; }
@@ -5279,6 +5279,12 @@
       if (!bsBusy_) { if (m.board) t.board = m.board; if (m.room) { t.room = m.room; bsShowLast_(m.room.last); } bsRender_(); }
     }
     let bsLastTs_ = null;
+    async function bsReset_() { // 管理員重置了這條賽道:清掉本地狀態、整份重抓
+      bsFlash_ = {}; bsLastTs_ = null; bsRestUntil_ = 0; bsWsDirty_ = false;
+      bsToast_ = '🔄 管理員重置了這條賽道,牌面已重新開始';
+      let t = 0; while (bsBusy_ && t++ < 20) await new Promise((r) => setTimeout(r, 250));
+      await bsRefresh_(false);
+    }
     function bsShowLast_(last) { // 別人剛翻完的牌:所有人都看得到(記憶用),1.5 秒後蓋回去
       if (!last) return;
       if (bsLastTs_ === null) { bsLastTs_ = last.ts; return; }
