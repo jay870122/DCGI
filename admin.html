@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.331</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.332</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4488,7 +4488,7 @@ function beRw_(path, list) {
 function beFillLists_() { // 貨幣/道具名稱自動帶入清單(來源:玩家資料欄位、道具模板)
   try {
     const cl = document.getElementById('be-cur-list'), il = document.getElementById('be-item-list'); if (!cl || !il) return;
-    const cur = Array.from(new Set(Array.from(document.querySelectorAll('#dc-list option')).map((o) => o.value).concat(['幻彩水晶']))).filter(Boolean);
+    const cur = Array.from(new Set(Array.from(document.querySelectorAll('#dc-list option')).map((o) => o.value).concat(['幻彩水晶', '可用幻彩水晶']))).filter(Boolean);
     cl.innerHTML = cur.map((n) => '<option value="' + beEsc_(n) + '">').join('');
     il.innerHTML = (itemTemplates || []).map((t) => '<option value="' + beEsc_(t.name) + '">').join('');
   } catch (e) {}
@@ -4654,7 +4654,7 @@ function pkRenderEdit_() {
   const dis = locked ? ' disabled' : '';
   const box = document.getElementById('pk-edit'); box.style.display = '';
   const names = Array.from(document.querySelectorAll('#dc-list option')).map((o) => o.value).concat((itemTemplates || []).map((t) => t.name));
-  const dl = '<datalist id="pk-name-list">' + Array.from(new Set(names.concat(['幻彩水晶']))).map((n) => '<option value="' + e(n) + '">').join('') + '</datalist>';
+  const dl = '<datalist id="pk-name-list">' + Array.from(new Set(names.concat(['幻彩水晶', '可用幻彩水晶']))).map((n) => '<option value="' + e(n) + '">').join('') + '</datalist>';
   const F = (label, inner, extra) => `<div class="field"${extra || ''}><label>${label}</label>${inner}</div>`;
   box.innerHTML = dl + `<div class="pk-sec">${pkId_ ? '✏️ 編輯板子' : '➕ 新增板子'}${locked ? ' <span class="hint">(已發佈:只能改說明、冷卻、次數、截止時間)</span>' : ''}</div>
     <div class="pk-grid w2">${F('板子名稱', `<input value="${e(c.name)}"${dis} oninput="pkCur_.name=this.value">`)}${F('說明(選填)', `<input value="${e(c.desc)}" oninput="pkCur_.desc=this.value">`)}</div>
@@ -4883,7 +4883,7 @@ async function loadGroupReward() {
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 function grRender_() {
-  const cur = '<datalist id="gr-cur-list">' + (Array.from(document.querySelectorAll('#dc-list option')).map((o) => '<option value="' + grEsc_(o.value) + '">').join('')) + '<option value="幻彩水晶"></datalist>';
+  const cur = '<datalist id="gr-cur-list">' + (Array.from(document.querySelectorAll('#dc-list option')).map((o) => '<option value="' + grEsc_(o.value) + '">').join('')) + '<option value="幻彩水晶"><option value="可用幻彩水晶"></datalist>';
   document.getElementById('gr-kinds').innerHTML = cur + (grKinds_.length ? grKinds_.map((k, i) => `
     <div style="border:1px solid var(--border,#40444B);border-radius:8px;padding:10px;margin-bottom:8px">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
