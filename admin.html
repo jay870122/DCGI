@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.325</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.326</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2502,6 +2502,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="form-grid">
       <div class="field full"><span class="hint">依「貨幣批次」帳本統計(餘額增加量,不含消費;切到「消耗」可看每月餘額減少量,不含過期扣除,從啟用這功能起才開始記錄;商品編輯裡勾「兌換此商品不計入消耗」的不會算進來)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
       <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="cm-cur" value="幻彩水晶" style="width:150px;padding:7px 10px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="both">獲得＋消耗</option><option value="gain">只看獲得</option><option value="spend">只看消耗(從現在起記錄)</option></select> <select id="cm-month" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="">全部月份</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
+      <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label style="font-size:12px;color:#B9BBBE">🚫 不計入統計的玩家(DiscordID,逗號或空白分隔):</label><input id="cm-excl" placeholder="例:176681551189377024" style="flex:1;min-width:240px;padding:7px 10px" onchange="cmExclChanged_()"><span id="cm-excl-n" style="font-size:12px;color:#72767D"></span></div>
       <div class="field full" style="overflow:auto;max-height:55vh"><table id="cm-tbl" style="border-collapse:collapse;font-size:13px"></table></div>
     </div>
   </div>
@@ -4092,7 +4093,7 @@ function gsRender_() {
   const th = (k, t) => `<th style="cursor:pointer" onclick="gsSortBy_('${k.replace(/'/g, '')}')">${grEsc_(t)}${gsSort_ === k ? (gsDesc_ ? ' ▼' : ' ▲') : ''}</th>`;
   document.getElementById('gs-players').innerHTML = '<thead><tr>' + th('name', '玩家') + th('total', '總次數') + Object.keys(d.byKind).map((k) => th(k, k + '(次數/日期)')).join('') + '<th>總獲得</th></tr></thead><tbody>' +
     (ps.map((p) => `<tr><td>${grEsc_(p.name || '(未知)')}<div class="hint">${grEsc_(p.id)}</div></td><td><b>${p.total}</b></td>` +
-      Object.keys(d.byKind).map((k) => { const x = p.kinds[k]; return `<td>${x ? x.count + ' 次<div class="hint">' + x.dates.slice().reverse().map(gsMd_).join('、') + '</div>' : '—'}</td>`; }).join('') +
+      Object.keys(d.byKind).map((k) => { const x = p.kinds[k]; return `<td>${x ? x.count + ' 次<div class="hint">' + Array.from(new Set(x.dates.slice().reverse().map(gsMd_))).join('、') + '</div>' : '—'}</td>`; }).join('') +
       `<td>${Object.keys(p.totals).map((c) => grEsc_(c) + ' +' + p.totals[c]).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="9">這個月份沒有紀錄</td></tr>') + '</tbody>';
   document.getElementById('gs-events').innerHTML = '<thead><tr><th>日期</th><th>事件</th><th>人數</th><th>每人獲得</th><th>操作人</th></tr></thead><tbody>' +
     (d.events.map((e) => `<tr><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>`).join('') || '<tr><td colspan="5">沒有紀錄</td></tr>') + '</tbody>';
@@ -4102,7 +4103,7 @@ function gsExportCsv_() {
   const kinds = Object.keys(d.byKind), cur = Object.keys(d.totals);
   const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
   const rows = [['玩家ID', '暱稱', '總次數'].concat(kinds.map((k) => k + '次數'), kinds.map((k) => k + '日期'), cur.map((c) => '獲得' + c))];
-  d.players.forEach((p) => rows.push([p.id, p.name, p.total].concat(kinds.map((k) => p.kinds[k] ? p.kinds[k].count : 0), kinds.map((k) => p.kinds[k] ? p.kinds[k].dates.slice().reverse().map(gsMd_).join(' ') : ''), cur.map((c) => p.totals[c] || 0))));
+  d.players.forEach((p) => rows.push([p.id, p.name, p.total].concat(kinds.map((k) => p.kinds[k] ? p.kinds[k].count : 0), kinds.map((k) => p.kinds[k] ? Array.from(new Set(p.kinds[k].dates.slice().reverse().map(gsMd_))).join(' ') : ''), cur.map((c) => p.totals[c] || 0))));
   const blob = new Blob(['﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '團任團戰統計_' + d.month + '.csv'; document.body.appendChild(a); a.click(); a.remove();
 }
@@ -6185,13 +6186,34 @@ async function saveInfoCards() {
     toast('✅ 資訊卡片已儲存'); closeModal('infocard-modal'); await loadShopItems();
   } finally { btn.disabled = false; btn.textContent = orig; }
 }
-var cmData_ = null;
+var cmData_ = null, cmRaw_ = null;
+// 🚫 不計入統計的玩家(例如管理員自己):從列表拿掉,「全部玩家」合計也扣掉他們的數量;名單存在這台瀏覽器(localStorage),第一次預設排除小孩自己
+function cmExclSet_() {
+  const el = document.getElementById('cm-excl');
+  if (el && !el.dataset.init) { el.dataset.init = '1'; let v = null; try { v = localStorage.getItem('cm_exclude'); } catch (e) {} el.value = v === null ? '176681551189377024' : v; }
+  return new Set(((el && el.value) || '').split(/[\s,，、]+/).map((x) => x.replace(/\D/g, '')).filter((x) => x.length >= 15));
+}
+function cmExclude_(d) {
+  const ex = cmExclSet_(), n = document.getElementById('cm-excl-n');
+  if (n) n.textContent = ex.size ? '已排除 ' + ex.size + ' 位' : '';
+  if (!ex.size || !d) return d;
+  const id = (p) => String(p.id).replace(/\D/g, '');
+  const cut = (pl, tot) => { const t = Object.assign({}, tot || {}); (pl || []).forEach((p) => { if (ex.has(id(p))) Object.keys(p.m || {}).forEach((m) => { t[m] = Math.round(((t[m] || 0) - p.m[m]) * 100) / 100; }); }); return t; };
+  const o = Object.assign({}, d);
+  o.monthTotals = cut(d.players, d.monthTotals); o.spendTotals = cut(d.spendPlayers, d.spendTotals);
+  o.players = (d.players || []).filter((p) => !ex.has(id(p))); o.spendPlayers = (d.spendPlayers || []).filter((p) => !ex.has(id(p)));
+  return o;
+}
+function cmExclChanged_() {
+  const el = document.getElementById('cm-excl'); try { localStorage.setItem('cm_exclude', el.value.trim()); } catch (e) {}
+  if (cmRaw_) { cmData_ = cmExclude_(cmRaw_); renderCurMonthly_(); }
+}
 async function openCurMonthly() { document.getElementById('curmon-modal').classList.add('open'); await loadCurMonthly(); }
 async function loadCurMonthly() {
   const tb = document.getElementById('cm-tbl'); tb.innerHTML = '<tr><td>載入中...</td></tr>';
   const d = await stockAdminCall_('adminCurrencyMonthlyWorker', { currency: document.getElementById('cm-cur').value.trim() });
   if (!d || d.status !== 'success') { tb.innerHTML = '<tr><td>失敗: ' + ((d && d.message) || '未知錯誤') + '</td></tr>'; return; }
-  cmData_ = d; renderCurMonthly_();
+  cmRaw_ = d; cmData_ = cmExclude_(d); renderCurMonthly_();
 }
 function cmView_() {
   const d = cmData_, sp = (document.getElementById('cm-mode') || {}).value === 'spend';
