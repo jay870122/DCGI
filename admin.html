@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.337</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.338</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2506,7 +2506,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
     <div class="modal-header"><h3>📊 各玩家每月獲得量</h3><button class="modal-close" onclick="closeModal('curmon-modal')">×</button></div>
     <div class="form-grid">
       <div class="field full" id="cf-card" style="background:#2F3136;border-radius:8px;padding:10px"><b>📒 貨幣流水記錄</b> <span class="hint">(獨立於「有效期」的另一套系統:開啟後<b>所有貨幣</b>每 5 分鐘對帳一次,記下獲得/消耗;沒有設有效期的貨幣也能在下面查、也能用在「指定期間已獲得」兌換條件。從開啟那一刻起算,不補舊紀錄)</span>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><label><input type="checkbox" id="cf-on"> 開啟記錄</label> <span class="hint">不記錄的貨幣(欄位名稱,逗號分隔):</span><input id="cf-ex" placeholder="例:翻牌卷, 什麼都沒有" style="width:240px;padding:6px 8px"> <button class="btn" onclick="saveCurFlow_()">儲存</button> <span id="cf-st" class="hint"></span></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><label><input type="checkbox" id="cf-on"> 開啟記錄</label> <span class="hint">不記錄的貨幣(欄位名稱,逗號分隔):</span><input id="cf-ex" placeholder="例:翻牌卷, 什麼都沒有" style="width:240px;padding:6px 8px"> <button class="btn" onclick="saveCurFlow_()">儲存</button> <span id="cf-st" class="hint"></span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="hint">🔁 互換貨幣對(互換不算獲得/消耗;格式 <b>貨幣A=貨幣B:比例</b>,1 個 A = 比例 個 B,多組用逗號分隔):</span><input id="cf-pairs" placeholder="例:幻彩水晶=幻彩水晶碎片:1000" style="width:340px;padding:6px 8px"></div></div>
       <div class="field full"><span class="hint">有設有效期的貨幣依「貨幣批次」帳本統計,沒設的改看「貨幣流水」(餘額增加量,不含消費;切到「消耗」可看每月餘額減少量,不含過期扣除,從啟用這功能起才開始記錄;商品編輯裡勾「兌換此商品不計入消耗」的不會算進來)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
       <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="cm-cur" onchange="loadCurMonthly()" style="width:auto;min-width:150px;padding:7px 10px"><option value="幻彩水晶">幻彩水晶</option></select> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="both">獲得＋消耗</option><option value="gain">只看獲得</option><option value="spend">只看消耗(從現在起記錄)</option></select> <select id="cm-month" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="">全部月份</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
       <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label style="font-size:12px;color:#B9BBBE">🚫 不計入統計的玩家(DiscordID,逗號或空白分隔):</label><input id="cm-excl" placeholder="例:176681551189377024" style="flex:1;min-width:240px;padding:7px 10px" onchange="cmExclChanged_()"><span id="cm-excl-n" style="font-size:12px;color:#72767D"></span></div>
@@ -6252,11 +6253,11 @@ function cmExclChanged_() {
 }
 async function loadCurFlow_() {
   const d = await stockAdminCall_('adminCurrencyFlowCfgWorker', { op: 'get' }); if (!d || d.status !== 'success') return;
-  document.getElementById('cf-on').checked = !!d.enabled; document.getElementById('cf-ex').value = (d.exclude || []).join(', ');
+  document.getElementById('cf-on').checked = !!d.enabled; document.getElementById('cf-ex').value = (d.exclude || []).join(', '); document.getElementById('cf-pairs').value = d.pairs || '';
   document.getElementById('cf-st').textContent = d.enabled ? '✅ 記錄中' + (d.since ? '(自 ' + new Date(d.since).toLocaleString('zh-TW', { hour12: false, timeZone: 'Asia/Taipei' }) + ')' : '') : '⏸️ 未開啟';
 }
 async function saveCurFlow_() {
-  const d = await stockAdminCall_('adminCurrencyFlowCfgWorker', { op: 'set', enabled: document.getElementById('cf-on').checked ? '1' : '0', exclude: document.getElementById('cf-ex').value });
+  const d = await stockAdminCall_('adminCurrencyFlowCfgWorker', { op: 'set', enabled: document.getElementById('cf-on').checked ? '1' : '0', exclude: document.getElementById('cf-ex').value, pairs: document.getElementById('cf-pairs').value });
   if (d && d.status === 'success') { toast(d.message); loadCurFlow_(); } else toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false);
 }
 async function fillCmCurrencies_() { // 貨幣下拉自動帶出玩家表所有貨幣
