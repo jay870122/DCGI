@@ -74,6 +74,18 @@ th{background:var(--s2);color:var(--mu);font-size:12px;font-weight:700;text-tran
 td{padding:10px 14px;border-bottom:1px solid rgba(79,84,92,0.4);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,0.02)}
+.hist-tbl-wrap{overflow-x:auto}
+@media (min-width:769px){
+  .hist-tbl{min-width:1180px;table-layout:auto}
+  .hist-tbl td:nth-child(1){white-space:nowrap}
+  .hist-tbl td:nth-child(3){min-width:200px;max-width:280px}
+  .hist-tbl td:nth-child(4){white-space:nowrap}
+  .hist-tbl td:nth-child(5){min-width:150px}
+  .hist-tbl td:nth-child(6){min-width:240px;word-break:break-all;font-size:12px}
+  .hist-tbl td:nth-child(7){white-space:nowrap}
+  .hist-tbl td:nth-child(8){min-width:170px}
+  .hist-tbl .drawn-result-cell{width:auto}
+}
 .cell-name{font-weight:600;color:var(--t);max-width:300px;white-space:normal;word-break:break-word;line-height:1.4}
 .cell-id{font-family:monospace;font-size:12px;color:var(--mu)}
 /* 🌟🔧 批次使用道具(例如一次300張)的「抽獎結果」會把每一張的結果都串成一整串文字塞進同一格,
@@ -349,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.324</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.325</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1073,8 +1085,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             </label>
             <button class="btn btn-edit" onclick="loadHistory()">🔄 重新查詢</button>
           </div>
-          <div class="tbl-wrap tbl-wrap-table" style="margin-top:14px">
-            <table>
+          <div class="tbl-wrap tbl-wrap-table hist-tbl-wrap" style="margin-top:14px">
+            <table class="hist-tbl">
               <thead><tr><th>時間</th><th>玩家</th><th>商品名稱</th><th>數量</th><th>抽獎結果</th><th>序號</th><th>扣款前→後</th><th>其他異動明細</th></tr></thead>
               <tbody id="hist-tbody"></tbody>
             </table>
