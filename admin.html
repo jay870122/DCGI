@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.328</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.329</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4101,7 +4101,7 @@ function gsRender_() {
       Object.keys(d.byKind).map((k) => { const x = p.kinds[k]; return `<td>${x ? x.count + ' 次<div class="hint">' + Array.from(new Set(x.dates.slice().reverse().map(gsMd_))).join('、') + '</div>' : '—'}</td>`; }).join('') +
       `<td>${Object.keys(p.totals).map((c) => grEsc_(c) + ' +' + p.totals[c]).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="9">這個月份沒有紀錄</td></tr>') + '</tbody>';
   document.getElementById('gs-events').innerHTML = '<thead><tr><th style="width:32px"><input type="checkbox" onchange="gsSelAll_(this.checked)"></th><th>日期</th><th>事件</th><th>人數</th><th>每人獲得</th><th>操作人</th></tr></thead><tbody>' +
-    (d.events.map((e) => `<tr><td>${e.virtual ? '' : `<input type="checkbox" class="gs-ev-chk" data-eid="${grEsc_(e.eventId)}" onchange="gsSelCount_()">`}</td><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>`).join('') || '<tr><td colspan="6">沒有紀錄</td></tr>') + '</tbody>';
+    (d.events.map((e) => `<tr><td><input type="checkbox" class="gs-ev-chk" data-eid="${grEsc_(e.eventId)}" onchange="gsSelCount_()"></td><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>`).join('') || '<tr><td colspan="6">沒有紀錄</td></tr>') + '</tbody>';
   gsSelCount_();
 }
 function gsSelCount_() { const n = document.querySelectorAll('.gs-ev-chk:checked').length, e = document.getElementById('gs-sel-n'); if (e) e.textContent = n ? '已選 ' + n + ' 筆發放' : ''; }
@@ -4111,13 +4111,13 @@ async function gsDelEvents_(revoke) {
   if (!ids.length) { toast('請先勾選要移除的發放紀錄', false); return; }
   const ppl = (gsData_ && gsData_.events ? gsData_.events : []).filter((e) => ids.indexOf(e.eventId) !== -1).reduce((a, e) => a + (e.people || 0), 0);
   const msg = revoke
-    ? '【移除紀錄 + 扣回貨幣】\n要移除 ' + ids.length + ' 筆發放(共 ' + ppl + ' 人次),並把當初發給他們的貨幣扣回嗎?\n\n⚠️ 玩家餘額會減少(已花掉的可能變負數)。這個動作無法復原。'
+    ? '【移除紀錄 + 扣回貨幣】\n要移除 ' + ids.length + ' 筆發放(共 ' + ppl + ' 人次),並把當初發給他們的貨幣扣回嗎?\n\n⚠️ 玩家餘額會減少(已花掉的可能變負數)。' + (ids.some((x) => /^ch-/.test(x)) ? '\n個人挑戰的盲盒貨幣也會一起扣回(盲盒抽到的道具/背包物品不會動)。' : '') + '\n這個動作無法復原。'
     : '【只移除紀錄】\n要移除 ' + ids.length + ' 筆發放紀錄(共 ' + ppl + ' 人次)嗎?\n貨幣不會動,只是統計裡不再出現。無法復原。';
   if (!confirm(msg)) return;
   if (revoke && !confirm('再確認一次:真的要「扣回貨幣」嗎?(只想清掉紀錄請按取消,改用「只移除紀錄」)')) return;
   try {
     const r = await gtCall_('adminGtEventDelete', { eventIds: ids, revoke: !!revoke });
-    if (r && r.status === 'success') { toast('✅ 已移除 ' + r.removed + ' 筆' + (revoke ? '(扣回 ' + r.revokedPeople + ' 人次)' : '')); loadGroupStats(); }
+    if (r && r.status === 'success') { toast('✅ 已移除 ' + r.removed + ' 筆' + (revoke ? '(扣回 ' + r.revokedPeople + ' 人次)' : '') + (r.skippedItems ? ',盲盒道具 ' + r.skippedItems + ' 項需手動處理' : '')); loadGroupStats(); }
     else toast('❌ ' + ((r && r.message) || '移除失敗') + (r && r.removed ? '(已移除 ' + r.removed + ' 筆)' : ''), false);
   } catch (e) { toast('❌ ' + (e && e.message || e), false); }
 }
