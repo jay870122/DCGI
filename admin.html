@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.335</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.336</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2490,7 +2490,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <br>· <b>🛡️ 每人保留(不過期)</b>:每位玩家的餘額中,這個數量<b>永遠不會過期</b>,只有「超過保留數量」的部分才會依有效期過期(例:保留 50,持有 80 → 最多只有 30 會過期;花用時仍先扣最舊的)。0 或留空=不保留。綁定貨幣會依比例自動換算同樣的保留量。
       <br>· 之後把「有效天數」改小,已取得的批次會立刻依新天數重新計算(可能立刻過期);把貨幣從清單移除=該貨幣改回永不過期。</span></div>
       <div class="field full"><div id="ce-rows"></div>
-        <button class="btn" onclick="ceAddRow_()" style="margin-top:6px">➕ 新增貨幣</button> <button class="btn" onclick="ceAddAllTrack_()" style="margin-top:6px" title="把還沒列在這裡的貨幣全部加進來,單位設成「只記錄(不過期)」;按儲存才生效">📒 全部貨幣加入記錄(不過期)</button></div>
+        <button class="btn" onclick="ceAddRow_()" style="margin-top:6px">➕ 新增貨幣</button></div>
       <div class="field full"><span id="ce-run-out" class="hint"></span></div>
     </div>
     <div class="modal-footer">
@@ -2505,7 +2505,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
   <div class="modal" style="max-width:900px">
     <div class="modal-header"><h3>📊 各玩家每月獲得量</h3><button class="modal-close" onclick="closeModal('curmon-modal')">×</button></div>
     <div class="form-grid">
-      <div class="field full"><span class="hint">依「貨幣批次」帳本統計(餘額增加量,不含消費;切到「消耗」可看每月餘額減少量,不含過期扣除,從啟用這功能起才開始記錄;商品編輯裡勾「兌換此商品不計入消耗」的不會算進來)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
+      <div class="field full" id="cf-card" style="background:#2F3136;border-radius:8px;padding:10px"><b>📒 貨幣流水記錄</b> <span class="hint">(獨立於「有效期」的另一套系統:開啟後<b>所有貨幣</b>每 5 分鐘對帳一次,記下獲得/消耗;沒有設有效期的貨幣也能在下面查、也能用在「指定期間已獲得」兌換條件。從開啟那一刻起算,不補舊紀錄)</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><label><input type="checkbox" id="cf-on"> 開啟記錄</label> <span class="hint">不記錄的貨幣(欄位名稱,逗號分隔):</span><input id="cf-ex" placeholder="例:翻牌卷, 什麼都沒有" style="width:240px;padding:6px 8px"> <button class="btn" onclick="saveCurFlow_()">儲存</button> <span id="cf-st" class="hint"></span></div></div>
+      <div class="field full"><span class="hint">有設有效期的貨幣依「貨幣批次」帳本統計,沒設的改看「貨幣流水」(餘額增加量,不含消費;切到「消耗」可看每月餘額減少量,不含過期扣除,從啟用這功能起才開始記錄;商品編輯裡勾「兌換此商品不計入消耗」的不會算進來)。資料從<b>啟用貨幣有效期那天起</b>才有,更早的以「初始餘額」合併為一欄。每 5 分鐘對帳一次,同 5 分鐘內的增減會互相抵銷。</span></div>
       <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="cm-cur" value="幻彩水晶" style="width:150px;padding:7px 10px"> <select id="cm-mode" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="both">獲得＋消耗</option><option value="gain">只看獲得</option><option value="spend">只看消耗(從現在起記錄)</option></select> <select id="cm-month" onchange="renderCurMonthly_()" style="width:auto;padding:7px 10px"><option value="">全部月份</option></select> <button class="btn" onclick="loadCurMonthly()">查詢</button> <button class="btn" onclick="cmCsv()">下載 CSV</button></div>
       <div class="full" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label style="font-size:12px;color:#B9BBBE">🚫 不計入統計的玩家(DiscordID,逗號或空白分隔):</label><input id="cm-excl" placeholder="例:176681551189377024" style="flex:1;min-width:240px;padding:7px 10px" onchange="cmExclChanged_()"><span id="cm-excl-n" style="font-size:12px;color:#72767D"></span></div>
       <div class="field full" style="overflow:auto;max-height:55vh"><table id="cm-tbl" style="border-collapse:collapse;font-size:13px"></table></div>
@@ -5588,31 +5590,22 @@ async function ctAdmDelWork(id) {
 // ⏳ 貨幣有效期(過期制度)
 // ============================================================
 function ceUnitToggle_(row) {
-  const isDate = row.querySelector('.ce-unit').value === '日期', isTrack = row.querySelector('.ce-unit').value === '記錄';
-  row.querySelector('.ce-days').style.display = (isDate || isTrack) ? 'none' : '';
+  const isDate = row.querySelector('.ce-unit').value === '日期';
+  row.querySelector('.ce-days').style.display = isDate ? 'none' : '';
   row.querySelector('.ce-until').style.display = isDate ? '' : 'none';
 }
 function ceAddRow_(cur, days, remind, unit, bind, rate, reserve, until) {
   const wrap = document.getElementById('ce-rows');
   const d = document.createElement('div');
   d.className = 'ce-row'; d.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
-  d.innerHTML = '<span class="hint">貨幣</span><input class="ce-cur" list="dc-list" placeholder="貨幣(例:幻彩水晶)" style="flex:2;min-width:140px"> <span class="hint">有效期</span><input class="ce-days" type="number" min="1" max="3650" placeholder="有效期長" title="有效期長度" style="width:90px"> <select class="ce-unit" style="width:100px" onchange="ceUnitToggle_(this.parentNode)"><option value="天">天</option><option value="月">個月</option><option value="日期">指定日期</option><option value="記錄">只記錄(不過期)</option></select><input class="ce-until" type="date" title="這天結束(台灣時間 24:00)後,這個貨幣所有餘額一律失效" style="display:none;width:150px"> <span class="hint">到期前</span><input class="ce-rem" type="number" min="0" max="365" placeholder="提前提醒天數" title="到期前幾天私訊提醒" style="width:80px"><span class="hint">天提醒</span> <button class="btn" onclick="this.parentNode.remove()">✕</button><div style="flex-basis:100%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:#72767D;font-size:12px">🔗 綁定貨幣(選填) <input class="ce-bind" list="dc-list" placeholder="例:幻彩水晶碎片" style="flex:1;min-width:130px"> 1 個本貨幣 = <input class="ce-rate" type="number" min="0" step="any" placeholder="1000" style="width:90px"> 個綁定貨幣 <span class="hint">🛡️ 每人保留</span><input class="ce-rsv" type="number" min="0" step="any" placeholder="0" title="每位玩家保留這個數量不會過期(例:30~50),只有超過的部分才會過期" style="width:80px"> <span class="hint">不過期</span></div>';
+  d.innerHTML = '<span class="hint">貨幣</span><input class="ce-cur" list="dc-list" placeholder="貨幣(例:幻彩水晶)" style="flex:2;min-width:140px"> <span class="hint">有效期</span><input class="ce-days" type="number" min="1" max="3650" placeholder="有效期長" title="有效期長度" style="width:90px"> <select class="ce-unit" style="width:100px" onchange="ceUnitToggle_(this.parentNode)"><option value="天">天</option><option value="月">個月</option><option value="日期">指定日期</option></select><input class="ce-until" type="date" title="這天結束(台灣時間 24:00)後,這個貨幣所有餘額一律失效" style="display:none;width:150px"> <span class="hint">到期前</span><input class="ce-rem" type="number" min="0" max="365" placeholder="提前提醒天數" title="到期前幾天私訊提醒" style="width:80px"><span class="hint">天提醒</span> <button class="btn" onclick="this.parentNode.remove()">✕</button><div style="flex-basis:100%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:#72767D;font-size:12px">🔗 綁定貨幣(選填) <input class="ce-bind" list="dc-list" placeholder="例:幻彩水晶碎片" style="flex:1;min-width:130px"> 1 個本貨幣 = <input class="ce-rate" type="number" min="0" step="any" placeholder="1000" style="width:90px"> 個綁定貨幣 <span class="hint">🛡️ 每人保留</span><input class="ce-rsv" type="number" min="0" step="any" placeholder="0" title="每位玩家保留這個數量不會過期(例:30~50),只有超過的部分才會過期" style="width:80px"> <span class="hint">不過期</span></div>';
   d.querySelector('.ce-rsv').value = reserve || ''; d.querySelector('.ce-bind').value = bind || ''; d.querySelector('.ce-rate').value = rate || '';
-  d.querySelector('.ce-cur').value = cur || ''; d.querySelector('.ce-days').value = (unit === '日期' ? 90 : days) || 90; d.querySelector('.ce-unit').value = unit === '月' ? '月' : unit === '日期' ? '日期' : unit === '記錄' ? '記錄' : '天'; d.querySelector('.ce-until').value = until || ''; ceUnitToggle_(d); d.querySelector('.ce-rem').value = remind === undefined ? 7 : remind;
+  d.querySelector('.ce-cur').value = cur || ''; d.querySelector('.ce-days').value = (unit === '日期' ? 90 : days) || 90; d.querySelector('.ce-unit').value = unit === '月' ? '月' : unit === '日期' ? '日期' : '天'; d.querySelector('.ce-until').value = until || ''; ceUnitToggle_(d); d.querySelector('.ce-rem').value = remind === undefined ? 7 : remind;
   wrap.appendChild(d);
-}
-let ceAllCurs_ = [];
-function ceAddAllTrack_() {
-  const have = new Set(Array.from(document.querySelectorAll('#ce-rows .ce-cur')).map(i => i.value.trim()));
-  const skip = new Set(['總獲得幻彩水晶', '升階1', 'DCID', 'DC暱稱', 'DC身分組']);
-  let n = 0;
-  (ceAllCurs_ || []).forEach(c => { const nm = (c.display || c.name || '').toString().trim(); if (!nm || have.has(nm) || have.has((c.name || '').toString().trim()) || skip.has((c.name || '').toString().trim()) || skip.has(nm)) return; ceAddRow_(nm, 0, 0, '記錄'); have.add(nm); n++; });
-  toast(n ? '已加入 ' + n + ' 個貨幣(單位=只記錄),按「儲存」才生效' : '所有貨幣都已經在清單裡了');
 }
 async function openCurExp() {
   const d = await stockAdminCall_('adminGetCurrencyExpiryWorker');
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
-  ceAllCurs_ = d.currencies || [];
   try { const dl = document.getElementById('dc-list'); if (dl && !dl.children.length) dl.innerHTML = (d.currencies || []).map(c => '<option value="' + c.display + '">').join(''); } catch (e) {}
   document.getElementById('ce-rows').innerHTML = '';
   (d.rows || []).forEach(r => ceAddRow_(r.display, r.days, r.remind, r.unit, r.bind, r.rate, r.reserve, r.until));
@@ -6257,7 +6250,16 @@ function cmExclChanged_() {
   const el = document.getElementById('cm-excl'); try { localStorage.setItem('cm_exclude', el.value.trim()); } catch (e) {}
   if (cmRaw_) { cmData_ = cmExclude_(cmRaw_); renderCurMonthly_(); }
 }
-async function openCurMonthly() { document.getElementById('curmon-modal').classList.add('open'); await loadCurMonthly(); }
+async function loadCurFlow_() {
+  const d = await stockAdminCall_('adminCurrencyFlowCfgWorker', { op: 'get' }); if (!d || d.status !== 'success') return;
+  document.getElementById('cf-on').checked = !!d.enabled; document.getElementById('cf-ex').value = (d.exclude || []).join(', ');
+  document.getElementById('cf-st').textContent = d.enabled ? '✅ 記錄中' + (d.since ? '(自 ' + new Date(d.since).toLocaleString('zh-TW', { hour12: false, timeZone: 'Asia/Taipei' }) + ')' : '') : '⏸️ 未開啟';
+}
+async function saveCurFlow_() {
+  const d = await stockAdminCall_('adminCurrencyFlowCfgWorker', { op: 'set', enabled: document.getElementById('cf-on').checked ? '1' : '0', exclude: document.getElementById('cf-ex').value });
+  if (d && d.status === 'success') { toast(d.message); loadCurFlow_(); } else toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false);
+}
+async function openCurMonthly() { document.getElementById('curmon-modal').classList.add('open'); loadCurFlow_(); await loadCurMonthly(); }
 async function loadCurMonthly() {
   const tb = document.getElementById('cm-tbl'); tb.innerHTML = '<tr><td>載入中...</td></tr>';
   const d = await stockAdminCall_('adminCurrencyMonthlyWorker', { currency: document.getElementById('cm-cur').value.trim() });
