@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.321</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.322</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1358,10 +1358,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <input type="file" id="gt-files" accept="image/*" multiple onchange="gtAddFiles_(this.files);this.value=''">
             <button class="btn btn-primary" id="gt-run-btn" onclick="gtRun_()">🔍 辨識名稱</button>
             <button class="btn btn-edit" onclick="gtClearFiles_()">🗑️ 清空圖片</button>
-            <label>日期 <input type="date" id="gt-date" onchange="gtRender_()"></label>
+            <label>日期 <input type="date" id="gt-date" onchange="gtRender_();gtEnsure_()"></label>
             <label>倍數 <input type="number" id="gt-mul" min="0" step="any" value="1" style="width:80px"></label>
           </div>
           <div id="gt-drop" style="margin-top:8px;border:2px dashed var(--bd);border-radius:8px;padding:10px;text-align:center;color:var(--mu);font-size:13px">📋 在這一頁直接 <b>Ctrl+V 貼上截圖</b>,或把圖片<b>拖到這裡</b>(可一直加,最多 8 張)<div id="gt-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+            <input class="search" id="gt-add" list="gt-players" placeholder="➕ 手動新增玩家(輸入暱稱搜尋)…" style="width:280px" onfocus="gtEnsure_()">
+            <button class="btn btn-edit" onclick="gtAddManual_()">➕ 加入名單</button>
+            <span class="hint">沒截圖也可以只靠手動新增;名單每列可 ✕ 移除</span>
+          </div>
           <div id="gt-chips" style="margin-top:8px"></div>
           <div id="gt-out" style="margin-top:10px"></div>
           <datalist id="gt-players"></datalist>
@@ -4112,6 +4117,7 @@ document.addEventListener('paste', (e) => {
   if (imgs.length) { e.preventDefault(); gtAddFiles_(imgs); toast('已加入 ' + imgs.length + ' 張圖片'); }
 });
 (function gtInitDrop_() {
+  try { const dd = document.getElementById('gt-date'); if (dd && !dd.value) dd.value = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); } catch (e) {}
   const dz = document.getElementById('gt-drop'); if (!dz) return;
   dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.style.borderColor = 'var(--ac,#5865f2)'; });
   dz.addEventListener('dragleave', () => { dz.style.borderColor = ''; });
@@ -4135,6 +4141,28 @@ function gtShrink_(file) { // 縮到最長邊 1600px 的 JPEG,避免上傳太大
     im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('圖片讀取失敗:' + file.name)); };
     im.src = url;
   });
+}
+async function gtEnsure_() {
+  const d = document.getElementById('gt-date').value || '';
+  if (gtSt_.players.length && (!d || gtSt_.paid[d] !== undefined)) return;
+  try {
+    const r = await gtCall_('adminGtOcr', { images: [], date: d });
+    if (r && r.status === 'success') {
+      gtSt_.players = r.players || []; gtSt_.names = {}; gtSt_.players.forEach((p) => { gtSt_.names[p.id] = p.nick; });
+      Object.keys(r.paid || {}).forEach((k) => { gtSt_.paid[k] = r.paid[k]; });
+      document.getElementById('gt-players').innerHTML = gtSt_.players.map((p) => `<option value="${catEsc_(p.nick)}｜${p.id}"></option>`).join('');
+      gtRender_();
+    }
+  } catch (e) { /* 載入失敗不影響其他功能 */ }
+}
+function gtAddManual_() {
+  const inp = document.getElementById('gt-add'), id = String(inp.value || '').split('｜').pop().trim(), d = document.getElementById('gt-date').value;
+  if (!d) { toast('請先選日期', false); return; }
+  if (gtSt_.names[id] === undefined) { toast('請從清單選一位玩家(先點一下輸入框讓名單載入)', false); gtEnsure_(); return; }
+  if (gtSt_.rows.some((r) => r.date === d && r.pick === id)) { toast('已經在名單裡了', false); return; }
+  gtSt_.rows.push({ name: gtSt_.names[id], date: d, matches: [{ id, nick: gtSt_.names[id], type: 'exact', sc: 1 }], pick: id, sel: true, manual: true });
+  if (gtSt_.dates.indexOf(d) === -1) gtSt_.dates.push(d);
+  inp.value = ''; gtRender_();
 }
 async function gtRun_() {
   const fs = gtFiles_.slice();
@@ -4176,9 +4204,9 @@ function gtRender_() {
     if (top && (top.type === 'exact' || top.type === 'alias')) return m.filter((x) => x.type === 'exact' || x.type === 'alias').length > 1 ? '<span class="status status-draft">⚠️ 多人符合,請確認</span>' : '<span class="status status-open">✅ 對上</span>';
     return '<span class="status status-draft">⚠️ 相似,請確認</span>';
   };
-  out.innerHTML = `<div style="overflow-x:auto"><table class="tbl" style="width:100%"><thead><tr><th style="width:36px"><input type="checkbox" onchange="gtAll_(this.checked)"></th><th>截圖名稱</th><th>對應玩家(可改,輸入搜尋)</th><th>狀態</th></tr></thead><tbody>` + L.map(({ r, i }) => {
+  out.innerHTML = `<div style="overflow-x:auto"><table class="tbl" style="width:100%"><thead><tr><th style="width:36px"><input type="checkbox" onchange="gtAll_(this.checked)"></th><th>截圖名稱</th><th>對應玩家(可改,輸入搜尋)</th><th>狀態</th><th style="width:40px"></th></tr></thead><tbody>` + L.map(({ r, i }) => {
     const isPaid = r.pick && paid.has(r.pick), alt = (r.matches || []).filter((x) => x.id !== r.pick).map((x) => `<button class="btn btn-edit" style="padding:1px 6px;font-size:12px;margin:2px 4px 0 0" onclick="gtSetPick_(${i},'${x.id}')">${catEsc_(x.nick)}</button>`).join('');
-    return `<tr><td><input type="checkbox" ${r.sel && !isPaid ? 'checked' : ''} ${(!r.pick || isPaid) ? 'disabled' : ''} onchange="gtSt_.rows[${i}].sel=this.checked;gtCount_()"></td><td>${catEsc_(r.name)}</td><td><input class="search" list="gt-players" style="width:100%;min-width:200px" value="${r.pick ? catEsc_((gtSt_.names[r.pick] || '') + '｜' + r.pick) : ''}" placeholder="搜尋玩家暱稱…" onchange="gtTypePick_(${i},this.value)">${alt ? '<div>' + alt + '</div>' : ''}</td><td>${badge(r)}</td></tr>`;
+    return `<tr><td><input type="checkbox" ${r.sel && !isPaid ? 'checked' : ''} ${(!r.pick || isPaid) ? 'disabled' : ''} onchange="gtSt_.rows[${i}].sel=this.checked;gtCount_()"></td><td>${catEsc_(r.name)}</td><td><input class="search" list="gt-players" style="width:100%;min-width:200px" value="${r.pick ? catEsc_((gtSt_.names[r.pick] || '') + '｜' + r.pick) : ''}" placeholder="搜尋玩家暱稱…" onchange="gtTypePick_(${i},this.value)">${alt ? '<div>' + alt + '</div>' : ''}</td><td>${badge(r)}${r.manual ? ' <span class="hint">(手動)</span>' : ''}</td><td><button class="btn btn-del" onclick="gtSt_.rows.splice(${i},1);gtRender_()">✕</button></td></tr>`;
   }).join('') + `</tbody></table></div><div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" id="gt-go-btn" onclick="gtSubmit_()">✅ 確認發放並公告</button><span id="gt-count" class="hint"></span></div>`;
   gtCount_();
 }
