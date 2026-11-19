@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.320</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.321</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1355,11 +1355,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div style="font-weight:700;margin-bottom:8px">🖼️ 截圖登記團任完成</div>
           <div class="hint" style="line-height:1.7;margin-bottom:10px">上傳遊戲「騎士團故事」截圖(可多張)→ AI 讀出完成團任的遊戲名稱 → 自動對應 DC 玩家並勾選 → 確認後<b>發放團任獎勵並公告到團任頻道</b>。對應方式:DC暱稱括號裡的遊戲名、暱稱完全相同、以前手動指定過的;找不到的請手動選。<b>同一天已發過「團任」的人會自動略過</b>。需要機器人 v1.1.86 以上(公告),且 Worker 要設定 Secret <code>GEMINI_API_KEY</code>。</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input type="file" id="gt-files" accept="image/*" multiple>
+            <input type="file" id="gt-files" accept="image/*" multiple onchange="gtAddFiles_(this.files);this.value=''">
             <button class="btn btn-primary" id="gt-run-btn" onclick="gtRun_()">🔍 辨識名稱</button>
+            <button class="btn btn-edit" onclick="gtClearFiles_()">🗑️ 清空圖片</button>
             <label>日期 <input type="date" id="gt-date" onchange="gtRender_()"></label>
             <label>倍數 <input type="number" id="gt-mul" min="0" step="any" value="1" style="width:80px"></label>
           </div>
+          <div id="gt-drop" style="margin-top:8px;border:2px dashed var(--bd);border-radius:8px;padding:10px;text-align:center;color:var(--mu);font-size:13px">📋 在這一頁直接 <b>Ctrl+V 貼上截圖</b>,或把圖片<b>拖到這裡</b>(可一直加,最多 8 張)<div id="gt-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"></div></div>
           <div id="gt-chips" style="margin-top:8px"></div>
           <div id="gt-out" style="margin-top:10px"></div>
           <datalist id="gt-players"></datalist>
@@ -4089,6 +4091,32 @@ function grCall_(action, body) {
   return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
 }
 // ===== 🖼️ 截圖登記團任完成 =====
+let gtFiles_ = [];
+function gtAddFiles_(list) {
+  const add = Array.from(list || []).filter((f) => f && /^image\//.test(f.type));
+  if (!add.length) return;
+  gtFiles_ = gtFiles_.concat(add).slice(0, 8);
+  if (gtFiles_.length >= 8 && add.length) toast('最多 8 張,多的已略過', false);
+  gtThumbs_();
+}
+function gtClearFiles_() { gtFiles_ = []; gtThumbs_(); }
+function gtThumbs_() {
+  const el = document.getElementById('gt-thumbs'); if (!el) return;
+  (gtThumbs_.urls || []).forEach((u) => URL.revokeObjectURL(u)); gtThumbs_.urls = [];
+  el.innerHTML = gtFiles_.map((f, i) => { const u = URL.createObjectURL(f); gtThumbs_.urls.push(u); return `<div style="position:relative"><img src="${u}" style="height:64px;border-radius:6px;border:1px solid var(--bd)"><span onclick="gtFiles_.splice(${i},1);gtThumbs_()" style="position:absolute;top:-6px;right:-6px;background:#ed4245;color:#fff;border-radius:50%;width:18px;height:18px;line-height:18px;font-size:12px;cursor:pointer">✕</span></div>`; }).join('');
+}
+document.addEventListener('paste', (e) => {
+  const pg = document.getElementById('page-group-reward'); if (!pg || pg.style.display === 'none') return;
+  const t = e.target; if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type !== 'file' && t.type !== 'checkbox'))) return;
+  const imgs = Array.from((e.clipboardData && e.clipboardData.items) || []).filter((x) => x.kind === 'file' && /^image\//.test(x.type)).map((x) => x.getAsFile()).filter(Boolean);
+  if (imgs.length) { e.preventDefault(); gtAddFiles_(imgs); toast('已加入 ' + imgs.length + ' 張圖片'); }
+});
+(function gtInitDrop_() {
+  const dz = document.getElementById('gt-drop'); if (!dz) return;
+  dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.style.borderColor = 'var(--ac,#5865f2)'; });
+  dz.addEventListener('dragleave', () => { dz.style.borderColor = ''; });
+  dz.addEventListener('drop', (e) => { e.preventDefault(); dz.style.borderColor = ''; gtAddFiles_(e.dataTransfer && e.dataTransfer.files); });
+})();
 let gtSt_ = { rows: [], paid: {}, players: [], dates: [], names: {} };
 function gtCall_(action, body, ms) {
   const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
@@ -4109,9 +4137,8 @@ function gtShrink_(file) { // 縮到最長邊 1600px 的 JPEG,避免上傳太大
   });
 }
 async function gtRun_() {
-  const fs = Array.from((document.getElementById('gt-files') || {}).files || []);
-  if (!fs.length) { toast('請先選擇截圖', false); return; }
-  if (fs.length > 8) { toast('一次最多 8 張', false); return; }
+  const fs = gtFiles_.slice();
+  if (!fs.length) { toast('請先貼上或選擇截圖', false); return; }
   const b = document.getElementById('gt-run-btn'); b.disabled = true; b.textContent = '⏳ 辨識中…';
   try {
     const images = await Promise.all(fs.map(gtShrink_));
