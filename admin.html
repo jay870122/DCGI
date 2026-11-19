@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.323</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.324</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -9029,7 +9029,7 @@ function renderMilestonePreview(textareaId, previewId) {
 });
 
 // ── 本機自動暫存(草稿)系統:避免不小心關掉分頁或跳分類遺失輸入 ──
-function setupFieldAutosave(fieldIds, keyFn) {
+function setupFieldAutosave(fieldIds, keyFn, labelFn) {
   function key() { return 'gardraft:' + keyFn(); }
   function save() {
     const data = {};
@@ -9043,8 +9043,11 @@ function setupFieldAutosave(fieldIds, keyFn) {
     let parsed; try { parsed = JSON.parse(raw); } catch (e) { clear(); return; }
     const hasContent = Object.values(parsed.data || {}).some(v => v && v.toString().trim() !== '');
     if (!hasContent) { clear(); return; }
+    // 暫存內容跟目前畫面(剛載入的商品資料)完全一樣 = 沒有未送出的修改,不用問
+    if (fieldIds.every(id => { const el = document.getElementById(id); return !el || parsed.data[id] === undefined || String(parsed.data[id]) === String(el.value); })) { clear(); return; }
     const when = new Date(parsed.ts).toLocaleString('zh-TW');
-    if (confirm(`偵測到 ${when} 未送出的本機暫存內容,要載入嗎？\n(選「取消」則捨棄這份暫存)`)) {
+    let lb = ''; try { lb = labelFn ? String(labelFn() || '').trim() : ''; } catch (e) {}
+    if (confirm(`偵測到${lb ? '「' + lb + '」' : ''} ${when} 未送出的本機暫存內容,要載入嗎？\n(只影響這${lb ? '個' : '一筆'}${lb ? '商品' : ''};選「取消」則捨棄這份暫存)`)) {
       fieldIds.forEach(id => { const el = document.getElementById(id); if (el && parsed.data[id] !== undefined) el.value = parsed.data[id]; });
       fieldIds.forEach(id => { const el = document.getElementById(id); if (el) el.dispatchEvent(new Event('input')); });
     } else {
@@ -9167,9 +9170,9 @@ const NA_FIELDS = ['na-name','na-bid','na-currency','na-type','na-cat','na-statu
 const EA_FIELDS = ['ea-name','ea-bid','ea-currency','ea-type','ea-cat','ea-status','ea-sdate','ea-edate','ea-ext1','ea-ext2','ea-img','ea-remark','ea-role','ea-role-mode','ea-role-count','ea-altcurrency','ea-altrate','ea-wincount','ea-raffleslots','ea-rafflepool'];
 
 const addShopAutosave = setupFieldAutosave(NS_FIELDS, () => 'add-shop');
-const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'));
+const editShopAutosave = setupFieldAutosave(EM_FIELDS, () => 'edit-shop:' + (document.getElementById('em-id').value || 'new'), () => (document.getElementById('em-name') || {}).value);
 const addAuctionAutosave = setupFieldAutosave(NA_FIELDS, () => 'add-auction');
-const editAuctionAutosave = setupFieldAutosave(EA_FIELDS, () => 'edit-auction:' + (document.getElementById('ea-id').value || 'new'));
+const editAuctionAutosave = setupFieldAutosave(EA_FIELDS, () => 'edit-auction:' + (document.getElementById('ea-id').value || 'new'), () => (document.getElementById('ea-name') || {}).value);
 
 // ── 排序設定:分類順序 + 商品顯示順序 ──
 let categoryOrderData = { shop: [], auction: [] };
