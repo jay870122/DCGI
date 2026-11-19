@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.329</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.330</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4101,8 +4101,25 @@ function gsRender_() {
       Object.keys(d.byKind).map((k) => { const x = p.kinds[k]; return `<td>${x ? x.count + ' 次<div class="hint">' + Array.from(new Set(x.dates.slice().reverse().map(gsMd_))).join('、') + '</div>' : '—'}</td>`; }).join('') +
       `<td>${Object.keys(p.totals).map((c) => grEsc_(c) + ' +' + p.totals[c]).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="9">這個月份沒有紀錄</td></tr>') + '</tbody>';
   document.getElementById('gs-events').innerHTML = '<thead><tr><th style="width:32px"><input type="checkbox" onchange="gsSelAll_(this.checked)"></th><th>日期</th><th>事件</th><th>人數</th><th>每人獲得</th><th>操作人</th></tr></thead><tbody>' +
-    (d.events.map((e) => `<tr><td><input type="checkbox" class="gs-ev-chk" data-eid="${grEsc_(e.eventId)}" onchange="gsSelCount_()"></td><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>`).join('') || '<tr><td colspan="6">沒有紀錄</td></tr>') + '</tbody>';
+    (d.events.map((e) => `<tr><td><input type="checkbox" class="gs-ev-chk" data-eid="${grEsc_(e.eventId)}" onchange="gsSelCount_()"></td><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${(e.pids && e.pids.length > 0 && !e.virtual) ? `<a href="javascript:void(0)" onclick="gsEvOpen_('${grEsc_(e.eventId).replace(/'/g, '')}')" title="展開名單,可單獨移除某幾位">${gsOpenEv_.has(e.eventId) ? '▼' : '▶'} ${e.people}</a>` : e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>` + (gsOpenEv_.has(e.eventId) ? gsEvPeople_(e) : '')).join('') || '<tr><td colspan="6">沒有紀錄</td></tr>') + '</tbody>';
   gsSelCount_();
+}
+const gsOpenEv_ = new Set();
+function gsEvOpen_(eid) { if (gsOpenEv_.has(eid)) gsOpenEv_.delete(eid); else gsOpenEv_.add(eid); gsRender_ && gsRender_(); }
+function gsEvPeople_(e) {
+  const nm = {}; ((gsData_ && gsData_.players) || []).forEach((p) => { nm[p.id] = p.name || ''; });
+  const items = (e.pids || []).map((id) => `<label style="display:inline-flex;align-items:center;gap:4px;margin:2px 10px 2px 0"><input type="checkbox" class="gs-pp-chk" data-eid="${grEsc_(e.eventId)}" data-pid="${grEsc_(id)}">${grEsc_(nm[id] || id)}</label>`).join('');
+  return `<tr><td></td><td colspan="5" style="background:rgba(255,255,255,.03)">${items}<div style="margin-top:6px"><button class="btn btn-danger" onclick="gsDelPlayers_('${grEsc_(e.eventId).replace(/'/g, '')}',false)">只移除勾選的人(紀錄)</button> <button class="btn btn-danger" onclick="gsDelPlayers_('${grEsc_(e.eventId).replace(/'/g, '')}',true)">移除並扣回貨幣</button></div></td></tr>`;
+}
+async function gsDelPlayers_(eid, revoke) {
+  const pids = Array.from(document.querySelectorAll('.gs-pp-chk:checked')).filter((c) => c.dataset.eid === eid).map((c) => c.dataset.pid);
+  if (!pids.length) { toast('請先勾選要移除的玩家', false); return; }
+  if (!confirm((revoke ? '【移除 + 扣回貨幣】' : '【只移除紀錄】') + '\n要把這 ' + pids.length + ' 位玩家從這筆發放移除嗎?' + (revoke ? '\n他們當初獲得的貨幣會扣回(可能變負數)。' : '\n貨幣不會動。') + '\n無法復原。')) return;
+  try {
+    const r = await gtCall_('adminGtEventDelete', { eventIds: [eid], playerIds: pids, revoke: !!revoke });
+    if (r && r.status === 'success') { toast('✅ 已移除 ' + pids.length + ' 位' + (revoke ? '(已扣回)' : '')); loadGroupStats(); }
+    else toast('❌ ' + ((r && r.message) || '移除失敗'), false);
+  } catch (e) { toast('❌ ' + (e && e.message || e), false); }
 }
 function gsSelCount_() { const n = document.querySelectorAll('.gs-ev-chk:checked').length, e = document.getElementById('gs-sel-n'); if (e) e.textContent = n ? '已選 ' + n + ' 筆發放' : ''; }
 function gsSelAll_(on) { document.querySelectorAll('.gs-ev-chk').forEach((c) => { c.checked = !!on; }); gsSelCount_(); }
