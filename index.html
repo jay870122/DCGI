@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.332</div>
+    <div class="version-tag">系統版本：v5.4.333</div>
   </div>
 
   <script>
@@ -8542,6 +8542,13 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
         if (opt.remainPW !== null && opt.remainPW !== undefined) tags.push(`<span class="limit-tag tag-personal">👤 個人本週: ${opt.remainPW}</span>`);
         if (opt.remainPM !== null && opt.remainPM !== undefined) tags.push(`<span class="limit-tag tag-personal">👤 個人本月: ${opt.remainPM}</span>`);
         if (opt.remainPT !== null && opt.remainPT !== undefined) tags.push(`<span class="limit-tag tag-total">👑 個人總計: ${opt.remainPT}</span>`);
+        // 📊 這個選項自己的分類額度(黃色標籤):剩餘額度 + 每個消耗
+        (opt.catBudget || []).forEach((cb_) => {
+          const PN_ = { H: '每小時', D: '每日', W: '每週', M: '每月' }, u_ = cb_.unit || '點數';
+          const fmt_ = (sc) => (cb_.rem || []).filter((r) => r.sc === sc).map((r) => `${PN_[r.p]}剩 ${Math.round(r.left * 100) / 100}/${r.lim}`).join('、');
+          [['G', '全服'], ['P', '個人']].forEach(([sc, nm]) => { const t_ = fmt_(sc); if (t_) tags.push(`<span class="limit-tag ${(cb_.rem || []).some((r) => r.sc === sc && r.left <= 0) ? 'tag-role-locked' : 'tag-total'}" title="額度:${(cb_.name || '').replace(/"/g, '')};到期自動重置">📊 ${nm}額度(${u_}): ${t_}</span>`); });
+          tags.push(`<span class="limit-tag tag-total">💎 此選項每個消耗 ${Math.round(cb_.value * 100) / 100} ${u_}</span>`);
+        });
         if (tags.length > 0) html += `<div class="limit-tags" style="margin-top:6px">${tags.join('')}</div>`;
       }
       previewEl.innerHTML = html;
