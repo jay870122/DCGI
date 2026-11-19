@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.319</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.320</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1351,6 +1351,19 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="page-group-reward" style="display:none">
         <div class="page-header"><div class="page-title">👥 團任/團戰獎勵</div><div class="toolbar"><button class="btn btn-edit" onclick="loadGroupReward()">🔄 重新讀取</button><button class="btn btn-primary" id="gr-save-btn" onclick="grSave_()">💾 儲存全部</button></div></div>
         <div class="hint" style="line-height:1.7;margin-bottom:12px">機器人「團任發放」會依這裡的設定計算每位玩家的獎勵。<b>最終獎勵 = 基本值 × 上傳時填的倍數 × 所有生效的期間「×X」 + 所有生效的期間「+X」</b>;期間以「事件日期」判斷(補登別天就看那天)。貨幣「幻彩水晶」會同時加「總獲得」與「可用」兩欄。</div>
+        <div class="ct-card" id="gt-img-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🖼️ 截圖登記團任完成</div>
+          <div class="hint" style="line-height:1.7;margin-bottom:10px">上傳遊戲「騎士團故事」截圖(可多張)→ AI 讀出完成團任的遊戲名稱 → 自動對應 DC 玩家並勾選 → 確認後<b>發放團任獎勵並公告到團任頻道</b>。對應方式:DC暱稱括號裡的遊戲名、暱稱完全相同、以前手動指定過的;找不到的請手動選。<b>同一天已發過「團任」的人會自動略過</b>。需要機器人 v1.1.86 以上(公告),且 Worker 要設定 Secret <code>GEMINI_API_KEY</code>。</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="file" id="gt-files" accept="image/*" multiple>
+            <button class="btn btn-primary" id="gt-run-btn" onclick="gtRun_()">🔍 辨識名稱</button>
+            <label>日期 <input type="date" id="gt-date" onchange="gtRender_()"></label>
+            <label>倍數 <input type="number" id="gt-mul" min="0" step="any" value="1" style="width:80px"></label>
+          </div>
+          <div id="gt-chips" style="margin-top:8px"></div>
+          <div id="gt-out" style="margin-top:10px"></div>
+          <datalist id="gt-players"></datalist>
+        </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎯 基本獎勵(每種事件)</div>
           <div id="gr-kinds"></div>
@@ -4074,6 +4087,101 @@ let grKinds_ = [], grPeriods_ = [];
 function grCall_(action, body) {
   const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
   return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
+}
+// ===== 🖼️ 截圖登記團任完成 =====
+let gtSt_ = { rows: [], paid: {}, players: [], dates: [], names: {} };
+function gtCall_(action, body, ms) {
+  const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
+  return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, ms || 90000, { method: 'POST', body: JSON.stringify(body) }).then((r) => r.json());
+}
+function gtShrink_(file) { // 縮到最長邊 1600px 的 JPEG,避免上傳太大
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+      c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res({ mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.88).split(',')[1] });
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('圖片讀取失敗:' + file.name)); };
+    im.src = url;
+  });
+}
+async function gtRun_() {
+  const fs = Array.from((document.getElementById('gt-files') || {}).files || []);
+  if (!fs.length) { toast('請先選擇截圖', false); return; }
+  if (fs.length > 8) { toast('一次最多 8 張', false); return; }
+  const b = document.getElementById('gt-run-btn'); b.disabled = true; b.textContent = '⏳ 辨識中…';
+  try {
+    const images = await Promise.all(fs.map(gtShrink_));
+    const d = await gtCall_('adminGtOcr', { images });
+    if (!d || d.status !== 'success') { toast('❌ ' + ((d && d.message) || '辨識失敗'), false); return; }
+    gtSt_ = { rows: d.rows || [], paid: d.paid || {}, players: d.players || [], dates: d.dates || [], names: {} };
+    gtSt_.players.forEach((p) => { gtSt_.names[p.id] = p.nick; });
+    document.getElementById('gt-players').innerHTML = gtSt_.players.map((p) => `<option value="${catEsc_(p.nick)}｜${p.id}"></option>`).join('');
+    gtSt_.rows.forEach((r) => {
+      const m = (r.matches || [])[0];
+      r.pick = m ? m.id : '';
+      r.sel = !!m && (m.type === 'exact' || m.type === 'alias') && (r.matches || []).filter((x) => x.type === 'exact' || x.type === 'alias').length === 1;
+    });
+    const cnt = {}; gtSt_.rows.forEach((r) => { cnt[r.date] = (cnt[r.date] || 0) + 1; });
+    const best = gtSt_.dates.slice().sort((a, b) => (cnt[b] - cnt[a]) || (a < b ? 1 : -1))[0] || '';
+    if (best) document.getElementById('gt-date').value = best;
+    gtRender_();
+    if (d.errors && d.errors.length) toast('⚠️ ' + d.errors.join(';'), false);
+    else if (!gtSt_.rows.length) toast('沒有讀到任何「完成團任」的名單', false);
+  } catch (e) { toast('❌ ' + (e && e.message || e), false); }
+  finally { b.disabled = false; b.textContent = '🔍 辨識名稱'; }
+}
+function gtRows_() { const d = document.getElementById('gt-date').value; return gtSt_.rows.map((r, i) => ({ r, i })).filter((x) => x.r.date === d); }
+function gtRender_() {
+  const d = document.getElementById('gt-date').value, out = document.getElementById('gt-out'), paid = new Set(gtSt_.paid[d] || []);
+  const cnt = {}; gtSt_.rows.forEach((r) => { cnt[r.date] = (cnt[r.date] || 0) + 1; });
+  document.getElementById('gt-chips').innerHTML = gtSt_.dates.length ? '<span class="hint">截圖裡讀到的日期(點一下切換):</span> ' + gtSt_.dates.map((x) => `<button class="btn btn-edit" style="padding:2px 8px;margin:0 4px 4px 0${x === d ? ';outline:2px solid var(--ac,#5865f2)' : ''}" onclick="document.getElementById('gt-date').value='${x}';gtRender_()">${x.slice(5).replace('-', '/')}(${cnt[x]} 筆)</button>`).join('') : '';
+  const L = gtRows_();
+  if (!gtSt_.rows.length) { out.innerHTML = ''; return; }
+  if (!L.length) { out.innerHTML = '<div class="empty">這個日期沒有讀到名單,請換日期</div>'; return; }
+  const badge = (r) => {
+    const m = (r.matches || []), p = r.pick, top = m.find((x) => x.id === p);
+    if (p && paid.has(p)) return '<span class="status status-ended">💰 這天已發過</span>';
+    if (!p) return '<span class="status status-draft">❓ 找不到,請手動選</span>';
+    if (top && (top.type === 'exact' || top.type === 'alias')) return m.filter((x) => x.type === 'exact' || x.type === 'alias').length > 1 ? '<span class="status status-draft">⚠️ 多人符合,請確認</span>' : '<span class="status status-open">✅ 對上</span>';
+    return '<span class="status status-draft">⚠️ 相似,請確認</span>';
+  };
+  out.innerHTML = `<div style="overflow-x:auto"><table class="tbl" style="width:100%"><thead><tr><th style="width:36px"><input type="checkbox" onchange="gtAll_(this.checked)"></th><th>截圖名稱</th><th>對應玩家(可改,輸入搜尋)</th><th>狀態</th></tr></thead><tbody>` + L.map(({ r, i }) => {
+    const isPaid = r.pick && paid.has(r.pick), alt = (r.matches || []).filter((x) => x.id !== r.pick).map((x) => `<button class="btn btn-edit" style="padding:1px 6px;font-size:12px;margin:2px 4px 0 0" onclick="gtSetPick_(${i},'${x.id}')">${catEsc_(x.nick)}</button>`).join('');
+    return `<tr><td><input type="checkbox" ${r.sel && !isPaid ? 'checked' : ''} ${(!r.pick || isPaid) ? 'disabled' : ''} onchange="gtSt_.rows[${i}].sel=this.checked;gtCount_()"></td><td>${catEsc_(r.name)}</td><td><input class="search" list="gt-players" style="width:100%;min-width:200px" value="${r.pick ? catEsc_((gtSt_.names[r.pick] || '') + '｜' + r.pick) : ''}" placeholder="搜尋玩家暱稱…" onchange="gtTypePick_(${i},this.value)">${alt ? '<div>' + alt + '</div>' : ''}</td><td>${badge(r)}</td></tr>`;
+  }).join('') + `</tbody></table></div><div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" id="gt-go-btn" onclick="gtSubmit_()">✅ 確認發放並公告</button><span id="gt-count" class="hint"></span></div>`;
+  gtCount_();
+}
+function gtCount_() { const e = document.getElementById('gt-count'); if (e) e.textContent = '已勾選 ' + gtPicks_().length + ' 人'; }
+function gtPicks_() {
+  const d = document.getElementById('gt-date').value, paid = new Set(gtSt_.paid[d] || []), seen = new Set(), out = [];
+  gtRows_().forEach(({ r }) => { if (r.sel && r.pick && !paid.has(r.pick) && !seen.has(r.pick)) { seen.add(r.pick); out.push({ id: r.pick, name: r.name }); } });
+  return out;
+}
+function gtAll_(on) { const d = document.getElementById('gt-date').value, paid = new Set(gtSt_.paid[d] || []); gtRows_().forEach(({ r }) => { r.sel = !!on && !!r.pick && !paid.has(r.pick); }); gtRender_(); }
+function gtSetPick_(i, id) { const r = gtSt_.rows[i]; r.pick = id; r.sel = true; gtRender_(); }
+function gtTypePick_(i, v) {
+  const id = String(v || '').split('｜').pop().trim(), r = gtSt_.rows[i];
+  if (!v) { r.pick = ''; r.sel = false; } else if (gtSt_.names[id] !== undefined) { r.pick = id; r.sel = true; } else { toast('請從清單選一位玩家', false); }
+  gtRender_();
+}
+async function gtSubmit_() {
+  const d = document.getElementById('gt-date').value, picks = gtPicks_(), mul = parseFloat(document.getElementById('gt-mul').value) || 1;
+  if (!d) { toast('請選日期', false); return; }
+  if (!picks.length) { toast('沒有勾選任何人', false); return; }
+  if (!confirm('確定發放「團任」' + d.slice(5).replace('-', '/') + (mul !== 1 ? '(×' + mul + ')' : '') + ' 給 ' + picks.length + ' 位玩家,並公告到團任頻道?\n\n' + picks.slice(0, 25).map((p) => (gtSt_.names[p.id] || p.id)).join('、') + (picks.length > 25 ? '…等' : ''))) return;
+  const b = document.getElementById('gt-go-btn'); if (b) { b.disabled = true; b.textContent = '⏳ 發放中…'; }
+  try {
+    const r = await gtCall_('adminGtConfirm', { date: d, multiplier: mul, picks });
+    if (r && r.status === 'success') {
+      toast('✅ ' + (r.applied ? '已發放 ' + r.applied + ' 人' + (r.skipped ? '(略過 ' + r.skipped + ' 人已發過)' : '') + (r.rewards ? ',每人 ' + r.rewards : '') + ',公告已送出' : (r.message || '沒有新發放')));
+      gtSt_.paid[d] = (gtSt_.paid[d] || []).concat(picks.map((p) => p.id)); gtRender_();
+    } else toast('❌ ' + ((r && r.message) || '發放失敗') + ((r && r.failedIds && r.failedIds.length) ? '(' + r.failedIds.length + ' 人沒成功,再按一次只會補這些人)' : ''), false);
+  } catch (e) { toast('❌ ' + (e && e.message || e) + '(不確定有沒有發出去,再按一次同一批不會重複加)', false); }
+  finally { const b2 = document.getElementById('gt-go-btn'); if (b2) { b2.disabled = false; b2.textContent = '✅ 確認發放並公告'; } }
 }
 // ===== 📊 額度群組(自訂名稱/單位:點數、NT、STEAM…)=====
 let cbCfg_ = { cats: {} }, cbItems_ = [], cbLocked_ = {};
