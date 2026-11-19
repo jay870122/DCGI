@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.334</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.335</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2490,7 +2490,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <br>· <b>🛡️ 每人保留(不過期)</b>:每位玩家的餘額中,這個數量<b>永遠不會過期</b>,只有「超過保留數量」的部分才會依有效期過期(例:保留 50,持有 80 → 最多只有 30 會過期;花用時仍先扣最舊的)。0 或留空=不保留。綁定貨幣會依比例自動換算同樣的保留量。
       <br>· 之後把「有效天數」改小,已取得的批次會立刻依新天數重新計算(可能立刻過期);把貨幣從清單移除=該貨幣改回永不過期。</span></div>
       <div class="field full"><div id="ce-rows"></div>
-        <button class="btn" onclick="ceAddRow_()" style="margin-top:6px">➕ 新增貨幣</button></div>
+        <button class="btn" onclick="ceAddRow_()" style="margin-top:6px">➕ 新增貨幣</button> <button class="btn" onclick="ceAddAllTrack_()" style="margin-top:6px" title="把還沒列在這裡的貨幣全部加進來,單位設成「只記錄(不過期)」;按儲存才生效">📒 全部貨幣加入記錄(不過期)</button></div>
       <div class="field full"><span id="ce-run-out" class="hint"></span></div>
     </div>
     <div class="modal-footer">
@@ -5601,9 +5601,18 @@ function ceAddRow_(cur, days, remind, unit, bind, rate, reserve, until) {
   d.querySelector('.ce-cur').value = cur || ''; d.querySelector('.ce-days').value = (unit === '日期' ? 90 : days) || 90; d.querySelector('.ce-unit').value = unit === '月' ? '月' : unit === '日期' ? '日期' : unit === '記錄' ? '記錄' : '天'; d.querySelector('.ce-until').value = until || ''; ceUnitToggle_(d); d.querySelector('.ce-rem').value = remind === undefined ? 7 : remind;
   wrap.appendChild(d);
 }
+let ceAllCurs_ = [];
+function ceAddAllTrack_() {
+  const have = new Set(Array.from(document.querySelectorAll('#ce-rows .ce-cur')).map(i => i.value.trim()));
+  const skip = new Set(['總獲得幻彩水晶', '升階1', 'DCID', 'DC暱稱', 'DC身分組']);
+  let n = 0;
+  (ceAllCurs_ || []).forEach(c => { const nm = (c.display || c.name || '').toString().trim(); if (!nm || have.has(nm) || have.has((c.name || '').toString().trim()) || skip.has((c.name || '').toString().trim()) || skip.has(nm)) return; ceAddRow_(nm, 0, 0, '記錄'); have.add(nm); n++; });
+  toast(n ? '已加入 ' + n + ' 個貨幣(單位=只記錄),按「儲存」才生效' : '所有貨幣都已經在清單裡了');
+}
 async function openCurExp() {
   const d = await stockAdminCall_('adminGetCurrencyExpiryWorker');
   if (!d || d.status !== 'success') { toast('載入失敗: ' + ((d && d.message) || '未知錯誤'), false); return; }
+  ceAllCurs_ = d.currencies || [];
   try { const dl = document.getElementById('dc-list'); if (dl && !dl.children.length) dl.innerHTML = (d.currencies || []).map(c => '<option value="' + c.display + '">').join(''); } catch (e) {}
   document.getElementById('ce-rows').innerHTML = '';
   (d.rows || []).forEach(r => ceAddRow_(r.display, r.days, r.remind, r.unit, r.bind, r.rate, r.reserve, r.until));
