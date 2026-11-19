@@ -349,7 +349,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.318</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.319</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -6279,6 +6279,7 @@ async function loadShopItems() {
   document.getElementById('shop-tbody').innerHTML = '<tr><td colspan="7" class="empty">讀取中...</td></tr>';
   // 🌟🔧 速度:商品清單 / 封存名單 / 資訊卡原本是三個 await 排隊串行(三趟來回疊加),改成同時送出,總時間=最慢的那一個
   const pArch = stockAdminCall_('adminShopArchiveListWorker').catch(() => null), pIc = stockAdminCall_('adminInfoCardsListWorker').catch(() => null);
+  const pOrd = apiWorkerRead('adminCategoryOrder', {}, { action: 'adminGetCategoryOrder' }).catch(() => null);
   const d = await apiWorkerRead('adminShopItems', {}, {action:'adminGetShopItems'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
   shopItems = d.items;
@@ -6290,18 +6291,22 @@ async function loadShopItems() {
     if (sc) { const have = Array.from(sc.children).map(o => o.value); shopItems.forEach(i => { const c = (i.category || '').toString().trim(); if (c && have.indexOf(c) === -1) { have.push(c); const o = document.createElement('option'); o.value = c; sc.appendChild(o); } }); }
   } catch (e) {}
   try { const ic = await pIc; icAll_ = (ic && ic.status === 'success') ? (ic.cards || []) : []; } catch (e) {}
+  try { const od = await pOrd; if (od && od.status === 'success') shopCatOrder_ = (od.shopCategories || []).slice(); } catch (e) {}
   rebuildShopCats_();
   document.getElementById('shop-count').textContent = shopItems.length + ' 件';
   renderShopTable();
 }
 
 // 分類下拉:只列出「目前篩選會看到的商品」所在的分類——一般/上架中/草稿不含已封存商品,所以分類裡的商品全封存了就不會再出現;選「📦 封存區」時改列封存商品的分類
+let shopCatOrder_ = [];
 function rebuildShopCats_() {
   try {
     const sel = document.getElementById('shop-cat-filter'), keep = sel.value, cats = [];
     const arch = document.getElementById('shop-status-filter').value === 'ARCHIVED';
     shopItems.forEach(i => { if (!!i.archived !== arch) return; const c = (i.category || '').toString().trim(); if (c && cats.indexOf(c) === -1) cats.push(c); });
     (icAll_ || []).forEach(c => { if (!!c.archived !== arch) return; const k = (c.category || '').toString().trim(); if (k && cats.indexOf(k) === -1) cats.push(k); }); // 只有資訊卡片的分類也要列出(封存區只列封存的)
+    // 🌟 依「排序設定 → 商店分類順序」排列(資料夾整組、子分類在組內);沒列在順序裡的排最後維持原順序
+    try { const flat = catFlat_(catUnits_(shopCatOrder_.slice())), rk = c => { const k = flat.indexOf(c); return k < 0 ? 1e9 : k; }; cats.map((c, n) => [c, n]).sort((a, b) => (rk(a[0]) - rk(b[0])) || (a[1] - b[1])).forEach((p, n) => { cats[n] = p[0]; }); } catch (e) {}
     sel.innerHTML = '<option value="">全部分類</option>' + cats.map(c => '<option value="' + c.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">' + c.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
     sel.value = cats.indexOf(keep) !== -1 ? keep : '';
   } catch (e) {}
@@ -9162,7 +9167,7 @@ function addCategoryToOrder(kind) {
 async function saveCategoryOrder(kind) {
   const payload = kind === 'shop' ? { shopCategories: JSON.stringify(categoryOrderData.shop.concat(categoryOrderHidden.shop)) } : { auctionCategories: JSON.stringify(categoryOrderData.auction) };
   const d = await api({ action: 'adminSaveCategoryOrder', ...payload });
-  if (d.status === 'success') toast('✅ ' + d.message); else toast('❌ ' + d.message, false);
+  if (d.status === 'success') { toast('✅ ' + d.message); if (kind === 'shop') { shopCatOrder_ = categoryOrderData.shop.concat(categoryOrderHidden.shop); rebuildShopCats_(); } } else toast('❌ ' + d.message, false);
 }
 
 function renderItemOrderCategorySelect() {
