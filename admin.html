@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.327</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.328</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4101,7 +4101,7 @@ function gsRender_() {
       Object.keys(d.byKind).map((k) => { const x = p.kinds[k]; return `<td>${x ? x.count + ' 次<div class="hint">' + Array.from(new Set(x.dates.slice().reverse().map(gsMd_))).join('、') + '</div>' : '—'}</td>`; }).join('') +
       `<td>${Object.keys(p.totals).map((c) => grEsc_(c) + ' +' + p.totals[c]).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="9">這個月份沒有紀錄</td></tr>') + '</tbody>';
   document.getElementById('gs-events').innerHTML = '<thead><tr><th style="width:32px"><input type="checkbox" onchange="gsSelAll_(this.checked)"></th><th>日期</th><th>事件</th><th>人數</th><th>每人獲得</th><th>操作人</th></tr></thead><tbody>' +
-    (d.events.map((e) => `<tr><td><input type="checkbox" class="gs-ev-chk" data-eid="${grEsc_(e.eventId)}" onchange="gsSelCount_()"></td><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>`).join('') || '<tr><td colspan="6">沒有紀錄</td></tr>') + '</tbody>';
+    (d.events.map((e) => `<tr><td>${e.virtual ? '' : `<input type="checkbox" class="gs-ev-chk" data-eid="${grEsc_(e.eventId)}" onchange="gsSelCount_()">`}</td><td>${gsMd_(e.date)}</td><td>${grEsc_(e.kind)}</td><td>${e.people}</td><td>${grEsc_(e.text)}</td><td>${grEsc_(e.operatorName || '')}</td></tr>`).join('') || '<tr><td colspan="6">沒有紀錄</td></tr>') + '</tbody>';
   gsSelCount_();
 }
 function gsSelCount_() { const n = document.querySelectorAll('.gs-ev-chk:checked').length, e = document.getElementById('gs-sel-n'); if (e) e.textContent = n ? '已選 ' + n + ' 筆發放' : ''; }
