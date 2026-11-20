@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.339</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.340</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1431,7 +1431,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div id="page-quest-cfg" style="display:none">
         <div class="page-header"><div class="page-title">🧩 互檢任務設定</div><div class="toolbar"><button class="btn btn-edit" onclick="loadQuestCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="qc-save-btn" onclick="saveQuestCfg()">💾 儲存</button></div></div>
-        <div class="hint" style="line-height:1.7;margin-bottom:12px">移植自 Skript「粽子任務」:玩家在面板按鈕領一個隨機任務 → 做完 → 其他玩家按「任務完成檢核」,集滿人數才算完成 → 發獎勵(幫忙檢核的人也有)。<b>要貼面板</b>:到 Discord 想放的頻道輸入 <code>/互檢任務面板</code>(管理員)。<b>啟用前請先把 Skript 的粽子任務關掉</b>。獎勵貨幣要是玩家資料裡有的貨幣欄位(下拉可選)。</div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">移植自 Skript「粽子任務」:玩家在面板按鈕領一個隨機任務 → 做完 → 其他玩家按「任務完成檢核」,集滿人數才算完成 → 發獎勵(幫忙檢核的人也有)。<b>要貼面板</b>:到 Discord 想放的頻道輸入 <code>/互檢任務面板</code>(管理員)。<b>啟用前請先把 Skript 的粽子任務關掉</b>。獎勵可以用<b>盲盒規則</b>設定(跟個人挑戰的盲盒同一套寫法:一行一個獎項「名稱,機率%,數量」,可用 + 串多種、<code>[道具:模板名]</code>、<code>[背包]</code>、<code>[非即時]</code>);盲盒規則留空 = 用「獎勵貨幣 + 數量」。獎勵貨幣要是玩家資料裡有的貨幣欄位(下拉可選)。</div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">⚙️ 基本</div>
           <label class="pk-chk"><input type="checkbox" id="qc-enabled"> 啟用互檢任務(沒勾 = 玩家按按鈕會顯示尚未開放)</label>
@@ -1449,11 +1449,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="pk-grid">
             <div class="field"><label>討論串名稱<span class="hint">可用 {nick}=玩家暱稱</span></label><input id="qc-tname"></div>
           </div>
+          <div class="field" style="margin-top:10px"><label>🎁 檢核者盲盒獎勵<span class="hint">每次幫忙檢核就抽一次;留空 = 給上面「每次檢核的人獲得」的數量</span></label><textarea id="qc-chkblind" rows="3" placeholder="例:&#10;小獎,70%,粽子:1&#10;大獎,30%,粽子:3"></textarea><button class="btn btn-edit" style="margin-top:4px" onclick="qcSim_(this)">🎲 試跑 2000 次</button><div class="hint" style="white-space:pre-wrap"></div></div>
           <div class="field" style="margin-top:10px"><label>管理員身分組ID<span class="hint">一行一個;這些人可重複檢核、也可貼面板</span></label><textarea id="qc-admins" rows="3"></textarea></div>
           <div class="field" style="margin-top:10px"><label>面板說明文字(選填,空白=用預設說明)</label><textarea id="qc-ptext" rows="3"></textarea></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div class="pk-sec">📈 難度標籤與獎勵範圍 <span class="hint">題目裡有 [標籤] 就用那個難度,獎勵在最小~最大之間隨機;沒有標籤的題目用「普通」(沒有普通就用第一列)</span></div>
+          <div class="pk-sec">📈 難度標籤與獎勵範圍 <span class="hint">題目裡有 [標籤] 就用那個難度,獎勵在最小~最大之間隨機(發上面的獎勵貨幣);想改用盲盒就在該難度的盲盒欄填規則(領任務時就抽、訊息上顯示抽到什麼,完成才發)。沒有標籤的題目用「普通」(沒有普通就用第一列)</span></div>
           <div id="qc-levels"></div>
           <button class="btn btn-edit" style="margin-top:8px" onclick="qcLvAdd_()">➕ 新增難度</button>
         </div>
@@ -4925,13 +4926,23 @@ async function saveChallengeCfg() {
 // ===== 🧩 互檢任務設定 =====
 let qcLv_ = [], qcMs_ = [];
 function qcLvRender_() {
-  document.getElementById('qc-levels').innerHTML = qcLv_.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><span>[</span><input style="width:110px" value="${grEsc_(x.tag)}" oninput="qcLv_[${i}].tag=this.value"><span>]</span><span class="hint">獎勵</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.min)}" oninput="qcLv_[${i}].min=this.value"><span>~</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.max)}" oninput="qcLv_[${i}].max=this.value"><button class="btn btn-del" onclick="qcLv_.splice(${i},1);qcLvRender_()">🗑</button></div>`).join('') || '<div class="hint">還沒有難度(至少要一個)</div>';
+  document.getElementById('qc-levels').innerHTML = qcLv_.map((x, i) => `<div style="border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>[</span><input style="width:110px" value="${grEsc_(x.tag)}" oninput="qcLv_[${i}].tag=this.value"><span>]</span><span class="hint">獎勵</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.min)}" oninput="qcLv_[${i}].min=this.value"><span>~</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.max)}" oninput="qcLv_[${i}].max=this.value"><button class="btn btn-del" onclick="qcLv_.splice(${i},1);qcLvRender_()">🗑</button></div><div class="hint" style="margin-top:6px">🎁 盲盒規則(選填,有填就不看上面的最小~最大)</div><textarea rows="2" style="width:100%" placeholder="例:&#10;小獎,70%,粽子:2&#10;大獎,30%,粽子:6" oninput="qcLv_[${i}].blind=this.value">${grEsc_(x.blind || '')}</textarea><button class="btn btn-edit" style="margin-top:4px" onclick="qcSim_(this)">🎲 試跑 2000 次</button><div class="hint" style="white-space:pre-wrap"></div></div>`).join('') || '<div class="hint">還沒有難度(至少要一個)</div>';
 }
-function qcLvAdd_() { qcLv_.push({ tag: '', min: 1, max: 3 }); qcLvRender_(); }
+function qcLvAdd_() { qcLv_.push({ tag: '', min: 1, max: 3, blind: '' }); qcLvRender_(); }
 function qcMsRender_() {
-  document.getElementById('qc-ms').innerHTML = qcMs_.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><span class="hint">累計完成</span><input type="number" min="1" style="width:80px" value="${grEsc_(x.count)}" oninput="qcMs_[${i}].count=this.value"><span class="hint">個,給</span><input type="number" min="0" step="0.1" style="width:90px" value="${grEsc_(x.amount)}" oninput="qcMs_[${i}].amount=this.value"><input style="width:150px" list="dc-list" placeholder="貨幣(空=獎勵貨幣)" value="${grEsc_(x.currency || '')}" oninput="qcMs_[${i}].currency=this.value"><button class="btn btn-del" onclick="qcMs_.splice(${i},1);qcMsRender_()">🗑</button></div>`).join('') || '<div class="hint">沒有里程碑獎勵</div>';
+  document.getElementById('qc-ms').innerHTML = qcMs_.map((x, i) => `<div style="border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="hint">累計完成</span><input type="number" min="1" style="width:80px" value="${grEsc_(x.count)}" oninput="qcMs_[${i}].count=this.value"><span class="hint">個,給</span><input type="number" min="0" step="0.1" style="width:90px" value="${grEsc_(x.amount)}" oninput="qcMs_[${i}].amount=this.value"><input style="width:150px" list="dc-list" placeholder="貨幣(空=獎勵貨幣)" value="${grEsc_(x.currency || '')}" oninput="qcMs_[${i}].currency=this.value"><button class="btn btn-del" onclick="qcMs_.splice(${i},1);qcMsRender_()">🗑</button></div><div class="hint" style="margin-top:6px">🎁 盲盒規則(選填,有填就不看上面的數量/貨幣)</div><textarea rows="2" style="width:100%" oninput="qcMs_[${i}].blind=this.value">${grEsc_(x.blind || '')}</textarea><button class="btn btn-edit" style="margin-top:4px" onclick="qcSim_(this)">🎲 試跑 2000 次</button><div class="hint" style="white-space:pre-wrap"></div></div>`).join('') || '<div class="hint">沒有里程碑獎勵</div>';
 }
-function qcMsAdd_() { qcMs_.push({ count: '', amount: '', currency: '' }); qcMsRender_(); }
+async function qcSim_(btn) {
+  const ta = btn.previousElementSibling, out = btn.nextElementSibling, rules = (ta && ta.value || '').trim();
+  if (!rules) { out.textContent = '還沒填規則'; return; }
+  out.textContent = '試跑中…';
+  try {
+    const d = await grCall_('adminChallengeBlindSim', { rules, n: 2000 });
+    if (!d || d.status !== 'success') { out.textContent = (d && d.message) || '規則有問題'; return; }
+    out.textContent = '2000 次結果:' + (d.none ? '沒中 ' + d.nonePct + '%;' : '') + d.rows.slice(0, 8).map((r) => r.name + ' ' + r.pct + '%').join('、') + '\n平均每次:' + d.totals.slice(0, 8).map((r) => r.name + ' ' + r.avg).join('、');
+  } catch (e) { out.textContent = '試跑失敗:' + (e && e.message || e); }
+}
+function qcMsAdd_() { qcMs_.push({ count: '', amount: '', currency: '', blind: '' }); qcMsRender_(); }
 function qcCount_() {
   const lines = document.getElementById('qc-tasks').value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
   const uniq = new Set(lines);
@@ -4944,15 +4955,15 @@ async function loadQuestCfg() {
     const c = d.cfg, g = (i) => document.getElementById(i);
     g('qc-enabled').checked = !!c.enabled; g('qc-cur').value = c.currency || ''; g('qc-need').value = c.checkNeed; g('qc-chk').value = c.checkReward; g('qc-ab').value = c.abandonCost; g('qc-daily').value = c.dailyLimit || 0; g('qc-btn').value = c.panelButton || '';
     g('qc-norep').checked = c.noRepeat !== false; g('qc-admulti').checked = c.adminMulti !== false; g('qc-thread').checked = c.thread !== false; g('qc-tname').value = c.threadName || '';
-    g('qc-admins').value = (c.adminRoleIds || []).join('\n'); g('qc-ptext').value = c.panelText || ''; g('qc-tasks').value = c.tasks || '';
+    g('qc-admins').value = (c.adminRoleIds || []).join('\n'); g('qc-ptext').value = c.panelText || ''; g('qc-chkblind').value = c.checkBlind || ''; g('qc-tasks').value = c.tasks || '';
     qcLv_ = JSON.parse(JSON.stringify(c.levels || [])); qcLvRender_(); qcMs_ = JSON.parse(JSON.stringify(c.milestones || [])); qcMsRender_(); qcCount_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function saveQuestCfg() {
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
   const cfg = { enabled: ck('qc-enabled'), currency: g('qc-cur').trim(), checkNeed: g('qc-need'), checkReward: g('qc-chk'), abandonCost: g('qc-ab'), dailyLimit: g('qc-daily'), panelButton: g('qc-btn').trim(),
-    noRepeat: ck('qc-norep'), adminMulti: ck('qc-admulti'), thread: ck('qc-thread'), threadName: g('qc-tname').trim(), adminRoleIds: g('qc-admins'), panelText: g('qc-ptext'), tasks: g('qc-tasks'),
-    levels: qcLv_.filter((x) => String(x.tag || '').trim()), milestones: qcMs_.filter((x) => String(x.count) !== '' || String(x.amount) !== '') };
+    noRepeat: ck('qc-norep'), adminMulti: ck('qc-admulti'), thread: ck('qc-thread'), threadName: g('qc-tname').trim(), adminRoleIds: g('qc-admins'), panelText: g('qc-ptext'), checkBlind: g('qc-chkblind'), tasks: g('qc-tasks'),
+    levels: qcLv_.filter((x) => String(x.tag || '').trim()), milestones: qcMs_.filter((x) => String(x.count) !== '' || String(x.amount) !== '' || String(x.blind || '').trim()) };
   const btn = document.getElementById('qc-save-btn'); btn.disabled = true;
   try {
     const d = await grCall_('adminQuestCfgSave', { cfg });
