@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.344</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.345</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1431,7 +1431,13 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div id="page-quest-cfg" style="display:none">
         <div class="page-header"><div class="page-title">🧩 互檢任務設定</div><div class="toolbar"><button class="btn btn-edit" onclick="loadQuestCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="qc-save-btn" onclick="saveQuestCfg()">💾 儲存</button></div></div>
-        <div class="hint" style="line-height:1.7;margin-bottom:12px">移植自 Skript「粽子任務」:玩家在面板按鈕領一個隨機任務 → 做完 → 其他玩家按「任務完成檢核」,集滿人數才算完成 → 發獎勵(幫忙檢核的人也有)。<b>要貼面板</b>:到 Discord 想放的頻道輸入 <code>/互檢任務面板</code>(管理員)。<b>啟用前請先把 Skript 的粽子任務關掉</b>。所有獎勵(各難度完成獎勵、檢核者獎勵、里程碑)都用<b>盲盒規則</b>設定,跟個人挑戰的盲盒同一套寫法:一行一個獎項「名稱,機率%,數量」(數量可寫 1~3 隨機),可用 + 串多種、<code>[道具:模板名]</code>、<code>[背包]</code>、<code>[非即時]</code>。規則留空 = 沒有獎勵;機率加起來不到 100% 時,沒中就是沒獎勵。名稱就是貨幣名時(例:<code>粽子,100%,1~3</code>)訊息會自動顯示「粽子×2」。</div>
+        <div class="hint" style="line-height:1.75;margin-bottom:12px">
+          <b>玩法</b>:玩家在面板按鈕領一個隨機任務 → 做完 → 其他玩家按「任務完成檢核」,集滿人數就算完成 → 任務主人拿完成獎勵、幫忙檢核的人拿檢核獎勵;累計完成到指定數量還有里程碑獎勵。<br>
+          <b>開始使用</b>:① 啟用前先把 Skript 的粽子任務關掉 ② 在下方填好題庫、難度與獎勵 ③ 勾「啟用」並儲存 ④ 到想放的頻道輸入 <code>/互檢任務面板</code>(管理員)貼出面板。<br>
+          <b>獎勵一律用盲盒規則</b>(跟個人挑戰同一套寫法):一行一個獎項「名稱,機率%,數量」,數量可寫 <code>1~3</code> 隨機,可用 <code>+</code> 串多種、<code>[道具:模板名]</code>、<code>[背包]</code>、<code>[非即時]</code>。規則留空 = 沒有獎勵;機率加起來不到 100%,沒中就是沒獎勵。名稱就是貨幣名時(例:<code>粽子,100%,1~3</code>)訊息會自動顯示「粽子×2」。每個欄位下面都有即時預覽,打錯會立刻標出來。<br>
+          <b>獎勵怎麼抽</b>:完成獎勵在領任務時就抽好並顯示在訊息上;里程碑則在變成「下一個」時就預抽並顯示,放棄或重領不會重抽。<br>
+          <b>其他</b>:可設定活動開始/結束時間(到分鐘,只擋領新任務);管理員身分組可檢核自己的任務、可重複檢核;「玩家進度」可放行卡住的任務,或重置單人/全部進度。
+        </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">⚙️ 基本</div>
           <label class="pk-chk"><input type="checkbox" id="qc-enabled"> 啟用互檢任務(沒勾 = 玩家按按鈕會顯示尚未開放)</label>
