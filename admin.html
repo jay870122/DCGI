@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.340</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.341</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1465,8 +1465,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">📝 任務題庫 <span class="hint" id="qc-count"></span></div>
-          <div class="hint" style="line-height:1.7;margin-bottom:6px">一行一題。可用標記:<code>[簡易]</code> <code>[普通]</code> <code>[困難]</code>(對應上面的難度標籤)、<code>無法放棄</code>(這題不能放棄)、<code>集氣任務</code>(多一個集氣按鈕)、<code>[答案]xxx</code>(寫在最後,其他玩家可按鈕看答案,做任務的人看不到)。重複的行會自動合併。可以直接貼 Skript 的「個人任務.txt」內容。</div>
-          <textarea id="qc-tasks" rows="14" oninput="qcCount_()" placeholder="[簡易]在聊天室說一句早安&#10;[困難]猜猜我現在在玩什麼遊戲[答案]跑online"></textarea>
+          <div class="hint" style="line-height:1.7;margin-bottom:6px">一行一題。可用標記:<code>[簡易]</code> <code>[普通]</code> <code>[困難]</code>(對應上面的難度標籤)、<code>無法放棄</code>(這題不能放棄)、<code>集氣任務</code>(多一個集氣按鈕)、<code>[答案]xxx</code>(寫在最後,其他玩家可按鈕看答案,做任務的人看不到)。重複的行會自動合併。<b>下方會即時檢查格式</b>(標籤不在難度清單、答案空白、太長、重複…)。可以直接貼 Skript 的「個人任務.txt」內容。</div>
+          <textarea id="qc-tasks" rows="14" oninput="qcCheck_()" placeholder="[簡易]在聊天室說一句早安&#10;[困難]猜猜我現在在玩什麼遊戲[答案]跑online"></textarea>
+          <div id="qc-check" style="margin-top:8px;font-size:13px;line-height:1.7"></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">📊 玩家進度 <button class="btn btn-edit" style="margin-left:10px" onclick="loadQuestStats()">載入</button></div>
@@ -4926,7 +4927,7 @@ async function saveChallengeCfg() {
 // ===== 🧩 互檢任務設定 =====
 let qcLv_ = [], qcMs_ = [];
 function qcLvRender_() {
-  document.getElementById('qc-levels').innerHTML = qcLv_.map((x, i) => `<div style="border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>[</span><input style="width:110px" value="${grEsc_(x.tag)}" oninput="qcLv_[${i}].tag=this.value"><span>]</span><span class="hint">獎勵</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.min)}" oninput="qcLv_[${i}].min=this.value"><span>~</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.max)}" oninput="qcLv_[${i}].max=this.value"><button class="btn btn-del" onclick="qcLv_.splice(${i},1);qcLvRender_()">🗑</button></div><div class="hint" style="margin-top:6px">🎁 盲盒規則(選填,有填就不看上面的最小~最大)</div><textarea rows="2" style="width:100%" placeholder="例:&#10;小獎,70%,粽子:2&#10;大獎,30%,粽子:6" oninput="qcLv_[${i}].blind=this.value">${grEsc_(x.blind || '')}</textarea><button class="btn btn-edit" style="margin-top:4px" onclick="qcSim_(this)">🎲 試跑 2000 次</button><div class="hint" style="white-space:pre-wrap"></div></div>`).join('') || '<div class="hint">還沒有難度(至少要一個)</div>';
+  document.getElementById('qc-levels').innerHTML = qcLv_.map((x, i) => `<div style="border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>[</span><input style="width:110px" value="${grEsc_(x.tag)}" oninput="qcLv_[${i}].tag=this.value;qcCheck_()"><span>]</span><span class="hint">獎勵</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.min)}" oninput="qcLv_[${i}].min=this.value"><span>~</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.max)}" oninput="qcLv_[${i}].max=this.value"><button class="btn btn-del" onclick="qcLv_.splice(${i},1);qcLvRender_();qcCheck_()">🗑</button></div><div class="hint" style="margin-top:6px">🎁 盲盒規則(選填,有填就不看上面的最小~最大)</div><textarea rows="2" style="width:100%" placeholder="例:&#10;小獎,70%,粽子:2&#10;大獎,30%,粽子:6" oninput="qcLv_[${i}].blind=this.value">${grEsc_(x.blind || '')}</textarea><button class="btn btn-edit" style="margin-top:4px" onclick="qcSim_(this)">🎲 試跑 2000 次</button><div class="hint" style="white-space:pre-wrap"></div></div>`).join('') || '<div class="hint">還沒有難度(至少要一個)</div>';
 }
 function qcLvAdd_() { qcLv_.push({ tag: '', min: 1, max: 3, blind: '' }); qcLvRender_(); }
 function qcMsRender_() {
@@ -4943,10 +4944,46 @@ async function qcSim_(btn) {
   } catch (e) { out.textContent = '試跑失敗:' + (e && e.message || e); }
 }
 function qcMsAdd_() { qcMs_.push({ count: '', amount: '', currency: '', blind: '' }); qcMsRender_(); }
-function qcCount_() {
-  const lines = document.getElementById('qc-tasks').value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
-  const uniq = new Set(lines);
-  document.getElementById('qc-count').textContent = `(共 ${uniq.size} 題)`;
+function qcCount_() { qcCheck_(); }
+// 題庫格式檢查(跟 Worker 的解析規則一致):難度標籤、答案、重複、太長、不認得的標籤
+function qcCheck_() {
+  const box = document.getElementById('qc-check'), ta = document.getElementById('qc-tasks'); if (!box || !ta) return;
+  const tags = qcLv_.map((x) => String(x.tag || '').replace(/[\[\]]/g, '').trim()).filter(Boolean);
+  const raw = ta.value.split(/\r?\n/);
+  const seen = {}, cnt = {}, errs = [], warns = [];
+  let total = 0, noab = 0, gather = 0, ans = 0, dup = 0, none = 0;
+  const fallback = tags.indexOf('普通') >= 0 ? '普通' : (tags[0] || '(無)');
+  raw.forEach((ln, i) => {
+    const line = ln.trim(); if (!line) return;
+    const no = i + 1, short = line.length > 28 ? line.slice(0, 28) + '…' : line;
+    if (seen[line]) { dup++; warns.push(`第 ${no} 行:跟第 ${seen[line]} 行重複(儲存時會合併)「${short}」`); return; }
+    seen[line] = no; total++;
+    if (line.length > 1200) errs.push(`第 ${no} 行:太長(${line.length} 字,上限 1200)「${short}」`);
+    let text = line, answer = null;
+    const ai = line.indexOf('[答案]');
+    if (ai >= 0) { answer = line.slice(ai + 4).trim(); text = line.slice(0, ai).trim(); if (!answer) errs.push(`第 ${no} 行:寫了 [答案] 但後面沒有內容「${short}」`); else ans++; }
+    if (line.split('[答案]').length > 2) warns.push(`第 ${no} 行:出現多個 [答案],只有第一個有效「${short}」`);
+    if (!text) errs.push(`第 ${no} 行:題目內容是空的(只有 [答案])`);
+    const tx = text.replace('[簡單]', '[簡易]');
+    const hit = tags.find((t) => tx.indexOf('[' + t + ']') >= 0);
+    if (hit) cnt[hit] = (cnt[hit] || 0) + 1;
+    else {
+      none++; cnt[fallback] = (cnt[fallback] || 0) + 1;
+      const unk = (tx.match(/\[[^\]]{1,12}\]/g) || []).filter((x) => x !== '[答案]');
+      warns.push(`第 ${no} 行:${unk.length ? '標籤 ' + unk.join('') + ' 不在難度清單裡' : '沒有難度標籤'},會當成「${fallback}」「${short}」`);
+    }
+    if (/無法放棄|不可放棄/.test(text)) noab++;
+    if (/集氣任務/.test(text)) gather++;
+    if (/(無|不)[可法]?放棄/.test(text) && !/無法放棄|不可放棄/.test(text)) warns.push(`第 ${no} 行:疑似想寫「無法放棄」但寫法不對「${short}」`);
+  });
+  if (total > 3000) errs.push('題目超過 3000 題上限');
+  const chips = Object.keys(cnt).map((k) => `<span style="display:inline-block;background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0">${grEsc_(k)} ${cnt[k]}</span>`).join('');
+  const list = (arr, color, icon) => arr.length ? `<div style="color:${color};margin-top:4px">${icon} ${arr.length} 項<div style="max-height:180px;overflow:auto;white-space:pre-wrap;font-size:12px;margin-top:2px">${arr.slice(0, 60).map(grEsc_).join('\n')}${arr.length > 60 ? '\n…(只顯示前 60 項)' : ''}</div></div>` : '';
+  document.getElementById('qc-count').textContent = `(共 ${total} 題)`;
+  if (!total && !errs.length) { box.innerHTML = '<span class="hint">還沒有題目</span>'; return; }
+  box.innerHTML = (errs.length ? `<div style="color:var(--red);font-weight:700">❌ 有 ${errs.length} 個錯誤,不修正無法儲存</div>` : (warns.length ? '<div style="color:#F0B232;font-weight:700">⚠️ 格式可用,但有幾處要注意</div>' : '<div style="color:#3BA55D;font-weight:700">✅ 格式正常</div>'))
+    + `<div>共 <b>${total}</b> 題:${chips}</div><div class="hint">無法放棄 ${noab} 題、集氣 ${gather} 題、有答案 ${ans} 題${dup ? '、重複 ' + dup + ' 行' : ''}${none ? '、沒標籤 ' + none + ' 題' : ''}</div>`
+    + list(errs, 'var(--red)', '❌') + list(warns, '#F0B232', '⚠️');
 }
 async function loadQuestCfg() {
   try {
@@ -4956,7 +4993,7 @@ async function loadQuestCfg() {
     g('qc-enabled').checked = !!c.enabled; g('qc-cur').value = c.currency || ''; g('qc-need').value = c.checkNeed; g('qc-chk').value = c.checkReward; g('qc-ab').value = c.abandonCost; g('qc-daily').value = c.dailyLimit || 0; g('qc-btn').value = c.panelButton || '';
     g('qc-norep').checked = c.noRepeat !== false; g('qc-admulti').checked = c.adminMulti !== false; g('qc-thread').checked = c.thread !== false; g('qc-tname').value = c.threadName || '';
     g('qc-admins').value = (c.adminRoleIds || []).join('\n'); g('qc-ptext').value = c.panelText || ''; g('qc-chkblind').value = c.checkBlind || ''; g('qc-tasks').value = c.tasks || '';
-    qcLv_ = JSON.parse(JSON.stringify(c.levels || [])); qcLvRender_(); qcMs_ = JSON.parse(JSON.stringify(c.milestones || [])); qcMsRender_(); qcCount_();
+    qcLv_ = JSON.parse(JSON.stringify(c.levels || [])); qcLvRender_(); qcMs_ = JSON.parse(JSON.stringify(c.milestones || [])); qcMsRender_(); qcCheck_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function saveQuestCfg() {
