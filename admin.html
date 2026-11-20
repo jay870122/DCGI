@@ -191,10 +191,10 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 .pk-row2 .field{flex:1 1 120px}
 .pk-calc{background:#0003;border-radius:var(--r);padding:10px 12px;line-height:1.8;font-size:14px}
 .field input[type=checkbox]{width:auto}
-#page-poke input:not([type=checkbox]),#page-poke select,#page-poke textarea,#page-challenge-cfg input:not([type=checkbox]),#page-challenge-cfg select,#page-challenge-cfg textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
-#page-poke input:focus,#page-challenge-cfg input:focus,#page-challenge-cfg textarea:focus{outline:none;border-color:var(--gold)}
-#page-poke .field input,#page-challenge-cfg .field input,#page-challenge-cfg .field textarea{width:100%}
-#page-challenge-cfg textarea{width:100%}
+#page-poke input:not([type=checkbox]),#page-poke select,#page-poke textarea,#page-challenge-cfg input:not([type=checkbox]),#page-challenge-cfg select,#page-challenge-cfg textarea,#page-quest-cfg input:not([type=checkbox]),#page-quest-cfg select,#page-quest-cfg textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
+#page-poke input:focus,#page-challenge-cfg input:focus,#page-challenge-cfg textarea:focus,#page-quest-cfg input:focus,#page-quest-cfg textarea:focus{outline:none;border-color:var(--gold)}
+#page-poke .field input,#page-challenge-cfg .field input,#page-challenge-cfg .field textarea,#page-quest-cfg .field input,#page-quest-cfg .field textarea{width:100%}
+#page-challenge-cfg textarea,#page-quest-cfg textarea{width:100%}
 #page-challenge-review input:not([type=checkbox]),#page-challenge-review select{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:7px 10px}
 .cr-card{background:var(--s1,#2b2d31);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
 .cr-card.cr-done{opacity:.75}
@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.338</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.339</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -405,6 +405,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
       <div class="nav-item" onclick="navTo('cat-budget')">📊 額度(自訂單位)</div>
       <div class="nav-item" onclick="navTo('challenge-cfg')">🎯 個人挑戰設定</div>
+      <div class="nav-item" onclick="navTo('quest-cfg')">🧩 互檢任務設定</div>
       <div class="nav-item" onclick="navTo('challenge-review')">🖼️ 挑戰回覆審查</div>
       <div class="nav-item" onclick="navTo('poke')">🎁 戳戳樂</div>
       <div class="nav-item" onclick="navTo('boss-cfg')">🐲 翻翻樂打BOSS</div>
@@ -1427,6 +1428,50 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <span id="cr-msg" class="hint"></span>
         </div>
         <div id="cr-list"></div>
+      </div>
+      <div id="page-quest-cfg" style="display:none">
+        <div class="page-header"><div class="page-title">🧩 互檢任務設定</div><div class="toolbar"><button class="btn btn-edit" onclick="loadQuestCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="qc-save-btn" onclick="saveQuestCfg()">💾 儲存</button></div></div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">移植自 Skript「粽子任務」:玩家在面板按鈕領一個隨機任務 → 做完 → 其他玩家按「任務完成檢核」,集滿人數才算完成 → 發獎勵(幫忙檢核的人也有)。<b>要貼面板</b>:到 Discord 想放的頻道輸入 <code>/互檢任務面板</code>(管理員)。<b>啟用前請先把 Skript 的粽子任務關掉</b>。獎勵貨幣要是玩家資料裡有的貨幣欄位(下拉可選)。</div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">⚙️ 基本</div>
+          <label class="pk-chk"><input type="checkbox" id="qc-enabled"> 啟用互檢任務(沒勾 = 玩家按按鈕會顯示尚未開放)</label>
+          <div class="pk-grid">
+            <div class="field"><label>獎勵貨幣<span class="hint">任務/檢核/放棄扣款都用它</span></label><input id="qc-cur" list="dc-list" placeholder="例:粽子"></div>
+            <div class="field"><label>需要幾位玩家檢核</label><input id="qc-need" type="number" min="1" max="10"></div>
+            <div class="field"><label>每次檢核的人獲得</label><input id="qc-chk" type="number" min="0" step="0.1"></div>
+            <div class="field"><label>放棄任務扣多少<span class="hint">0=免費放棄</span></label><input id="qc-ab" type="number" min="0" step="0.1"></div>
+            <div class="field"><label>每人每天最多領幾個<span class="hint">0=不限</span></label><input id="qc-daily" type="number" min="0"></div>
+            <div class="field"><label>面板按鈕文字</label><input id="qc-btn"></div>
+          </div>
+          <label class="pk-chk"><input type="checkbox" id="qc-norep"> 不要連續抽到同一題(換任務時避開上一題)</label>
+          <label class="pk-chk"><input type="checkbox" id="qc-admulti"> 管理員身分組可以重複檢核同一個任務(不勾=管理員也只能檢核一次)</label>
+          <label class="pk-chk"><input type="checkbox" id="qc-thread"> 領任務時自動開討論串(讓玩家丟完成截圖)</label>
+          <div class="pk-grid">
+            <div class="field"><label>討論串名稱<span class="hint">可用 {nick}=玩家暱稱</span></label><input id="qc-tname"></div>
+          </div>
+          <div class="field" style="margin-top:10px"><label>管理員身分組ID<span class="hint">一行一個;這些人可重複檢核、也可貼面板</span></label><textarea id="qc-admins" rows="3"></textarea></div>
+          <div class="field" style="margin-top:10px"><label>面板說明文字(選填,空白=用預設說明)</label><textarea id="qc-ptext" rows="3"></textarea></div>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">📈 難度標籤與獎勵範圍 <span class="hint">題目裡有 [標籤] 就用那個難度,獎勵在最小~最大之間隨機;沒有標籤的題目用「普通」(沒有普通就用第一列)</span></div>
+          <div id="qc-levels"></div>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="qcLvAdd_()">➕ 新增難度</button>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">🏆 里程碑獎勵 <span class="hint">玩家累計「完成」第 N 個任務時額外給;貨幣留空=用上面的獎勵貨幣。原 Skript 的 100/300/500 個是 +50 GASH,需要的話自己加一列並填貨幣名</span></div>
+          <div id="qc-ms"></div>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="qcMsAdd_()">➕ 新增里程碑</button>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">📝 任務題庫 <span class="hint" id="qc-count"></span></div>
+          <div class="hint" style="line-height:1.7;margin-bottom:6px">一行一題。可用標記:<code>[簡易]</code> <code>[普通]</code> <code>[困難]</code>(對應上面的難度標籤)、<code>無法放棄</code>(這題不能放棄)、<code>集氣任務</code>(多一個集氣按鈕)、<code>[答案]xxx</code>(寫在最後,其他玩家可按鈕看答案,做任務的人看不到)。重複的行會自動合併。可以直接貼 Skript 的「個人任務.txt」內容。</div>
+          <textarea id="qc-tasks" rows="14" oninput="qcCount_()" placeholder="[簡易]在聊天室說一句早安&#10;[困難]猜猜我現在在玩什麼遊戲[答案]跑online"></textarea>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">📊 玩家進度 <button class="btn btn-edit" style="margin-left:10px" onclick="loadQuestStats()">載入</button></div>
+          <div class="hint">「放行」= 取消這位玩家進行中的任務(訊息卡住、玩家刪了訊息時用),取消後玩家可以重新領,不扣款。</div>
+          <div id="qc-stats" style="margin-top:8px;overflow:auto"></div>
+        </div>
       </div>
       <div id="page-challenge-cfg" style="display:none">
         <div class="page-header"><div class="page-title">🎯 個人挑戰/團任公告</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="cc-save-btn" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
@@ -4026,7 +4071,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['cat-budget','shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-review','poke','boss-cfg','group-stats'];
+const pages = ['cat-budget','shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','quest-cfg','challenge-review','poke','boss-cfg','group-stats'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -4061,6 +4106,7 @@ function navTo(p) {
   if (p==='group-reward') loadGroupReward();
   if (p==='cat-budget') loadCatBudget();
   if (p==='challenge-cfg') loadChallengeCfg();
+  if (p==='quest-cfg') loadQuestCfg();
   if (p==='challenge-review') crInit_();
   if (p==='poke') loadPoke();
   if (p==='boss-cfg') bossLoad_();
@@ -4875,6 +4921,59 @@ async function saveChallengeCfg() {
     if (d && d.status === 'success') { toast('已儲存'); await loadChallengeCfg(); } else toast((d && d.message) || '儲存失敗', false);
   } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
   btn.disabled = false;
+}
+// ===== 🧩 互檢任務設定 =====
+let qcLv_ = [], qcMs_ = [];
+function qcLvRender_() {
+  document.getElementById('qc-levels').innerHTML = qcLv_.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><span>[</span><input style="width:110px" value="${grEsc_(x.tag)}" oninput="qcLv_[${i}].tag=this.value"><span>]</span><span class="hint">獎勵</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.min)}" oninput="qcLv_[${i}].min=this.value"><span>~</span><input type="number" min="0" style="width:80px" value="${grEsc_(x.max)}" oninput="qcLv_[${i}].max=this.value"><button class="btn btn-del" onclick="qcLv_.splice(${i},1);qcLvRender_()">🗑</button></div>`).join('') || '<div class="hint">還沒有難度(至少要一個)</div>';
+}
+function qcLvAdd_() { qcLv_.push({ tag: '', min: 1, max: 3 }); qcLvRender_(); }
+function qcMsRender_() {
+  document.getElementById('qc-ms').innerHTML = qcMs_.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><span class="hint">累計完成</span><input type="number" min="1" style="width:80px" value="${grEsc_(x.count)}" oninput="qcMs_[${i}].count=this.value"><span class="hint">個,給</span><input type="number" min="0" step="0.1" style="width:90px" value="${grEsc_(x.amount)}" oninput="qcMs_[${i}].amount=this.value"><input style="width:150px" list="dc-list" placeholder="貨幣(空=獎勵貨幣)" value="${grEsc_(x.currency || '')}" oninput="qcMs_[${i}].currency=this.value"><button class="btn btn-del" onclick="qcMs_.splice(${i},1);qcMsRender_()">🗑</button></div>`).join('') || '<div class="hint">沒有里程碑獎勵</div>';
+}
+function qcMsAdd_() { qcMs_.push({ count: '', amount: '', currency: '' }); qcMsRender_(); }
+function qcCount_() {
+  const lines = document.getElementById('qc-tasks').value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  const uniq = new Set(lines);
+  document.getElementById('qc-count').textContent = `(共 ${uniq.size} 題)`;
+}
+async function loadQuestCfg() {
+  try {
+    const d = await grCall_('adminQuestCfgGet');
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    const c = d.cfg, g = (i) => document.getElementById(i);
+    g('qc-enabled').checked = !!c.enabled; g('qc-cur').value = c.currency || ''; g('qc-need').value = c.checkNeed; g('qc-chk').value = c.checkReward; g('qc-ab').value = c.abandonCost; g('qc-daily').value = c.dailyLimit || 0; g('qc-btn').value = c.panelButton || '';
+    g('qc-norep').checked = c.noRepeat !== false; g('qc-admulti').checked = c.adminMulti !== false; g('qc-thread').checked = c.thread !== false; g('qc-tname').value = c.threadName || '';
+    g('qc-admins').value = (c.adminRoleIds || []).join('\n'); g('qc-ptext').value = c.panelText || ''; g('qc-tasks').value = c.tasks || '';
+    qcLv_ = JSON.parse(JSON.stringify(c.levels || [])); qcLvRender_(); qcMs_ = JSON.parse(JSON.stringify(c.milestones || [])); qcMsRender_(); qcCount_();
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+}
+async function saveQuestCfg() {
+  const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
+  const cfg = { enabled: ck('qc-enabled'), currency: g('qc-cur').trim(), checkNeed: g('qc-need'), checkReward: g('qc-chk'), abandonCost: g('qc-ab'), dailyLimit: g('qc-daily'), panelButton: g('qc-btn').trim(),
+    noRepeat: ck('qc-norep'), adminMulti: ck('qc-admulti'), thread: ck('qc-thread'), threadName: g('qc-tname').trim(), adminRoleIds: g('qc-admins'), panelText: g('qc-ptext'), tasks: g('qc-tasks'),
+    levels: qcLv_.filter((x) => String(x.tag || '').trim()), milestones: qcMs_.filter((x) => String(x.count) !== '' || String(x.amount) !== '') };
+  const btn = document.getElementById('qc-save-btn'); btn.disabled = true;
+  try {
+    const d = await grCall_('adminQuestCfgSave', { cfg });
+    if (d && d.status === 'success') { toast('已儲存'); await loadQuestCfg(); } else toast((d && d.message) || '儲存失敗', false);
+  } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
+  btn.disabled = false;
+}
+async function loadQuestStats() {
+  const box = document.getElementById('qc-stats'); box.innerHTML = '<div class="hint">載入中…</div>';
+  try {
+    const d = await grCall_('adminQuestStats');
+    if (!d || d.status !== 'success') { box.innerHTML = ''; toast((d && d.message) || '讀取失敗', false); return; }
+    const stMap = { open: '進行中', done: '已完成', abandoned: '已放棄', cancelled: '已取消', '': '' };
+    const rows = d.rows || [];
+    box.innerHTML = rows.length ? '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--mu)"><th>玩家</th><th>累計完成</th><th>狀態</th><th>目前任務</th><th>檢核</th><th></th></tr>' + rows.map((r) => { let ch = []; try { ch = JSON.parse(r.checkers || '[]'); } catch (e) {} return `<tr style="border-top:1px solid var(--bd)"><td>${grEsc_(r.nick || '')}<div class="hint">${grEsc_(r.uid)}</div></td><td>${r.done}</td><td>${stMap[r.status] || grEsc_(r.status)}${r.pending ? ' <span style="color:var(--red)">⏳獎勵待補發</span>' : ''}</td><td style="max-width:320px">${grEsc_(String(r.shown || '').slice(0, 80))}</td><td>${ch.length}</td><td>${r.status === 'open' ? `<button class="btn btn-edit" onclick="questRelease_('${grEsc_(r.uid)}')">放行</button>` : ''}</td></tr>`; }).join('') + '</table>' : '<div class="hint">還沒有任何玩家領過任務</div>';
+  } catch (e) { box.innerHTML = ''; toast('讀取失敗:' + (e && e.message || e), false); }
+}
+async function questRelease_(uid) {
+  if (!confirm('取消這位玩家進行中的任務?(不扣款,玩家可重新領)')) return;
+  const d = await grCall_('adminQuestReset', { uid });
+  if (d && d.status === 'success') { toast(d.changed ? '已放行' : '這位玩家目前沒有進行中的任務'); loadQuestStats(); } else toast((d && d.message) || '失敗', false);
 }
 async function loadGroupReward() {
   try {
