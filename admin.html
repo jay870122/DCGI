@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.350</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.351</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4905,17 +4905,19 @@ function ccRewCalc_() {
 let ccCandies_ = [];
 function ccCandyRender_() {
   const el = document.getElementById('cc-candies'); if (!el) return;
+  ccItemList_();
   const e = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   el.innerHTML = ccCandies_.length ? ccCandies_.map((x, i) => `<div class="pk-card" style="margin-top:8px">
     <div style="display:flex;justify-content:space-between;align-items:center"><label class="pk-chk"><input type="checkbox" ${x.enabled ? 'checked' : ''} onchange="ccCandies_[${i}].enabled=this.checked"> 啟用</label><button class="btn btn-edit" onclick="ccCandies_.splice(${i},1);ccCandyRender_()">🗑 刪除</button></div>
     <div class="pk-grid">
-      <div class="field"><label>貨幣名稱</label><input value="${e(x.currency)}" list="dc-list" oninput="ccCandies_[${i}].currency=this.value"></div>
+      <div class="field"><label>${x.item ? '道具模板名稱' : '貨幣名稱'} <select style="width:auto;display:inline-block" onchange="ccCandies_[${i}].item=this.value==='1';ccCandyRender_()"><option value="0" ${x.item ? '' : 'selected'}>貨幣</option><option value="1" ${x.item ? 'selected' : ''}>🎁道具</option></select></label><input value="${e(x.currency)}" list="${x.item ? 'cc-item-list' : 'dc-list'}" oninput="ccCandies_[${i}].currency=this.value"></div>
       <div class="field"><label>開始日期</label><input type="date" value="${e(x.start)}" oninput="ccCandies_[${i}].start=this.value"></div>
       <div class="field"><label>結束日期(含當天)</label><input type="date" value="${e(x.end)}" oninput="ccCandies_[${i}].end=this.value"></div>
       <div class="field"><label>每次最少</label><input type="number" min="0" value="${e(x.min)}" oninput="ccCandies_[${i}].min=this.value"></div>
       <div class="field"><label>每次最多</label><input type="number" min="0" value="${e(x.max)}" oninput="ccCandies_[${i}].max=this.value"></div>
     </div></div>`).join('') : '<div class="hint" style="margin-top:6px">目前沒有活動貨幣(挑戰成功只給水晶)</div>';
 }
+function ccItemList_() { let d = document.getElementById('cc-item-list'); if (!d) { d = document.createElement('datalist'); d.id = 'cc-item-list'; document.body.appendChild(d); } d.innerHTML = (itemTemplates || []).map((t) => '<option value="' + String(t.name).replace(/"/g, '&quot;') + '">').join(''); }
 function ccCandyAdd_() { ccCandies_.push({ enabled: true, currency: '', start: '', end: '', min: 1, max: 1 }); ccCandyRender_(); }
 async function loadChallengeCfg() {
   try {
@@ -4925,6 +4927,7 @@ async function loadChallengeCfg() {
     g('cc-enabled').checked = !!c.enabled; g('cc-relay').checked = !!c.relayEnabled; g('cc-time').value = c.announceTime || '22:00';
     g('cc-ch').value = c.channelId || ''; g('cc-ping').value = c.pingRoleId || ''; g('cc-bday').value = c.birthdayRoleId || '';
     g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-img').value = c.announceImage || ''; g('cc-extra').value = c.announceExtra || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
+    if (!(itemTemplates || []).length) { try { const dt = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' }); if (dt && dt.status === 'success') itemTemplates = dt.templates || []; } catch (e) {} }
     ccCandies_ = JSON.parse(JSON.stringify(c.candies || (c.candy ? [c.candy] : []))); ccCandyRender_();
     ccTiers_ = (c.rollTiers || []).map((x) => { const q = x.split('/'); return { mul: q[0], pct: q[1] }; });
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
@@ -4937,7 +4940,7 @@ async function saveChallengeCfg() {
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
   const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), announceImage: g('cc-img').trim(), announceExtra: g('cc-extra'), adminRoleIds: g('cc-admins'),
-    candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max })),
+    candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
     announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets };
