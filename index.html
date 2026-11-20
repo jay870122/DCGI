@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.337</div>
+    <div class="version-tag">系統版本：v5.4.338</div>
   </div>
 
   <script>
@@ -3842,7 +3842,7 @@
       const mats = rc.materials.map(m => {
         const ok = m.have >= m.q;
         const haveText = m.t === 'cur' ? Math.floor(m.have * 100) / 100 : m.have;
-        return `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:10px;font-size:12px;background:${ok ? '#2E4A3A' : '#4A2E2E'};color:${ok ? '#9CE5B4' : '#F5A3A3'}">${m.t === 'cur' ? '💰' : '📦'} ${craftEsc_(m.d)} ${haveText}/${m.q}</span>`;
+        return `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:10px;font-size:12px;background:${ok ? '#2E4A3A' : '#4A2E2E'};color:${ok ? '#9CE5B4' : '#F5A3A3'}">${m.t === 'cur' ? '💰' : '📦'} ${craftEsc_(m.d)} ${haveText}/${m.q}${m.r && rc.successRate != null && rc.successRate < 100 ? ' <span title="合成失敗時退還,不會被扣">↩️失敗退還</span>' : ''}</span>`;
       }).join('');
       const limits = [];
       if (rc.personalTotalLimit > 0) limits.push(`個人限${rc.personalTotalLimit}次(剩${rc.personalLeft})`);
@@ -3853,11 +3853,13 @@
         : rc.status === 'soldout' ? `<span style="color:#ED4245;font-size:12px">全服次數已用完</span>` : '';
       const can = craftCanDo_(rc);
       const qtyId = `craft-qty-${scope}-${rc.id}`;
+      const rateTag = rc.successRate != null && rc.successRate < 100 ? `<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;font-size:12px;background:#4A3F1E;color:#F0B232">🎲 成功率 ${Math.round(rc.successRate * 100) / 100}%</span>` : '';
+      const failBox = rc.successRate != null && rc.successRate < 100 && rc.failPool && rc.failPool.length ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:#B9BBBE;font-size:12px">💥 失敗時的安慰獎勵</summary>${buildGachaContentBoxHtml_(rc.failPool, '💥 失敗獎勵：')}</details>` : '';
       const poolBox = rc.pool && rc.pool.length ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:#7289DA;font-size:12px">🎁 查看合成獎勵(共${rc.pool.length}項)</summary>${buildGachaContentBoxHtml_(rc.pool, '🎁 合成獎勵：')}</details>` : '';
       return `
         <div style="background:#202225;border-radius:8px;padding:8px 10px;margin-top:6px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-            <b>🔨 ${craftEsc_(rc.name)}</b>
+            <b>🔨 ${craftEsc_(rc.name)}</b>${rateTag}
             <span style="display:flex;align-items:center;gap:6px">
               <input type="number" id="${qtyId}" min="1" max="20" value="1" style="width:54px;padding:3px;text-align:center">
               <button class="btn-action" style="padding:4px 12px;font-size:12px;background-color:${can ? '#F0B232' : '#4F545C'};color:${can ? '#1E1F22' : '#B9BBBE'}" ${can ? '' : 'disabled'} onclick="craftRecipe_(this, '${rc.id}', '${scope}')">合成</button>
@@ -3867,7 +3869,7 @@
           ${statusNote}
           ${limits.length ? `<div style="font-size:11px;color:#B9BBBE;margin-top:2px">${limits.join(' ｜ ')}</div>` : ''}
           ${rc.note ? `<div style="font-size:12px;color:#B9BBBE;margin-top:2px">📝 ${craftEsc_(rc.note)}</div>` : ''}
-          ${poolBox}
+          ${poolBox}${failBox}
         </div>`;
     }
     function renderCraftUi_() {
@@ -3894,7 +3896,7 @@
       const times = parseInt((document.getElementById(`craft-qty-${scope}-${recipeId}`) || {}).value, 10) || 1;
       if (times < 1 || times > 20) { alert('合成次數請填 1~20'); return; }
       const costText = rc.materials.map(m => `${m.d} x${m.q * times}`).join('、');
-      if (!confirm(`確定要合成「${rc.name}」x${times} 嗎？\n\n將消耗：${costText}\n\n合成後會立刻隨機抽取獎勵,無法反悔。`)) return;
+      if (!confirm(`確定要合成「${rc.name}」x${times} 嗎？\n\n將消耗：${costText}${rc.successRate != null && rc.successRate < 100 ? `\n\n⚠️ 成功率 ${Math.round(rc.successRate * 100) / 100}%,失敗時${rc.materials.some(m => m.r) ? '標示「失敗退還」的材料不會被扣,其餘' : ''}材料照扣` : ''}\n\n合成後會立刻隨機抽取獎勵,無法反悔。`)) return;
 
       generalItemActionInFlight = true;
       document.querySelectorAll('#general-items-container button, #general-items-container input, #craft-section button, #craft-section input, .gi-craft button, .gi-craft input').forEach(el => { el.disabled = true; });

@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.345</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.346</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2594,7 +2594,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <input type="hidden" id="cr-id">
       <div class="field full"><label>配方名稱<span style="color:var(--red)">*</span></label><input id="cr-name" type="text" placeholder="例：高級寶箱合成"></div>
       <div class="field full">
-        <label>材料<span style="color:var(--red)">*</span> <span class="hint">全部湊齊才能合成;道具材料用「顯示名稱」比對(可直接選模板名稱,也可自己輸入),貨幣用玩家表欄位</span></label>
+        <label>材料<span style="color:var(--red)">*</span> <span class="hint">全部湊齊才能合成;道具材料用「顯示名稱」比對(可直接選模板名稱,也可自己輸入),貨幣用玩家表欄位。勾「失敗退還」的材料,合成失敗時不會被扣(沒設成功率就用不到)</span></label>
         <div id="cr-mats"></div>
         <div style="display:flex;gap:6px;margin-top:6px">
           <button type="button" class="btn btn-edit" onclick="addCraftMatRow('item')">＋ 道具材料</button>
@@ -2619,9 +2619,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           　<code>禮包, 幻彩水晶:50+[道具:稀有模板]稀有道具:1, 5%</code>　<span class="hint">← 用 + 串起來,一個獎項同時發多種</span><br>
           　<code>安慰獎, 幻彩水晶:10</code>　<span class="hint">← 沒寫機率也沒寫份數 = <b>保底獎</b>,其他都沒中/抽完才會開出,建議放最後一行</span><br>
           💡 <b>「100% 必得」的合成</b>:只寫一行並且不寫機率(保底行),就會每次必得。<br>
-          💡 材料會在合成成功時一次扣除;如果獎池抽不出東西(機率沒中又沒保底、份數用完),合成會被擋下,<b>不會扣材料</b>。<br>
+          💡 材料會在合成時一次扣除(有設成功率且勾了「失敗退還」的材料,失敗時不扣);如果獎池抽不出東西(機率沒中又沒保底、份數用完),合成會被擋下,<b>不會扣材料</b>。<br>
           💡 下方預覽會即時顯示解析結果與機率加總;有紅字的行代表格式有問題。更多進階標籤([背包]、[非即時]、[隱藏名稱]等)寫法跟商店盲盒完全相同,可參考「商店管理」裡的盲盒規則格式指南。
         </details>
+      </div>
+      <div class="field full" style="border:1px solid var(--border);border-radius:8px;padding:10px">
+        <label>🎲 合成成功率 <span class="hint">%,0~100,空白=100%(必定成功)。每次合成各自擲一次;失敗就不抽上面的獎勵,材料照扣——除非那項材料勾了「失敗退還」</span></label>
+        <input id="cr-rate" type="number" min="0" max="100" step="0.1" placeholder="100" style="max-width:160px">
+        <label style="margin-top:8px">失敗時的安慰獎勵(選填,盲盒規則格式) <span class="hint">失敗時抽一次,留空=什麼都沒有</span></label>
+        <textarea id="cr-fail-pool" rows="3" placeholder="例:&#10;破爛零件, 幻彩水晶:5" oninput="renderGachaPreview('cr-fail-pool','cr-fail-pool-preview')"></textarea>
+        <div class="gacha-preview" id="cr-fail-pool-preview" style="display:none;margin-top:6px"></div>
+        <label style="margin-top:8px">失敗訊息(選填) <span class="hint">合成失敗時額外顯示給玩家的一句話</span></label>
+        <input id="cr-fail-msg" type="text" placeholder="例:鑰匙在你手中碎成了粉末…">
       </div>
       <div class="field"><label>個人總次數上限 <span class="hint">0/空白=不限</span></label><input id="cr-ptotal" type="number" min="0"></div>
       <div class="field"><label>個人每日上限 <span class="hint">0/空白=不限(台北時間每天重置)</span></label><input id="cr-pdaily" type="number" min="0"></div>
@@ -6572,7 +6581,7 @@ function renderCraftAdmin() {
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">目前沒有任何合成配方</td></tr>'; return; }
   const stateLabel = { open: '🟢 開放中', upcoming: '🕒 尚未開始', ended: '⏹️ 已結束', soldout: '🈵 全服已用完', disabled: '⏸️ 已停用' };
   tbody.innerHTML = list.map((r, idx) => {
-    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}`).join('<br>');
+    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}${m.r ? ' <span class="hint">(失敗退還)</span>' : ''}`).join('<br>');
     const poolLines = (r.poolRaw || '').split('\n').map(l => l.trim()).filter(Boolean);
     const lim = [];
     if (r.personalTotalLimit) lim.push(`個人${r.personalTotalLimit}次`);
@@ -6583,7 +6592,7 @@ function renderCraftAdmin() {
     return `<tr>
       <td><b>${crEsc_(r.name)}</b>${r.note ? `<div class="hint">${crEsc_(r.note)}</div>` : ''}<div class="hint">${crEsc_(r.id)}</div></td>
       <td style="font-size:12px">${mats}</td>
-      <td style="font-size:12px;color:var(--muted);white-space:pre-wrap;max-width:240px">${crEsc_(poolLines.slice(0, 3).join('\n'))}${poolLines.length > 3 ? `\n…(共${poolLines.length}項)` : ''}</td>
+      <td style="font-size:12px;color:var(--muted);white-space:pre-wrap;max-width:240px">${r.successRate != null && r.successRate < 100 ? `<b style="color:var(--yellow,#F0B232)">🎲 成功率 ${r.successRate}%</b>\n` : ''}${crEsc_(poolLines.slice(0, 3).join('\n'))}${poolLines.length > 3 ? `\n…(共${poolLines.length}項)` : ''}</td>
       <td style="font-size:12px">${lim.join('<br>')}</td>
       <td>${stateLabel[r.state] || r.state}</td>
       <td>
@@ -6609,6 +6618,7 @@ function addCraftMatRow(type, data) {
   }
   row.innerHTML = `<span style="width:52px;font-size:12px">${type === 'cur' ? '💰貨幣' : '📦道具'}</span>${nameHtml}
     <input class="cr-mat-qty" type="number" min="1" value="${data ? data.q : 1}" style="width:80px" title="數量">
+    <label style="font-size:12px;white-space:nowrap;cursor:pointer" title="合成失敗時,這項材料退還(不扣)"><input type="checkbox" class="cr-mat-refund"${data && data.r ? ' checked' : ''}> 失敗退還</label>
     <button type="button" class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
   wrap.appendChild(row);
 }
@@ -6619,6 +6629,10 @@ function openCraftForm(idx, asCopy) {
   document.getElementById('cr-name').value = r ? (asCopy ? r.name + '(複製)' : r.name) : '';
   document.getElementById('cr-pool').value = r ? r.poolRaw : '';
   renderGachaPreview('cr-pool', 'cr-pool-preview');
+  document.getElementById('cr-rate').value = r && r.successRate != null && r.successRate < 100 ? r.successRate : '';
+  document.getElementById('cr-fail-pool').value = r ? (r.failPoolRaw || '') : '';
+  renderGachaPreview('cr-fail-pool', 'cr-fail-pool-preview');
+  document.getElementById('cr-fail-msg').value = r ? (r.failMsg || '') : '';
   document.getElementById('cr-ptotal').value = r && r.personalTotalLimit ? r.personalTotalLimit : '';
   document.getElementById('cr-pdaily').value = r && r.personalDailyLimit ? r.personalDailyLimit : '';
   document.getElementById('cr-global').value = r && r.globalLimit ? r.globalLimit : '';
@@ -6644,6 +6658,7 @@ function collectCraftMaterials_() {
     if (!n || q < 1) return;
     const m = { t: type, n, q };
     if (type === 'cur') m.d = nameEl.selectedOptions[0] ? nameEl.selectedOptions[0].dataset.display : n;
+    if (row.querySelector('.cr-mat-refund').checked) m.r = true;
     out.push(m);
   });
   return out;
@@ -6661,6 +6676,9 @@ async function saveCraftRecipe() {
       name: document.getElementById('cr-name').value.trim(),
       materials: JSON.stringify(mats),
       poolRaw: document.getElementById('cr-pool').value.trim(),
+      successRate: document.getElementById('cr-rate').value,
+      failPoolRaw: document.getElementById('cr-fail-pool').value.trim(),
+      failMsg: document.getElementById('cr-fail-msg').value.trim(),
       personalTotalLimit: document.getElementById('cr-ptotal').value,
       personalDailyLimit: document.getElementById('cr-pdaily').value,
       globalLimit: document.getElementById('cr-global').value,
@@ -6679,7 +6697,7 @@ async function saveCraftRecipe() {
 async function toggleCraftEnabled(idx) {
   const r = craftAdmin_.recipes[idx];
   const d = await apiCraftWrite_('adminSaveCraftRecipe', {
-    id: r.id, name: r.name, materials: JSON.stringify(r.materials), poolRaw: r.poolRaw,
+    id: r.id, name: r.name, materials: JSON.stringify(r.materials), poolRaw: r.poolRaw, successRate: r.successRate < 100 ? r.successRate : '', failPoolRaw: r.failPoolRaw || '', failMsg: r.failMsg || '',
     personalTotalLimit: r.personalTotalLimit, personalDailyLimit: r.personalDailyLimit, globalLimit: r.globalLimit,
     startAt: r.startAt, endAt: r.endAt, note: r.note, enabled: r.enabled ? 'FALSE' : 'TRUE', resetGlobalUsed: 'false',
   });
