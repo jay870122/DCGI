@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.347</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.348</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2631,6 +2631,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="gacha-preview" id="cr-fail-pool-preview" style="display:none;margin-top:6px"></div>
         <label style="margin-top:8px">失敗訊息(選填) <span class="hint">合成失敗時額外顯示給玩家的一句話</span></label>
         <input id="cr-fail-msg" type="text" placeholder="例:鑰匙在你手中碎成了粉末…">
+      </div>
+      <div class="field full" style="border:1px solid var(--border);border-radius:8px;padding:10px">
+        <label>📣 合成公告 <span class="hint">合成後由機器人發到大獎(公告)頻道,不勾=不公告</span></label>
+        <select id="cr-announce" style="max-width:260px"><option value="">不公告</option><option value="SUCCESS">只公告成功</option><option value="FAIL">只公告失敗</option><option value="BOTH">成功、失敗都公告</option></select>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="cr-anim" style="width:auto"><label for="cr-anim" style="margin:0">✨ 合成動畫 <span class="hint">玩家按下合成後先播放一小段動畫,再顯示成功/失敗結果(獨立開關,跟公告無關)</span></label></div>
       </div>
       <div class="field"><label>個人總次數上限 <span class="hint">0/空白=不限</span></label><input id="cr-ptotal" type="number" min="0"></div>
       <div class="field"><label>個人每日上限 <span class="hint">0/空白=不限(台北時間每天重置)</span></label><input id="cr-pdaily" type="number" min="0"></div>
@@ -6595,7 +6600,7 @@ function renderCraftAdmin() {
     return `<tr>
       <td><b>${crEsc_(r.name)}</b>${r.note ? `<div class="hint">${crEsc_(r.note)}</div>` : ''}<div class="hint">${crEsc_(r.id)}</div></td>
       <td style="font-size:12px">${mats}</td>
-      <td style="font-size:12px;color:var(--muted);white-space:pre-wrap;max-width:240px">${r.successRate != null && r.successRate < 100 ? `<b style="color:var(--yellow,#F0B232)">🎲 成功率 ${r.successRate}%</b>\n` : ''}${crEsc_(poolLines.slice(0, 3).join('\n'))}${poolLines.length > 3 ? `\n…(共${poolLines.length}項)` : ''}</td>
+      <td style="font-size:12px;color:var(--muted);white-space:pre-wrap;max-width:240px">${r.successRate != null && r.successRate < 100 ? `<b style="color:var(--yellow,#F0B232)">🎲 成功率 ${r.successRate}%</b>\n` : ''}${r.announce ? `<span style="color:var(--green)">📣公告${{SUCCESS:'成功',FAIL:'失敗',BOTH:'成功/失敗'}[r.announce]}</span> ` : ''}${r.anim ? '<span style="color:var(--green)">✨動畫</span>' : ''}${(r.announce || r.anim) ? '\n' : ''}${crEsc_(poolLines.slice(0, 3).join('\n'))}${poolLines.length > 3 ? `\n…(共${poolLines.length}項)` : ''}</td>
       <td style="font-size:12px">${lim.join('<br>')}</td>
       <td>${stateLabel[r.state] || r.state}</td>
       <td>
@@ -6636,6 +6641,8 @@ function openCraftForm(idx, asCopy) {
   document.getElementById('cr-fail-pool').value = r ? (r.failPoolRaw || '') : '';
   renderGachaPreview('cr-fail-pool', 'cr-fail-pool-preview');
   document.getElementById('cr-fail-msg').value = r ? (r.failMsg || '') : '';
+  document.getElementById('cr-announce').value = r ? (r.announce || '') : '';
+  document.getElementById('cr-anim').checked = !!(r && r.anim);
   document.getElementById('cr-ptotal').value = r && r.personalTotalLimit ? r.personalTotalLimit : '';
   document.getElementById('cr-pdaily').value = r && r.personalDailyLimit ? r.personalDailyLimit : '';
   document.getElementById('cr-global').value = r && r.globalLimit ? r.globalLimit : '';
@@ -6682,6 +6689,8 @@ async function saveCraftRecipe() {
       successRate: document.getElementById('cr-rate').value,
       failPoolRaw: document.getElementById('cr-fail-pool').value.trim(),
       failMsg: document.getElementById('cr-fail-msg').value.trim(),
+      announce: document.getElementById('cr-announce').value,
+      anim: document.getElementById('cr-anim').checked ? 'true' : 'false',
       personalTotalLimit: document.getElementById('cr-ptotal').value,
       personalDailyLimit: document.getElementById('cr-pdaily').value,
       globalLimit: document.getElementById('cr-global').value,
@@ -6700,7 +6709,7 @@ async function saveCraftRecipe() {
 async function toggleCraftEnabled(idx) {
   const r = craftAdmin_.recipes[idx];
   const d = await apiCraftWrite_('adminSaveCraftRecipe', {
-    id: r.id, name: r.name, materials: JSON.stringify(r.materials), poolRaw: r.poolRaw, successRate: r.successRate < 100 ? r.successRate : '', failPoolRaw: r.failPoolRaw || '', failMsg: r.failMsg || '',
+    id: r.id, name: r.name, materials: JSON.stringify(r.materials), poolRaw: r.poolRaw, successRate: r.successRate < 100 ? r.successRate : '', failPoolRaw: r.failPoolRaw || '', failMsg: r.failMsg || '', announce: r.announce || '', anim: r.anim ? 'true' : 'false',
     personalTotalLimit: r.personalTotalLimit, personalDailyLimit: r.personalDailyLimit, globalLimit: r.globalLimit,
     startAt: r.startAt, endAt: r.endAt, note: r.note, enabled: r.enabled ? 'FALSE' : 'TRUE', resetGlobalUsed: 'false',
   });
