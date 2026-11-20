@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.349</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.350</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5058,14 +5058,15 @@ async function questRelease_(uid) {
 async function loadGroupReward() {
   try {
     const d = await grCall_('adminGroupRewardGet');
+    if (!(itemTemplates || []).length) { try { const dt = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' }); if (dt && dt.status === 'success') itemTemplates = dt.templates || []; } catch (e) {} }
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
-    grKinds_ = Object.keys(d.cfg.kinds || {}).map((n) => ({ name: n, enabled: d.cfg.kinds[n].enabled !== false, allowMultiplier: !!d.cfg.kinds[n].allowMultiplier, rewards: (d.cfg.kinds[n].rewards || []).map((r) => ({ currency: r.currency, amount: r.amount, max: r.max == null ? '' : r.max })) }));
+    grKinds_ = Object.keys(d.cfg.kinds || {}).map((n) => ({ name: n, enabled: d.cfg.kinds[n].enabled !== false, allowMultiplier: !!d.cfg.kinds[n].allowMultiplier, rewards: (d.cfg.kinds[n].rewards || []).map((r) => ({ currency: r.currency, item: !!r.item, amount: r.amount, max: r.max == null ? '' : r.max })) }));
     grPeriods_ = (d.cfg.periods || []).map((p) => ({ id: p.id, name: p.name || '', enabled: p.enabled !== false, start: p.start || '', end: p.end || '', kinds: (p.kinds || []).slice(), currency: p.currency || '', mode: p.mode === 'mul' ? 'mul' : 'add', value: p.value, valueMax: p.valueMax == null ? '' : p.valueMax }));
     grRender_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 function grRender_() {
-  const cur = '<datalist id="gr-cur-list">' + (Array.from(document.querySelectorAll('#dc-list option')).map((o) => '<option value="' + grEsc_(o.value) + '">').join('')) + '<option value="幻彩水晶"><option value="可用幻彩水晶"></datalist>';
+  const cur = '<datalist id="gr-cur-list">' + (Array.from(document.querySelectorAll('#dc-list option')).map((o) => '<option value="' + grEsc_(o.value) + '">').join('')) + '<option value="幻彩水晶"><option value="可用幻彩水晶"></datalist><datalist id="gr-item-list">' + (itemTemplates || []).map((t) => '<option value="' + grEsc_(t.name) + '">').join('') + '</datalist>';
   document.getElementById('gr-kinds').innerHTML = cur + (grKinds_.length ? grKinds_.map((k, i) => `
     <div style="border:1px solid var(--border,#40444B);border-radius:8px;padding:10px;margin-bottom:8px">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -5076,13 +5077,14 @@ function grRender_() {
       </div>
       <div style="margin-top:6px">${k.rewards.map((r, j) => `
         <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
-          <input list="gr-cur-list" value="${grEsc_(r.currency)}" placeholder="貨幣名稱" style="width:170px" oninput="grKinds_[${i}].rewards[${j}].currency=this.value;grPreview_()">
+          <select style="width:70px" onchange="grKinds_[${i}].rewards[${j}].item=this.value==='1';grRender_()" title="這項獎勵發貨幣,還是發道具(背包)"><option value="0" ${r.item ? '' : 'selected'}>貨幣</option><option value="1" ${r.item ? 'selected' : ''}>🎁道具</option></select>
+          <input list="${r.item ? 'gr-item-list' : 'gr-cur-list'}" value="${grEsc_(r.currency)}" placeholder="${r.item ? '道具模板名稱' : '貨幣名稱'}" style="width:170px" oninput="grKinds_[${i}].rewards[${j}].currency=this.value;grPreview_()">
           <input type="number" min="0" step="any" value="${r.amount}" style="width:90px" oninput="grKinds_[${i}].rewards[${j}].amount=this.value;grPreview_()" title="固定數量;若右邊填了最大值,這格就是最小值">
           <span class="hint">~</span>
           <input type="number" min="0" step="any" value="${r.max}" placeholder="最大(空=固定)" style="width:110px" oninput="grKinds_[${i}].rewards[${j}].max=this.value;grPreview_()" title="填了就是隨機:每次發放整批骰一次,所有人拿到一樣的數量">
           <button class="btn btn-edit" onclick="grKinds_[${i}].rewards.splice(${j},1);grRender_()">✕</button>
         </div>`).join('')}
-        <button class="btn btn-edit" style="margin-top:6px" onclick="grKinds_[${i}].rewards.push({currency:'幻彩水晶',amount:1});grRender_()">➕ 加一項獎勵</button>
+        <button class="btn btn-edit" style="margin-top:6px" onclick="grKinds_[${i}].rewards.push({currency:'幻彩水晶',amount:1});grRender_()">➕ 加一項獎勵</button> <button class="btn btn-edit" style="margin-top:6px" onclick="grKinds_[${i}].rewards.push({currency:'',item:true,amount:1});grRender_()">🎁 加一項道具</button>
       </div>
     </div>`).join('') : '<div class="hint">還沒有任何事件種類</div>');
   document.getElementById('gr-periods').innerHTML = grPeriods_.length ? grPeriods_.map((p, i) => `
@@ -5147,7 +5149,7 @@ async function grSave_() {
     if (!nm) { toast('有事件沒有填名稱', false); return; }
     if (names[nm]) { toast('事件名稱重複:' + nm, false); return; }
     names[nm] = 1;
-    kinds[nm] = { enabled: k.enabled, allowMultiplier: k.allowMultiplier, rewards: k.rewards.map((r) => { const o = { currency: (r.currency || '').trim(), amount: parseFloat(r.amount) }, mx = parseFloat(r.max); if (isFinite(mx) && mx > o.amount) o.max = mx; return o; }) };
+    kinds[nm] = { enabled: k.enabled, allowMultiplier: k.allowMultiplier, rewards: k.rewards.map((r) => { const o = { currency: (r.currency || '').trim(), amount: parseFloat(r.amount) }, mx = parseFloat(r.max); if (r.item) o.item = true; if (isFinite(mx) && mx > o.amount) o.max = mx; return o; }) };
   }
   const periods = grPeriods_.map((p) => ({ id: p.id, name: (p.name || '').trim(), enabled: p.enabled, start: p.start || '', end: p.end || '', kinds: p.kinds.filter((n) => names[n]), currency: (p.currency || '').trim(), mode: p.mode, value: parseFloat(p.value), valueMax: parseFloat(p.valueMax) }));
   const btn = document.getElementById('gr-save-btn'); btn.disabled = true;
