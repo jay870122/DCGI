@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.341</div>
+    <div class="version-tag">系統版本：v5.4.342</div>
   </div>
 
   <script>
@@ -3890,20 +3890,23 @@
         </details>` : '';
     }
 
-    // 🌟🆕 合成動畫:配方開了「合成動畫」才播(約2秒鎚擊 → 揭曉成功/失敗),結束按「確定」才顯示結果文字
-    function craftAnimate_(data, rc, done) {
-      const succ = data.successCount != null ? data.successCount : 1, fails = data.failCount || 0;
-      const esc_ = (x) => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    // 🌟🆕 合成動畫:配方開了「合成動畫」→ 按下合成(確認後)立刻開始敲;伺服器回應後(至少敲滿約1.5秒)才揭曉成功/失敗,按「確定」才顯示結果
+    function craftAnimStart_() {
       const ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#fff;font-size:18px;text-align:center;padding:20px';
-      ov.innerHTML = '<style>@keyframes craftHammer{0%{transform:rotate(-35deg) translateY(0)}40%{transform:rotate(25deg) translateY(14px)}100%{transform:rotate(-35deg) translateY(0)}}@keyframes craftSpark{0%{opacity:0;transform:scale(.4)}60%{opacity:1}100%{opacity:0;transform:scale(1.6)}}@keyframes craftShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}@keyframes craftPop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}</style>'
+      ov.innerHTML = '<style>@keyframes craftHammer{0%{transform:rotate(-35deg) translateY(0)}40%{transform:rotate(25deg) translateY(14px)}100%{transform:rotate(-35deg) translateY(0)}}@keyframes craftShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}@keyframes craftPop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}</style>'
         + '<div id="craft-anim-icon" style="font-size:72px;animation:craftHammer .5s ease-in-out infinite">🔨</div><div id="craft-anim-text">合成中…</div>';
       document.body.appendChild(ov);
-      let closed = false;
-      function close_() { if (closed) return; closed = true; try { ov.remove(); } catch (e) {} done(); }
+      return { ov, t0: Date.now(), closed: false };
+    }
+    function craftAnimAbort_(h) { if (!h || h.closed) return; h.closed = true; try { h.ov.remove(); } catch (e) {} }
+    function craftAnimReveal_(h, data, done) {
+      const succ = data.successCount != null ? data.successCount : 1, fails = data.failCount || 0;
+      const esc_ = (x) => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      function close_() { if (h.closed) return; h.closed = true; try { h.ov.remove(); } catch (e) {} done(); }
       setTimeout(() => {
-        if (closed) return;
-        const icon = ov.querySelector('#craft-anim-icon'), text = ov.querySelector('#craft-anim-text');
+        if (h.closed) return;
+        const ov = h.ov, icon = ov.querySelector('#craft-anim-icon'), text = ov.querySelector('#craft-anim-text');
         let title, color, emoji, anim;
         if (fails === 0) { title = '合成成功!'; color = '#43B581'; emoji = '✨'; anim = 'craftPop .5s ease-out'; }
         else if (succ === 0) { title = '合成失敗…'; color = '#ED4245'; emoji = '💥'; anim = 'craftShake .5s ease-in-out'; }
@@ -3914,7 +3917,7 @@
           + '<div style="white-space:pre-wrap;font-size:13px;color:#B5BAC1;max-width:360px">' + esc_(String(data.message || '').split('\n').filter(l => l.indexOf('📦 總計獲得') !== 0).join('\n')) + '</div>'
           + '<button id="craft-anim-ok" class="btn-action" style="margin-top:14px;padding:8px 26px;font-size:15px;background-color:' + color + '">確定</button>';
         const okb = ov.querySelector('#craft-anim-ok'); if (okb) okb.onclick = close_;
-      }, 2000);
+      }, Math.max(0, 1500 - (Date.now() - h.t0)));
     }
 
     function craftRecipe_(btnEl, recipeId, scope) {
@@ -3929,11 +3932,13 @@
       generalItemActionInFlight = true;
       document.querySelectorAll('#general-items-container button, #general-items-container input, #craft-section button, #craft-section input, .gi-craft button, .gi-craft input').forEach(el => { el.disabled = true; });
       btnEl.textContent = '⏳ 合成中...';
-      function finishError_(msg) { generalItemActionInFlight = false; loadGeneralItems(true); alert(msg); }
+      let animH_ = rc.anim ? craftAnimStart_() : null; // 配方開了動畫:按下就開始敲
+      function finishError_(msg) { craftAnimAbort_(animH_); generalItemActionInFlight = false; loadGeneralItems(true); alert(msg); }
       function finishSuccess_(data) {
         generalItemActionInFlight = false;
         const after_ = () => { loadGeneralItems(true); fetchScoresAndShop(currentUser.id); };
-        if (rc.anim || data.anim) { craftAnimate_(data, rc, after_); return; }
+        if (!animH_ && data.anim) animH_ = craftAnimStart_();
+        if (animH_) { craftAnimReveal_(animH_, data, after_); return; }
         alert(data.message || `🔨 合成「${rc.name}」成功!`);
         after_();
       }
