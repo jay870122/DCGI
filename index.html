@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.336</div>
+    <div class="version-tag">系統版本：v5.4.337</div>
   </div>
 
   <script>
@@ -5685,7 +5685,7 @@
           + (d.prophetReward ? '<div style="margin-top:8px;background:rgba(240,178,50,.10);border:1px solid rgba(240,178,50,.45);border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.7;color:#DBDEE1">⭐ <b style="color:#F0B232">優異票 = 2 票</b>(支持票 = 1 票)<br>🔮 <b style="color:#F0B232">投票神預測</b>:你的優異票若投給該賽道最後的「冠軍」作品(最高票,併列都算),賽道結算後可獲得 <b style="color:#fff">' + d.prophetReward.exch + ' ' + E(d.prophetReward.names[0]) + ' + ' + d.prophetReward.lottery + ' ' + E(d.prophetReward.names[1]) + '</b>' + '</div>' : '')
           : pub ? '<br>🏆 成績已公布' : t.status === '已截止' ? '<br>' +  '⏹️ 投票已截止,等待公布成績' : '<br>尚未開放投票');
       const wl = pub ? t.works.slice().sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0)) : t.works; // 公布後自己的作品置頂,其他照名次
-      const vbar = open && wl.length ? '<div style="position:sticky;top:-1px;z-index:5;background:#1E1F22;border:1px solid #5865F2;border-radius:10px;padding:7px 12px;margin-bottom:14px;font-size:13px;color:#DBDEE1;box-shadow:0 4px 12px rgba(0,0,0,.5);display:flex;gap:12px;flex-wrap:wrap;justify-content:center">🗳️ 剩餘 <b style="color:#3BA55D">' + Math.max(0, (t.limits.total || t.limits.support) - t.used.support - t.used.excellent) + '</b> 張(已投 ' + (t.used.support + t.used.excellent) + ' / ' + (t.limits.total || t.limits.support) + ')<span>⭐ 優異剩 <b style="color:#F0B232">' + Math.max(0, t.limits.excellent - t.used.excellent) + '</b> 張(' + t.used.excellent + ' / ' + t.limits.excellent + ')</span></div>' : '';
+      const vbar = open && wl.length ? '<div style="position:sticky;top:-1px;z-index:5;background:rgba(30,31,34,.92);border-radius:0 0 8px 8px;padding:2px 10px;margin:0 0 8px;font-size:12px;line-height:1.5;color:#B9BBBE;text-align:center;white-space:nowrap;overflow:hidden">🗳️ 剩 <b style="color:#3BA55D">' + Math.max(0, (t.limits.total || t.limits.support) - t.used.support - t.used.excellent) + '</b> 張 · ⭐ 優異剩 <b style="color:#F0B232">' + Math.max(0, t.limits.excellent - t.used.excellent) + '</b> 張</div>' : '';
       document.getElementById('ct-works').innerHTML = vbar + wl.map((w) => {
         const imgs = [w.url1, w.url2].filter(Boolean).map((u) => '<div class="ct-imgbox"><img class="ct-img" src="' + E(u) + '" referrerpolicy="no-referrer" decoding="async" onerror="ctImgFail_(this)"></div>').join('');
         let btns = '';
