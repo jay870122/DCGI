@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.340</div>
+    <div class="version-tag">系統版本：v5.4.341</div>
   </div>
 
   <script>
@@ -3893,6 +3893,7 @@
     // 🌟🆕 合成動畫:配方開了「合成動畫」才播(約2秒鎚擊 → 揭曉成功/失敗),結束按「確定」才顯示結果文字
     function craftAnimate_(data, rc, done) {
       const succ = data.successCount != null ? data.successCount : 1, fails = data.failCount || 0;
+      const esc_ = (x) => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
       const ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#fff;font-size:18px;text-align:center;padding:20px';
       ov.innerHTML = '<style>@keyframes craftHammer{0%{transform:rotate(-35deg) translateY(0)}40%{transform:rotate(25deg) translateY(14px)}100%{transform:rotate(-35deg) translateY(0)}}@keyframes craftSpark{0%{opacity:0;transform:scale(.4)}60%{opacity:1}100%{opacity:0;transform:scale(1.6)}}@keyframes craftShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}@keyframes craftPop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}</style>'
@@ -3909,7 +3910,8 @@
         else { title = '成功 ' + succ + ' 次、失敗 ' + fails + ' 次'; color = '#F0B232'; emoji = '🎲'; anim = 'craftPop .5s ease-out'; }
         icon.style.animation = anim; icon.textContent = emoji;
         text.innerHTML = '<div style="font-size:26px;font-weight:700;color:' + color + ';margin-bottom:10px">' + title + '</div>'
-          + '<div style="white-space:pre-wrap;font-size:14px;color:#DCDDDE;max-width:360px">' + String(data.message || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</div>'
+          + ((data.totals || []).length ? '<div style="background:#2B2D31;border:1px solid ' + color + ';border-radius:10px;padding:10px 16px;margin:0 auto 10px;max-width:360px"><div style="font-size:13px;color:#B5BAC1;margin-bottom:6px">📦 總計獲得</div>' + data.totals.map(t => '<div style="font-size:17px;font-weight:700;color:#fff">' + esc_(t) + '</div>').join('') + '</div>' : '')
+          + '<div style="white-space:pre-wrap;font-size:13px;color:#B5BAC1;max-width:360px">' + esc_(String(data.message || '').split('\n').filter(l => l.indexOf('📦 總計獲得') !== 0).join('\n')) + '</div>'
           + '<button id="craft-anim-ok" class="btn-action" style="margin-top:14px;padding:8px 26px;font-size:15px;background-color:' + color + '">確定</button>';
         const okb = ov.querySelector('#craft-anim-ok'); if (okb) okb.onclick = close_;
       }, 2000);
