@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.343</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.344</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1439,6 +1439,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div class="field"><label>任務貨幣<span class="hint">放棄任務扣款用(獎勵都在盲盒規則裡設定)</span></label><input id="qc-cur" list="dc-list" placeholder="例:粽子"></div>
             <div class="field"><label>需要幾位玩家檢核</label><input id="qc-need" type="number" min="1" max="10"></div>
             <div class="field"><label>放棄任務扣多少<span class="hint">0=免費放棄</span></label><input id="qc-ab" type="number" min="0" step="0.1"></div>
+            <div class="field"><label>開始時間<span class="hint">台灣時間,到分鐘;留空=不限</span></label><input id="qc-start" type="datetime-local"></div>
+            <div class="field"><label>結束時間<span class="hint">過了就不能再領新任務(進行中的可以做完)</span></label><input id="qc-end" type="datetime-local"></div>
             <div class="field"><label>每人每天最多領幾個<span class="hint">0=不限</span></label><input id="qc-daily" type="number" min="0"></div>
             <div class="field"><label>面板按鈕文字</label><input id="qc-btn"></div>
           </div>
@@ -1469,8 +1471,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div id="qc-check" style="margin-top:8px;font-size:13px;line-height:1.7"></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div class="pk-sec">📊 玩家進度 <button class="btn btn-edit" style="margin-left:10px" onclick="loadQuestStats()">載入</button></div>
-          <div class="hint">「放行」= 取消這位玩家進行中的任務(訊息卡住、玩家刪了訊息時用),取消後玩家可以重新領,不扣款。</div>
+          <div class="pk-sec">📊 玩家進度 <button class="btn btn-edit" style="margin-left:10px" onclick="loadQuestStats()">載入</button> <button class="btn btn-del" style="margin-left:6px" onclick="questResetAll_()">🔄 重置全部玩家進度</button></div>
+          <div class="hint">「放行」= 取消這位玩家進行中的任務(訊息卡住、玩家刪了訊息時用),取消後玩家可以重新領,不扣款。「重置」= 累計完成清零並取消進行中任務(不退款、不收回已發獎勵);有獎勵待補發的玩家會跳過。</div>
           <div id="qc-stats" style="margin-top:8px;overflow:auto"></div>
         </div>
       </div>
@@ -4986,7 +4988,7 @@ async function loadQuestCfg() {
     const d = await grCall_('adminQuestCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const c = d.cfg, g = (i) => document.getElementById(i);
-    g('qc-enabled').checked = !!c.enabled; g('qc-cur').value = c.currency || ''; g('qc-need').value = c.checkNeed; g('qc-ab').value = c.abandonCost; g('qc-daily').value = c.dailyLimit || 0; g('qc-btn').value = c.panelButton || '';
+    g('qc-enabled').checked = !!c.enabled; g('qc-cur').value = c.currency || ''; g('qc-need').value = c.checkNeed; g('qc-ab').value = c.abandonCost; g('qc-daily').value = c.dailyLimit || 0; g('qc-start').value = c.startAt || ''; g('qc-end').value = c.endAt || ''; g('qc-btn').value = c.panelButton || '';
     g('qc-norep').checked = c.noRepeat !== false; g('qc-admulti').checked = c.adminMulti !== false; g('qc-thread').checked = c.thread !== false; g('qc-tname').value = c.threadName || '';
     g('qc-admins').value = (c.adminRoleIds || []).join('\n'); g('qc-ptext').value = c.panelText || ''; g('qc-chkblind').value = c.checkBlind || ''; g('qc-tasks').value = c.tasks || '';
     qcLv_ = JSON.parse(JSON.stringify(c.levels || [])); qcLvRender_(); qcMs_ = JSON.parse(JSON.stringify(c.milestones || [])); qcMsRender_(); qcCheck_(); qcPrevAll_();
@@ -4994,7 +4996,7 @@ async function loadQuestCfg() {
 }
 async function saveQuestCfg() {
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
-  const cfg = { enabled: ck('qc-enabled'), currency: g('qc-cur').trim(), checkNeed: g('qc-need'), abandonCost: g('qc-ab'), dailyLimit: g('qc-daily'), panelButton: g('qc-btn').trim(),
+  const cfg = { enabled: ck('qc-enabled'), currency: g('qc-cur').trim(), checkNeed: g('qc-need'), abandonCost: g('qc-ab'), dailyLimit: g('qc-daily'), startAt: g('qc-start'), endAt: g('qc-end'), panelButton: g('qc-btn').trim(),
     noRepeat: ck('qc-norep'), adminMulti: ck('qc-admulti'), thread: ck('qc-thread'), threadName: g('qc-tname').trim(), adminRoleIds: g('qc-admins'), panelText: g('qc-ptext'), checkBlind: g('qc-chkblind'), tasks: g('qc-tasks'),
     levels: qcLv_.filter((x) => String(x.tag || '').trim()), milestones: qcMs_.filter((x) => String(x.count) !== '' || String(x.blind || '').trim()) };
   const btn = document.getElementById('qc-save-btn'); btn.disabled = true;
@@ -5011,8 +5013,19 @@ async function loadQuestStats() {
     if (!d || d.status !== 'success') { box.innerHTML = ''; toast((d && d.message) || '讀取失敗', false); return; }
     const stMap = { open: '進行中', done: '已完成', abandoned: '已放棄', cancelled: '已取消', '': '' };
     const rows = d.rows || [];
-    box.innerHTML = rows.length ? '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--mu)"><th>玩家</th><th>累計完成</th><th>狀態</th><th>目前任務</th><th>檢核</th><th></th></tr>' + rows.map((r) => { let ch = []; try { ch = JSON.parse(r.checkers || '[]'); } catch (e) {} return `<tr style="border-top:1px solid var(--bd)"><td>${grEsc_(r.nick || '')}<div class="hint">${grEsc_(r.uid)}</div></td><td>${r.done}</td><td>${stMap[r.status] || grEsc_(r.status)}${r.pending ? ' <span style="color:var(--red)">⏳獎勵待補發</span>' : ''}</td><td style="max-width:320px">${grEsc_(String(r.shown || '').slice(0, 80))}</td><td>${ch.length}</td><td>${r.status === 'open' ? `<button class="btn btn-edit" onclick="questRelease_('${grEsc_(r.uid)}')">放行</button>` : ''}</td></tr>`; }).join('') + '</table>' : '<div class="hint">還沒有任何玩家領過任務</div>';
+    box.innerHTML = rows.length ? '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--mu)"><th>玩家</th><th>累計完成</th><th>狀態</th><th>目前任務</th><th>檢核</th><th></th></tr>' + rows.map((r) => { let ch = []; try { ch = JSON.parse(r.checkers || '[]'); } catch (e) {} return `<tr style="border-top:1px solid var(--bd)"><td>${grEsc_(r.nick || '')}<div class="hint">${grEsc_(r.uid)}</div></td><td>${r.done}</td><td>${stMap[r.status] || grEsc_(r.status)}${r.pending ? ' <span style="color:var(--red)">⏳獎勵待補發</span>' : ''}</td><td style="max-width:320px">${grEsc_(String(r.shown || '').slice(0, 80))}</td><td>${ch.length}</td><td>${r.status === 'open' ? `<button class="btn btn-edit" onclick="questRelease_('${grEsc_(r.uid)}')">放行</button> ` : ''}<button class="btn btn-del" onclick="questResetOne_('${grEsc_(r.uid)}')">重置</button></td></tr>`; }).join('') + '</table>' : '<div class="hint">還沒有任何玩家領過任務</div>';
   } catch (e) { box.innerHTML = ''; toast('讀取失敗:' + (e && e.message || e), false); }
+}
+async function questResetOne_(uid) {
+  if (!confirm('重置這位玩家?累計完成歸零、進行中任務取消、今日領取次數歸零。(不退款、不收回已發的獎勵)')) return;
+  const d = await grCall_('adminQuestResetOne', { uid });
+  if (d && d.status === 'success') { toast(d.skipped ? '有獎勵待補發,已跳過(稍後再試)' : '已重置'); loadQuestStats(); } else toast((d && d.message) || '失敗', false);
+}
+async function questResetAll_() {
+  if (!confirm('⚠️ 重置「全部玩家」的互檢任務進度?\n累計完成全部歸零、進行中任務全部取消、今日領取次數歸零。\n不退款、不收回已發的獎勵,無法復原。')) return;
+  if (!confirm('再確認一次:真的要全部重置?')) return;
+  const d = await grCall_('adminQuestResetAll', {});
+  if (d && d.status === 'success') { toast('已重置 ' + d.changed + ' 位玩家' + (d.skipped ? '(' + d.skipped + ' 位有獎勵待補發,已跳過)' : '')); loadQuestStats(); } else toast((d && d.message) || '失敗', false);
 }
 async function questRelease_(uid) {
   if (!confirm('取消這位玩家進行中的任務?(不扣款,玩家可重新領)')) return;
