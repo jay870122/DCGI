@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.349</div>
+    <div class="version-tag">系統版本：v5.4.350</div>
   </div>
 
   <script>
@@ -3856,9 +3856,67 @@
             .catch(() => { if (craftRecipes_ === null) craftRecipes_ = []; renderCraftUi_(); });
         });
     }
-    function craftCanDo_(rc) {
+    // 🌟🆕 加成區:玩家每區自己挑背包道具,選到的每個道具加成功率;狀態存在 craftPick_[scope|配方ID] = {'區序|道具名': 個數}
+    const craftPick_ = {};
+    function craftZoneState_(rc, key) {
+      const pk = craftPick_[key] || {};
+      const zs = (rc.zones || []).map((z, zi) => {
+        let tot = 0, boost = 0;
+        z.items.forEach(it => { const c = pk[zi + '|' + it.n] || 0; tot += c; boost += c * it.b; });
+        return { tot, boost, ok: tot >= z.min && tot <= z.max };
+      });
+      const boost = zs.reduce((a, z) => a + z.boost, 0);
+      const base = rc.successRate != null ? rc.successRate : 100;
+      return { zs, boost, rate: Math.min(100, Math.round((base + boost) * 100) / 100), ok: zs.every(z => z.ok) };
+    }
+    function craftZonePick_(scope, rid, zi, ii, delta) {
+      const key = scope + '|' + rid;
+      const rc = (craftRecipes_ || []).find(r => r.id === rid);
+      if (!rc || !rc.zones || !rc.zones[zi]) return;
+      const z = rc.zones[zi], it = z.items[ii];
+      if (!it) return;
+      const pk = craftPick_[key] || (craftPick_[key] = {});
+      const k = zi + '|' + it.n;
+      const cur = pk[k] || 0;
+      let nxt = cur + delta;
+      const st = craftZoneState_(rc, key);
+      // 同一種道具跨區加總不能超過背包持有量
+      let usedAll = 0; Object.keys(pk).forEach(kk => { if (kk.split('|').slice(1).join('|') === it.n) usedAll += pk[kk]; });
+      if (delta > 0) {
+        if (!z.rep && nxt > 1) return;
+        if (st.zs[zi].tot >= z.max) return;
+        if (usedAll >= it.have) return;
+      }
+      if (nxt < 0) nxt = 0;
+      if (nxt === 0) delete pk[k]; else pk[k] = nxt;
+      const el = document.getElementById(`craft-box-${scope}-${rid}`);
+      if (el) { const tmp = document.createElement('div'); tmp.innerHTML = craftRecipeHtml_(rc, scope).trim(); const nn = tmp.firstElementChild; const wasOpen = Array.from(el.querySelectorAll('details')).map(d => d.open); el.replaceWith(nn); nn.querySelectorAll('details').forEach((d, i) => { if (wasOpen[i]) d.open = true; }); }
+    }
+    function craftZonePickJson_(rc, key) {
+      const pk = craftPick_[key] || {}; const out = [];
+      (rc.zones || []).forEach((z, zi) => z.items.forEach(it => { const c = pk[zi + '|' + it.n] || 0; if (c > 0) out.push({ z: zi, n: it.n, c }); }));
+      return out;
+    }
+    function craftZonesHtml_(rc, scope) {
+      if (!rc.zones || !rc.zones.length) return '';
+      const key = scope + '|' + rc.id, pk = craftPick_[key] || {}, st = craftZoneState_(rc, key);
+      const rid = JSON.stringify(rc.id).replace(/"/g, '&quot;');
+      return `<div style="margin-top:6px;border-top:1px dashed #40444B;padding-top:6px">` + rc.zones.map((z, zi) => {
+        const need = z.min > 0 ? `必選 ${z.max} 個` : `可選最多 ${z.max} 個`;
+        const zs = st.zs[zi];
+        return `<div style="margin-bottom:6px"><div style="font-size:12px;color:${zs.ok ? '#9CE5B4' : '#F5A3A3'}">🧪 ${craftEsc_(z.n)} 區:${need}${z.rep ? '(可重複)' : '(不可重複)'} ｜ 已選 ${zs.tot}${zs.boost > 0 ? ` ｜ +${Math.round(zs.boost * 100) / 100}%` : ''}</div>`
+          + z.items.map((it, ii) => {
+            const c = pk[zi + '|' + it.n] || 0;
+            return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0"><span style="flex:1">📦 ${craftEsc_(it.n)} <span style="color:#F0B232">+${it.b}%</span> <span style="color:#B9BBBE">(有 ${it.have})</span></span>`
+              + `<button class="btn-action" style="padding:1px 8px;background:#4F545C" onclick="craftZonePick_('${scope}',${rid},${zi},${ii},-1)" ${c > 0 ? '' : 'disabled'}>−</button><b style="min-width:18px;text-align:center">${c}</b>`
+              + `<button class="btn-action" style="padding:1px 8px;background:#4F545C" onclick="craftZonePick_('${scope}',${rid},${zi},${ii},1)" ${it.have > 0 ? '' : 'disabled'}>＋</button></div>`;
+          }).join('') + `</div>`;
+      }).join('') + `<div style="font-size:12px;color:#B9BBBE">選到的道具合成後<b>不論成敗都會消耗</b></div></div>`;
+    }
+    function craftCanDo_(rc, key) {
       if (rc.status !== 'open') return false;
       if (rc.personalLeft === 0 || rc.dailyLeft === 0 || rc.globalLeft === 0) return false;
+      if (rc.zones && rc.zones.length && !craftZoneState_(rc, key).ok) return false;
       return rc.materials.every(m => m.have >= m.q);
     }
     function craftRecipeHtml_(rc, scope) {
@@ -3875,21 +3933,25 @@
       if (rc.endAt) limits.push(`⏰ ${fmt(rc.endAt)} 結束`);
       const statusNote = rc.status === 'upcoming' ? `<span style="color:#F0B232;font-size:12px">🕒 ${fmt(rc.startAt)} 開放</span>`
         : rc.status === 'soldout' ? `<span style="color:#ED4245;font-size:12px">全服次數已用完</span>` : '';
-      const can = craftCanDo_(rc);
+      const zkey = scope + '|' + rc.id;
+      const hasZones = !!(rc.zones && rc.zones.length);
+      const zst = hasZones ? craftZoneState_(rc, zkey) : null;
+      const can = craftCanDo_(rc, zkey);
       const qtyId = `craft-qty-${scope}-${rc.id}`;
-      const rateTag = rc.successRate != null && rc.successRate < 100 ? `<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;font-size:12px;background:#4A3F1E;color:#F0B232">🎲 成功率 ${Math.round(rc.successRate * 100) / 100}%</span>` : '';
+      const rateTag = (hasZones ? zst.rate < 100 || rc.successRate < 100 : rc.successRate != null && rc.successRate < 100) ? `<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;font-size:12px;background:#4A3F1E;color:#F0B232">🎲 成功率 ${hasZones ? zst.rate : Math.round(rc.successRate * 100) / 100}%${hasZones && zst.boost > 0 ? ` (基本 ${Math.round(rc.successRate * 100) / 100}% + 加成 ${Math.round(zst.boost * 100) / 100}%)` : ''}</span>` : '';
       const failBox = rc.successRate != null && rc.successRate < 100 && rc.failPool && rc.failPool.length ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:#B9BBBE;font-size:12px">💥 失敗時的安慰獎勵</summary>${buildGachaContentBoxHtml_(rc.failPool, '💥 失敗獎勵：')}</details>` : '';
       const poolBox = rc.pool && rc.pool.length ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:#7289DA;font-size:12px">🎁 查看合成獎勵(共${rc.pool.length}項)</summary>${buildGachaContentBoxHtml_(rc.pool, '🎁 合成獎勵：')}</details>` : '';
       return `
-        <div style="background:#202225;border-radius:8px;padding:8px 10px;margin-top:6px">
+        <div id="craft-box-${scope}-${rc.id}" style="background:#202225;border-radius:8px;padding:8px 10px;margin-top:6px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
             <b>🔨 ${craftEsc_(rc.name)}</b>${rateTag}
             <span style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="${qtyId}" min="1" max="20" value="1" style="width:54px;padding:3px;text-align:center">
+              <input type="number" id="${qtyId}" min="1" max="20" value="1" style="width:54px;padding:3px;text-align:center${hasZones ? ';display:none' : ''}">
               <button class="btn-action" style="padding:4px 12px;font-size:12px;background-color:${can ? '#F0B232' : '#4F545C'};color:${can ? '#1E1F22' : '#B9BBBE'}" ${can ? '' : 'disabled'} onclick="craftRecipe_(this, '${rc.id}', '${scope}')">合成</button>
             </span>
           </div>
           <div style="margin-top:4px">${mats}</div>
+          ${craftZonesHtml_(rc, scope)}
           ${statusNote}
           ${limits.length ? `<div style="font-size:11px;color:#B9BBBE;margin-top:2px">${limits.join(' ｜ ')}</div>` : ''}
           ${rc.note ? `<div style="font-size:12px;color:#B9BBBE;margin-top:2px">📝 ${craftEsc_(rc.note)}</div>` : ''}
@@ -3948,9 +4010,13 @@
       if (generalItemActionInFlight) return;
       const rc = (craftRecipes_ || []).find(r => r.id === recipeId);
       if (!rc) return;
-      const times = parseInt((document.getElementById(`craft-qty-${scope}-${recipeId}`) || {}).value, 10) || 1;
+      const hasZones_ = !!(rc.zones && rc.zones.length);
+      const zkey_ = scope + '|' + recipeId;
+      if (hasZones_ && !craftZoneState_(rc, zkey_).ok) { alert('加成區的選擇數量還不符合規定'); return; }
+      const zonePick_ = hasZones_ ? craftZonePickJson_(rc, zkey_) : [];
+      const times = hasZones_ ? 1 : (parseInt((document.getElementById(`craft-qty-${scope}-${recipeId}`) || {}).value, 10) || 1);
       if (times < 1 || times > 20) { alert('合成次數請填 1~20'); return; }
-      const costText = rc.materials.map(m => `${m.d} x${m.q * times}`).join('、');
+      const costText = rc.materials.map(m => `${m.d} x${m.q * times}`).concat(zonePick_.map(pp => `加成:${pp.n} x${pp.c}`)).join('、');
       if (!confirm(`確定要合成「${rc.name}」x${times} 嗎？\n\n將消耗：${costText}${rc.successRate != null && rc.successRate < 100 ? `\n\n⚠️ 成功率 ${Math.round(rc.successRate * 100) / 100}%,失敗時${rc.materials.some(m => m.r) ? '標示「失敗退還」的材料不會被扣,其餘' : ''}材料照扣` : ''}\n\n合成後會立刻隨機抽取獎勵,無法反悔。`)) return;
 
       generalItemActionInFlight = true;
@@ -3968,6 +4034,7 @@
       }
       // GAS備援路線(Worker回unsupported時才走)
       function craftViaGas_() {
+        if (hasZones_) { finishError_('❌ 這個配方有加成區,暫時無法用備援路線合成,請稍後再試'); return; }
         let settled = false, gasDone = false, pollDone = false;
         const requestStartMs = Date.now();
         function checkBothGaveUp_() {
@@ -3990,10 +4057,10 @@
         });
       }
       // Worker優先:明確成功/失敗直接採用;unsupported才退回GAS;網路逾時結果不確定,不重送(避免重複扣材料)
-      fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=craftItemWorker&discordId=${currentUser.id}&recipeId=${encodeURIComponent(recipeId)}&times=${times}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + times * 500)
+      fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?action=craftItemWorker&discordId=${currentUser.id}&recipeId=${encodeURIComponent(recipeId)}&times=${times}${hasZones_ ? '&zonePick=' + encodeURIComponent(JSON.stringify(zonePick_)) : ''}&accessToken=${encodeURIComponent(getAccessToken())}`, BINGO_ITEM_USE_TIMEOUT_MS + times * 500)
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'success') finishSuccess_(data);
+          if (data.status === 'success') { delete craftPick_[zkey_]; finishSuccess_(data); }
           else if (data.status === 'unsupported') craftViaGas_();
           else finishError_('❌ ' + data.message);
         })
