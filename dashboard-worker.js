@@ -9158,11 +9158,14 @@ function parseCraftZonesWorker_(raw) {
       const n = ((it && it.n) || '').toString().trim();
       const b = parseFloat(it && it.b);
       if (!n) return;
-      items.push({ n, b: isNaN(b) || b < 0 ? 0 : Math.round(b * 100) / 100, r: !!it && (it.r === true || it.r === 'true' || it.r === 1), k: !!it && (it.k === true || it.k === 'true' || it.k === 1) }); // r=失敗時不消耗;k=成功失敗都不消耗(返還)
+      const isCur = !!it && it.t === 'cur';
+      const mx = parseInt(it && it.max, 10);
+      items.push({ t: isCur ? 'cur' : 'item', d: isCur ? ((it.d || '').toString() || n) : '', max: isCur && mx > 0 ? mx : 0, n, b: isNaN(b) || b < 0 ? 0 : Math.round(b * 10000) / 10000, r: !!it && (it.r === true || it.r === 'true' || it.r === 1), k: !!it && (it.k === true || it.k === 'true' || it.k === 1) }); // r=失敗時不消耗;k=成功失敗都不消耗(返還)
     });
     if (!items.length) return;
     let max = parseInt(z.max, 10); if (isNaN(max) || max < 1) max = 1;
     let min = parseInt(z.min, 10); if (isNaN(min) || min < 0) min = 0; if (min > max) min = max;
+    if (!items.some((x) => x.t !== 'cur')) min = 0; // 只有貨幣的區沒有「必選個數」
     out.push({ n: ((z.n || '').toString().trim() || String.fromCharCode(65 + (zi % 26))), min, max, rep: z.rep === true || z.rep === 'true' || z.rep === 1, items });
   });
   return out;
@@ -9282,7 +9285,7 @@ async function doGetCraftRecipes_(env, discordId, forceFresh) {
     });
     list.push({
       id: rc.id, name: rc.name, note: rc.note, status: st, materials: mats, pool, successRate: rc.successRate, anim: rc.anim,
-      zones: rc.zones.map((z) => ({ n: z.n, min: z.min, max: z.max, rep: z.rep, items: z.items.map((it) => ({ n: it.n, b: it.b, r: !!it.r, k: !!it.k, have: getCraftableInstancesByNameWorker_(backpackRows, discordId, it.n).length })) })),
+      zones: rc.zones.map((z) => ({ n: z.n, min: z.min, max: z.max, rep: z.rep, items: z.items.map((it) => it.t === 'cur' ? { t: 'cur', n: it.n, d: it.d || it.n, b: it.b, r: !!it.r, k: !!it.k, max: it.max || 0, have: (() => { const ci = headers.indexOf(it.n); return ci === -1 || !playerRowVals ? 0 : Math.floor((parseFloat(playerRowVals[ci]) || 0) * 100) / 100; })() } : { n: it.n, b: it.b, r: !!it.r, k: !!it.k, have: getCraftableInstancesByNameWorker_(backpackRows, discordId, it.n).length }) })),
       failPool: rc.failPoolRaw ? parseGachaRules(rc.failPoolRaw).map((pp) => { const hid = parseHiddenNameTag_(pp.dispName); return Object.assign({}, pp, { dispName: hid ? hid.beforeName : pp.dispName }); }) : [],
       personalTotalLimit: rc.personalTotalLimit, personalLeft: rc.personalTotalLimit > 0 ? Math.max(0, rc.personalTotalLimit - counts.total) : null,
       personalDailyLimit: rc.personalDailyLimit, dailyLeft: rc.personalDailyLimit > 0 ? Math.max(0, rc.personalDailyLimit - counts.today) : null,
@@ -9409,6 +9412,7 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
 
     // 🌟🆕 加成區:驗證玩家挑的道具、預留實例、算加成後成功率(選到的道具不論成敗都會消耗)
     const zonePlan = []; // {n, rows, ids}
+    const zoneCur = []; // 加成區放的貨幣 {internal,display,c,colIdx,consFail,consSucc}
     let effRate = rc.successRate, boostPct = 0;
     if (rc.zones && rc.zones.length) {
       if (times > 1) return { status: 'error', safeNoWrite: true, message: '這個配方有加成區,一次只能合成 1 次' };
@@ -9421,8 +9425,18 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
         const zi = parseInt(pk && pk.z, 10), c = parseInt(pk && pk.c, 10);
         const nm = ((pk && pk.n) || '').toString();
         if (isNaN(zi) || zi < 0 || zi >= rc.zones.length || isNaN(c) || c < 1) return { status: 'error', safeNoWrite: true, message: '加成區選擇格式有誤,請重新整理後再試' };
-        const z = rc.zones[zi], it = z.items.find((x) => x.n === nm);
+        const z = rc.zones[zi], isCurPk = pk.t === 'cur', it = z.items.find((x) => x.n === nm && (x.t === 'cur') === isCurPk);
         if (!it) return { status: 'error', safeNoWrite: true, message: '「' + nm + '」不在 ' + z.n + ' 區的可選名單內' };
+        if (isCurPk) {
+          if (it.max > 0 && c > it.max) return { status: 'error', safeNoWrite: true, message: z.n + ' 區的「' + (it.d || nm) + '」最多只能放 ' + it.max };
+          const ci = playerHeaders.indexOf(nm);
+          if (ci === -1) return { status: 'error', safeNoWrite: true, message: '配方設定有誤:找不到貨幣欄位「' + nm + '」,請聯絡管理員' };
+          const used = currencyCosts.filter((cc) => cc.colIdx === ci).reduce((a, cc) => a + cc.amount, 0) + zoneCur.filter((q) => q.colIdx === ci).reduce((a, q) => a + q.c, 0);
+          if ((parseFloat(playerRowValues[ci]) || 0) - used < c) return { status: 'error', safeNoWrite: true, message: '加成貨幣不足:「' + (it.d || nm) + '」需要' + c + ',你目前只有' + ((parseFloat(playerRowValues[ci]) || 0) - used) };
+          zoneCur.push({ internal: nm, display: it.d || nm, c, colIdx: ci, consFail: (it.r || it.k) ? 0 : c, consSucc: it.k ? 0 : c });
+          boostPct += it.b * c;
+          continue;
+        }
         zSeen[zi][nm] = (zSeen[zi][nm] || 0) + c;
         if (!z.rep && zSeen[zi][nm] > 1) return { status: 'error', safeNoWrite: true, message: z.n + ' 區的「' + nm + '」不可重複放入' };
         zTot[zi] += c;
@@ -9496,6 +9510,12 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
       zp.rows.slice(0, zq).forEach((ri) => consumedRowIdxs.push(ri));
       zp.ids.slice(0, zq).forEach((id) => { if (id) consumedInstIds_.push(id); });
       actualMat.push({ mat: { n: zp.n, d: '加成:' + zp.n, q: zp.c, r: false }, qty: zq, refunded: zq < zp.c });
+    });
+
+    zoneCur.forEach((q) => {
+      const qq = fails > 0 ? q.consFail : q.consSucc;
+      if (qq > 0) currencyCosts.push({ internal: q.internal, display: q.display, amount: qq, colIdx: q.colIdx });
+      actualMat.push({ mat: { n: q.internal, d: '加成:' + q.display, q: q.c, r: false }, qty: qq, refunded: qq < q.c });
     });
 
     // 扣貨幣(記憶體)→ 發獎勵

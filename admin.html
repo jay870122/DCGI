@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.368</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.369</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2660,7 +2660,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           　・<b>必選 X 個</b>:這區一定要放滿 X 個才能合成;<b>可選最多 X 個</b>:可以不放,最多放 X 個<br>
           　・<b>可重複</b>:勾了=同一種道具可以放多個(要有那麼多個);沒勾=每種道具最多放 1 個<br>
           　・<b>加成%</b>:每放一個這種道具,成功率增加這麼多(例如基本 50%,放 2 個加成 10% 的道具 → 70%)<br>
-          　・每個道具可選:<b>一律消耗</b>(預設)/<b>失敗不消耗</b>(成功才扣)/<b>成功失敗都不消耗</b>(只當催化劑,用完還在,成功也返還)<br>
+          　・<b>＋ 貨幣</b>:這區也可以放貨幣(例如幻彩水晶),玩家自己填要放多少,<b>每放 1 個加 N%</b>(可填小數如 0.1),可設「最多放幾個」;貨幣不算進這區的「必選/最多 X 個」道具數量,只有貨幣的區等於全部可選<br>
+          　・每個道具/貨幣可選:<b>一律消耗</b>(預設)/<b>失敗不消耗</b>(成功才扣)/<b>成功失敗都不消耗</b>(只當催化劑,用完還在,成功也返還)<br>
           　・要讓加成有意義,上面「合成成功率」要設成小於 100%<br>
           　・同一種道具名稱也可以出現在不同區(各區各自計算,但背包裡要有足夠的個數)
         </details>
@@ -6660,7 +6661,7 @@ function renderCraftAdmin() {
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">目前沒有任何合成配方</td></tr>'; return; }
   const stateLabel = { open: '🟢 開放中', upcoming: '🕒 尚未開始', ended: '⏹️ 已結束', soldout: '🈵 全服已用完', disabled: '⏸️ 已停用' };
   tbody.innerHTML = list.map((r, idx) => {
-    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}${m.r ? ' <span class="hint">(失敗退還)</span>' : ''}`).join('<br>') + (r.zones && r.zones.length ? '<br>' + r.zones.map(z => `<span class="hint">🧪${crEsc_(z.n)}區 ${z.min > 0 ? '必選' : '可選≤'}${z.max}個${z.rep ? '(可重複)' : ''}:${z.items.map(i => crEsc_(i.n) + '+' + i.b + '%' + (i.k ? '(都不消耗)' : i.r ? '(失敗不消耗)' : '')).join('、')}</span>`).join('<br>') : '');
+    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}${m.r ? ' <span class="hint">(失敗退還)</span>' : ''}`).join('<br>') + (r.zones && r.zones.length ? '<br>' + r.zones.map(z => `<span class="hint">🧪${crEsc_(z.n)}區 ${z.min > 0 ? '必選' : '可選≤'}${z.max}個${z.rep ? '(可重複)' : ''}:${z.items.map(i => (i.t === 'cur' ? '💰' + crEsc_(i.d || i.n) + '每個+' + i.b + '%' + (i.max ? '(最多' + i.max + ')' : '') : crEsc_(i.n) + '+' + i.b + '%') + (i.k ? '(都不消耗)' : i.r ? '(失敗不消耗)' : '')).join('、')}</span>`).join('<br>') : '');
     const poolLines = (r.poolRaw || '').split('\n').map(l => l.trim()).filter(Boolean);
     const lim = [];
     if (r.personalTotalLimit) lim.push(`個人${r.personalTotalLimit}次`);
@@ -6747,13 +6748,24 @@ function addCraftZone(z) {
       <button type="button" class="btn btn-del" style="margin-left:auto" onclick="this.closest('.cr-zone').remove()">✕ 刪除這區</button>
     </div>
     <div class="cr-z-items" style="margin-top:6px"></div>
-    <button type="button" class="btn btn-edit" style="margin-top:4px" onclick="addCraftZoneItem(this.closest('.cr-zone'))">＋ 道具</button>`;
+    <button type="button" class="btn btn-edit" style="margin-top:4px" onclick="addCraftZoneItem(this.closest('.cr-zone'))">＋ 道具</button> <button type="button" class="btn btn-edit" style="margin-top:4px" onclick="addCraftZoneItem(this.closest('.cr-zone'), {t:'cur'})">＋ 貨幣</button>`;
   wrap.appendChild(box);
   if (z && z.items.length) z.items.forEach(it => addCraftZoneItem(box, it)); else addCraftZoneItem(box);
 }
 function addCraftZoneItem(box, it) {
   const row = document.createElement('div');
   row.className = 'cr-z-item';
+  if (it && it.t === 'cur') {
+    row.dataset.type = 'cur';
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+    row.innerHTML = `<select class="cr-z-iname" style="flex:1 1 100%;min-width:0">${craftAdmin_.currencyFields.map(f => `<option value="${crEsc_(f.internal)}" data-display="${crEsc_(f.display)}"${it.n === f.internal ? ' selected' : ''}>💰 ${crEsc_(f.display)}</option>`).join('')}</select>
+      <span style="font-size:12px;white-space:nowrap">每放 1 個 成功率 +</span><input class="cr-z-ib" type="number" min="0" step="0.01" style="width:76px" value="${it.b != null ? it.b : 0}"><span style="font-size:12px">%</span>
+      <span style="font-size:12px;white-space:nowrap">最多放</span><input class="cr-z-imax" type="number" min="0" style="width:76px" placeholder="不限" value="${it.max ? it.max : ''}">
+      <select class="cr-z-ir" style="font-size:12px;flex:1 1 auto;min-width:0;width:auto" title="這個貨幣合成後怎麼處理"><option value="">一律消耗</option><option value="f"${it.r && !it.k ? ' selected' : ''}>失敗不消耗</option><option value="a"${it.k ? ' selected' : ''}>成功失敗都不消耗</option></select>
+      <button type="button" class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
+    box.querySelector('.cr-z-items').appendChild(row);
+    return;
+  }
   row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
   row.innerHTML = `<input class="cr-z-iname" list="cr-item-names" style="flex:1 1 100%;min-width:0" placeholder="道具顯示名稱" value="${crEsc_(it ? it.n : '')}">
     <span style="font-size:12px;white-space:nowrap">成功率 +</span><input class="cr-z-ib" type="number" min="0" step="0.1" style="width:76px" value="${it ? it.b : 0}"><span style="font-size:12px">%</span>
@@ -6768,12 +6780,21 @@ function collectCraftZones_() {
     const req = box.querySelector('.cr-z-mode').value === 'req';
     const items = [];
     box.querySelectorAll('.cr-z-item').forEach(r => {
+      if (r.dataset.type === 'cur') {
+        const sel = r.querySelector('.cr-z-iname'); const cn = (sel.value || '').trim(); const cb = parseFloat(r.querySelector('.cr-z-ib').value);
+        if (!cn) return;
+        const ci = { t: 'cur', n: cn, d: sel.selectedOptions[0] ? sel.selectedOptions[0].dataset.display : cn, b: isNaN(cb) || cb < 0 ? 0 : cb };
+        const cmax = parseInt(r.querySelector('.cr-z-imax').value, 10); if (cmax > 0) ci.max = cmax;
+        const cmv = r.querySelector('.cr-z-ir').value; if (cmv === 'f') ci.r = true; else if (cmv === 'a') ci.k = true;
+        items.push(ci);
+        return;
+      }
       const n = (r.querySelector('.cr-z-iname').value || '').trim();
       const b = parseFloat(r.querySelector('.cr-z-ib').value);
       if (n) { const it = { n, b: isNaN(b) || b < 0 ? 0 : b }; const mv = r.querySelector('.cr-z-ir').value; if (mv === 'f') it.r = true; else if (mv === 'a') it.k = true; items.push(it); }
     });
     if (!items.length) return;
-    out.push({ n: (box.querySelector('.cr-z-name').value || '').trim() || String.fromCharCode(65 + (out.length % 26)), min: req ? num : 0, max: num, rep: box.querySelector('.cr-z-rep').checked, items });
+    out.push({ n: (box.querySelector('.cr-z-name').value || '').trim() || String.fromCharCode(65 + (out.length % 26)), min: (req && items.some(x => x.t !== 'cur')) ? num : 0, max: num, rep: box.querySelector('.cr-z-rep').checked, items });
   });
   return out;
 }

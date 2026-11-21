@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.353</div>
+    <div class="version-tag">系統版本：v5.4.354</div>
   </div>
 
   <script>
@@ -3862,7 +3862,7 @@
       const pk = craftPick_[key] || {};
       const zs = (rc.zones || []).map((z, zi) => {
         let tot = 0, boost = 0;
-        z.items.forEach(it => { const c = pk[zi + '|' + it.n] || 0; tot += c; boost += c * it.b; });
+        z.items.forEach(it => { const cur = it.t === 'cur'; const c = pk[zi + '|' + (cur ? '$' : '') + it.n] || 0; if (!cur) tot += c; boost += c * it.b; });
         return { tot, boost, ok: tot >= z.min && tot <= z.max };
       });
       const boost = zs.reduce((a, z) => a + z.boost, 0);
@@ -3874,14 +3874,14 @@
       const rc = (craftRecipes_ || []).find(r => r.id === rid);
       if (!rc || !rc.zones || !rc.zones[zi]) return;
       const z = rc.zones[zi], it = z.items[ii];
-      if (!it) return;
+      if (!it || it.t === 'cur') return;
       const pk = craftPick_[key] || (craftPick_[key] = {});
       const k = zi + '|' + it.n;
       const cur = pk[k] || 0;
       let nxt = cur + delta;
       const st = craftZoneState_(rc, key);
       // 同一種道具跨區加總不能超過背包持有量
-      let usedAll = 0; Object.keys(pk).forEach(kk => { if (kk.split('|').slice(1).join('|') === it.n) usedAll += pk[kk]; });
+      let usedAll = 0; Object.keys(pk).forEach(kk => { if (kk.split('|').slice(1).join('|') === it.n) usedAll += pk[kk]; }); // 貨幣的 key 以 $ 開頭,不會誤算
       if (delta > 0) {
         if (!z.rep && nxt > 1) return;
         if (st.zs[zi].tot >= z.max) return;
@@ -3892,9 +3892,24 @@
       const el = document.getElementById(`craft-box-${scope}-${rid}`);
       if (el) { const tmp = document.createElement('div'); tmp.innerHTML = craftRecipeHtml_(rc, scope).trim(); const nn = tmp.firstElementChild; const wasOpen = Array.from(el.querySelectorAll('details')).map(d => d.open); el.replaceWith(nn); nn.querySelectorAll('details').forEach((d, i) => { if (wasOpen[i]) d.open = true; }); }
     }
+    function craftZoneCur_(scope, rid, zi, ii, val) {
+      const key = scope + '|' + rid;
+      const rc = (craftRecipes_ || []).find(r => r.id === rid);
+      if (!rc || !rc.zones || !rc.zones[zi]) return;
+      const it = rc.zones[zi].items[ii];
+      if (!it || it.t !== 'cur') return;
+      let n = Math.floor(parseFloat(val) || 0);
+      const lim = Math.floor(Math.min(it.have, it.max > 0 ? it.max : Infinity));
+      if (n < 0) n = 0; if (n > lim) n = lim;
+      const pk = craftPick_[key] || (craftPick_[key] = {});
+      const k = zi + '|$' + it.n;
+      if (n === 0) delete pk[k]; else pk[k] = n;
+      const el = document.getElementById(`craft-box-${scope}-${rid}`);
+      if (el) { const tmp = document.createElement('div'); tmp.innerHTML = craftRecipeHtml_(rc, scope).trim(); const nn = tmp.firstElementChild; const wasOpen = Array.from(el.querySelectorAll('details')).map(d => d.open); el.replaceWith(nn); nn.querySelectorAll('details').forEach((d, i) => { if (wasOpen[i]) d.open = true; }); }
+    }
     function craftZonePickJson_(rc, key) {
       const pk = craftPick_[key] || {}; const out = [];
-      (rc.zones || []).forEach((z, zi) => z.items.forEach(it => { const c = pk[zi + '|' + it.n] || 0; if (c > 0) out.push({ z: zi, n: it.n, c }); }));
+      (rc.zones || []).forEach((z, zi) => z.items.forEach(it => { const cur = it.t === 'cur'; const c = pk[zi + '|' + (cur ? '$' : '') + it.n] || 0; if (c > 0) out.push(cur ? { z: zi, n: it.n, c, t: 'cur' } : { z: zi, n: it.n, c }); }));
       return out;
     }
     function craftZonesHtml_(rc, scope) {
@@ -3902,10 +3917,17 @@
       const key = scope + '|' + rc.id, pk = craftPick_[key] || {}, st = craftZoneState_(rc, key);
       const rid = JSON.stringify(rc.id).replace(/"/g, '&quot;');
       return `<div style="margin-top:6px;border-top:1px dashed #40444B;padding-top:6px">` + rc.zones.map((z, zi) => {
-        const need = z.min > 0 ? `必選 ${z.max} 個` : `可選最多 ${z.max} 個`;
+        const onlyCur = !z.items.some(i => i.t !== 'cur');
+        const need = onlyCur ? '放入貨幣(自由填)' : (z.min > 0 ? `必選 ${z.max} 個` : `可選最多 ${z.max} 個`);
         const zs = st.zs[zi];
-        return `<div style="margin-bottom:6px"><div style="font-size:12px;color:${zs.ok ? '#9CE5B4' : '#F5A3A3'}">🧪 ${craftEsc_(z.n)} 區:${need}${z.rep ? '(可重複)' : '(不可重複)'} ｜ 已選 ${zs.tot}${zs.boost > 0 ? ` ｜ +${Math.round(zs.boost * 100) / 100}%` : ''}</div>`
+        return `<div style="margin-bottom:6px"><div style="font-size:12px;color:${zs.ok ? '#9CE5B4' : '#F5A3A3'}">🧪 ${craftEsc_(z.n)} 區:${need}${onlyCur ? '' : (z.rep ? '(可重複)' : '(不可重複)')}${onlyCur ? '' : ` ｜ 已選 ${zs.tot}`}${zs.boost > 0 ? ` ｜ +${Math.round(zs.boost * 100) / 100}%` : ''}</div>`
           + z.items.map((it, ii) => {
+            if (it.t === 'cur') {
+              const cc = pk[zi + '|$' + it.n] || 0;
+              const lim = Math.floor(Math.min(it.have, it.max > 0 ? it.max : Infinity));
+              return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0"><span style="flex:1">💰 ${craftEsc_(it.d || it.n)}${it.b > 0 ? ` <span style="color:#F0B232">每個 +${it.b}%</span>` : ''} <span style="color:#B9BBBE">(有 ${it.have}${it.max > 0 ? `,最多放 ${it.max}` : ''})</span>${it.k ? ' <span title="合成後會返還,不會被扣">♻️不消耗</span>' : it.r ? ' <span title="合成失敗時不會被扣">↩️失敗不消耗</span>' : ''}</span>`
+                + `<input type="number" min="0" max="${lim}" value="${cc}" style="width:70px;padding:2px;text-align:center" onchange="craftZoneCur_('${scope}',${rid},${zi},${ii},this.value)" ${lim > 0 ? '' : 'disabled'}></div>`;
+            }
             const c = pk[zi + '|' + it.n] || 0;
             return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0"><span style="flex:1">📦 ${craftEsc_(it.n)} ${it.b > 0 ? `<span style="color:#F0B232">+${it.b}%</span> ` : ''}<span style="color:#B9BBBE">(有 ${it.have})</span>${it.k ? ' <span title="合成後會返還,不會被扣">♻️不消耗</span>' : it.r ? ' <span title="合成失敗時不會被扣">↩️失敗不消耗</span>' : ''}</span>`
               + `<button class="btn-action" style="padding:1px 8px;background:#4F545C" onclick="craftZonePick_('${scope}',${rid},${zi},${ii},-1)" ${c > 0 ? '' : 'disabled'}>−</button><b style="min-width:18px;text-align:center">${c}</b>`
