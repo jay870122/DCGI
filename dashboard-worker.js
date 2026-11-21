@@ -4384,6 +4384,7 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
         if (!wsTr_) return new Response('no track', { status: 404 });
         if (wsCfg_.testMode && !(await isAdminAllowed_(String(discordId || '').replace("'", ''), env))) return new Response('not open', { status: 403 });
         if (wsTr_.access) { const wsU_ = String(discordId || '').replace("'", ''); if (!(await bossTrackAllowed_(env, wsU_, wsTr_, await isAdminAllowed_(wsU_, env)))) return new Response('not open', { status: 403 }); }
+        if ((wsTr_.entry || []).length) { const wsU2_ = String(discordId || '').replace("'", ''); const wsEn_ = await bossEntryCheck_(env, wsU2_, wsTr_, await isAdminAllowed_(wsU2_, env)); if (!wsEn_.ok) return new Response('not open', { status: 403 }); }
         return env.GENERAL_ITEM_LOCK.get(env.GENERAL_ITEM_LOCK.idFromName('bossroom:' + wsTr_.id)).fetch(new Request('https://lock/?action=bossWs&trackId=' + encodeURIComponent(wsTr_.id) + '&uid=' + encodeURIComponent(String(discordId || '').replace("'", '')) + '&name=' + encodeURIComponent((url.searchParams.get('name') || '').replace(/[<>@`]/g, '').slice(0, 30)), request));
       }
       if (['bossLobby', 'bossTrack', 'bossFlip', 'bossGiftList', 'bossGiftClaim', 'bossGiftCount'].includes(action)) {
@@ -22614,6 +22615,18 @@ function bossCfgNormalize_(c) {
   for (const t of (Array.isArray(c.tracks) ? c.tracks : [])) {
     const tr = { id: s(t.id, 20).replace(/[^A-Za-z0-9_-]/g, ''), name: s(t.name, 30), start: s(t.start, 10), end: s(t.end, 10), repeat: t.repeat !== false, shared: !!t.shared, giftDays: int(t.giftDays, 0, 365, 0), giftHours: int(t.giftHours, 0, 23, 0), giftMins: int(t.giftMins, 0, 59, 0), giftUntil: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(t.giftUntil || '')) ? String(t.giftUntil) : '', access: ['test', 'roles'].includes(t.access) ? t.access : '', roles: (Array.isArray(t.roles) ? t.roles : []).map((x) => String(x).trim()).filter((x) => /^\d{15,22}$/.test(x)).slice(0, 30), ticketCurrency: s(t.ticketCurrency, 40), ticketCost: Math.max(0.01, Math.min(1000000, Math.round((Number(t.ticketCost) || 1) * 100) / 100)), loopBack: !!t.loopBack, maxLoops: int(t.maxLoops, 1, 20, 1), dcKill: !!t.dcKill, dcKillRank: int(t.dcKillRank, 0, 20, 0), forms: [] };
     if (!tr.id) tr.id = 't' + (out.tracks.length + 1);
+    { // 🌟🆕 進場條件:持有(不扣)指定貨幣/道具達到數量才能進這條賽道
+      const en = [];
+      for (const e of (Array.isArray(t.entry) ? t.entry : [])) {
+        const nm = s(e && e.name, 40), amt = parseFloat(e && e.amount);
+        if (!nm && !(e && e.amount)) continue;
+        if (!nm) return { error: '「' + tr.name + '」進場條件有一列沒填名稱' };
+        if (!isFinite(amt) || amt <= 0 || amt > 1e9) return { error: '「' + tr.name + '」進場條件「' + nm + '」數量不正確' };
+        en.push({ type: e && e.type === 'item' ? 'item' : 'currency', name: nm, amount: e && e.type === 'item' ? Math.max(1, Math.round(amt)) : Math.round(amt * 100) / 100 });
+      }
+      if (en.length > 6) return { error: '「' + tr.name + '」進場條件最多 6 項' };
+      tr.entry = en;
+    }
     if (ids.has(tr.id)) return { error: '賽道ID「' + tr.id + '」重複' }; ids.add(tr.id);
     if (!tr.name) return { error: '有賽道沒填名稱' };
     if (tr.access === 'roles' && !tr.roles.length) return { error: '「' + tr.name + '」選了「指定身分組」,請至少勾一個身分組' };
@@ -23070,6 +23083,32 @@ async function bossTrackAllowed_(env, uid, tr, isAdmin) {
     return (tr.roles || []).some((x) => have.includes(x));
   } catch (e) { return false; }
 }
+// 🌟🆕 進場條件檢查(持有不扣):貨幣讀玩家欄位、道具數背包可用的(未過期);管理員不受限。回傳 {ok, list:[{type,name,amount,have}]}
+const bossEntryMem_ = new Map();
+async function bossEntryCheck_(env, uid, tr, isAdmin) {
+  const need = (tr && tr.entry) || [];
+  if (!need.length || isAdmin) return { ok: true, list: need.map((e) => Object.assign({ have: e.amount }, e)) };
+  const ck = uid + '|' + tr.id, hit = bossEntryMem_.get(ck);
+  if (hit && Date.now() - hit.t < 8000) return hit.v;
+  const list = []; let rows = null;
+  for (const e of need) {
+    let have = 0;
+    try {
+      if (e.type === 'item') {
+        if (rows === null) {
+          const r = await doCall_(env, 'snap:main', 'snapMine', { name: 'genbp', discordId: uid, ttl: 3000 });
+          rows = []; if (r && r.rows) { const arr = new Array(r.n).fill([]); r.rows.forEach((x) => { arr[x[0]] = x[1]; }); rows = arr; }
+        }
+        have = getCraftableInstancesByNameWorker_(rows, uid, e.name).length;
+      } else { const l = await bossTicketLoc_(env, uid, e.name); have = l ? l.bal : 0; }
+    } catch (err) { have = 0; }
+    list.push({ type: e.type, name: e.name, amount: e.amount, have: Math.floor(have * 100) / 100 });
+  }
+  const v = { ok: list.every((x) => x.have + 1e-9 >= x.amount), list };
+  bossEntryMem_.set(ck, { t: Date.now(), v }); if (bossEntryMem_.size > 500) bossEntryMem_.clear();
+  return v;
+}
+const bossEntryMsg_ = (list) => '進入這條賽道需要持有:' + list.map((x) => x.name + '×' + x.amount + '(你有 ' + x.have + ')').join('、') + '(只檢查持有,不會扣除)';
 async function doBossPlayer_(env, ctx, action, p) {
   await bossEnsure_(env);
   const uid = String(p.discordId || ''), name = String(p.name || '').replace(/[<>@`]/g, '').slice(0, 30) || '玩家';
@@ -23085,7 +23124,7 @@ async function doBossPlayer_(env, ctx, action, p) {
   if (action === 'bossLobby') {
     const tracks = [];
     const isAdm_ = await isAdminAllowed_(uid, env);
-    for (const tr of cfg.tracks) { if (!bossActive_(cfg, tr)) continue; if (!(await bossTrackAllowed_(env, uid, tr, isAdm_))) continue; const st = await bossState_(env, tr); const f = tr.forms[st.form_idx] || tr.forms[0]; tracks.push({ access: tr.access || '', prizes: bossPrizesView_(f), ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency, ticketCost: tr.ticketCost || 1, shared: !!tr.shared, id: tr.id, name: tr.name, end: tr.end, status: st.status, boss: f.name, img: f.img, hp: st.hp, maxHp: st.max_hp, formIdx: st.form_idx, formCount: tr.forms.length, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1 }); }
+    for (const tr of cfg.tracks) { if (!bossActive_(cfg, tr)) continue; if (!(await bossTrackAllowed_(env, uid, tr, isAdm_))) continue; const st = await bossState_(env, tr); const f = tr.forms[st.form_idx] || tr.forms[0]; const en_ = await bossEntryCheck_(env, uid, tr, isAdm_); tracks.push({ entry: (tr.entry || []).length ? en_.list : [], entryOk: en_.ok, access: tr.access || '', prizes: bossPrizesView_(f), ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency, ticketCost: tr.ticketCost || 1, shared: !!tr.shared, id: tr.id, name: tr.name, end: tr.end, status: st.status, boss: f.name, img: f.img, hp: st.hp, maxHp: st.max_hp, formIdx: st.form_idx, formCount: tr.forms.length, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1 }); }
     const gc = await env.DB.prepare("SELECT COUNT(*) AS n FROM boss_gift WHERE uid=? AND " + bossGiftLive_()).bind(uid).first();
     const giftTs_ = (((await env.DB.prepare("SELECT ts FROM boss_gift WHERE uid=? AND " + bossGiftLive_() + " ORDER BY ts DESC LIMIT 200").bind(uid).all()).results) || []).map((x) => x.ts);
     const pres_ = await Promise.all(tracks.map((t) => bossPresenceGet_(env, t.id))); tracks.forEach((t, i) => { t.online = pres_[i].count; });
@@ -23136,6 +23175,7 @@ async function doBossPlayer_(env, ctx, action, p) {
   }
   const tr = cfg.tracks.find((x) => x.id === String(p.trackId || ''));
   if (tr && tr.access && !(await bossTrackAllowed_(env, uid, tr, await isAdminAllowed_(uid, env)))) return { status: 'error', message: '這條賽道目前沒有對你開放' };
+  if (tr && (tr.entry || []).length) { const en_ = await bossEntryCheck_(env, uid, tr, await isAdminAllowed_(uid, env)); if (!en_.ok) return { status: 'error', message: bossEntryMsg_(en_.list) }; }
   if (action === 'bossTrack') { const v = await bossTrackView_(env, cfg, tr, uid, name); await bossWalletMigrate_(env, ctx, uid, cfg); const cfgT_ = Object.assign({}, cfg, { ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency }); v.wallet = await bossWalletGet_(env, uid, cfgT_); v.ticketCurrency = cfgT_.ticketCurrency; v.ticketCost = tr.ticketCost || 1; { const gc = await env.DB.prepare("SELECT COUNT(*) AS n FROM boss_gift WHERE uid=? AND " + bossGiftLive_()).bind(uid).first(); v.giftCount = gc ? gc.n : 0; } return { status: 'success', track: v }; }
   if (action !== 'bossFlip') return { status: 'error', message: '未知動作' };
   // ---------- 翻牌 ----------

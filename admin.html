@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.371</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.372</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4618,6 +4618,14 @@ function beFormTotal_(f) { const b = f.board || {}; const n = (x) => { if (x ===
 function exclSplitA_(raw){let p='',g='';String(raw||'').split('||').forEach(x=>{x=x.trim();if(!x)return;const m=x.match(/^(全體|全服)\s*[:：]\s*(.+)$/);if(m)g=m[2].trim();else p=x;});return {p,g};}
 function exclJoinA_(p,g){p=(p||'').trim();g=(g||'').trim();return g?(p?p+'||':'')+'全體:'+g:p;}
 function beTot_() { document.querySelectorAll('.be-tot').forEach((el) => { const r = beRef_(el.dataset.p); const f = r[0][r[1]]; const t = beFormTotal_(f); const rr = parseInt(f.board.rows, 10) || 0, cc = parseInt(f.board.cols, 10) || 4, sz = rr * cc; el.innerHTML = rr ? ('牌盤 ' + rr + '×' + cc + ' = ' + sz + ' 格;你設的牌最多 <b style="color:' + (t > sz ? '#f04747' : '#43b581') + '">' + t + '</b> 張' + (t > sz ? ',超過格數了!' : ',其餘 ' + (sz - t) + ' 格由「留空」的牌依機率逐張補,仍不夠再用攻擊牌補滿(留空的牌不計入張數)')) : ('牌盤總張數 <b style="color:' + (t > 64 ? '#f04747' : '#43b581') + '">' + t + '</b> / 64(約 ' + Math.ceil(t / cc) + ' 列 × ' + cc + ' 欄)'); }); }
+function beEntry_(path, list) {
+  let h = '<div class="be-rw">';
+  (list || []).forEach((r, i) => {
+    const p = path + '.' + i;
+    h += '<div class="be-row"><select onchange="beSet_(\'' + p + '.type\',this.value);beRender_()"><option value="currency"' + (r.type !== 'item' ? ' selected' : '') + '>貨幣</option><option value="item"' + (r.type === 'item' ? ' selected' : '') + '>道具</option></select>' + beIn_(p + '.name', r.name, 130, r.type === 'item' ? '道具模板名稱' : '貨幣名稱', undefined, r.type === 'item' ? 'be-item-list' : 'be-cur-list') + '持有 ≥' + beIn_(p + '.amount', r.amount, 64, '數量', 'number') + '<button class="btn btn-edit" onclick="beDel_(\'' + path + '\',' + i + ')">✕</button></div>';
+  });
+  return h + '<button class="btn btn-edit" onclick="beAdd_(\'' + path + '\',{type:\'currency\',name:\'\',amount:1})">➕ 進場條件</button></div>';
+}
 function beRw_(path, list) {
   let h = '<div class="be-rw">';
   (list || []).forEach((r, i) => {
@@ -4646,6 +4654,7 @@ function beRender_() {
     h += '<div class="be-row">🎟️ 這條賽道的翻牌貨幣 ' + beIn_(tp + '.ticketCurrency', t.ticketCurrency || '', 160, '留空=用上面的全域貨幣', undefined, 'be-cur-list') + ' 每回合(翻 2 張)扣 ' + beIn_(tp + '.ticketCost', t.ticketCost === undefined ? 1 : t.ticketCost, 70, '1', 'number') + '</div>';
     h += '<div class="be-row">🔒 開放對象 <select onchange="beSet_(\'' + tp + '.access\',this.value);beRender_()"><option value=""' + (!t.access ? ' selected' : '') + '>所有人</option><option value="test"' + (t.access === 'test' ? ' selected' : '') + '>🧪 僅管理員(單獨測試,不受期間限制)</option><option value="roles"' + (t.access === 'roles' ? ' selected' : '') + '>🏷️ 指定身分組(管理員也進得去)</option></select></div>';
     if (t.access === 'roles') h += '<div class="be-row" style="display:block;max-height:140px;overflow:auto;border:1px solid var(--bd,#3a3d44);border-radius:6px;padding:6px">' + (ALL_ROLES_LIST.length ? ALL_ROLES_LIST.map((r) => '<label class="pk-chk" style="margin:0 12px 4px 0;display:inline-block"><input type="checkbox" ' + ((t.roles || []).indexOf(r.id) !== -1 ? 'checked' : '') + ' onchange="beRole_(' + ti + ',\'' + r.id + '\',this.checked)"> ' + beEsc_(r.name || r.id) + '</label>').join('') : '<span style="color:#949BA4">還沒有身分組清單(到「身分組/貨幣顯示」確認機器人已回報身分組)</span>') + '</div>';
+    h += '<div class="be-row">🔑 進場條件(玩家要<b>持有</b>以下全部才能進這條賽道;只檢查持有,不會扣;留空=不限)</div>' + beEntry_(tp + '.entry', t.entry);
     h += '<div class="be-row">🎁 領獎期限(過期就不能領;全部留空/0=不限期)</div><div class="be-row" style="padding-left:18px">方式① 放進禮物箱起算:' + beIn_(tp + '.giftDays', t.giftDays || 0, 55, '0', 'number') + ' 天 ' + beIn_(tp + '.giftHours', t.giftHours || 0, 50, '0', 'number') + ' 時 ' + beIn_(tp + '.giftMins', t.giftMins || 0, 50, '0', 'number') + ' 分</div><div class="be-row" style="padding-left:18px">方式② 指定到期時間(台北時間,月/日/時/分):' + beIn_(tp + '.giftUntil', t.giftUntil || '', 200, '', 'datetime-local') + ' <span style="color:#949BA4;font-size:12px">有填就優先用這個,所有獎品都在這個時間點到期</span></div>';
     h += '<div class="be-row">' + beChk_(tp + '.shared', !!t.shared, '👥 全場共用同一個牌面(多人輪流翻、翻開的牌大家都看得到;不勾=每人各自一盤)') + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '</div>';
