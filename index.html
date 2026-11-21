@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.347</div>
+    <div class="version-tag">系統版本：v5.4.348</div>
   </div>
 
   <script>
@@ -2216,6 +2216,18 @@
     // 🌟 把後端算好的獎池預覽物件({items,guaranteed})轉成一段HTML摘要文字,hasContent標示這個獎池是不是真的有設定內容
     // 🌟 「盲盒內容物一覽」框的渲染邏輯:商品本身的內容物、跟商品選項各自的內容物都呼叫這個,
     // 套用完全一樣的樣式,不用維護兩份重複的渲染邏輯。標題可自訂。
+    // 💱 顯示名稱裡的 {BTC} / {BTC*2} 變數,直接換成黃色的「BTC美元價(目前約 N)」;名稱裡找不到變數就附在後面
+    function cryptoNameHtml_(g) {
+      let name = g.dispName;
+      (g.varList || []).forEach(v => {
+        if (!(v && v.qtyCrypto && v.qtyCrypto.label)) return;
+        const txt = String(v.qtyCrypto.label).replace(/^.*? = /, '');
+        const span = `<span style="color:#F0B232">${txt}</span>`;
+        const re = new RegExp('\\{\\s*' + v.qtyCrypto.sym + '\\s*(?:[*/]\\s*[0-9.]+)?\\s*\\}', 'i');
+        if (re.test(name)) name = name.replace(re, () => span); else name += ' ' + span;
+      });
+      return name;
+    }
     function buildGachaContentBoxHtml_(pool, title) {
         if (!pool || pool.length === 0) return "";
         let html = `<div style="margin-top: 10px; font-size: 13px; background-color: #202225; padding: 10px; border-radius: 6px; border: 1px solid #40444B;">
@@ -2240,7 +2252,7 @@
             }
 
             html += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
-                <span>- ${g.dispName}${displayQty}${(g.varList || []).filter(v => v && v.qtyCrypto && v.qtyCrypto.label).map(v => `<span style="color:#F0B232;font-size:12px"> (${String(v.qtyCrypto.label).replace(/^.*? = /, '')})</span>`).join('')}</span>
+                <span>- ${cryptoNameHtml_(g)}${displayQty}</span>
                 <span style="color: #99AAB5;">${detail.join(" / ")}</span>
             </div>`;
         });
