@@ -22614,7 +22614,7 @@ function bossCfgNormalize_(c) {
   const dateOk = (v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
   const ids = new Set();
   for (const t of (Array.isArray(c.tracks) ? c.tracks : [])) {
-    const tr = { id: s(t.id, 20).replace(/[^A-Za-z0-9_-]/g, ''), name: s(t.name, 30), start: s(t.start, 10), end: s(t.end, 10), repeat: t.repeat !== false, shared: !!t.shared, giftDays: int(t.giftDays, 0, 365, 0), giftHours: int(t.giftHours, 0, 23, 0), giftMins: int(t.giftMins, 0, 59, 0), giftUntil: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(t.giftUntil || '')) ? String(t.giftUntil) : '', access: ['test', 'roles'].includes(t.access) ? t.access : '', roles: (Array.isArray(t.roles) ? t.roles : []).map((x) => String(x).trim()).filter((x) => /^\d{15,22}$/.test(x)).slice(0, 30), ticketCurrency: s(t.ticketCurrency, 40), ticketCost: Math.max(0.01, Math.min(1000000, Math.round((Number(t.ticketCost) || 1) * 100) / 100)), loopBack: !!t.loopBack, maxLoops: int(t.maxLoops, 1, 20, 1), dcKill: !!t.dcKill, dcKillRank: int(t.dcKillRank, 0, 20, 0), forms: [] };
+    const tr = { id: s(t.id, 20).replace(/[^A-Za-z0-9_-]/g, ''), name: s(t.name, 30), start: s(t.start, 10), end: s(t.end, 10), repeat: t.repeat !== false, shared: !!t.shared, giftDays: int(t.giftDays, 0, 365, 0), giftHours: int(t.giftHours, 0, 23, 0), giftMins: int(t.giftMins, 0, 59, 0), giftUntil: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(t.giftUntil || '')) ? String(t.giftUntil) : '', access: ['test', 'roles'].includes(t.access) ? t.access : '', roles: (Array.isArray(t.roles) ? t.roles : []).map((x) => String(x).trim()).filter((x) => /^\d{15,22}$/.test(x)).slice(0, 30), ticketCurrency: s(t.ticketCurrency, 40), ticketCost: Math.max(0.01, Math.min(1000000, Math.round((Number(t.ticketCost) || 1) * 100) / 100)), loopBack: !!t.loopBack, maxLoops: int(t.maxLoops, 0, 9999, 1), dcKill: !!t.dcKill, dcKillRank: int(t.dcKillRank, 0, 20, 0), forms: [] };
     if (!tr.id) tr.id = 't' + (out.tracks.length + 1);
     { // 🌟🆕 進場條件:持有(不扣)指定貨幣/道具達到數量才能進這條賽道
       const en = [];
@@ -22762,7 +22762,7 @@ async function bossAdvance_(env, tr, loop, formIdx) {
   if (formIdx + 1 < tr.forms.length) {
     const nf = tr.forms[formIdx + 1];
     await env.DB.prepare("UPDATE boss_state SET form_idx=?, hp=?, max_hp=?, updated=? WHERE track_id=? AND loop=? AND form_idx=? AND hp<=0").bind(formIdx + 1, nf.hp, nf.hp, nowIso, tr.id, loop, formIdx).run();
-  } else if (tr.loopBack && loop < tr.maxLoops) {
+  } else if (tr.loopBack && (tr.maxLoops === 0 || loop < tr.maxLoops)) {
     const nf = tr.forms[0];
     await env.DB.prepare("UPDATE boss_state SET loop=?, form_idx=0, hp=?, max_hp=?, updated=? WHERE track_id=? AND loop=? AND form_idx=? AND hp<=0").bind(loop + 1, nf.hp, nf.hp, nowIso, tr.id, loop, formIdx).run();
   } else {
@@ -22864,10 +22864,10 @@ async function bossSettle_(env, ctx, trId, loop, formIdx) {
   if (failed) ok = false;
   await env.DB.prepare('UPDATE boss_kill SET status=?, log=? WHERE track_id=? AND loop=? AND form_idx=?').bind(ok ? 'done' : 'pending', JSON.stringify({ grants: grants.length, failed, players: rows.length, at: new Date().toISOString(), meta: meta.slice(0, 60) }), trId, loop, formIdx).run();
   // 擊倒後的下一步:進化 / 重新降臨(下一輪) / 賽道結束(依設定判斷,不依賴目前血量狀態)
-  const maxL_ = tr.loopBack ? tr.maxLoops : 1;
+  const maxL_ = tr.loopBack ? (tr.maxLoops === 0 ? Infinity : tr.maxLoops) : 1; // maxLoops=0 代表無限重來
   const nextForm_ = formIdx + 1 < tr.forms.length ? tr.forms[formIdx + 1] : (loop < maxL_ ? tr.forms[0] : null);
-  const remain_ = (tr.forms.length - formIdx - 1) + (maxL_ - loop) * tr.forms.length; // 擊倒這隻之後還剩幾隻
-  const nextTxt_ = nextForm_ ? (formIdx + 1 < tr.forms.length ? '🔄 「' + form.name + '」進化成「' + nextForm_.name + '」!' : '🔁 「' + nextForm_.name + '」重新降臨(第 ' + (loop + 1) + ' 輪)!') + '(還剩 ' + remain_ + ' 隻 BOSS)' : '🏁 所有 BOSS 都被打倒了,賽道結束!';
+  const remain_ = maxL_ === Infinity ? -1 : (tr.forms.length - formIdx - 1) + (maxL_ - loop) * tr.forms.length; // 擊倒這隻之後還剩幾隻
+  const nextTxt_ = nextForm_ ? (formIdx + 1 < tr.forms.length ? '🔄 「' + form.name + '」進化成「' + nextForm_.name + '」!' : '🔁 「' + nextForm_.name + '」重新降臨(第 ' + (loop + 1) + ' 輪)!') + (remain_ >= 0 ? '(還剩 ' + remain_ + ' 隻 BOSS)' : '') : '🏁 所有 BOSS 都被打倒了,賽道結束!';
   if (ok) await bossFeedAdd_(env, trId, '', '', 'settle', '🏆 「' + form.name + '」擊倒獎勵已放入禮物箱(' + rows.length + ' 位參與,請到📦禮物箱領取)');
   if (ok) await bossFeedAdd_(env, trId, '', '', 'evolve', nextTxt_);
   // 📣 打倒 BOSS 的 DC 公告(後台可開關、可加傷害排行前 N 名;測試模式/測試賽道不公告)
@@ -23047,7 +23047,8 @@ async function bossPlayerRow_(env, tr, form, loop, formIdx, uid) {
 }
 async function bossTrackView_(env, cfg, tr, uid, name) {
   const st = await bossState_(env, tr), form = tr.forms[st.form_idx] || tr.forms[tr.forms.length - 1];
-  const out = { id: tr.id, name: tr.name, start: tr.start, end: tr.end, active: bossActive_(cfg, tr), status: st.status, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1, formIdx: st.form_idx, formCount: tr.forms.length,
+  const out = { id: tr.id, name: tr.name, start: tr.start, end: tr.end, active: bossActive_(cfg, tr), status: st.status, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1, // 0=無限
+    formIdx: st.form_idx, formCount: tr.forms.length,
     boss: { name: form.name, img: form.img, hp: st.hp, maxHp: st.max_hp } };
   if (uid) {
     const [row, rrow, room] = await Promise.all([bossPlayerRow_(env, tr, form, st.loop, st.form_idx, uid), bossPlayerRow_(env, tr, form, st.loop, st.form_idx, tr.shared ? BOSS_ROOM_ : uid), tr.shared ? bossRoomGet_(env, tr.id) : null]);

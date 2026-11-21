@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.374</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.375</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1595,7 +1595,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <button class="btn btn-primary" style="margin-top:10px" onclick="beAddTrack_()">➕ 新增賽道</button>
           <details style="margin-top:14px"><summary class="hint" style="cursor:pointer">🔧 進階:JSON(可複製備份 / 貼上還原)與規則說明</summary>
             <div style="margin-top:8px"><div class="hint" style="line-height:1.8;margin-bottom:8px">
-            一條<b>賽道</b>有多個<b>型態(forms)</b>,BOSS 依序進化。<code>ticketCurrency</code>=這條賽道翻牌扣的貨幣(空=全域)、<code>ticketCost</code>=翻完一回合扣多少;<code>shared</code>=true 全場共用同一個牌面(多人輪流翻)、false 每人各自一盤;<code>repeat</code>=玩家打完前一型態後還能不能繼續打下去(false=只能打他一開始加入的那一型態);<code>loopBack</code>+<code>maxLoops</code>=最後型態倒下後回到第一型態重來,最多幾輪。<br>
+            一條<b>賽道</b>有多個<b>型態(forms)</b>,BOSS 依序進化。<code>ticketCurrency</code>=這條賽道翻牌扣的貨幣(空=全域)、<code>ticketCost</code>=翻完一回合扣多少;<code>shared</code>=true 全場共用同一個牌面(多人輪流翻)、false 每人各自一盤;<code>repeat</code>=玩家打完前一型態後還能不能繼續打下去(false=只能打他一開始加入的那一型態);<code>loopBack</code>+<code>maxLoops</code>=最後型態倒下後回到第一型態重來,最多幾輪(填 <code>0</code>=無限重來,打到活動結束為止)。<br>
             牌盤 <code>board</code>:<code>attack</code>=攻擊牌(<code>pairs</code> 幾對、<code>dmg</code> 傷害)、<code>reward</code>=獎勵牌(要翻到一對才領)、<code>trap</code>=陷阱(翻到直接回血 <code>heal</code>)、<code>reset</code>=重置牌(累計翻到 <code>need</code> 次才重洗)、<code>rest</code>=休息牌(休息 <code>sec</code> 秒)。總張數上限 64。<br>
             數值寫法:<code>100</code> 固定、<code>1~100</code> 隨機整數、<code>0.1~5</code> 隨機小數、<code>3%</code> / <code>1~3%</code> = BOSS 最大血量的百分比。獎勵 <code>type</code> 是 <code>currency</code>(貨幣)或 <code>item</code>(通用道具模板名稱)。<br>
             擊倒獎勵 <code>rewards</code>:<code>participation</code>=保底(依攻擊次數 <code>min</code>,取達標的最高一級)、<code>ranking</code>=排行(依實際扣血量,<code>from</code>~<code>to</code> 名)、<code>lastHit</code>=最後一擊。超過血量的傷害不計。
@@ -4664,7 +4664,7 @@ function beRender_() {
     h += '<div class="be-row">🔑 進場條件(玩家要<b>持有</b>以下全部才能進這條賽道;只檢查持有,不會扣;留空=不限)</div>' + beEntry_(tp + '.entry', t.entry);
     h += '<div class="be-row">🎁 領獎期限(過期就不能領;全部留空/0=不限期)</div><div class="be-row" style="padding-left:18px">方式① 放進禮物箱起算:' + beIn_(tp + '.giftDays', t.giftDays || 0, 55, '0', 'number') + ' 天 ' + beIn_(tp + '.giftHours', t.giftHours || 0, 50, '0', 'number') + ' 時 ' + beIn_(tp + '.giftMins', t.giftMins || 0, 50, '0', 'number') + ' 分</div><div class="be-row" style="padding-left:18px">方式② 指定到期時間(台北時間,月/日/時/分):' + beIn_(tp + '.giftUntil', t.giftUntil || '', 200, '', 'datetime-local') + ' <span style="color:#949BA4;font-size:12px">有填就優先用這個,所有獎品都在這個時間點到期</span></div>';
     h += '<div class="be-row">' + beChk_(tp + '.shared', !!t.shared, '👥 全場共用同一個牌面(多人輪流翻、翻開的牌大家都看得到;不勾=每人各自一盤)') + '</div>';
-    h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '</div>';
+    h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '<span style="color:#949BA4;font-size:12px">(填 0 = 無限重來)</span>' + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.dcKill', t.dcKill, '📣 BOSS 被打倒時通報 DC(含進化/重新降臨/結束)') + '附傷害排行前' + beIn_(tp + '.dcKillRank', t.dcKillRank || 0, 50, '0', 'number') + '名 <span class="hint">0=不放排行,最多 20;測試模式/測試賽道不公告</span></div>';
     (t.forms || []).forEach((f, fi) => {
       const fp = tp + '.forms.' + fi, b = f.board, bp = fp + '.board';
