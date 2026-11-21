@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.344</div>
+    <div class="version-tag">系統版本：v5.4.345</div>
   </div>
 
   <script>
@@ -2265,12 +2265,14 @@
       if (p.prob !== null && p.prob !== undefined) detail.push(`${p.prob}%`);
       if (p.stock !== null && p.stock !== undefined) detail.push(p.stock <= 0 ? '已抽完' : `${p.stock}份`);
       if (detail.length === 0) detail.push('保底/無限');
-      return detail.join('/');
+      // 💱 數量用幣價變數時,顯示「{BTC} = BTC美元價(目前約 N)」
+      const cx = p.contentText && p.contentText.indexOf('美元價') !== -1 ? `(${p.contentText})` : '';
+      return detail.join('/') + cx;
     }
 
     function formatBingoPoolSummary_(label, pool) {
       if (pool.guaranteed) {
-        return { hasContent: true, html: `<div>${label}：必定獲得 <b style="color:#F0B232">${pool.guaranteed.dispName}</b></div>` };
+        return { hasContent: true, html: `<div>${label}：必定獲得 <b style="color:#F0B232">${pool.guaranteed.dispName}</b>${pool.guaranteed.contentText && pool.guaranteed.contentText.indexOf('美元價') !== -1 ? `(${pool.guaranteed.contentText})` : ''}</div>` };
       }
       if (pool.items && pool.items.length > 0) {
         const text = pool.items.map(p => `${p.dispName}@${formatGachaItemDetailText_(p)}`).join('、');
