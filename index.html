@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.343</div>
+    <div class="version-tag">系統版本：v5.4.344</div>
   </div>
 
   <script>
@@ -1401,7 +1401,7 @@
       if (el) { el.classList.add('cm-hl'); setTimeout(() => el.classList.remove('cm-hl'), 4000); } else if (t.cm) toast_('找不到該則留言(可能已被刪除或你看不到)');
     }
     async function loadInfoCards_() {
-      try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { renderSidebar(); } catch (e) {} try { renderShop(); } catch (e) {} } } catch (e) {}
+      try { const d = await chamberCall_('shopInfoCardsWorker'); if (d && d.status === 'success') { infoCards_ = d.cards || []; try { if (defaultCatAuto_ && !catUserPicked_ && currentShopItems.length) { const dc = defaultCat_(); if (dc && dc !== currentCategory) { currentCategory = dc; applyShopAccordion(dc); } } } catch (e) {} try { renderSidebar(); } catch (e) {} try { renderShop(); } catch (e) {} } } catch (e) {}
       icLinkCards_ = true; try { icLinkTry_(); } catch (e) {}
     }
     // 🌟 [連結限定]商品機制:預設對所有玩家隱藏,只有(1)管理員 或 (2)透過分享連結直接指名要看這個商品
@@ -1613,7 +1613,17 @@
       return 999;
     }
 
+    let defaultCatAuto_ = false;
+    let catUserPicked_ = false; // 玩家手動點過分類後,就不再自動換首頁分類
+    // 預設首頁分類:商品分類 + 只有資訊卡的分類,依分類順序取第一個(資訊卡晚於商品載入,所以載入完要再算一次)
+    function defaultCat_() {
+      const cats = new Set(currentShopItems.filter(shouldShowLinkOnlyItem).map(i => i.category).filter(Boolean));
+      (infoCards_ || []).forEach((c) => { const k = (c.category || '').toString().trim(); if (k) cats.add(k); });
+      const arr = Array.from(cats).sort((x, y) => getCategoryOrderIndex(x, CATEGORY_ORDER) - getCategoryOrderIndex(y, CATEGORY_ORDER));
+      return arr[0] || null;
+    }
     function selectCategory(cat) {
+      catUserPicked_ = true;
       currentCategory = cat;
       applyShopAccordion(cat);
       renderSidebar();
@@ -7813,8 +7823,8 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
             localStorage.removeItem('shared_category_target');
             // 🌟 沒有指定分類(或上次選的分類已經不存在)時,預設選排序後的第一個分類,而不是「所有商品」
             if (!currentCategory || !catExists(currentCategory)) {
-              allCats.sort((a, b) => getCategoryOrderIndex(a, CATEGORY_ORDER) - getCategoryOrderIndex(b, CATEGORY_ORDER));
-              currentCategory = allCats[0] || null;
+              currentCategory = defaultCat_() || null;
+              defaultCatAuto_ = true;
             }
           }
 
