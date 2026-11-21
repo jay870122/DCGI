@@ -9158,7 +9158,7 @@ function parseCraftZonesWorker_(raw) {
       const n = ((it && it.n) || '').toString().trim();
       const b = parseFloat(it && it.b);
       if (!n) return;
-      items.push({ n, b: isNaN(b) || b < 0 ? 0 : Math.round(b * 100) / 100, r: !!it && (it.r === true || it.r === 'true' || it.r === 1) }); // r=合成失敗時這個道具不消耗
+      items.push({ n, b: isNaN(b) || b < 0 ? 0 : Math.round(b * 100) / 100, r: !!it && (it.r === true || it.r === 'true' || it.r === 1), k: !!it && (it.k === true || it.k === 'true' || it.k === 1) }); // r=失敗時不消耗;k=成功失敗都不消耗(返還)
     });
     if (!items.length) return;
     let max = parseInt(z.max, 10); if (isNaN(max) || max < 1) max = 1;
@@ -9416,7 +9416,7 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
       if (typeof picks === 'string') { try { picks = JSON.parse(picks); } catch (e) { picks = []; } }
       if (!Array.isArray(picks)) picks = [];
       const zTot = rc.zones.map(() => 0), zSeen = rc.zones.map(() => ({}));
-      const needByName = {}, keepByName = {};
+      const needByName = {}, consFail = {}, consSucc = {};
       for (const pk of picks) {
         const zi = parseInt(pk && pk.z, 10), c = parseInt(pk && pk.c, 10);
         const nm = ((pk && pk.n) || '').toString();
@@ -9427,7 +9427,8 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
         if (!z.rep && zSeen[zi][nm] > 1) return { status: 'error', safeNoWrite: true, message: z.n + ' 區的「' + nm + '」不可重複放入' };
         zTot[zi] += c;
         needByName[nm] = (needByName[nm] || 0) + c;
-        keepByName[nm] = (keepByName[nm] || 0) + (it.r ? 0 : c); // 失敗時仍會消耗的個數
+        consFail[nm] = (consFail[nm] || 0) + ((it.r || it.k) ? 0 : c); // 失敗時仍會消耗的個數
+        consSucc[nm] = (consSucc[nm] || 0) + (it.k ? 0 : c); // 成功時仍會消耗的個數
         boostPct += it.b * c;
       }
       for (let zi = 0; zi < rc.zones.length; zi++) {
@@ -9440,7 +9441,7 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
         if (cands.length < needByName[nm]) return { status: 'error', safeNoWrite: true, message: '加成道具不足:「' + nm + '」需要' + needByName[nm] + '個,你只有' + cands.length + '個可用的' };
         const rows = [], ids = [];
         for (let ci = 0; ci < needByName[nm]; ci++) { consumedIds[cands[ci].instanceId] = true; rows.push(cands[ci].rowIdx); ids.push((cands[ci].instanceId || '').toString()); }
-        zonePlan.push({ n: nm, c: needByName[nm], keep: keepByName[nm], rows, ids });
+        zonePlan.push({ n: nm, c: needByName[nm], consFail: consFail[nm], consSucc: consSucc[nm], rows, ids });
       }
       effRate = Math.min(100, Math.round((rc.successRate + boostPct) * 100) / 100);
     }
@@ -9491,7 +9492,7 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
     });
 
     zonePlan.forEach((zp) => {
-      const zq = fails > 0 ? zp.keep : zp.c; // 標了「失敗不消耗」的道具,失敗時不扣
+      const zq = fails > 0 ? zp.consFail : zp.consSucc; // 「失敗不消耗」失敗時不扣;「都不消耗」成敗都不扣
       zp.rows.slice(0, zq).forEach((ri) => consumedRowIdxs.push(ri));
       zp.ids.slice(0, zq).forEach((id) => { if (id) consumedInstIds_.push(id); });
       actualMat.push({ mat: { n: zp.n, d: '加成:' + zp.n, q: zp.c, r: false }, qty: zq, refunded: zq < zp.c });
