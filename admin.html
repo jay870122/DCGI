@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.375</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.376</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4633,6 +4633,14 @@ function beEntry_(path, list) {
   });
   return h + '<button class="btn btn-edit" onclick="beAdd_(\'' + path + '\',{type:\'currency\',name:\'\',amount:1})">➕ 進場條件</button></div>';
 }
+function beCost_(path, list, addLabel) { // 入場費/續命費:貨幣或道具,每次扣除
+  let h = '<div class="be-rw">';
+  (list || []).forEach((r, i) => {
+    const p = path + '.' + i;
+    h += '<div class="be-row"><select onchange="beSet_(\'' + p + '.type\',this.value);beRender_()"><option value="currency"' + (r.type !== 'item' ? ' selected' : '') + '>貨幣</option><option value="item"' + (r.type === 'item' ? ' selected' : '') + '>道具</option></select>' + beIn_(p + '.name', r.name, 180, r.type === 'item' ? '道具模板名稱' : '貨幣名稱', undefined, r.type === 'item' ? 'be-item-list' : 'be-cur-list') + '扣 ×' + beIn_(p + '.amount', r.amount, 70, '數量', 'number') + '<button class="btn btn-edit" onclick="beDel_(\'' + path + '\',' + i + ')">✕</button></div>';
+  });
+  return h + '<button class="btn btn-edit" onclick="beAdd_(\'' + path + '\',{type:\'currency\',name:\'\',amount:1})">➕ ' + addLabel + '</button></div>';
+}
 function beRw_(path, list) {
   let h = '<div class="be-rw">';
   (list || []).forEach((r, i) => {
@@ -4664,6 +4672,15 @@ function beRender_() {
     h += '<div class="be-row">🔑 進場條件(玩家要<b>持有</b>以下全部才能進這條賽道;只檢查持有,不會扣;留空=不限)</div>' + beEntry_(tp + '.entry', t.entry);
     h += '<div class="be-row">🎁 領獎期限(過期就不能領;全部留空/0=不限期)</div><div class="be-row" style="padding-left:18px">方式① 放進禮物箱起算:' + beIn_(tp + '.giftDays', t.giftDays || 0, 55, '0', 'number') + ' 天 ' + beIn_(tp + '.giftHours', t.giftHours || 0, 50, '0', 'number') + ' 時 ' + beIn_(tp + '.giftMins', t.giftMins || 0, 50, '0', 'number') + ' 分</div><div class="be-row" style="padding-left:18px">方式② 指定到期時間(台北時間,月/日/時/分):' + beIn_(tp + '.giftUntil', t.giftUntil || '', 200, '', 'datetime-local') + ' <span style="color:#949BA4;font-size:12px">有填就優先用這個,所有獎品都在這個時間點到期</span></div>';
     h += '<div class="be-row">' + beChk_(tp + '.shared', !!t.shared, '👥 全場共用同一個牌面(多人輪流翻、翻開的牌大家都看得到;不勾=每人各自一盤)') + '</div>';
+    if (!t.life) t.life = { on: false, count: 3, entry: [], cont: [], keepHp: true };
+    h += '<div class="be-row">' + beChk_(tp + '.personal', !!t.personal, '🧑 個人版 BOSS(每位玩家各自一隻 BOSS:血量/型態進度/排行/獎勵都只算自己,不影響別人;會自動當作各人各自一盤,「全場共用牌面」不用勾)') + '</div>';
+    h += '<div class="be-row"><label class="pk-chk" style="margin:0"><input type="checkbox" ' + (t.life.on ? 'checked' : '') + ' onchange="beSet_(\'' + tp + '.life.on\',this.checked);beRender_()"> ❤️ 生命制(入場一次給 N 條命,翻錯扣 1 命,0 命被踢出;開了之後就<b>不再每回合扣翻牌貨幣</b>)</label></div>';
+    if (t.life.on) {
+      h += '<div class="be-row" style="padding-left:18px">命數 ' + beIn_(tp + '.life.count', t.life.count === undefined ? 3 : t.life.count, 50, '3', 'number') + ' 條(1~99)</div>';
+      h += '<div class="be-row" style="padding-left:18px">🚪 入場費(每次入場/重新入場<b>全部</b>都要付,貨幣或道具;留空=免費)</div><div style="padding-left:18px">' + beCost_(tp + '.life.entry', t.life.entry, '入場費') + '</div>';
+      h += '<div class="be-row" style="padding-left:18px">💖 續命費(命用完時付這些就能續命:命數回到上面的條數、牌面和 BOSS 血量都不變;留空=不開放續命,只能重新入場)</div><div style="padding-left:18px">' + beCost_(tp + '.life.cont', t.life.cont, '續命費') + '</div>';
+      h += '<div class="be-row" style="padding-left:18px">被踢出後重新入場時,BOSS 血量 <select onchange="beSet_(\'' + tp + '.life.keepHp\',this.value===\'1\')"><option value="1"' + (t.life.keepHp !== false ? ' selected' : '') + '>保留(接著打)</option><option value="0"' + (t.life.keepHp === false ? ' selected' : '') + '>回滿(你這隻的傷害歸零)</option></select> <span class="hint">只有「個人版 BOSS」會回滿;共用 BOSS 一律保留。重新入場時牌面一定重新洗牌。道具一個算一個(整個消耗掉)。</span></div>';
+    }
     h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '<span style="color:#949BA4;font-size:12px">(填 0 = 無限重來)</span>' + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.dcKill', t.dcKill, '📣 BOSS 被打倒時通報 DC(含進化/重新降臨/結束)') + '附傷害排行前' + beIn_(tp + '.dcKillRank', t.dcKillRank || 0, 50, '0', 'number') + '名 <span class="hint">0=不放排行,最多 20;測試模式/測試賽道不公告</span></div>';
     (t.forms || []).forEach((f, fi) => {
@@ -4697,7 +4714,7 @@ function beRender_() {
   if (!BED_.tracks.length) h = '<div class="hint">還沒有賽道,按下面「➕ 新增賽道」開始。</div>';
   el.innerHTML = h; beTot_(); beMirror_();
 }
-function beAddTrack_() { BED_.tracks.push({ id: 't' + (BED_.tracks.length + 1), name: '新賽道', start: '', end: '', repeat: true, shared: false, ticketCurrency: '', ticketCost: 1, loopBack: false, maxLoops: 1, dcKill: false, dcKillRank: 0, forms: [beClone_(BE_FORM_)] }); beRender_(); }
+function beAddTrack_() { BED_.tracks.push({ id: 't' + (BED_.tracks.length + 1), name: '新賽道', start: '', end: '', repeat: true, shared: false, ticketCurrency: '', ticketCost: 1, loopBack: false, maxLoops: 1, personal: false, life: { on: false, count: 3, entry: [], cont: [], keepHp: true }, dcKill: false, dcKillRank: 0, forms: [beClone_(BE_FORM_)] }); beRender_(); }
 function bossApplyJson_() { let o; try { o = JSON.parse(document.getElementById('boss-json').value || '{"tracks":[]}'); } catch (e) { toast('JSON 格式有誤:' + e.message, false); return; } BED_ = { tracks: Array.isArray(o) ? o : (o.tracks || []) }; beFix_(); beRender_(); toast('已套用到編輯器'); }
 const BOSS_SAMPLE_ = "{\n \"tracks\": [\n  {\n   \"id\": \"t1\",\n   \"name\": \"史萊姆森林\",\n   \"start\": \"2026-11-15\",\n   \"end\": \"2026-11-30\",\n   \"repeat\": true,\n   \"loopBack\": false,\n   \"maxLoops\": 1,\n   \"forms\": [\n    {\n     \"name\": \"小史萊姆\",\n     \"img\": \"\",\n     \"hp\": 5000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 2,\n        \"dmg\": \"10~30\"\n       },\n       {\n        \"label\": \"💥2\",\n        \"pairs\": 1,\n        \"dmg\": \"1~2%\"\n       }\n      ],\n      \"reward\": [\n       {\n        \"label\": \"🎁1\",\n        \"pairs\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       }\n      ],\n      \"trap\": {\n       \"count\": 1,\n       \"heal\": \"20~50\"\n      },\n      \"reset\": {\n       \"count\": 1,\n       \"need\": 2\n      },\n      \"rest\": {\n       \"count\": 1,\n       \"sec\": \"10~20\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [\n       {\n        \"min\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 1\n         }\n        ]\n       },\n       {\n        \"min\": 20,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 3\n         }\n        ]\n       }\n      ],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 1,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 10\n         }\n        ]\n       },\n       {\n        \"from\": 2,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 5\n         }\n        ]\n       }\n      ],\n      \"lastHit\": [\n       {\n        \"type\": \"currency\",\n        \"name\": \"幻彩水晶\",\n        \"amount\": 2\n       }\n      ]\n     }\n    },\n    {\n     \"name\": \"史萊姆王\",\n     \"img\": \"\",\n     \"hp\": 12000,\n     \"board\": {\n      \"cols\": 4,\n      \"attack\": [\n       {\n        \"label\": \"⚔️1\",\n        \"pairs\": 3,\n        \"dmg\": \"20~60\"\n       }\n      ],\n      \"reward\": [],\n      \"trap\": {\n       \"count\": 2,\n       \"heal\": \"1~3%\"\n      },\n      \"reset\": {\n       \"count\": 0,\n       \"need\": 1\n      },\n      \"rest\": {\n       \"count\": 0,\n       \"sec\": \"\"\n      }\n     },\n     \"rewards\": {\n      \"participation\": [],\n      \"ranking\": [\n       {\n        \"from\": 1,\n        \"to\": 3,\n        \"rewards\": [\n         {\n          \"type\": \"currency\",\n          \"name\": \"幻彩水晶\",\n          \"amount\": 20\n         }\n        ]\n       }\n      ],\n      \"lastHit\": []\n     }\n    }\n   ]\n  }\n ]\n}";
 function bossSample_() { if (BED_.tracks.length && !confirm('會覆蓋目前編輯中的賽道,確定?')) return; BED_ = JSON.parse(BOSS_SAMPLE_);

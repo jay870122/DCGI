@@ -4387,7 +4387,7 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
         if ((wsTr_.entry || []).length) { const wsU2_ = String(discordId || '').replace("'", ''); const wsEn_ = await bossEntryCheck_(env, wsU2_, wsTr_, await isAdminAllowed_(wsU2_, env)); if (!wsEn_.ok) return new Response('not open', { status: 403 }); }
         return env.GENERAL_ITEM_LOCK.get(env.GENERAL_ITEM_LOCK.idFromName('bossroom:' + wsTr_.id)).fetch(new Request('https://lock/?action=bossWs&trackId=' + encodeURIComponent(wsTr_.id) + '&uid=' + encodeURIComponent(String(discordId || '').replace("'", '')) + '&name=' + encodeURIComponent((url.searchParams.get('name') || '').replace(/[<>@`]/g, '').slice(0, 30)), request));
       }
-      if (['bossLobby', 'bossTrack', 'bossFlip', 'bossGiftList', 'bossGiftClaim', 'bossGiftCount'].includes(action)) {
+      if (['bossLobby', 'bossTrack', 'bossFlip', 'bossEnter', 'bossContinue', 'bossGiftList', 'bossGiftClaim', 'bossGiftCount'].includes(action)) {
         // 🐲 翻翻樂打BOSS(玩家):牌面/傷害/血量全由 Worker 判定
         if (!env.DB) return jsonResponse({ status: 'error', message: 'D1 未綁定' }, corsHeaders);
         try {
@@ -22568,6 +22568,7 @@ async function bossEnsure_(env) {
     'CREATE TABLE IF NOT EXISTS boss_gift (id INTEGER PRIMARY KEY AUTOINCREMENT, ckey TEXT UNIQUE, uid TEXT, track_id TEXT, src TEXT, type TEXT, name TEXT, amount REAL, ts INTEGER, status TEXT, claimed_ts INTEGER)',
     'CREATE INDEX IF NOT EXISTS boss_gift_u ON boss_gift(uid, status)',
     'CREATE TABLE IF NOT EXISTS boss_kill (track_id TEXT, loop INTEGER, form_idx INTEGER, ts INTEGER, last_uid TEXT, last_name TEXT, status TEXT, log TEXT, PRIMARY KEY(track_id, loop, form_idx))',
+    'CREATE TABLE IF NOT EXISTS boss_life (track_id TEXT, uid TEXT, lives INTEGER, ts INTEGER, PRIMARY KEY(track_id, uid))', // 生命制:lives>0 在場、0=生命用完(可續命/重新入場)、-1=處理中
   ];
   for (const q of st) await env.DB.prepare(q).run();
   try { await env.DB.prepare('ALTER TABLE boss_gift ADD COLUMN expire_ts INTEGER').run(); } catch (e) { /* 欄位已存在 */ }
@@ -22627,6 +22628,25 @@ function bossCfgNormalize_(c) {
       }
       if (en.length > 6) return { error: '「' + tr.name + '」進場條件最多 6 項' };
       tr.entry = en;
+    }
+    { // 🆕 個人版 BOSS + 生命制(入場費/續命費/被踢出時 BOSS 血量保留或回滿)
+      tr.personal = !!t.personal;
+      const L = t.life && typeof t.life === 'object' ? t.life : {};
+      const mkc = (arr, lbl) => {
+        const o = [];
+        for (const e of (Array.isArray(arr) ? arr : [])) {
+          const nm = s(e && e.name, 40), amt = parseFloat(e && e.amount);
+          if (!nm && !(e && e.amount)) continue;
+          if (!nm) return { error: '「' + tr.name + '」' + lbl + '有一列沒填名稱' };
+          if (!isFinite(amt) || amt <= 0 || amt > 1e9) return { error: '「' + tr.name + '」' + lbl + '「' + nm + '」數量不正確' };
+          o.push({ type: e && e.type === 'item' ? 'item' : 'currency', name: nm, amount: e && e.type === 'item' ? Math.max(1, Math.round(amt)) : Math.round(amt * 100) / 100 });
+        }
+        if (o.length > 4) return { error: '「' + tr.name + '」' + lbl + '最多 4 項' };
+        return { list: o };
+      };
+      const lEn = mkc(L.entry, '入場費'), lCt = mkc(L.cont, '續命費');
+      if (lEn.error) return lEn; if (lCt.error) return lCt;
+      tr.life = { on: !!L.on, count: int(L.count, 1, 99, 3), entry: lEn.list, cont: lCt.list, keepHp: L.keepHp !== false };
     }
     if (ids.has(tr.id)) return { error: '賽道ID「' + tr.id + '」重複' }; ids.add(tr.id);
     if (!tr.name) return { error: '有賽道沒填名稱' };
@@ -22834,7 +22854,8 @@ async function bossSplitRewards_(env, rewards, uid, claimBase, reason, trId, src
 const bossGrantOk_ = (res) => res && res.status === 'success' && (res.results || []).every((x) => x.result && x.result.status === 'success');
 // 擊倒結算:保底獎(依攻擊次數取最高一級)、排行獎(依實際扣血量)、最後一擊獎;每筆 claimId 固定,重跑不會重複發
 async function bossSettle_(env, ctx, trId, loop, formIdx) {
-  const cfg = await bossCfgLoad_(env), tr = cfg.tracks.find((x) => x.id === trId);
+  const cfg = await bossCfgLoad_(env); let tr = cfg.tracks.find((x) => x.id === trId);
+  if (!tr && String(trId).indexOf('@') > 0) { const b0_ = cfg.tracks.find((x) => x.id === String(trId).slice(0, String(trId).indexOf('@'))); if (b0_) tr = Object.assign({}, b0_, { id: trId, _base: b0_.id, shared: false }); } // 個人版 BOSS 的內部賽道ID
   const kill = await env.DB.prepare('SELECT * FROM boss_kill WHERE track_id=? AND loop=? AND form_idx=?').bind(trId, loop, formIdx).first();
   if (!tr || !kill || kill.status === 'done') return { status: 'success', skipped: true };
   // 原子搶佔:同時有兩個結算(翻牌背景+排程補跑)只有一個會跑,避免動態重複、獎勵重複處理;卡住超過 2 分鐘的才允許接手
@@ -23047,13 +23068,13 @@ async function bossPlayerRow_(env, tr, form, loop, formIdx, uid) {
 }
 async function bossTrackView_(env, cfg, tr, uid, name) {
   const st = await bossState_(env, tr), form = tr.forms[st.form_idx] || tr.forms[tr.forms.length - 1];
-  const out = { id: tr.id, name: tr.name, start: tr.start, end: tr.end, active: bossActive_(cfg, tr), status: st.status, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1, // 0=無限
+  const out = { id: tr._base || tr.id, personal: !!tr.personal, name: tr.name, start: tr.start, end: tr.end, active: bossActive_(cfg, tr), status: st.status, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1, // 0=無限
     formIdx: st.form_idx, formCount: tr.forms.length,
     boss: { name: form.name, img: form.img, hp: st.hp, maxHp: st.max_hp } };
   if (uid) {
     const [row, rrow, room] = await Promise.all([bossPlayerRow_(env, tr, form, st.loop, st.form_idx, uid), bossPlayerRow_(env, tr, form, st.loop, st.form_idx, tr.shared ? BOSS_ROOM_ : uid), tr.shared ? bossRoomGet_(env, tr.id) : null]);
     const rv = tr.shared ? bossRoomView_(room, uid) : null; if (rv && !rv.holdLeft) rrow.first_idx = -1; // 回合鎖逾時:第一張視為已蓋回
-    out.prizes = bossPrizesView_(form); out.presence = await bossPresenceGet_(env, tr.id); out.board = bossPublicBoard_(form, rrow); out.shared = !!tr.shared; if (rv) out.room = rv;
+    out.prizes = bossPrizesView_(form); out.presence = await bossPresenceGet_(env, tr._base || tr.id); out.board = bossPublicBoard_(form, rrow); out.shared = !!tr.shared; if (rv) out.room = rv;
     out.restLeft = Math.max(0, Math.ceil((row.rest_until - Date.now()) / 1000));
     out.resetsNeed = (form.board.reset.countMax || form.board.reset.count) ? form.board.reset.need : 0; out.resets = rrow.resets;
     out.blocked = !tr.repeat && row.first_form && row.first_form !== st.loop + '-' + st.form_idx ? '這條賽道不能重複挑戰(你已打過前一型態)' : '';
@@ -23121,6 +23142,63 @@ async function bossEntryCheck_(env, uid, tr, isAdmin) {
   return v;
 }
 const bossEntryMsg_ = (list) => '進入這條賽道需要持有:' + list.map((x) => x.name + '×' + x.amount + '(你有 ' + x.have + ')').join('、') + '(只檢查持有,不會扣除)';
+// ---- 🆕 個人版 BOSS:每位玩家用「賽道ID@玩家ID」當內部賽道ID,血量/牌盤/傷害/動態/擊倒紀錄全部各自獨立 ----
+const bossVt_ = (tr, uid) => (tr && tr.personal && uid) ? Object.assign({}, tr, { id: tr.id + '@' + uid, _base: tr.id, shared: false }) : tr;
+const bossLifeOn_ = (tr) => !!(tr && tr.life && tr.life.on);
+async function bossLifeRow_(env, tid, uid) { return await env.DB.prepare('SELECT lives FROM boss_life WHERE track_id=? AND uid=?').bind(tid, uid).first(); }
+async function bossItemInst_(env, uid, name) { // 玩家背包裡可用的道具實例(未過期、扣掉待刪除)
+  const r = await doCall_(env, 'snap:main', 'snapMine', { name: 'genbp', discordId: uid, ttl: 0 });
+  let rows = []; if (r && r.rows) { const arr = new Array(r.n).fill([]); r.rows.forEach((x) => { arr[x[0]] = x[1]; }); rows = arr; }
+  const pend = {}; try { const pr = await doCall_(env, 'del:main', 'delPending', {}); ((pr && pr.ids) || []).forEach((x) => { pend[x] = true; }); } catch (e) { /* 取不到就當沒有待刪 */ }
+  return getCraftableInstancesByNameWorker_(rows, uid, name).filter((x) => !pend[x.instanceId]);
+}
+function bossCostMerge_(costs) { const m = new Map(); (costs || []).forEach((c) => { const k = c.type + '|' + c.name; if (m.has(k)) m.get(k).amount += c.amount; else m.set(k, Object.assign({}, c)); }); return [...m.values()]; }
+// 扣入場費/續命費(貨幣+道具,全有才扣;中途失敗會把已扣的貨幣退回)。道具一個實例算一個(整個刪除)
+async function bossPayCosts_(env, ctx, uid, costs0) {
+  const costs = bossCostMerge_(costs0);
+  if (!costs.length) return { ok: true };
+  const plan = [];
+  for (const c of costs) {
+    if (c.type === 'item') {
+      const inst = await bossItemInst_(env, uid, c.name);
+      if (inst.length < c.amount) return { ok: false, message: '道具「' + c.name + '」不夠(需要 ' + c.amount + ',你有 ' + inst.length + ')' };
+      plan.push({ c, ids: inst.slice(0, c.amount).map((x) => x.instanceId) });
+    } else {
+      const l = await bossTicketLoc_(env, uid, c.name);
+      if (!l) return { ok: false, message: '找不到你的貨幣「' + c.name + '」欄位(請管理員確認貨幣名稱)' };
+      if (l.bal + 1e-9 < c.amount) return { ok: false, message: '你的「' + c.name + '」不夠(需要 ' + c.amount + ',你有 ' + Math.floor(l.bal * 100) / 100 + ')' };
+      plan.push({ c, loc: l });
+    }
+  }
+  const paid = [], refund = async () => { for (const q of paid) { try { await bossTicketAdd_(env, ctx, uid, { ticketCurrency: q.c.name }, q.c.amount, null); } catch (e) { console.error('BOSS 入場費退回失敗', uid, q.c.name, q.c.amount); } } };
+  for (const pl of plan.filter((x) => x.c.type !== 'item')) {
+    let nb = null; try { nb = await bossTicketAdd_(env, ctx, uid, { ticketCurrency: pl.c.name }, -pl.c.amount, pl.loc); } catch (e) { nb = null; }
+    if (nb === null) { await refund(); return { ok: false, message: '扣除「' + pl.c.name + '」失敗,請再試一次' }; }
+    paid.push(pl);
+  }
+  const ids = []; plan.filter((x) => x.c.type === 'item').forEach((x) => ids.push(...x.ids));
+  if (ids.length) {
+    let q = false; for (let t = 0; t < 3 && !q; t++) { try { const r = await doCall_(env, 'del:main', 'delPush', { ids, sets: [] }); if (r && r.ok) q = true; } catch (e) { /* 重試 */ } }
+    if (!q) { await refund(); return { ok: false, message: '扣除道具失敗,請再試一次' }; }
+  }
+  return { ok: true };
+}
+async function bossCostsView_(env, uid, costs) { // 入場費/續命費清單 + 玩家目前持有量(前台顯示用)
+  const out = [];
+  for (const c of bossCostMerge_(costs)) {
+    let have = 0;
+    try { if (c.type === 'item') have = (await bossItemInst_(env, uid, c.name)).length; else { const l = await bossTicketLoc_(env, uid, c.name); have = l ? l.bal : 0; } } catch (e) { have = 0; }
+    out.push({ type: c.type, name: c.name, amount: c.amount, have: Math.floor(have * 100) / 100 });
+  }
+  return out;
+}
+async function bossLifeView_(env, tr, uid) {
+  const L = tr.life, row = await bossLifeRow_(env, tr.id, uid);
+  const lives = row ? Math.max(0, row.lives) : 0, state = !row ? 'none' : row.lives > 0 ? 'play' : row.lives === 0 ? 'dead' : 'busy';
+  const v = { on: true, count: L.count, lives, state, keepHp: L.keepHp, canCont: L.cont.length > 0, personal: !!tr.personal };
+  if (state !== 'play') { v.entry = await bossCostsView_(env, uid, L.entry); if (L.cont.length) v.cont = await bossCostsView_(env, uid, L.cont); }
+  return v;
+}
 async function doBossPlayer_(env, ctx, action, p) {
   await bossEnsure_(env);
   const uid = String(p.discordId || ''), name = String(p.name || '').replace(/[<>@`]/g, '').slice(0, 30) || '玩家';
@@ -23136,7 +23214,7 @@ async function doBossPlayer_(env, ctx, action, p) {
   if (action === 'bossLobby') {
     const tracks = [];
     const isAdm_ = await isAdminAllowed_(uid, env);
-    for (const tr of cfg.tracks) { if (!bossActive_(cfg, tr)) continue; if (!(await bossTrackAllowed_(env, uid, tr, isAdm_))) continue; const st = await bossState_(env, tr); const f = tr.forms[st.form_idx] || tr.forms[0]; const en_ = await bossEntryCheck_(env, uid, tr, isAdm_); tracks.push({ entry: (tr.entry || []).length ? en_.list : [], entryOk: en_.ok, access: tr.access || '', prizes: bossPrizesView_(f), ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency, ticketCost: tr.ticketCost || 1, shared: !!tr.shared, id: tr.id, name: tr.name, end: tr.end, status: st.status, boss: f.name, img: f.img, hp: st.hp, maxHp: st.max_hp, formIdx: st.form_idx, formCount: tr.forms.length, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1 }); }
+    for (const tr of cfg.tracks) { if (!bossActive_(cfg, tr)) continue; if (!(await bossTrackAllowed_(env, uid, tr, isAdm_))) continue; const trv_ = bossVt_(tr, uid), st = await bossState_(env, trv_); const f = tr.forms[st.form_idx] || tr.forms[0]; const en_ = await bossEntryCheck_(env, uid, tr, isAdm_); tracks.push({ personal: !!tr.personal, life: bossLifeOn_(tr) ? { on: true, count: tr.life.count } : null, entry: (tr.entry || []).length ? en_.list : [], entryOk: en_.ok, access: tr.access || '', prizes: bossPrizesView_(f), ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency, ticketCost: tr.ticketCost || 1, shared: !!tr.shared, id: tr.id, name: tr.name, end: tr.end, status: st.status, boss: f.name, img: f.img, hp: st.hp, maxHp: st.max_hp, formIdx: st.form_idx, formCount: tr.forms.length, loop: st.loop, maxLoops: tr.loopBack ? tr.maxLoops : 1 }); }
     const gc = await env.DB.prepare("SELECT COUNT(*) AS n FROM boss_gift WHERE uid=? AND " + bossGiftLive_()).bind(uid).first();
     const giftTs_ = (((await env.DB.prepare("SELECT ts FROM boss_gift WHERE uid=? AND " + bossGiftLive_() + " ORDER BY ts DESC LIMIT 200").bind(uid).all()).results) || []).map((x) => x.ts);
     const pres_ = await Promise.all(tracks.map((t) => bossPresenceGet_(env, t.id))); tracks.forEach((t, i) => { t.online = pres_[i].count; });
@@ -23185,10 +23263,42 @@ async function doBossPlayer_(env, ctx, action, p) {
     const left = await env.DB.prepare("SELECT COUNT(*) AS n FROM boss_gift WHERE uid=? AND " + bossGiftLive_()).bind(uid).first();
     return { status: 'success', claimed: got, claimedIds: gotIds, failed, count: left ? left.n : 0, _ms: Date.now() - tClaim0_ };
   }
-  const tr = cfg.tracks.find((x) => x.id === String(p.trackId || ''));
+  const tr0 = cfg.tracks.find((x) => x.id === String(p.trackId || '')), tr = tr0 ? bossVt_(tr0, uid) : tr0; // 個人版:tr.id 變成「賽道ID@玩家ID」,下面所有狀態/牌盤/傷害都自然各自獨立
+  if (!tr) return { status: 'error', message: '找不到這條賽道' };
   if (tr && tr.access && !(await bossTrackAllowed_(env, uid, tr, await isAdminAllowed_(uid, env)))) return { status: 'error', message: '這條賽道目前沒有對你開放' };
   if (tr && (tr.entry || []).length) { const en_ = await bossEntryCheck_(env, uid, tr, await isAdminAllowed_(uid, env)); if (!en_.ok) return { status: 'error', message: bossEntryMsg_(en_.list) }; }
-  if (action === 'bossTrack') { const v = await bossTrackView_(env, cfg, tr, uid, name); await bossWalletMigrate_(env, ctx, uid, cfg); const cfgT_ = Object.assign({}, cfg, { ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency }); v.wallet = await bossWalletGet_(env, uid, cfgT_); v.ticketCurrency = cfgT_.ticketCurrency; v.ticketCost = tr.ticketCost || 1; { const gc = await env.DB.prepare("SELECT COUNT(*) AS n FROM boss_gift WHERE uid=? AND " + bossGiftLive_()).bind(uid).first(); v.giftCount = gc ? gc.n : 0; } return { status: 'success', track: v }; }
+  if (action === 'bossTrack') { const v = await bossTrackView_(env, cfg, tr, uid, name); await bossWalletMigrate_(env, ctx, uid, cfg); const cfgT_ = Object.assign({}, cfg, { ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency }); v.wallet = await bossWalletGet_(env, uid, cfgT_); v.ticketCurrency = cfgT_.ticketCurrency; v.ticketCost = tr.ticketCost || 1; if (bossLifeOn_(tr)) v.life = await bossLifeView_(env, tr, uid); { const gc = await env.DB.prepare("SELECT COUNT(*) AS n FROM boss_gift WHERE uid=? AND " + bossGiftLive_()).bind(uid).first(); v.giftCount = gc ? gc.n : 0; } return { status: 'success', track: v }; }
+  if (action === 'bossEnter' || action === 'bossContinue') { // ---------- 生命制:入場 / 續命 ----------
+    if (!bossLifeOn_(tr)) return { status: 'error', message: '這條賽道沒有開啟生命制' };
+    if (!bossActive_(cfg, tr)) return { status: 'error', message: '這條賽道目前沒有開放' };
+    const st0 = await bossState_(env, tr);
+    if (st0.status !== 'live') return { status: 'error', message: '這條賽道已經結束了' };
+    const L = tr.life, row0 = await bossLifeRow_(env, tr.id, uid);
+    if (row0 && row0.lives < 0) return { status: 'error', message: '正在處理中,請稍候再試' };
+    if (action === 'bossContinue') { if (!row0 || row0.lives !== 0) return { status: 'error', message: '現在不需要續命' }; if (!L.cont.length) return { status: 'error', message: '這條賽道沒有開放續命' }; }
+    else if (row0 && row0.lives > 0) return { status: 'error', message: '你已經在場內了' };
+    const nowT0 = Date.now();
+    const claim = row0 ? await env.DB.prepare('UPDATE boss_life SET lives=-1, ts=? WHERE track_id=? AND uid=? AND lives=0').bind(nowT0, tr.id, uid).run() : await env.DB.prepare('INSERT OR IGNORE INTO boss_life (track_id,uid,lives,ts) VALUES (?,?,-1,?)').bind(tr.id, uid, nowT0).run();
+    if (!(claim && claim.meta && claim.meta.changes)) return { status: 'error', message: '正在處理中,請稍候再試' };
+    const revert = async () => { try { if (row0) await env.DB.prepare('UPDATE boss_life SET lives=0 WHERE track_id=? AND uid=? AND lives=-1').bind(tr.id, uid).run(); else await env.DB.prepare('DELETE FROM boss_life WHERE track_id=? AND uid=? AND lives=-1').bind(tr.id, uid).run(); } catch (e) { /* 還原失敗:管理員可重置賽道 */ } };
+    let pay; try { pay = await bossPayCosts_(env, ctx, uid, action === 'bossEnter' ? L.entry : L.cont); } catch (e) { pay = { ok: false, message: '扣款失敗:' + String(e && e.message || e).slice(0, 80) }; }
+    if (!pay.ok) { await revert(); return { status: 'error', message: pay.message }; }
+    try {
+      if (action === 'bossEnter' && row0) { // 生命用完後重新入場:牌面重新洗牌;個人版依設定 BOSS 血量保留或回滿
+        const form0 = tr.forms[st0.form_idx] || tr.forms[0];
+        if (!tr.shared) await env.DB.prepare('UPDATE boss_player SET board=?, first_idx=-1, resets=0 WHERE track_id=? AND uid=?').bind(JSON.stringify(bossGenBoard_(form0)), tr.id, uid).run();
+        if (tr.personal && !L.keepHp) {
+          await env.DB.batch([
+            env.DB.prepare("UPDATE boss_state SET hp=max_hp, updated=? WHERE track_id=? AND loop=? AND form_idx=? AND status='live'").bind(new Date().toISOString(), tr.id, st0.loop, st0.form_idx),
+            env.DB.prepare('DELETE FROM boss_dmg WHERE track_id=? AND loop=? AND form_idx=? AND uid=?').bind(tr.id, st0.loop, st0.form_idx, uid),
+          ]);
+        }
+      }
+      await env.DB.prepare('UPDATE boss_life SET lives=?, ts=? WHERE track_id=? AND uid=?').bind(L.count, Date.now(), tr.id, uid).run();
+    } catch (e) { await revert(); console.error('BOSS 入場處理失敗(已扣款,請人工確認)', uid, tr.id, e && e.message ? e.message : e); return { status: 'error', message: '入場處理失敗,請聯絡管理員(已扣的費用會由管理員補回)' }; }
+    try { await bossFeedAdd_(env, tr.id, uid, name, action === 'bossEnter' ? 'enter' : 'cont', name + (action === 'bossEnter' ? ' 入場了(' + L.count + ' 條命)' : ' 續命了(命數回到 ' + L.count + ')')); } catch (e) { /* 動態失敗不影響 */ }
+    return { status: 'success', lives: L.count, action };
+  }
   if (action !== 'bossFlip') return { status: 'error', message: '未知動作' };
   // ---------- 翻牌 ----------
   if (!bossActive_(cfg, tr)) return { status: 'error', message: '這條賽道目前沒有開放' };
@@ -23199,18 +23309,24 @@ async function doBossPlayer_(env, ctx, action, p) {
   const [own, row, room] = await Promise.all([bossPlayerRow_(env, tr, form, loop, formIdx, uid), bossPlayerRow_(env, tr, form, loop, formIdx, tr.shared ? BOSS_ROOM_ : uid), tr.shared ? bossRoomGet_(env, tr.id) : { holder: '', holder_name: '', hold_until: 0, last: '' }]); // row=全場共用牌盤;own=這位玩家自己的休息/重送紀錄
   const bd = row.board;
   if (rid && own.last_rid === rid && own.last_resp) { try { return JSON.parse(own.last_resp); } catch (e) {} } // 重送同一個動作:回上次結果,不重複扣
+  const lifeOn_ = bossLifeOn_(tr); let lifeRow_ = null, ticketOff_ = lifeOn_; // 生命制:不扣每回合翻牌券,改成入場費一次 + 翻錯扣命
+  if (lifeOn_) {
+    lifeRow_ = await bossLifeRow_(env, tr.id, uid);
+    if (!lifeRow_) return { status: 'error', needEnter: true, message: '請先按「入場」才能開始翻牌' };
+    if (lifeRow_.lives <= 0) return { status: 'error', needEnter: true, message: lifeRow_.lives < 0 ? '正在處理中,請稍候' : '你的生命用完了,請續命或重新入場' };
+  }
   if (!(idx >= 0 && idx < bd.types.length)) return { status: 'error', message: '牌的位置不正確' };
   if (!tr.repeat && own.first_form && own.first_form !== fkey) return { status: 'error', message: '這條賽道不能重複挑戰(你已打過前一型態)' };
   if (own.rest_until > Date.now()) return { status: 'error', message: '休息中,還要等 ' + Math.ceil((own.rest_until - Date.now()) / 1000) + ' 秒', restLeft: Math.ceil((own.rest_until - Date.now()) / 1000) };
   // 回合鎖:有人翻了第一張還沒翻完,別人要等;對方逾時沒動作就當作放棄(第一張蓋回去)
   const holdAlive_ = !!room.holder && room.hold_until > Date.now();
-  if (row.first_idx >= 0 && !holdAlive_) row.first_idx = -1;
+  if (tr.shared && row.first_idx >= 0 && !holdAlive_) row.first_idx = -1; // 只有共用牌面才有回合鎖逾時;個人牌面第一張要一直記著(之前非共用賽道會忘記第一張)
   if (tr.shared && !holdAlive_ && room.last) { try { const l_ = JSON.parse(room.last); const left_ = (l_.ts || 0) + (l_.kind === 'miss' ? BOSS_MISS_CD_MS_ : BOSS_PAIR_CD_MS_) - Date.now(); if (left_ > 0) return { status: 'error', message: '上一回合還在顯示,大家同步等一下,請稍等 ' + (Math.ceil(left_ / 100) / 10) + ' 秒', cooldownMs: left_ }; } catch (e) { /* last 壞掉就當沒有 */ } } // 共用牌面:一回合結束後全場一起等(翻錯 1.5 秒、其他 0.6 秒),讓大家都看完牌面再翻下一回合
   if (holdAlive_ && room.holder !== uid) return { status: 'error', message: '輪到「' + (room.holder_name || '別人') + '」翻牌,請等他翻完(約 ' + Math.ceil((room.hold_until - Date.now()) / 1000) + ' 秒)', turnLock: true };
   if (bd.gone[idx] || idx === row.first_idx) return { status: 'error', message: '這張牌已經翻過了' };
   // 先鎖住共用牌盤(ver 樂觀鎖),同一時間只有一個人能翻
-  const cfgT = Object.assign({}, cfg, { ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency }), tcost = tr.ticketCost || 1; // 每條賽道可各自指定貨幣和每回合扣多少
-  const [lock, w] = await Promise.all([env.DB.prepare('UPDATE boss_player SET ver=ver+1 WHERE track_id=? AND uid=? AND ver=?').bind(tr.id, row.uid, row.ver).run(), bossTicketLoc_(env, uid, cfgT.ticketCurrency)]);
+  const cfgT = Object.assign({}, cfg, { ticketCurrency: tr.ticketCurrency || cfg.ticketCurrency }), tcost = ticketOff_ ? 0 : (tr.ticketCost || 1); // 每條賽道可各自指定貨幣和每回合扣多少(生命制不扣)
+  const [lock, w] = await Promise.all([env.DB.prepare('UPDATE boss_player SET ver=ver+1 WHERE track_id=? AND uid=? AND ver=?').bind(tr.id, row.uid, row.ver).run(), ticketOff_ ? Promise.resolve({ bal: 0 }) : bossTicketLoc_(env, uid, cfgT.ticketCurrency)]);
   if (!(lock && lock.meta && lock.meta.changes)) return { status: 'error', message: '操作太快了,請稍後再翻' };
   const unlockFail = async (msg, extra) => ({ status: 'error', message: msg, ...(extra || {}) });
   // 錢包沒券不能開始翻
@@ -23219,7 +23335,7 @@ async function doBossPlayer_(env, ctx, action, p) {
   if (wb0 < tcost) return await unlockFail('你的「' + cfgT.ticketCurrency + '」不夠了(翻一回合要 ' + tcost + ')', { noTickets: true }); // 翻牌券就是一般貨幣
   // 一次完整的翻牌(翻兩張)才扣一張券:翻第一張(普通牌)免扣,但要先有券;翻第二張、或翻到陷阱/重置/休息牌(直接結束這回合)才扣
   const code = bd.types[idx];
-  if (row.first_idx >= 0 || code === 'T' || code === 'R' || code === 'Z') {
+  if (!ticketOff_ && (row.first_idx >= 0 || code === 'T' || code === 'R' || code === 'Z')) {
     let nb_ = null; try { nb_ = await bossTicketAdd_(env, ctx, uid, cfgT, -tcost, w); } catch (e) { return await unlockFail('扣除「' + cfgT.ticketCurrency + '」失敗,請再試一次', {}); }
     if (nb_ === null) return await unlockFail('你的「' + cfgT.ticketCurrency + '」不夠了', { noTickets: true });
     walletLeft = nb_;
@@ -23294,12 +23410,18 @@ async function doBossPlayer_(env, ctx, action, p) {
       }
     } else { // 沒配對:兩張都蓋回去
       resp.events.push({ kind: 'miss', faces: [bossFace_(form, fcode, bd.vals && bd.vals[first]), face] }); hide.push(first, idx); first = -1;
+      if (lifeOn_) { // 翻錯扣 1 命;扣到 0 = 生命用完(可續命 / 重新入場)
+        const nl_ = Math.max(0, lifeRow_.lives - 1); resp.life = { lives: nl_, count: tr.life.count };
+        pend.push(env.DB.prepare('UPDATE boss_life SET lives=?, ts=? WHERE track_id=? AND uid=? AND lives=?').bind(nl_, Date.now(), tr.id, uid, lifeRow_.lives).run());
+        if (nl_ <= 0) { resp.events.push({ kind: 'out', canCont: tr.life.cont.length > 0, keepHp: tr.life.keepHp, personal: !!tr.personal }); feed(tr.id, uid, name, 'out', '💔 ' + name + ' 的生命用完了'); }
+      }
     }
   }
   // 牌盤打完(攻擊/獎勵牌都沒了)→ 自動重新洗牌
   if (!bd.types.some((t, i) => !bd.gone[i] && (t[0] === 'a' || t[0] === 'r'))) { const nb = bossGenBoard_(form); bd.types = nb.types; bd.vals = nb.vals; bd.gone = nb.gone; first = -1; resets = 0; resp.events.push({ kind: 'reshuffle', auto: true }); }
   const st2 = killedNow ? await bossState_(env, tr) : Object.assign({}, st, { hp: lastHp !== null ? lastHp : st.hp }), f2 = tr.forms[st2.form_idx] || tr.forms[tr.forms.length - 1];
   const view = { boss: { name: f2.name, img: f2.img, hp: st2.hp, maxHp: st2.max_hp }, loop: st2.loop, formIdx: st2.form_idx, status: st2.status };
+  if (lifeOn_ && !resp.life) resp.life = { lives: lifeRow_.lives, count: tr.life.count };
   resp.hide = hide; resp.wallet = walletLeft; resp.restLeft = Math.max(0, Math.ceil((restUntil - Date.now()) / 1000));
   resp.boss = view.boss; resp.state = { loop: view.loop, formIdx: view.formIdx, status: view.status };
   resp.room = !tr.shared ? undefined : first >= 0 ? { holder: uid, holderName: name, holdLeft: Math.ceil(BOSS_HOLD_MS_ / 1000), last: null } : { holder: '', holderName: '', holdLeft: 0, last: null };
@@ -23328,6 +23450,13 @@ async function doBossAdmin_(env, ctx, action, b) {
   if (action === 'adminBossStatus') {
     const cfg = await bossCfgLoad_(env), tracks = [];
     for (const tr of cfg.tracks) {
+      if (tr.personal) { // 個人版:每人各自一隻,這裡只列總覽(有幾位玩家、擊倒紀錄)
+        const esc_ = tr.id.replace(/[\\%_]/g, '\\$&') + '@%';
+        const np_ = await env.DB.prepare("SELECT COUNT(*) AS n FROM boss_state WHERE track_id LIKE ? ESCAPE '\\'").bind(esc_).first();
+        const kl_ = ((await env.DB.prepare("SELECT track_id,loop,form_idx,ts,last_name,status,log FROM boss_kill WHERE track_id LIKE ? ESCAPE '\\' ORDER BY ts DESC LIMIT 20").bind(esc_).all()).results) || [];
+        tracks.push({ id: tr.id, name: tr.name + '(個人版,' + (np_ ? np_.n : 0) + ' 位玩家有進度)', status: 'personal', loop: 1, formIdx: 0, boss: '(每人各一隻)', hp: 0, maxHp: 0, top: [], kills: kl_.map((k) => ({ loop: k.loop, formIdx: k.form_idx, form: (tr.forms[k.form_idx] || {}).name, ts: k.ts, last: k.last_name, status: k.status, log: k.log ? JSON.parse(k.log) : null, trackId: k.track_id })) });
+        continue;
+      }
       const st = await bossState_(env, tr), f = tr.forms[st.form_idx] || tr.forms[0];
       const top = ((await env.DB.prepare('SELECT uid,name,damage,attacks FROM boss_dmg WHERE track_id=? AND loop=? AND form_idx=? ORDER BY damage DESC LIMIT 20').bind(tr.id, st.loop, st.form_idx).all()).results) || [];
       const kills = ((await env.DB.prepare('SELECT loop,form_idx,ts,last_name,status,log FROM boss_kill WHERE track_id=? ORDER BY ts DESC LIMIT 20').bind(tr.id).all()).results) || [];
@@ -23338,7 +23467,8 @@ async function doBossAdmin_(env, ctx, action, b) {
   if (action === 'adminBossSettle') return await bossSettle_(env, ctx, String(b.trackId || ''), parseInt(b.loop, 10) || 1, parseInt(b.formIdx, 10) || 0);
   if (action === 'adminBossReset') { // 重置賽道:BOSS 回到第一型態滿血、清除這條賽道所有玩家牌盤/傷害/動態/擊倒紀錄(不動玩家錢包)
     const id = String(b.trackId || ''); if (!id) return { status: 'error', message: '缺少賽道' };
-    await env.DB.batch(['boss_state', 'boss_player', 'boss_room', 'boss_dmg', 'boss_feed', 'boss_kill'].map((t) => env.DB.prepare('DELETE FROM ' + t + ' WHERE track_id=?').bind(id)));
+    const escId_ = id.replace(/[\\%_]/g, '\\$&') + '@%'; // 個人版 BOSS 的內部ID(賽道ID@玩家ID)一併清掉
+    await env.DB.batch(['boss_state', 'boss_player', 'boss_room', 'boss_dmg', 'boss_feed', 'boss_kill', 'boss_life'].map((t) => env.DB.prepare('DELETE FROM ' + t + " WHERE track_id=? OR track_id LIKE ? ESCAPE '\\'").bind(id, escId_)));
     const rp_ = env.GENERAL_ITEM_LOCK.get(env.GENERAL_ITEM_LOCK.idFromName('bossroom:' + id)).fetch('https://lock/?action=bossReset&trackId=' + encodeURIComponent(id), { method: 'POST', body: '{}' }).catch(() => {}); // 通知前台玩家立刻同步重置
     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(rp_); else await rp_;
     return { status: 'success' };
