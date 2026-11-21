@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.376</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.377</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4748,6 +4748,10 @@ async function bossStatus_() {
     if (!d || d.status !== 'success') { box.textContent = (d && d.message) || '讀取失敗'; return; }
     if (!d.tracks.length) { box.textContent = '還沒有設定賽道'; return; }
     box.innerHTML = d.tracks.map((t) => {
+      if (t.status === 'personal') { // 個人版:列出每位玩家各自的進度
+        const rows_ = (t.players || []).map((p) => '<tr><td>' + grEsc_(p.name || '(未知)') + '<div style="font-size:11px;color:#949BA4">' + grEsc_(p.uid) + '</div></td><td>第 ' + p.loop + ' 輪 型態 ' + (p.formIdx + 1) + ':' + grEsc_(p.form) + (p.status === 'ended' ? ' <b style="color:#57F287">(已全破)</b>' : '') + '</td><td>' + Math.ceil(p.hp) + ' / ' + p.maxHp + '</td><td>' + (Math.round(p.damage * 100) / 100) + '(' + p.attacks + ' 次)</td>' + (t.lifeCount ? '<td>' + (p.lives === null ? '未入場' : (p.lives > 0 ? '❤️'.repeat(Math.min(p.lives, 10)) : '💔 0') + ' ' + p.lives + '/' + t.lifeCount) + '</td>' : '') + '<td>' + p.kills + '</td><td><button class="btn btn-danger" onclick="bossReset_(\'' + grEsc_(p.tid) + '\')">重置此人</button></td></tr>').join('');
+        return '<div style="margin-bottom:16px"><div style="font-size:15px;color:var(--t)"><b>' + grEsc_(t.name) + '</b>(' + grEsc_(t.id) + ') <button class="btn btn-danger" style="margin-left:8px" onclick="bossReset_(\'' + grEsc_(t.id) + '\')">🗑 重置整條賽道(全部玩家)</button></div>' + ((t.players || []).length ? '<div style="overflow:auto;margin-top:6px"><table style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr style="text-align:left;color:#949BA4"><th>玩家</th><th>進度</th><th>BOSS 血量</th><th>本型態傷害</th>' + (t.lifeCount ? '<th>生命</th>' : '') + '<th>擊倒數</th><th></th></tr></thead><tbody>' + rows_ + '</tbody></table></div>' : '<div style="color:#949BA4;margin-top:6px">還沒有玩家進入</div>') + '<div style="margin-top:6px"><b>擊倒紀錄</b>:' + ((t.kills || []).length ? t.kills.map((k) => '<div>• 輪' + k.loop + ' 「' + grEsc_(k.form || '') + '」 打倒者:' + grEsc_(k.last || '') + ' ・ ' + new Date(k.ts).toLocaleString('zh-TW', { hour12: false, timeZone: 'Asia/Taipei' }) + ' ・ ' + (k.status === 'done' ? '✅ 已發放' : '⏳ 待發放/失敗 <button class="btn btn-edit" onclick="bossSettle_(\'' + grEsc_(k.trackId || t.id) + '\',' + k.loop + ',' + k.formIdx + ')">重新結算</button>') + '</div>').join('') : '尚未擊倒') + '</div></div>';
+      }
       const pct = Math.max(0, Math.min(100, t.hp / t.maxHp * 100));
       return '<div style="margin-bottom:16px"><div style="font-size:15px;color:var(--t)"><b>' + grEsc_(t.name) + '</b>(' + grEsc_(t.id) + ') ・ ' + (t.status === 'ended' ? '已結束' : '進行中') + ' ・ 第 ' + t.loop + ' 輪 型態 ' + (t.formIdx + 1) + ':' + grEsc_(t.boss) + ' <button class="btn btn-danger" style="margin-left:8px" onclick="bossReset_(\'' + grEsc_(t.id) + '\')">🗑 重置賽道</button></div>' +
         '<div class="bs-hpbar" style="margin:6px 0"><i style="width:' + pct + '%"></i></div><div>血量 ' + Math.ceil(t.hp) + ' / ' + t.maxHp + '</div>' +
