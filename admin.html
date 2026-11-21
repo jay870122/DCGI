@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.366</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.367</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -6754,10 +6754,10 @@ function addCraftZone(z) {
 function addCraftZoneItem(box, it) {
   const row = document.createElement('div');
   row.className = 'cr-z-item';
-  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px';
-  row.innerHTML = `<input class="cr-z-iname" list="cr-item-names" style="flex:1" placeholder="道具顯示名稱" value="${crEsc_(it ? it.n : '')}">
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+  row.innerHTML = `<input class="cr-z-iname" list="cr-item-names" style="flex:1 1 100%;min-width:0" placeholder="道具顯示名稱" value="${crEsc_(it ? it.n : '')}">
     <span style="font-size:12px;white-space:nowrap">成功率 +</span><input class="cr-z-ib" type="number" min="0" step="0.1" style="width:76px" value="${it ? it.b : 5}"><span style="font-size:12px">%</span>
-    <select class="cr-z-ir" style="font-size:12px" title="這個道具合成後怎麼處理"><option value="">一律消耗</option><option value="f"${it && it.r && !it.k ? ' selected' : ''}>失敗不消耗</option><option value="a"${it && it.k ? ' selected' : ''}>成功失敗都不消耗</option></select>
+    <select class="cr-z-ir" style="font-size:12px;flex:1 1 auto;min-width:0;width:auto" title="這個道具合成後怎麼處理"><option value="">一律消耗</option><option value="f"${it && it.r && !it.k ? ' selected' : ''}>失敗不消耗</option><option value="a"${it && it.k ? ' selected' : ''}>成功失敗都不消耗</option></select>
     <button type="button" class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
   box.querySelector('.cr-z-items').appendChild(row);
 }
