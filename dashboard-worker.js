@@ -9282,7 +9282,7 @@ async function doGetCraftRecipes_(env, discordId, forceFresh) {
     });
     list.push({
       id: rc.id, name: rc.name, note: rc.note, status: st, materials: mats, pool, successRate: rc.successRate, anim: rc.anim,
-      zones: rc.zones.map((z) => ({ n: z.n, min: z.min, max: z.max, rep: z.rep, items: z.items.map((it) => ({ n: it.n, b: it.b, have: getCraftableInstancesByNameWorker_(backpackRows, discordId, it.n).length })) })),
+      zones: rc.zones.map((z) => ({ n: z.n, min: z.min, max: z.max, rep: z.rep, items: z.items.map((it) => ({ n: it.n, b: it.b, r: !!it.r, k: !!it.k, have: getCraftableInstancesByNameWorker_(backpackRows, discordId, it.n).length })) })),
       failPool: rc.failPoolRaw ? parseGachaRules(rc.failPoolRaw).map((pp) => { const hid = parseHiddenNameTag_(pp.dispName); return Object.assign({}, pp, { dispName: hid ? hid.beforeName : pp.dispName }); }) : [],
       personalTotalLimit: rc.personalTotalLimit, personalLeft: rc.personalTotalLimit > 0 ? Math.max(0, rc.personalTotalLimit - counts.total) : null,
       personalDailyLimit: rc.personalDailyLimit, dailyLeft: rc.personalDailyLimit > 0 ? Math.max(0, rc.personalDailyLimit - counts.today) : null,
