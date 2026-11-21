@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.345</div>
+    <div class="version-tag">系統版本：v5.4.346</div>
   </div>
 
   <script>
@@ -2240,7 +2240,7 @@
             }
 
             html += `<div style="display: flex; justify-content: space-between; color: ${color}; text-decoration: ${decoration}; margin-bottom: 4px;">
-                <span>- ${g.dispName}${displayQty}</span>
+                <span>- ${g.dispName}${displayQty}${(g.varList || []).filter(v => v && v.qtyCrypto && v.qtyCrypto.label).map(v => `<span style="color:#F0B232;font-size:12px"> (${v.qtyCrypto.label})</span>`).join('')}</span>
                 <span style="color: #99AAB5;">${detail.join(" / ")}</span>
             </div>`;
         });

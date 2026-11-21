@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.354</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.355</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -8960,7 +8960,7 @@ function cryptoQtyParseJS_(str) {
   return m ? { sym: m[1].toUpperCase(), op: m[2] || '', n: m[3] ? parseFloat(m[3]) : 1 } : null;
 }
 function cryptoXSplitJS_(seg) {
-  const m = (seg || '').toString().match(/^(.*?)\s*[xX×]\s*(\{[^}]+\})$/);
+  const m = (seg || '').toString().match(/^(.*?)\s*[xX×*＊]\s*(\{[^}]+\})$/);
   if (!m || !m[1]) return null;
   const sp = cryptoQtyParseJS_(m[2]);
   return sp ? { name: m[1].trim(), spec: sp } : null;
@@ -8970,7 +8970,7 @@ function cryptoQtyTextJS_(c) {
   const f = '{' + c.sym + (c.op ? c.op + c.n : '') + '}';
   if (!px) { adminCryptoFetch_(c.sym); return f + ' = ' + c.sym + '美元價(報價讀取中)'; }
   let v = px; if (c.op === '*') v = px * c.n; else if (c.op === '/' && c.n > 0) v = px / c.n;
-  return f + ' = ' + c.sym + '美元價(目前約 ' + Math.floor(px).toLocaleString() + (c.op ? c.op + c.n + '=' + Math.max(1, Math.floor(v)).toLocaleString() : '') + ')';
+  return f + ' = ' + c.sym + '美元價(目前約 ' + (px >= 100 ? Math.floor(px).toLocaleString() : String(parseFloat(px.toPrecision(4)))) + (c.op ? c.op + c.n + '=' + Math.max(1, Math.floor(v)).toLocaleString() : '') + ')';
 }
 function adminCryptoFetch_(sym) {
   if (adminCryptoAsked_.has(sym)) return; adminCryptoAsked_.add(sym);
@@ -9066,6 +9066,7 @@ function parseGachaRulesPreview(rawText) {
         extraToken = token;
       }
     }
+    if (!varList && !qtyCrypto && varName === dispName) { const xs3 = cryptoXSplitJS_(varName); if (xs3) { varName = xs3.name; qtyCrypto = xs3.spec; } }
     if (varList) { varName = varList[0].varName; qty = varList[0].qty; qtyRange = varList[0].qtyRange; qtyCrypto = varList[0].qtyCrypto || null; }
     pool.push({ dispName, varName, qty, qtyRange, qtyCrypto, varList, prob, stock, bad, raw: line,
       isNonInstant: /\[非即時\]/.test(dispName) || /\[非即時\]/.test(varName) || (varList && varList.some(v => /\[非即時\]/.test(v.varName))),
