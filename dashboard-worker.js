@@ -22781,8 +22781,8 @@ function bossAnnSend_(env, ctx, cfg, tr, title, annOut) {
   if (!annOut || !annOut.length || (cfg && cfg.testMode) || (tr && tr.access === 'test')) return;
   try {
     const cl = (x) => String(x === undefined || x === null ? '' : x).replace(/[|;@\n]/g, ' ').trim();
-    for (let i = 0; i < annOut.length; i += 20) {
-      const hook = '[BOSS公告] ' + cl(title) + '|' + annOut.slice(i, i + 20).map((a) => a.uid + '@' + cl(a.text)).join(';');
+    for (const a of annOut) { // 每個掉落一則:「BOSS」掉落了 X,由 @玩家 撿起了
+      const hook = '[BOSS掉落公告] ' + cl(title) + '|' + cl(a.reward) + '|' + String(a.uid).replace(/[^0-9]/g, '');
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(queueWebhookWorker_(hook)); else queueWebhookWorker_(hook);
     }
   } catch (e) { console.error('BOSS 掉落公告失敗', e && e.message ? e.message : e); }
@@ -22803,7 +22803,7 @@ async function bossSplitRewards_(env, rewards, uid, claimBase, reason, trId, src
     if (!bossDropOk_(r, claimBase + '-' + k)) continue; // 沒掉落
     // 所有獎品一律先放進📦禮物箱(src=獎品來源/原因),玩家自己手動領或批次領;不再直接入帳
     const ins_ = await env.DB.prepare('INSERT OR IGNORE INTO boss_gift (ckey,uid,track_id,src,type,name,amount,ts,status,expire_ts) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(claimBase + '-' + k, uid, trId, String(src).slice(0, 80), r.type === 'item' ? 'item' : 'currency', r.name, r.amount, ts, 'pending', bossGiftExpire_(giftTr, ts)).run();
-    if (r.ann && annOut && ins_ && ins_.meta && ins_.meta.changes > 0) annOut.push({ uid, text: '🎁 掉落 ' + r.name + ' ×' + r.amount + '(' + String(src).slice(0, 40) + ')' });
+    if (r.ann && annOut && ins_ && ins_.meta && ins_.meta.changes > 0) annOut.push({ uid, reward: r.name + '×' + r.amount });
   }
   return direct;
 }
@@ -22830,7 +22830,7 @@ async function bossSettle_(env, ctx, trId, loop, formIdx) {
     if (rk && r.damage + 1e-9 >= rkMin) { grants.push(...(await bossSplitRewards_(env, rk.rewards, r.uid, base + '-' + r.uid + '-k', reason + '第' + rank + '名', trId, '「' + form.name + '」排行獎 第 ' + rank + ' 名', tr, annOut_))); meta.push(r.uid + ' 排行#' + rank); }
   }
   if (form.rewards.lastHit.length && kill.last_uid) { grants.push(...(await bossSplitRewards_(env, form.rewards.lastHit, kill.last_uid, base + '-' + kill.last_uid + '-l', reason + '最後一擊', trId, '「' + form.name + '」最後一擊獎', tr, annOut_))); meta.push(kill.last_uid + ' 最後一擊'); }
-  bossAnnSend_(env, ctx, cfg, tr, '🎁 【翻翻樂】「' + form.name + '」擊倒獎勵 稀有掉落!', annOut_);
+  bossAnnSend_(env, ctx, cfg, tr, form.name, annOut_);
   let ok = true, failed = 0;
   for (let i = 0; i < grants.length; i += 40) {
     let res = null; try { res = await doBotGrantRewardBatch_(env, grants.slice(i, i + 40), ctx); } catch (e) { res = null; }
@@ -23228,7 +23228,7 @@ async function doBossPlayer_(env, ctx, action, p) {
         const rw = form.board.reward[parseInt(code.slice(1), 10)];
         // 發獎勵改背景進行(原本同步等 Sheets 寫入,翻到獎勵牌會卡數秒):先回應玩家,背景發放;背景發失敗就改放進📦禮物箱讓玩家自己領,不會掉獎勵
         const claimBase_ = 'bossflip-' + tr.id + '-' + uid + '-' + Date.now() + '-' + idx;
-        let gs_ = []; try { const annC_ = []; gs_ = await bossSplitRewards_(env, rw.rewards, uid, claimBase_, 'BOSS獎勵牌', tr.id, '獎勵牌 ' + face.label + '(' + tr.name + ')', tr, annC_); bossAnnSend_(env, ctx, cfg, tr, '🎁 【翻翻樂】' + name + ' 翻到獎勵牌 稀有掉落!', annC_); } catch (e) { gs_ = null; }
+        let gs_ = []; try { const annC_ = []; gs_ = await bossSplitRewards_(env, rw.rewards, uid, claimBase_, 'BOSS獎勵牌', tr.id, '獎勵牌 ' + face.label + '(' + tr.name + ')', tr, annC_); bossAnnSend_(env, ctx, cfg, tr, form.name, annC_); } catch (e) { gs_ = null; }
         const bgGrant_ = async () => {
           let ok = false;
           if (gs_ && !gs_.length) ok = true;
