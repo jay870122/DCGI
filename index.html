@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.357</div>
+    <div class="version-tag">系統版本：v5.4.358</div>
   </div>
 
   <script>
@@ -5509,7 +5509,7 @@
       if (m.presence) t.presence = m.presence;
       if (!bsBusy_) { if (m.board) t.board = m.board; if (m.room) { t.room = m.room; bsShowLast_(m.room.last); } bsRender_(); }
     }
-    function bsItemsText_(items) { return (items || []).map((r) => escapeHtml_(r.n) + '×' + bsNum_(r.a) + (r.c ? '(' + bsNum_(r.c) + '%)' : '') + (r.box ? ' 📦' : '')).join('、'); }
+    function bsItemsText_(items) { return (items || []).map((r) => escapeHtml_(r.n) + '×' + bsNum_(r.a) + (r.x ? '~' + bsNum_(r.x) : '') + (r.c ? '(' + bsNum_(r.c) + '%)' : '') + (r.box ? ' 📦' : '')).join('、'); }
     function bsPrizeHtml_(p) { // 獎勵一覽(大廳卡片與房間內共用)
       if (!p) return '';
       const rows = [];

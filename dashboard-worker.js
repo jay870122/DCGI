@@ -22596,11 +22596,12 @@ function bossTpe_() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString(
 function bossRewardsNorm_(arr, where) {
   const out = [];
   for (const r of (Array.isArray(arr) ? arr : [])) {
-    const type = r && r.type === 'item' ? 'item' : 'currency', nm = String(r && r.name || '').trim().slice(0, 40), amt = parseFloat(r && r.amount);
+    const type = r && r.type === 'item' ? 'item' : 'currency', nm = String(r && r.name || '').trim().slice(0, 40), amtSpec = String(r && r.amount === undefined || r && r.amount === null ? '' : r.amount).trim().replace(/[～－\-]/g, '~'), rngM = amtSpec.match(/^(\d+(?:\.\d+)?)\s*~\s*(\d+(?:\.\d+)?)$/), amt = rngM ? parseFloat(rngM[1]) : parseFloat(r && r.amount), amtMax = rngM ? parseFloat(rngM[2]) : 0;
     if (!nm) return { error: where + ' 有獎勵沒填名稱' };
-    if (!isFinite(amt) || amt <= 0 || amt > 1000000) return { error: where + ' 「' + nm + '」數量不正確(1~1000000)' };
+    if (!isFinite(amt) || amt <= 0 || amt > 1000000) return { error: where + ' 「' + nm + '」數量不正確(1~1000000,可填範圍如 1~5)' };
+    if (rngM && (!(amtMax > amt) || amtMax > 1000000)) return { error: where + ' 「' + nm + '」數量範圍要「小~大」(例 1~5)' };
     let chance = parseFloat(r && r.chance); if (!isFinite(chance) || chance >= 100 || (r && (r.chance === '' || r.chance === null || r.chance === undefined))) chance = 100; if (chance <= 0) return { error: where + ' 「' + nm + '」掉落機率要大於 0(填 100 或留空=必掉)' };
-    out.push({ type, name: nm, amount: type === 'item' ? Math.max(1, Math.round(amt)) : Math.round(amt * 100) / 100, box: !!(r && (r.box === true || r.box === 'true')), chance: Math.round(chance * 100) / 100, ann: !!(r && (r.ann === true || r.ann === 'true')) });
+    out.push({ type, name: nm, amount: type === 'item' ? Math.max(1, Math.round(amt)) : Math.round(amt * 100) / 100, max: rngM ? (type === 'item' ? Math.max(1, Math.round(amtMax)) : Math.round(amtMax * 100) / 100) : 0, box: !!(r && (r.box === true || r.box === 'true')), chance: Math.round(chance * 100) / 100, ann: !!(r && (r.ann === true || r.ann === 'true')) });
   }
   if (out.length > 8) return { error: where + ' 獎勵最多 8 項' };
   return { list: out };
@@ -22731,7 +22732,7 @@ function bossFace_(form, code, val) {
   const i = parseInt(code.slice(1), 10);
   if (code[0] === 'a') return { code, label: form.board.attack[i].label, name: '攻擊', sub: val === undefined || val === null ? '' : bossFmtNum_(val) };
   const rw = form.board.reward[i];
-  return { code, label: rw.label, name: '獎勵', sub: rw.rewards.map((r) => r.name + '×' + r.amount).join('、') };
+  return { code, label: rw.label, name: '獎勵', sub: rw.rewards.map((r) => r.name + '×' + r.amount + (r.max > r.amount ? '~' + r.max : '')).join('、') };
 }
 async function bossState_(env, tr) {
   let st = await env.DB.prepare('SELECT * FROM boss_state WHERE track_id=?').bind(tr.id).first();
@@ -22781,13 +22782,23 @@ function bossGiftExpire_(tr, ts) {
 }
 const bossGiftLive_ = () => "status!='claimed' AND (expire_ts IS NULL OR expire_ts=0 OR expire_ts>" + Date.now() + ')';
 // 🌟🆕 獎勵「掉落機率」:用 ckey 做固定雜湊決定(同一筆重跑結果一樣,不會因為重試多掉/少掉);chance 空=100=必掉
-function bossDropOk_(r, ckey) {
-  const ch = r && r.chance !== undefined ? parseFloat(r.chance) : 100;
-  if (!isFinite(ch) || ch >= 100) return true;
+function bossHash01_(ckey) { // 固定雜湊→[0,1)
   let h = 2166136261; const s = String(ckey);
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 2246822519) >>> 0; h = (h ^ (h >>> 13)) >>> 0;
-  return (h % 100000) / 1000 < ch;
+  return (h % 100000) / 100000;
+}
+function bossDropOk_(r, ckey) {
+  const ch = r && r.chance !== undefined ? parseFloat(r.chance) : 100;
+  if (!isFinite(ch) || ch >= 100) return true;
+  return bossHash01_(ckey) * 100 < ch;
+}
+// 數量範圍(max>amount):用 ckey 固定雜湊決定實際數量(重試不變);回傳 amount 已定案的副本
+function bossResolve_(r, ckey) {
+  if (!r || !(r.max > r.amount)) return r;
+  const u = bossHash01_(ckey + '#q'), isInt = r.type === 'item' || (Number.isInteger(r.amount) && Number.isInteger(r.max));
+  const v = isInt ? r.amount + Math.floor(u * (Math.floor(r.max) - Math.ceil(r.amount) + 1)) : Math.round((r.amount + u * (r.max - r.amount)) * 100) / 100;
+  return Object.assign({}, r, { amount: v, max: 0 });
 }
 // 掉落公告:annOut 收集 {uid,text},結束後一次送 [BOSS公告](測試模式/測試賽道不公告)
 function bossAnnSend_(env, ctx, cfg, tr, title, annOut) {
@@ -22812,8 +22823,8 @@ function bossGrantsOf_(rewards, uid, claimBase, reason) {
 async function bossSplitRewards_(env, rewards, uid, claimBase, reason, trId, src, giftTr, annOut) {
   const all = bossGrantsOf_(rewards, uid, claimBase, reason), direct = [], ts = Date.now();
   for (let k = 0; k < rewards.length; k++) {
-    const r = rewards[k];
-    if (!bossDropOk_(r, claimBase + '-' + k)) continue; // 沒掉落
+    if (!bossDropOk_(rewards[k], claimBase + '-' + k)) continue; // 沒掉落
+    const r = bossResolve_(rewards[k], claimBase + '-' + k);
     // 所有獎品一律先放進📦禮物箱(src=獎品來源/原因),玩家自己手動領或批次領;不再直接入帳
     const ins_ = await env.DB.prepare('INSERT OR IGNORE INTO boss_gift (ckey,uid,track_id,src,type,name,amount,ts,status,expire_ts) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(claimBase + '-' + k, uid, trId, String(src).slice(0, 80), r.type === 'item' ? 'item' : 'currency', r.name, r.amount, ts, 'pending', bossGiftExpire_(giftTr, ts)).run();
     if (r.ann && annOut && ins_ && ins_.meta && ins_.meta.changes > 0) annOut.push({ uid, reward: r.name + '×' + r.amount });
@@ -23004,7 +23015,7 @@ function bossRoomView_(room, uid) {
 }
 // 給玩家看的獎勵一覽(進房前後都顯示):擊倒獎勵(最後一擊/排行/保底)+獎勵牌內容
 function bossPrizesView_(form) {
-  const it = (list) => (list || []).map((r) => ({ n: r.name, a: r.amount, t: r.type, box: !!r.box, c: r.chance && r.chance < 100 ? r.chance : 0 }));
+  const it = (list) => (list || []).map((r) => ({ n: r.name, a: r.amount, x: r.max > r.amount ? r.max : 0, t: r.type, box: !!r.box, c: r.chance && r.chance < 100 ? r.chance : 0 }));
   const rw = form.rewards || {};
   return {
     lastHit: it(rw.lastHit),
@@ -23273,12 +23284,12 @@ async function doBossPlayer_(env, ctx, action, p) {
           let ok = false;
           if (gs_ && !gs_.length) ok = true;
           else if (gs_) { for (let t = 0; t < 2 && !ok; t++) { try { ok = bossGrantOk_(await doBotGrantRewardBatch_(env, gs_, ctx)); } catch (e) { ok = false; } } }
-          if (!ok) { try { for (let k = 0; k < rw.rewards.length; k++) { const r = rw.rewards[k]; if (!bossDropOk_(r, claimBase_ + '-' + k)) continue; await env.DB.prepare('INSERT OR IGNORE INTO boss_gift (ckey,uid,track_id,src,type,name,amount,ts,status,expire_ts) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(claimBase_ + '-' + k, uid, tr.id, '獎勵牌 ' + face.label + '(' + tr.name + ')', r.type === 'item' ? 'item' : 'currency', r.name, r.amount, Date.now(), 'pending', bossGiftExpire_(tr, Date.now())).run(); } } catch (e) { console.error('BOSS 獎勵牌發放與禮物箱備援都失敗', e && e.message ? e.message : e); } }
+          if (!ok) { try { for (let k = 0; k < rw.rewards.length; k++) { if (!bossDropOk_(rw.rewards[k], claimBase_ + '-' + k)) continue; const r = bossResolve_(rw.rewards[k], claimBase_ + '-' + k); await env.DB.prepare('INSERT OR IGNORE INTO boss_gift (ckey,uid,track_id,src,type,name,amount,ts,status,expire_ts) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(claimBase_ + '-' + k, uid, tr.id, '獎勵牌 ' + face.label + '(' + tr.name + ')', r.type === 'item' ? 'item' : 'currency', r.name, r.amount, Date.now(), 'pending', bossGiftExpire_(tr, Date.now())).run(); } } catch (e) { console.error('BOSS 獎勵牌發放與禮物箱備援都失敗', e && e.message ? e.message : e); } }
         };
         if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(bgGrant_()); else await bgGrant_();
         const res = { status: 'success', results: [] };
-        resp.events.push({ kind: 'reward', label: face.label, rewards: rw.rewards.filter((r_, k_) => bossDropOk_(r_, claimBase_ + '-' + k_)), granted: bossGrantOk_(res), boxed: true });
-        feed(tr.id, uid, name, 'reward', name + ' 翻到獎勵 ' + face.label + ':' + rw.rewards.map((r) => r.name + '×' + r.amount).join('、'));
+        resp.events.push({ kind: 'reward', label: face.label, rewards: rw.rewards.map((r_, k_) => bossDropOk_(r_, claimBase_ + '-' + k_) ? bossResolve_(r_, claimBase_ + '-' + k_) : null).filter(Boolean), granted: bossGrantOk_(res), boxed: true });
+        feed(tr.id, uid, name, 'reward', name + ' 翻到獎勵 ' + face.label + ':' + (rw.rewards.map((r_, k_) => bossDropOk_(r_, claimBase_ + '-' + k_) ? bossResolve_(r_, claimBase_ + '-' + k_) : null).filter(Boolean).map((r) => r.name + '×' + r.amount).join('、') || '(沒有掉落)'));
       }
     } else { // 沒配對:兩張都蓋回去
       resp.events.push({ kind: 'miss', faces: [bossFace_(form, fcode, bd.vals && bd.vals[first]), face] }); hide.push(first, idx); first = -1;
