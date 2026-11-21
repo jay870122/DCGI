@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.372</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.373</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4596,8 +4596,15 @@ function beRef_(path) { const ks = path.split('.'); let o = BED_; for (let i = 0
 function beSet_(path, v) { const r = beRef_(path); r[0][r[1]] = v; beTot_(); beMirror_(); }
 function beAdd_(path, item) { const r = beRef_(path); if (!Array.isArray(r[0][r[1]])) r[0][r[1]] = []; r[0][r[1]].push(beClone_(item)); beRender_(); }
 function beDel_(path, i) { const r = beRef_(path); r[0][r[1]].splice(i, 1); beRender_(); }
+function beDupTrack_(ti) {
+  const src = BED_.tracks[ti]; if (!src) return;
+  const c = beClone_(src), ids = new Set(BED_.tracks.map((t) => t.id));
+  let n = BED_.tracks.length + 1; while (ids.has('t' + n)) n++;
+  c.id = 't' + n; c.name = (src.name || '賽道') + '(複製)';
+  BED_.tracks.splice(ti + 1, 0, c); beRender_(); toast('已複製賽道(新ID:' + c.id + '),改完名稱/期間後記得按儲存');
+}
 function beDup_(path, i) { const r = beRef_(path); r[0][r[1]].splice(i + 1, 0, beClone_(r[0][r[1]][i])); beRender_(); }
-function beIn_(path, val, w, ph, type, list) { return '<input ' + (type ? 'type="' + type + '" ' : '') + (list ? 'list="' + list + '" ' : '') + 'value="' + beEsc_(val) + '" placeholder="' + beEsc_(ph || '') + '" style="width:' + w + 'px" oninput="beSet_(\'' + path + '\',this.value)">'; }
+function beIn_(path, val, w, ph, type, list) { return '<input ' + (type ? 'type="' + type + '" ' : '') + (list ? 'list="' + list + '" ' : '') + 'value="' + beEsc_(val) + '" placeholder="' + beEsc_(ph || '') + '" style="width:' + (type === 'number' ? Math.max(w + 26, 82) : w) + 'px" oninput="beSet_(\'' + path + '\',this.value)">'; }
 function beChk_(path, val, label) { return '<label class="pk-chk" style="margin:0"><input type="checkbox" ' + (val ? 'checked' : '') + ' onchange="beSet_(\'' + path + '\',this.checked)"> ' + label + '</label>'; }
 function beRole_(ti, id, on) { const t = BED_.tracks[ti]; t.roles = (t.roles || []).filter((x) => x !== id); if (on) t.roles.push(id); beTot_(); beMirror_(); }
 function beFix_() {
@@ -4648,7 +4655,7 @@ function beRender_() {
   let h = '';
   BED_.tracks.forEach((t, ti) => {
     const tp = 'tracks.' + ti;
-    h += '<div class="be-track"><div class="be-h">🗺️ 賽道 ' + (ti + 1) + '<button class="btn btn-edit" onclick="beDel_(\'tracks\',' + ti + ')">🗑 刪除賽道</button></div>';
+    h += '<div class="be-track"><div class="be-h">🗺️ 賽道 ' + (ti + 1) + '<button class="btn btn-edit" onclick="beDupTrack_(' + ti + ')">📑 複製賽道</button><button class="btn btn-edit" onclick="beDel_(\'tracks\',' + ti + ')">🗑 刪除賽道</button></div>';
     h += '<div class="be-row">名稱' + beIn_(tp + '.name', t.name, 130, '賽道名稱') + ' ID' + beIn_(tp + '.id', t.id, 60, 't1') + '</div>';
     h += '<div class="be-row">期間' + beIn_(tp + '.start', t.start, 135, '', 'date') + '~' + beIn_(tp + '.end', t.end, 135, '', 'date') + '</div>';
     h += '<div class="be-row">🎟️ 這條賽道的翻牌貨幣 ' + beIn_(tp + '.ticketCurrency', t.ticketCurrency || '', 160, '留空=用上面的全域貨幣', undefined, 'be-cur-list') + ' 每回合(翻 2 張)扣 ' + beIn_(tp + '.ticketCost', t.ticketCost === undefined ? 1 : t.ticketCost, 70, '1', 'number') + '</div>';
