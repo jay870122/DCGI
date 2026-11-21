@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.355</div>
+    <div class="version-tag">系統版本：v5.4.356</div>
   </div>
 
   <script>
@@ -5509,7 +5509,7 @@
       if (m.presence) t.presence = m.presence;
       if (!bsBusy_) { if (m.board) t.board = m.board; if (m.room) { t.room = m.room; bsShowLast_(m.room.last); } bsRender_(); }
     }
-    function bsItemsText_(items) { return (items || []).map((r) => escapeHtml_(r.n) + '×' + bsNum_(r.a) + (r.box ? ' 📦' : '')).join('、'); }
+    function bsItemsText_(items) { return (items || []).map((r) => escapeHtml_(r.n) + '×' + bsNum_(r.a) + (r.c ? '(' + bsNum_(r.c) + '%)' : '') + (r.box ? ' 📦' : '')).join('、'); }
     function bsPrizeHtml_(p) { // 獎勵一覽(大廳卡片與房間內共用)
       if (!p) return '';
       const rows = [];
@@ -5678,7 +5678,7 @@
       if (e.kind === 'reset') return '🔄 重置牌 ' + e.count + '/' + e.need;
       if (e.kind === 'reshuffle') return '🔀 牌面重新洗牌了!';
       if (e.kind === 'rest') return '😴 翻到休息牌,休息 ' + e.sec + ' 秒';
-      if (e.kind === 'reward') return '🎁 獎勵牌!獲得 ' + (e.rewards || []).map((r) => r.name + '×' + r.amount).join('、') + (e.boxed ? '(已放進📦禮物箱,到禮物箱領取)' : '') + (e.granted ? '' : '(發放中/失敗,請稍後確認)');
+      if (e.kind === 'reward') return '🎁 獎勵牌!獲得 ' + ((e.rewards || []).length ? (e.rewards || []).map((r) => r.name + '×' + r.amount).join('、') : '(這次沒有掉落…)') + (e.boxed ? '(已放進📦禮物箱,到禮物箱領取)' : '') + (e.granted ? '' : '(發放中/失敗,請稍後確認)');
       if (e.kind === 'kill') return '💥 BOSS「' + e.boss + '」被打倒了!獎勵結算中…';
       if (e.kind === 'late') return e.message;
       if (e.kind === 'miss') return '沒配對,蓋回去';
