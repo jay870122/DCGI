@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.356</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.357</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -530,7 +530,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div id="ns-conds-ui"></div><input type="hidden" id="ns-conds" value="[]">
         <button type="button" onclick="addCond_('ns')" style="margin-top:6px;padding:6px 12px;border-radius:6px;border:1px dashed #4F545C;background:transparent;color:#B9BBBE;cursor:pointer">＋ 新增條件</button>
       </div>
-            <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="text" placeholder="0 或運算式 {BTC*2}、{持有(幻彩水晶)*0.1}" title="整格填 {…} 可以用 + - * / 括號;變數:BTC/ETH/DOGE… 美元報價、持有(貨幣)、獲得(貨幣@本月|本週|本季|YYYY-MM-DD~YYYY-MM-DD)。報價每分鐘更新一次"></div>
+            <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="text" placeholder="0 或運算式 {BTC*2}、{持有(幻彩水晶)*0.1}" title="整格填 {…} 可以用 + - * / 括號;變數:BTC/ETH/DOGE… 美元報價、持有(貨幣)、獲得(貨幣@本月|本週|本季|YYYY-MM-DD~YYYY-MM-DD)。報價每分鐘更新一次"><details style="margin-top:4px;font-size:12px;color:var(--muted,#B9BBBE)"><summary style="cursor:pointer;color:#7289DA">📖 價格運算式教學</summary><div style="line-height:1.7;margin-top:4px">價格整格填 <code>{…}</code> 就會變成「隨報價/玩家狀況浮動」的價格,可用 <code>+ - * /</code> 和括號。<br>變數:<br>・<b>幣價</b>:<code>BTC</code>、<code>ETH</code>、<code>DOGE</code>…(美元報價)<br>・<b>持有</b>:<code>持有(幻彩水晶)</code>=玩家目前持有量(含股票/加密持倉)<br>・<b>獲得</b>:<code>獲得(幻彩水晶@本月)</code>=該期間已獲得量;期間可寫 本月 / 本週 / 本季 / <code>2026-11-01~2026-11-30</code>(貨幣要先開啟獲得紀錄)<br>範例:<code>{BTC/10000}</code>、<code>{BTC/1000 + 持有(幻彩水晶)*0.1}</code>、<code>{(BTC+ETH)/2000 + 3}</code><br>結果無條件捨去、最少 1;報價每 1 分鐘更新一次,購買時價格若已變動會請玩家重新確認;算不出來(抓不到報價等)就不能買。<br>獎池數量也能寫 <code>名稱*{DOGE*1000}</code> 或 <code>名稱:{BTC/100}</code>,但只支援幣價。</div></details></div>
             <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="幻彩水晶" list="dc-list"><datalist id="dc-list"></datalist></div>
             <div class="field full">
               <label>額外必付費用 <span class="hint">留空=不用;可新增多種,例如「水晶2+水晶碎片30」,每次購買都會一起收(不是選填折抵)</span></label>
@@ -1804,7 +1804,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div id="em-conds-ui"></div><input type="hidden" id="em-conds" value="[]">
         <button type="button" onclick="addCond_('em')" style="margin-top:6px;padding:6px 12px;border-radius:6px;border:1px dashed #4F545C;background:transparent;color:#B9BBBE;cursor:pointer">＋ 新增條件</button>
       </div>
-      <div class="field"><label>價格</label><input id="em-price" type="text" placeholder="0 或運算式 {BTC*2}" title="整格填 {…} 可以用 + - * / 括號;變數:BTC/ETH/DOGE… 美元報價、持有(貨幣)、獲得(貨幣@本月|本週|本季|YYYY-MM-DD~YYYY-MM-DD)。報價每分鐘更新一次"></div>
+      <div class="field"><label>價格</label><input id="em-price" type="text" placeholder="0 或運算式 {BTC*2}" title="整格填 {…} 可以用 + - * / 括號;變數:BTC/ETH/DOGE… 美元報價、持有(貨幣)、獲得(貨幣@本月|本週|本季|YYYY-MM-DD~YYYY-MM-DD)。報價每分鐘更新一次"><details style="margin-top:4px;font-size:12px;color:var(--muted,#B9BBBE)"><summary style="cursor:pointer;color:#7289DA">📖 價格運算式教學</summary><div style="line-height:1.7;margin-top:4px">價格整格填 <code>{…}</code> 就會變成「隨報價/玩家狀況浮動」的價格,可用 <code>+ - * /</code> 和括號。<br>變數:<br>・<b>幣價</b>:<code>BTC</code>、<code>ETH</code>、<code>DOGE</code>…(美元報價)<br>・<b>持有</b>:<code>持有(幻彩水晶)</code>=玩家目前持有量(含股票/加密持倉)<br>・<b>獲得</b>:<code>獲得(幻彩水晶@本月)</code>=該期間已獲得量;期間可寫 本月 / 本週 / 本季 / <code>2026-11-01~2026-11-30</code>(貨幣要先開啟獲得紀錄)<br>範例:<code>{BTC/10000}</code>、<code>{BTC/1000 + 持有(幻彩水晶)*0.1}</code>、<code>{(BTC+ETH)/2000 + 3}</code><br>結果無條件捨去、最少 1;報價每 1 分鐘更新一次,購買時價格若已變動會請玩家重新確認;算不出來(抓不到報價等)就不能買。<br>獎池數量也能寫 <code>名稱*{DOGE*1000}</code> 或 <code>名稱:{BTC/100}</code>,但只支援幣價。</div></details></div>
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
       <div class="full field">
         <label>額外必付費用 <span class="hint">留空=不用;可新增多種,每次購買都會一起收(不是選填折抵)</span></label>
