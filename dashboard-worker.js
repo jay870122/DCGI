@@ -9359,7 +9359,7 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
     if (st === 'upcoming') return { status: 'error', safeNoWrite: true, message: '這個配方還沒開放(' + formatTaipeiDtWorker_(rc.startAt).replace('T', ' ') + ' 開放)' };
     if (st === 'ended') return { status: 'error', safeNoWrite: true, message: '這個配方已經結束了' };
     if (st === 'soldout') return { status: 'error', safeNoWrite: true, message: '這個配方全服可合成次數已經用完了' };
-    if (rc.materials.length === 0) return { status: 'error', safeNoWrite: true, message: '這個配方沒有設定材料,請聯絡管理員' };
+    if (rc.materials.length === 0 && !rc.zones.some((z) => z.min > 0)) return { status: 'error', safeNoWrite: true, message: '這個配方沒有設定材料,請聯絡管理員' };
     const pool = parseGachaRules(rc.poolRaw);
     if (pool.length === 0) return { status: 'error', safeNoWrite: true, message: '這個配方的獎勵內容是空的,請聯絡管理員檢查設定' };
 
@@ -9648,7 +9648,8 @@ async function doAdminSaveCraftRecipe_(env, params) {
   const name = (params.name || '').toString().trim();
   if (!name) return { status: 'error', safeNoWrite: true, message: '請填寫配方名稱' };
   const mats = parseCraftMaterialsWorker_(params.materials);
-  if (mats.length === 0) return { status: 'error', safeNoWrite: true, message: '請至少設定一項材料(道具或貨幣,數量至少1)' };
+  const zonesChk_ = params.zones === undefined ? [] : parseCraftZonesWorker_(params.zones);
+  if (mats.length === 0 && !zonesChk_.some((z) => z.min > 0)) return { status: 'error', safeNoWrite: true, message: '請至少設定一項材料(道具或貨幣,數量至少1),或一個「必選」的加成區' };
   const poolRaw = (params.poolRaw || '').toString().trim();
   if (!poolRaw) return { status: 'error', safeNoWrite: true, message: '請填寫獎勵內容(格式跟盲盒規則一樣)' };
   if (parseGachaRules(poolRaw).length === 0) return { status: 'error', safeNoWrite: true, message: '獎勵內容看起來是空的或格式有誤,請檢查' };

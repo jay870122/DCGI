@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.365</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.366</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2643,7 +2643,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <input type="hidden" id="cr-id">
       <div class="field full"><label>配方名稱<span style="color:var(--red)">*</span></label><input id="cr-name" type="text" placeholder="例：高級寶箱合成"></div>
       <div class="field full">
-        <label>材料<span style="color:var(--red)">*</span> <span class="hint">全部湊齊才能合成;道具材料用「顯示名稱」比對(可直接選模板名稱,也可自己輸入),貨幣用玩家表欄位。勾「失敗退還」的材料,合成失敗時不會被扣(沒設成功率就用不到)</span></label>
+        <label>材料<span style="color:var(--red)">*</span> <span class="hint">(只想用下面的加成區選道具合成的話,材料可以不填,但加成區要有一區是「必選」)全部湊齊才能合成;道具材料用「顯示名稱」比對(可直接選模板名稱,也可自己輸入),貨幣用玩家表欄位。勾「失敗退還」的材料,合成失敗時不會被扣(沒設成功率就用不到)</span></label>
         <div id="cr-mats"></div>
         <div style="display:flex;gap:6px;margin-top:6px">
           <button type="button" class="btn btn-edit" onclick="addCraftMatRow('item')">＋ 道具材料</button>
@@ -6795,7 +6795,7 @@ function collectCraftMaterials_() {
 async function saveCraftRecipe() {
   const mats = collectCraftMaterials_();
   if (!document.getElementById('cr-name').value.trim()) { toast('請填寫配方名稱', false); return; }
-  if (mats.length === 0) { toast('請至少設定一項材料', false); return; }
+  if (mats.length === 0 && !collectCraftZones_().some(z => z.min > 0)) { toast('請至少設定一項材料,或一個「必選」的加成區', false); return; }
   if (!document.getElementById('cr-pool').value.trim()) { toast('請填寫獎勵內容', false); return; }
   const btn = document.getElementById('cr-save-btn');
   btn.disabled = true;
