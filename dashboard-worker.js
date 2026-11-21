@@ -9160,7 +9160,8 @@ function parseCraftZonesWorker_(raw) {
       if (!n) return;
       const isCur = !!it && it.t === 'cur';
       const mx = parseInt(it && it.max, 10);
-      items.push({ t: isCur ? 'cur' : 'item', d: isCur ? ((it.d || '').toString() || n) : '', max: isCur && mx > 0 ? mx : 0, n, b: isNaN(b) || b < 0 ? 0 : Math.round(b * 10000) / 10000, r: !!it && (it.r === true || it.r === 'true' || it.r === 1), k: !!it && (it.k === true || it.k === 'true' || it.k === 1) }); // r=失敗時不消耗;k=成功失敗都不消耗(返還)
+      const sz = parseInt(it && it.s, 10);
+      items.push({ s: sz > 1 ? sz : 1, t: isCur ? 'cur' : 'item', d: isCur ? ((it.d || '').toString() || n) : '', max: isCur && mx > 0 ? mx : 0, n, b: isNaN(b) || b < 0 ? 0 : Math.round(b * 10000) / 10000, r: !!it && (it.r === true || it.r === 'true' || it.r === 1), k: !!it && (it.k === true || it.k === 'true' || it.k === 1) }); // r=失敗時不消耗;k=成功失敗都不消耗(返還)
     });
     if (!items.length) return;
     let max = parseInt(z.max, 10); if (isNaN(max) || max < 1) max = 1;
@@ -9285,7 +9286,7 @@ async function doGetCraftRecipes_(env, discordId, forceFresh) {
     });
     list.push({
       id: rc.id, name: rc.name, note: rc.note, status: st, materials: mats, pool, successRate: rc.successRate, anim: rc.anim,
-      zones: rc.zones.map((z) => ({ n: z.n, min: z.min, max: z.max, rep: z.rep, items: z.items.map((it) => it.t === 'cur' ? { t: 'cur', n: it.n, d: it.d || it.n, b: it.b, r: !!it.r, k: !!it.k, max: it.max || 0, have: (() => { const ci = headers.indexOf(it.n); return ci === -1 || !playerRowVals ? 0 : Math.floor((parseFloat(playerRowVals[ci]) || 0) * 100) / 100; })() } : { n: it.n, b: it.b, r: !!it.r, k: !!it.k, have: getCraftableInstancesByNameWorker_(backpackRows, discordId, it.n).length }) })),
+      zones: rc.zones.map((z) => ({ n: z.n, min: z.min, max: z.max, rep: z.rep, items: z.items.map((it) => it.t === 'cur' ? { s: it.s || 1, t: 'cur', n: it.n, d: it.d || it.n, b: it.b, r: !!it.r, k: !!it.k, max: it.max || 0, have: (() => { const ci = headers.indexOf(it.n); return ci === -1 || !playerRowVals ? 0 : Math.floor((parseFloat(playerRowVals[ci]) || 0) * 100) / 100; })() } : { s: it.s || 1, n: it.n, b: it.b, r: !!it.r, k: !!it.k, have: getCraftableInstancesByNameWorker_(backpackRows, discordId, it.n).length }) })),
       failPool: rc.failPoolRaw ? parseGachaRules(rc.failPoolRaw).map((pp) => { const hid = parseHiddenNameTag_(pp.dispName); return Object.assign({}, pp, { dispName: hid ? hid.beforeName : pp.dispName }); }) : [],
       personalTotalLimit: rc.personalTotalLimit, personalLeft: rc.personalTotalLimit > 0 ? Math.max(0, rc.personalTotalLimit - counts.total) : null,
       personalDailyLimit: rc.personalDailyLimit, dailyLeft: rc.personalDailyLimit > 0 ? Math.max(0, rc.personalDailyLimit - counts.today) : null,
@@ -9427,6 +9428,7 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
         if (isNaN(zi) || zi < 0 || zi >= rc.zones.length || isNaN(c) || c < 1) return { status: 'error', safeNoWrite: true, message: '加成區選擇格式有誤,請重新整理後再試' };
         const z = rc.zones[zi], isCurPk = pk.t === 'cur', it = z.items.find((x) => x.n === nm && (x.t === 'cur') === isCurPk);
         if (!it) return { status: 'error', safeNoWrite: true, message: '「' + nm + '」不在 ' + z.n + ' 區的可選名單內' };
+        if (c % (it.s || 1) !== 0) return { status: 'error', safeNoWrite: true, message: z.n + ' 區的「' + (it.d || nm) + '」要以每 ' + it.s + ' 個為一組放入' };
         if (isCurPk) {
           if (it.max > 0 && c > it.max) return { status: 'error', safeNoWrite: true, message: z.n + ' 區的「' + (it.d || nm) + '」最多只能放 ' + it.max };
           const ci = playerHeaders.indexOf(nm);
@@ -9434,16 +9436,16 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
           const used = currencyCosts.filter((cc) => cc.colIdx === ci).reduce((a, cc) => a + cc.amount, 0) + zoneCur.filter((q) => q.colIdx === ci).reduce((a, q) => a + q.c, 0);
           if ((parseFloat(playerRowValues[ci]) || 0) - used < c) return { status: 'error', safeNoWrite: true, message: '加成貨幣不足:「' + (it.d || nm) + '」需要' + c + ',你目前只有' + ((parseFloat(playerRowValues[ci]) || 0) - used) };
           zoneCur.push({ internal: nm, display: it.d || nm, c, colIdx: ci, consFail: (it.r || it.k) ? 0 : c, consSucc: it.k ? 0 : c });
-          boostPct += it.b * c;
+          boostPct += it.b * (c / (it.s || 1));
           continue;
         }
         zSeen[zi][nm] = (zSeen[zi][nm] || 0) + c;
-        if (!z.rep && zSeen[zi][nm] > 1) return { status: 'error', safeNoWrite: true, message: z.n + ' 區的「' + nm + '」不可重複放入' };
+        if (!z.rep && zSeen[zi][nm] / (it.s || 1) > 1) return { status: 'error', safeNoWrite: true, message: z.n + ' 區的「' + nm + '」不可重複放入' };
         zTot[zi] += c;
         needByName[nm] = (needByName[nm] || 0) + c;
         consFail[nm] = (consFail[nm] || 0) + ((it.r || it.k) ? 0 : c); // 失敗時仍會消耗的個數
         consSucc[nm] = (consSucc[nm] || 0) + (it.k ? 0 : c); // 成功時仍會消耗的個數
-        boostPct += it.b * c;
+        boostPct += it.b * (c / (it.s || 1));
       }
       for (let zi = 0; zi < rc.zones.length; zi++) {
         const z = rc.zones[zi];
