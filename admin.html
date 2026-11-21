@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.363</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.364</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2652,7 +2652,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <datalist id="cr-item-names"></datalist>
       </div>
       <div class="field full" style="border:1px solid var(--border);border-radius:8px;padding:10px">
-        <label>🧪 加成區(選填) <span class="hint">開一個或多個區(A、B、C…),玩家合成時每區自己從背包挑道具放進去;<b>選到的道具不論成敗都會被消耗</b>,每個道具加上它設定的成功率(跟基本成功率相加,最高 100%)。有加成區的配方一次只能合成 1 次</span></label>
+        <label>🧪 加成區(選填) <span class="hint">開一個或多個區(A、B、C…),玩家合成時每區自己從背包挑道具放進去;<b>選到的道具預設不論成敗都會被消耗</b>(個別道具可勾「失敗不消耗」),每個道具加上它設定的成功率(跟基本成功率相加,最高 100%)。有加成區的配方一次只能合成 1 次</span></label>
         <div id="cr-zones"></div>
         <button type="button" class="btn btn-edit" onclick="addCraftZone()" style="margin-top:6px">＋ 新增一區</button>
         <details class="gacha-guide" style="margin-top:6px">
@@ -2660,6 +2660,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           　・<b>必選 X 個</b>:這區一定要放滿 X 個才能合成;<b>可選最多 X 個</b>:可以不放,最多放 X 個<br>
           　・<b>可重複</b>:勾了=同一種道具可以放多個(要有那麼多個);沒勾=每種道具最多放 1 個<br>
           　・<b>加成%</b>:每放一個這種道具,成功率增加這麼多(例如基本 50%,放 2 個加成 10% 的道具 → 70%)<br>
+          　・<b>失敗不消耗</b>:勾了的道具,合成失敗時不會被扣(成功才扣)<br>
           　・要讓加成有意義,上面「合成成功率」要設成小於 100%<br>
           　・同一種道具名稱也可以出現在不同區(各區各自計算,但背包裡要有足夠的個數)
         </details>
@@ -6659,7 +6660,7 @@ function renderCraftAdmin() {
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">目前沒有任何合成配方</td></tr>'; return; }
   const stateLabel = { open: '🟢 開放中', upcoming: '🕒 尚未開始', ended: '⏹️ 已結束', soldout: '🈵 全服已用完', disabled: '⏸️ 已停用' };
   tbody.innerHTML = list.map((r, idx) => {
-    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}${m.r ? ' <span class="hint">(失敗退還)</span>' : ''}`).join('<br>') + (r.zones && r.zones.length ? '<br>' + r.zones.map(z => `<span class="hint">🧪${crEsc_(z.n)}區 ${z.min > 0 ? '必選' : '可選≤'}${z.max}個${z.rep ? '(可重複)' : ''}:${z.items.map(i => crEsc_(i.n) + '+' + i.b + '%').join('、')}</span>`).join('<br>') : '');
+    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}${m.r ? ' <span class="hint">(失敗退還)</span>' : ''}`).join('<br>') + (r.zones && r.zones.length ? '<br>' + r.zones.map(z => `<span class="hint">🧪${crEsc_(z.n)}區 ${z.min > 0 ? '必選' : '可選≤'}${z.max}個${z.rep ? '(可重複)' : ''}:${z.items.map(i => crEsc_(i.n) + '+' + i.b + '%' + (i.r ? '(失敗不消耗)' : '')).join('、')}</span>`).join('<br>') : '');
     const poolLines = (r.poolRaw || '').split('\n').map(l => l.trim()).filter(Boolean);
     const lim = [];
     if (r.personalTotalLimit) lim.push(`個人${r.personalTotalLimit}次`);
@@ -6756,6 +6757,7 @@ function addCraftZoneItem(box, it) {
   row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px';
   row.innerHTML = `<input class="cr-z-iname" list="cr-item-names" style="flex:1" placeholder="道具顯示名稱" value="${crEsc_(it ? it.n : '')}">
     <span style="font-size:12px;white-space:nowrap">成功率 +</span><input class="cr-z-ib" type="number" min="0" step="0.1" style="width:76px" value="${it ? it.b : 5}"><span style="font-size:12px">%</span>
+    <label style="font-size:12px;white-space:nowrap;cursor:pointer" title="合成失敗時,這個道具不會被消耗"><input type="checkbox" class="cr-z-ir"${it && it.r ? ' checked' : ''}> 失敗不消耗</label>
     <button type="button" class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
   box.querySelector('.cr-z-items').appendChild(row);
 }
@@ -6768,7 +6770,7 @@ function collectCraftZones_() {
     box.querySelectorAll('.cr-z-item').forEach(r => {
       const n = (r.querySelector('.cr-z-iname').value || '').trim();
       const b = parseFloat(r.querySelector('.cr-z-ib').value);
-      if (n) items.push({ n, b: isNaN(b) || b < 0 ? 0 : b });
+      if (n) { const it = { n, b: isNaN(b) || b < 0 ? 0 : b }; if (r.querySelector('.cr-z-ir').checked) it.r = true; items.push(it); }
     });
     if (!items.length) return;
     out.push({ n: (box.querySelector('.cr-z-name').value || '').trim() || String.fromCharCode(65 + (out.length % 26)), min: req ? num : 0, max: num, rep: box.querySelector('.cr-z-rep').checked, items });

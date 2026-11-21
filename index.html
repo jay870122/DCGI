@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.350</div>
+    <div class="version-tag">系統版本：v5.4.351</div>
   </div>
 
   <script>
@@ -3907,11 +3907,11 @@
         return `<div style="margin-bottom:6px"><div style="font-size:12px;color:${zs.ok ? '#9CE5B4' : '#F5A3A3'}">🧪 ${craftEsc_(z.n)} 區:${need}${z.rep ? '(可重複)' : '(不可重複)'} ｜ 已選 ${zs.tot}${zs.boost > 0 ? ` ｜ +${Math.round(zs.boost * 100) / 100}%` : ''}</div>`
           + z.items.map((it, ii) => {
             const c = pk[zi + '|' + it.n] || 0;
-            return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0"><span style="flex:1">📦 ${craftEsc_(it.n)} <span style="color:#F0B232">+${it.b}%</span> <span style="color:#B9BBBE">(有 ${it.have})</span></span>`
+            return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0"><span style="flex:1">📦 ${craftEsc_(it.n)} <span style="color:#F0B232">+${it.b}%</span> <span style="color:#B9BBBE">(有 ${it.have})</span>${it.r ? ' <span title="合成失敗時不會被扣">↩️失敗不消耗</span>' : ''}</span>`
               + `<button class="btn-action" style="padding:1px 8px;background:#4F545C" onclick="craftZonePick_('${scope}',${rid},${zi},${ii},-1)" ${c > 0 ? '' : 'disabled'}>−</button><b style="min-width:18px;text-align:center">${c}</b>`
               + `<button class="btn-action" style="padding:1px 8px;background:#4F545C" onclick="craftZonePick_('${scope}',${rid},${zi},${ii},1)" ${it.have > 0 ? '' : 'disabled'}>＋</button></div>`;
           }).join('') + `</div>`;
-      }).join('') + `<div style="font-size:12px;color:#B9BBBE">選到的道具合成後<b>不論成敗都會消耗</b></div></div>`;
+      }).join('') + `<div style="font-size:12px;color:#B9BBBE">選到的道具合成後會消耗(標示「↩️失敗不消耗」的,失敗時不會被扣)</div></div>`;
     }
     function craftCanDo_(rc, key) {
       if (rc.status !== 'open') return false;
