@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.353</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.354</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -8974,12 +8974,14 @@ function cryptoQtyTextJS_(c) {
 }
 function adminCryptoFetch_(sym) {
   if (adminCryptoAsked_.has(sym)) return; adminCryptoAsked_.add(sym);
-  fetch(`${DASHBOARD_WORKER_URL}?action=cryptoPricesWorker&symbols=${encodeURIComponent(sym)}`).then(r => r.json()).then(d => {
+  const tok = localStorage.getItem('admin_dc_access_token') || '';
+  const qs = new URLSearchParams({ action: 'cryptoPricesWorker', symbols: sym, discordId: (ME && ME.id) || '', accessToken: tok });
+  fetch(`${DASHBOARD_WORKER_URL}?${qs}`).then(r => r.json()).then(d => {
     if (d && d.prices && d.prices[sym]) {
       adminCryptoPx_[sym] = d.prices[sym];
-      document.querySelectorAll('textarea').forEach(t => { if (t.value.indexOf('{') !== -1 && t.value.toUpperCase().indexOf('{' + sym) !== -1) t.dispatchEvent(new Event('input')); });
-    } else adminCryptoAsked_.delete(sym);
-  }).catch(() => adminCryptoAsked_.delete(sym));
+      document.querySelectorAll('textarea, input[type=text]').forEach(t => { if (t.value && t.value.indexOf('{') !== -1 && t.value.toUpperCase().indexOf('{' + sym) !== -1) t.dispatchEvent(new Event('input')); });
+    } else { setTimeout(() => adminCryptoAsked_.delete(sym), 8000); }
+  }).catch(() => setTimeout(() => adminCryptoAsked_.delete(sym), 8000));
 }
 function qtyTextJS_(v) { return v.qtyCrypto ? cryptoQtyTextJS_(v.qtyCrypto) : v.qtyRange ? (v.qtyRange[0] + '~' + v.qtyRange[1]) : v.qty; }
 function parseGachaRulesPreview(rawText) {
