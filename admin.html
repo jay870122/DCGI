@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.355</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.356</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -530,7 +530,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div id="ns-conds-ui"></div><input type="hidden" id="ns-conds" value="[]">
         <button type="button" onclick="addCond_('ns')" style="margin-top:6px;padding:6px 12px;border-radius:6px;border:1px dashed #4F545C;background:transparent;color:#B9BBBE;cursor:pointer">＋ 新增條件</button>
       </div>
-            <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="number" placeholder="0" min="0"></div>
+            <div class="field"><label>價格<span style="color:var(--red)">*</span></label><input id="ns-price" type="text" placeholder="0 或運算式 {BTC*2}、{持有(幻彩水晶)*0.1}" title="整格填 {…} 可以用 + - * / 括號;變數:BTC/ETH/DOGE… 美元報價、持有(貨幣)、獲得(貨幣@本月|本週|本季|YYYY-MM-DD~YYYY-MM-DD)。報價每分鐘更新一次"></div>
             <div class="field"><label>貨幣欄位</label><input id="ns-currency" value="幻彩水晶" list="dc-list"><datalist id="dc-list"></datalist></div>
             <div class="field full">
               <label>額外必付費用 <span class="hint">留空=不用;可新增多種,例如「水晶2+水晶碎片30」,每次購買都會一起收(不是選填折抵)</span></label>
@@ -1804,7 +1804,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div id="em-conds-ui"></div><input type="hidden" id="em-conds" value="[]">
         <button type="button" onclick="addCond_('em')" style="margin-top:6px;padding:6px 12px;border-radius:6px;border:1px dashed #4F545C;background:transparent;color:#B9BBBE;cursor:pointer">＋ 新增條件</button>
       </div>
-      <div class="field"><label>價格</label><input id="em-price" type="number" min="0"></div>
+      <div class="field"><label>價格</label><input id="em-price" type="text" placeholder="0 或運算式 {BTC*2}" title="整格填 {…} 可以用 + - * / 括號;變數:BTC/ETH/DOGE… 美元報價、持有(貨幣)、獲得(貨幣@本月|本週|本季|YYYY-MM-DD~YYYY-MM-DD)。報價每分鐘更新一次"></div>
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
       <div class="full field">
         <label>額外必付費用 <span class="hint">留空=不用;可新增多種,每次購買都會一起收(不是選填折抵)</span></label>
@@ -6218,12 +6218,14 @@ function icMerge_(merge) {
   sel.forEach(r => { r.querySelector('.ic-group').value = g; r.querySelector('.ic-sel').checked = false; });
   icRefreshGroups_();
 }
+// 價格欄:數字,或整格 {…} 運算式(詳細格式由伺服器存檔時再檢查)
+function priceInputOk_(v) { v = (v === undefined || v === null) ? '' : String(v).trim(); return v !== '' && (/^\{[^{}]+\}$/.test(v) || !isNaN(Number(v))); }
 function toggleAddMenu_(ev) { ev.stopPropagation(); const m = document.getElementById('add-menu'); m.style.display = m.style.display === 'none' ? 'block' : 'none'; }
 document.addEventListener('click', () => { const m = document.getElementById('add-menu'); if (m) m.style.display = 'none'; });
 // ── 共用欄位區塊(批次新增「全部套用相同」/批量修改共用):勾選才生效 ──
 const BULK_FIELDS_ = [
   { k: 'startDate', label: '開始時間', t: 'datetime-local' }, { k: 'endDate', label: '結束時間', t: 'datetime-local' },
-  { k: 'price', label: '價格', t: 'number' }, { k: 'stock', label: '庫存(空=無限)', t: 'text' },
+  { k: 'price', label: '價格(可填 {運算式})', t: 'text' }, { k: 'stock', label: '庫存(空=無限)', t: 'text' },
   { k: 'currency', label: '貨幣欄位', t: 'text', list: 'dc-list' }, { k: 'category', label: '分類', t: 'text', list: 'sc-list' },
   { k: 'limitPT', label: '每人終身限購', t: 'number' }, { k: 'limitPD', label: '每人每日限購', t: 'number' }, { k: 'limitPW', label: '每人每週限購', t: 'number' }, { k: 'limitPM', label: '每人每月限購', t: 'number' },
   { k: 'limitGD', label: '全服每日限量', t: 'number' }, { k: 'limitGW', label: '全服每週限量', t: 'number' }, { k: 'limitGM', label: '全服每月限量', t: 'number' },
@@ -6257,7 +6259,7 @@ function openBulkPatch() {
 async function bulkPatchRun() {
   const patch = bulkFieldsCollect_('bp');
   if (!Object.keys(patch).length) { toast('請先勾選要修改的欄位', false); return; }
-  if (patch.price !== undefined && (patch.price === '' || isNaN(Number(patch.price)))) { toast('價格要填數字', false); return; }
+  if (patch.price !== undefined && !priceInputOk_(patch.price)) { toast('價格要填數字或 {運算式}', false); return; }
   const ids = Array.from(shopSelectedIds);
   if (!confirm('要把以下設定套用到 ' + ids.length + ' 個商品:\n\n' + bulkFieldsLabel_(patch) + '\n\n其他欄位不會動。確定嗎?')) return;
   const go = document.getElementById('bp-go'), prog = document.getElementById('bp-prog'); go.disabled = true; prog.textContent = '修改中…';
@@ -6300,7 +6302,7 @@ async function bulkShopRun() {
   if (errs.length && !confirm('有 ' + errs.length + ' 行格式錯誤會被略過,仍要建立其餘 ' + rows.length + ' 個嗎?')) return;
   const cur0 = document.getElementById('bk-currency').value.trim(), cat0 = document.getElementById('bk-category').value.trim(), status = document.getElementById('bk-status').value;
   const common0 = bulkFieldsCollect_('bk');
-  if (common0.price !== undefined && (common0.price === '' || isNaN(Number(common0.price)))) { toast('「價格」要填數字', false); return; }
+  if (common0.price !== undefined && !priceInputOk_(common0.price)) { toast('「價格」要填數字或 {運算式}', false); return; }
   if (!confirm('即將建立 ' + rows.length + ' 個商品(' + (status === 'DRAFT' ? '草稿' : '直接上架') + ')' + (Object.keys(common0).length ? '\n全部套用:' + bulkFieldsLabel_(common0) : '') + ',確定嗎?')) return;
   const common = bulkFieldsCollect_('bk');
   bulkShopBusy_ = true; const go = document.getElementById('bk-go'), prog = document.getElementById('bk-prog'), log = document.getElementById('bk-log'); go.disabled = true; log.innerHTML = '';
@@ -8956,16 +8958,20 @@ function indexOfOutsideBracketsJS_(str, ch, fromIndex) {
 // 💱 數量可寫幣價變數:{BTC} / {BTC*2} / {BTC/100},也可 幻彩水晶x{BTC};數量=開獎當下美元價(乘除後)無條件捨去,至少1
 const adminCryptoPx_ = {}; const adminCryptoAsked_ = new Set();
 function cryptoQtyParseJS_(str) {
+  str = adminUnbrace_((str || '').toString());
+  const g = str.trim().match(/^\{([^{}]+)\}$/);
+  if (g && !/^\s*[A-Za-z0-9]{2,10}\s*(?:[*\/]\s*[0-9]+(?:\.[0-9]+)?)?\s*$/.test(g[1]) && /^[A-Za-z0-9_.+\-*\/()（）\s持有獲得@~:：\u4e00-\u9fa5]+$/.test(g[1])) return { sym: '', op: '', n: 1, expr: g[1].trim() };
   const m = (str || '').toString().trim().match(/^\{\s*([A-Za-z0-9]{2,10})\s*(?:([*\/])\s*([0-9]+(?:\.[0-9]+)?))?\s*\}$/);
   return m ? { sym: m[1].toUpperCase(), op: m[2] || '', n: m[3] ? parseFloat(m[3]) : 1 } : null;
 }
 function cryptoXSplitJS_(seg) {
-  const m = (seg || '').toString().match(/^(.*?)\s*[xX×*＊]\s*(\{[^}]+\})$/);
+  const m = adminUnbrace_((seg || '').toString()).match(/^(.*?)\s*[xX×*＊]\s*(\{[^{}]+\})$/);
   if (!m || !m[1]) return null;
   const sp = cryptoQtyParseJS_(m[2]);
   return sp ? { name: m[1].trim(), spec: sp } : null;
 }
 function cryptoQtyTextJS_(c) {
+  if (c.expr) return /持有|獲得/.test(c.expr) ? '{' + c.expr + '} ⚠️獎池數量不支援 持有()/獲得(),只能用在商品價格欄' : '{' + c.expr + '} = 開獎當下依報價計算';
   const px = adminCryptoPx_[c.sym];
   const f = '{' + c.sym + (c.op ? c.op + c.n : '') + '}';
   if (!px) { adminCryptoFetch_(c.sym); return f + ' = ' + c.sym + '美元價(報價讀取中)'; }
@@ -8984,7 +8990,17 @@ function adminCryptoFetch_(sym) {
   }).catch(() => setTimeout(() => adminCryptoAsked_.delete(sym), 8000));
 }
 function qtyTextJS_(v) { return v.qtyCrypto ? cryptoQtyTextJS_(v.qtyCrypto) : v.qtyRange ? (v.qtyRange[0] + '~' + v.qtyRange[1]) : v.qty; }
+let adminBraceMap_ = [];
+function adminUnbrace_(s) { return typeof s === 'string' ? s.replace(/\uE000(\d+)\uE001/g, (_, i) => adminBraceMap_[+i] || '') : s; }
 function parseGachaRulesPreview(rawText) {
+  const bm = [], txt = (rawText || '').toString();
+  const prot = txt.indexOf('{') === -1 ? txt : txt.replace(/\{[^{}\n]*\}/g, (m) => { bm.push(m); return '\uE000' + (bm.length - 1) + '\uE001'; });
+  adminBraceMap_ = bm;
+  const pool = parseGachaRulesPreviewCore_(prot);
+  if (bm.length) pool.forEach((p) => { p.dispName = adminUnbrace_(p.dispName); p.varName = adminUnbrace_(p.varName); p.raw = adminUnbrace_(p.raw); (p.varList || []).forEach((v) => { v.varName = adminUnbrace_(v.varName); }); });
+  return pool;
+}
+function parseGachaRulesPreviewCore_(rawText) {
   const lines = (rawText || '').split('\n');
   const pool = [];
   // 🌟 解析「數量」字串:支援固定數字(50)或隨機範圍(1~100 或 -140~210),回傳 {qty, qtyRange}
@@ -9035,7 +9051,7 @@ function parseGachaRulesPreview(rawText) {
         // 🌟 純數量範圍(沒有變數名稱前綴),例如獨立寫一個 token "1~100"
         const qr = parseQtyToken(token);
         qty = qr.qty; qtyRange = qr.qtyRange;
-      } else if (token.charAt(0) === '{' && cryptoQtyParseJS_(token)) {
+      } else if ((token.charAt(0) === '{' || token.charCodeAt(0) === 0xE000) && cryptoQtyParseJS_(token)) {
         qtyCrypto = cryptoQtyParseJS_(token);
       } else if (!isNaN(token) && !isNaN(parseFloat(token))) {
         qty = parseInt(token);
@@ -9442,7 +9458,7 @@ function renderItemOptions(prefix) {
     <div style="background:#2F3136;border-radius:8px;padding:12px;margin-bottom:10px">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <input placeholder="選項名稱,例如：X3" value="${(opt.name||'').replace(/"/g,'&quot;')}" style="flex:2" oninput="updateItemOptionField('${prefix}',${idx},'name',this.value)">
-        <input type="number" min="0" placeholder="價格" value="${opt.price||0}" style="flex:1" oninput="updateItemOptionField('${prefix}',${idx},'price',this.value)">
+        <input type="text" placeholder="價格(可填 {運算式})" value="${opt.price||0}" style="flex:1" oninput="updateItemOptionField('${prefix}',${idx},'price',this.value)">
         <button type="button" class="btn btn-del" onclick="removeItemOption('${prefix}',${idx})">✕ 刪除選項</button>
       </div>
       <textarea placeholder="這個選項的盲盒規則,格式跟上面的「獎勵數量/盲盒規則」一樣,例如：加布裝扮箱子X3, 幻彩水晶碎片:1, 100%" rows="2"

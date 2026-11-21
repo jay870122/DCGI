@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.348</div>
+    <div class="version-tag">系統版本：v5.4.349</div>
   </div>
 
   <script>
@@ -8278,7 +8278,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
               ${isHold ? `✨ 條件：<span class="item-price" style="color:#58FF9C;">${holdMaxM_ ? `持有 ${Math.max(0, item.price)} ~ ${holdMaxM_[1]} ${item.displayCurrency}` : `需持有 ${item.price} ${item.displayCurrency}`}</span><br><span class="hold-me" data-cur="${item.displayCurrency}" style="font-size:12px;color:#B9BBBE;display:block;margin:2px 0"></span>` : 
                 (item.itemOptions && item.itemOptions.length > 0)
                 ? `💰 價格：<span class="item-price" style="color:#B9BBBE">依選項而定,請往下選擇</span><br>`
-                : `💰 ${item.isRaffle ? '投1花費' : item.isGambling ? '每單位下注' : '價格'}：<span class="item-price">${formatCost_(item.price, item.displayCurrency)}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => formatCost_(e.amount, e.displayName)).join(' + ') : ''}</span><br>`}
+                : `💰 ${item.isRaffle ? '投1花費' : item.isGambling ? '每單位下注' : '價格'}：<span class="item-price">${formatCost_(item.price, item.displayCurrency)}${item.priceExpr ? ' <span style="color:#F0B232;font-size:12px" title="價格會隨報價/你的持有量浮動:' + String(item.priceExpr).replace(/"/g, '&quot;') + '">⚡浮動價</span>' : ''}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => formatCost_(e.amount, e.displayName)).join(' + ') : ''}</span><br>`}
               ${(item.requiredItems && item.requiredItems.length > 0) ? `<div style="margin:2px 0;font-size:12px;color:#F0B232">🎒 需要持有：${item.requiredItems.map(r => `${r.n} x${r.q}${r.c ? '（兌換時扣除）' : '（只檢查，不扣除）'}`).join('、')}</div>` : ''}
               ${item.itemOptions && item.itemOptions.length > 0 ? `
                 <select id="opt-${safeId}" style="width:100%;margin:6px 0" onchange="updateItemOptionPreview('${safeId}', ${JSON.stringify(item.itemOptions).replace(/"/g,'&quot;')})">
@@ -9165,7 +9165,16 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
     // 「結果不確定」處理,不能直接當成「沒成功所以可以放心fallback回GAS」。
     async function tryProcessPurchaseViaWorker_(itemId, qty, altMode, altAmountsObj, unlockPassword, altSelectedNames, optionIndex) {
       try {
-        const url = `${DASHBOARD_WORKER_URL}?action=processPurchaseWorker&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&optionIndex=${encodeURIComponent(optionIndex)}&accessToken=${encodeURIComponent(getAccessToken())}`;
+        // 🧮 價格是運算式(隨報價/持有量浮動)的商品:把玩家「看到的價格」一起送,伺服器發現價格已變會擋下讓他重新確認
+        let expectPx_ = '';
+        try {
+          const it_ = (currentShopItems || []).find(x => String(x.id) === String(itemId));
+          if (it_) {
+            if (optionIndex !== '' && optionIndex !== undefined && it_.optionExprs && it_.optionExprs[optionIndex] && it_.itemOptions && it_.itemOptions[optionIndex]) expectPx_ = it_.itemOptions[optionIndex].price;
+            else if ((optionIndex === '' || optionIndex === undefined) && it_.priceExpr) expectPx_ = it_.price;
+          }
+        } catch (e) {}
+        const url = `${DASHBOARD_WORKER_URL}?action=processPurchaseWorker&discordId=${currentUser.id}&itemId=${encodeURIComponent(itemId)}&qty=${qty}&altMode=${altMode}&altSelected=${encodeURIComponent(altSelectedNames.join(','))}&altAmount=${encodeURIComponent(JSON.stringify(altAmountsObj))}&unlockPassword=${encodeURIComponent(unlockPassword)}&optionIndex=${encodeURIComponent(optionIndex)}&expectPrice=${encodeURIComponent(expectPx_)}&accessToken=${encodeURIComponent(getAccessToken())}`;
         // 🌟 多人同時搶購:Worker 端現在最多排隊 20 秒,所以這支請求的逾時要拉長到 45 秒(否則會在伺服器還在排隊/處理時就被前端砍掉,變成「結果不確定」)。
         // 遇到「系統忙碌」(= 沒拿到鎖,保證沒寫入)自動重試 1 次;已售完/餘額不足/超過限購等其他錯誤不會重試。
         let data = null;
@@ -9175,6 +9184,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
           if (data && data.status === 'error' && data.safeNoWrite && /系統忙碌/.test(data.message || '') && attempt === 0) { await sleep_(1200 + Math.random() * 1500); continue; }
           break;
         }
+        if (data && data.code === 'PRICE_CHANGED') { try { fetchScoresAndShop(currentUser.id, null, true, true); } catch (e) {} } // 價格變了:順手重抓商店,畫面上的價格跟著更新
         if (data && data.status === 'unsupported') return data;
         if (data && data.status === 'success') return data;
         if (data && data.status === 'error' && data.safeNoWrite) return data;
