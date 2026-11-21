@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.359</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.360</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1537,6 +1537,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <details class="gacha-guide" style="margin-top:8px"><summary style="cursor:pointer">📖 <b>寫法與限制</b></summary>
             一行 = 一個獎項,逗號分隔:<code>顯示名稱,機率%,數量</code>(玩家看到的名稱就是這個「顯示名稱」,例如想顯示自訂名稱就寫在第一格)(數量可寫範圍 <code>1~3</code>;名稱跟貨幣欄位不同時用 <code>名稱,30%,貨幣欄位:2</code>);多種一起發用 <code>+</code>:<code>粽子:1+黃金粽子:1</code>。<br>
             🔢 <b>{倍數}</b>:規則裡任何地方(顯示名稱或數量)都可以寫 <code>{倍數}</code>、<code>{倍數*2}</code>、<code>{倍數+1}</code>、<code>{倍數-1}</code>、<code>{倍數/2}</code>,會自動代入當天的挑戰倍數計算(小數四捨五入成整數)。例:<code>幻彩水晶X{倍數*1}={倍數*1}, 幻彩水晶:{倍數*1}, 100%</code>;2 倍日就會抽到「幻彩水晶X2=2」給 2 個。上面可選預覽用的倍數。舊的 <code>[倍數]變數名</code> 寫法仍可用。<br>支援:貨幣、<code>[道具:模板名稱]</code>、<code>[背包]</code>/<code>[背包:參數]</code>、<code>[非即時]</code>(只顯示、不入帳,由管理員另外處理)。<br>
+            💱 <b>幣價運算式</b>:數量也可以寫 <code>{BTC/100}</code>、<code>名稱*{DOGE*1000}</code>(當下美元報價,可 + - * / 括號,無條件捨去、最少 1;只支援幣價),跟商店盲盒規則指南相同。<br>
             ⚠️ 不支援 [序號]/[身分組]/[留言]/[統計];「份」庫存在這裡不生效(只看機率);機率加起來不滿 100% 時剩下的機率=抽不到盲盒。
           </details>
           <div style="font-weight:700;margin:12px 0 4px">📅 限定日期的獎勵 <span class="hint">一天或一段日期;那幾天抽獎只用符合的限定組(取代上面平常的盲盒規則);同一天符合多組會合併一起抽</span></div>
@@ -2622,6 +2623,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           　<code>安慰獎, 幻彩水晶:10</code>　<span class="hint">← 沒寫機率也沒寫份數 = <b>保底獎</b>,其他都沒中/抽完才會開出,建議放最後一行</span><br>
           💡 <b>「100% 必得」的合成</b>:只寫一行並且不寫機率(保底行),就會每次必得。<br>
           💡 材料會在合成時一次扣除(有設成功率且勾了「失敗退還」的材料,失敗時不扣);如果獎池抽不出東西(機率沒中又沒保底、份數用完),合成會被擋下,<b>不會扣材料</b>。<br>
+          💱 <b>運算式數量</b>：數量可以填 <code>{BTC}</code>、<code>{BTC/100}</code>、<code>{(BTC+ETH)/1000+3}</code>,寫法 <code>幻彩水晶:{BTC/100}</code> 或 <code>幻彩水晶*{DOGE*1000}</code>;數量=開獎當下的美元報價(可用 + - * / 括號)無條件捨去、最少 1,抓不到報價就不會開獎也不扣東西。只支援幣價(不支援 <code>持有()</code>/<code>獲得()</code>)。<br>
           💡 下方預覽會即時顯示解析結果與機率加總;有紅字的行代表格式有問題。更多進階標籤([背包]、[非即時]、[隱藏名稱]等)寫法跟商店盲盒完全相同,可參考「商店管理」裡的盲盒規則格式指南。
         </details>
       </div>
