@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.379</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.380</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -10233,11 +10233,34 @@ let pcSelectedIds = new Set();
 let adjustColumns = []; // [{internal, display, mode}] 這次批次調整要動用哪幾種貨幣
 let adjustItemColumns = []; // [{id, templateName}] 這次批次要發放哪幾種道具(跟adjustColumns同一套邏輯,每種道具一欄,底下玩家表格各自填數量)
 
+// 🆕 玩家貨幣管理頁自動更新:停在這頁時每 30 秒、或從別的分頁/視窗切回來時,靜默重讀玩家表;
+// 有變動(新玩家加入、餘額變了)才重畫,保留你目前的搜尋、排序、勾選,不會跳回「讀取中」。
+let pcAutoBusy_ = false, pcLastSig_ = '';
+async function pcAutoRefresh_() {
+  const pg = document.getElementById('page-player-currency');
+  if (!pg || pg.style.display === 'none' || document.hidden || pcAutoBusy_ || !pcPlayers.length) return;
+  pcAutoBusy_ = true;
+  try {
+    const d = await apiWorkerRead('adminPlayersCurrency', {}, {action:'adminGetAllPlayersCurrency'});
+    if (!d || d.status !== 'success' || !Array.isArray(d.players)) return;
+    const sig = d.players.length + '|' + JSON.stringify(d.players);
+    if (sig === pcLastSig_) return;
+    const oldN = pcPlayers.length;
+    pcLastSig_ = sig;
+    pcPlayers = d.players; pcCurrencyFields = d.currencyFields; pcTableColumns = d.tableColumns; pcRoleMap = d.roleMap || pcRoleMap;
+    renderPlayerCurrencyTable();
+    if (d.players.length > oldN) toast('🆕 有新玩家加入(' + oldN + ' → ' + d.players.length + ' 人),清單已更新', true);
+  } catch (e) { /* 靜默更新失敗就等下一次 */ }
+  finally { pcAutoBusy_ = false; }
+}
+setInterval(pcAutoRefresh_, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pcAutoRefresh_(); });
+window.addEventListener('focus', () => pcAutoRefresh_());
 async function loadPlayerCurrency() {
   document.getElementById('pc-tbody').innerHTML = '<tr><td colspan="10" class="empty">讀取中...</td></tr>';
   const d = await apiWorkerRead('adminPlayersCurrency', {}, {action:'adminGetAllPlayersCurrency'});
   if (d.status !== 'success') { toast('載入失敗: '+d.message, false); return; }
-  pcPlayers = d.players;
+  pcPlayers = d.players; pcLastSig_ = d.players.length + '|' + JSON.stringify(d.players);
   pcCurrencyFields = d.currencyFields; // 🌟 給批次調整選單用,含「幻彩水晶(總獲得+可用)」合併選項
   pcTableColumns = d.tableColumns; // 🌟 給主表格欄位用,不含合併選項(那個不是真實欄位,沒有獨立餘額)
   pcRoleMap = d.roleMap || {};
