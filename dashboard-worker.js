@@ -22613,12 +22613,12 @@ function bossTpe_() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString(
 function bossRewardsNorm_(arr, where) {
   const out = [];
   for (const r of (Array.isArray(arr) ? arr : [])) {
-    const type = r && r.type === 'item' ? 'item' : 'currency', nm = String(r && r.name || '').trim().slice(0, 40), amtSpec = String(r && r.amount === undefined || r && r.amount === null ? '' : r.amount).trim().replace(/[～－\-]/g, '~'), rngM = amtSpec.match(/^(\d+(?:\.\d+)?)\s*~\s*(\d+(?:\.\d+)?)$/), amt = rngM ? parseFloat(rngM[1]) : parseFloat(r && r.amount), amtMax = rngM ? parseFloat(rngM[2]) : 0;
+    const type = r && r.type === 'item' ? 'item' : 'currency', nm = String(r && r.name || '').trim().slice(0, 40), amtSpec = String(r && r.amount === undefined || r && r.amount === null ? '' : r.amount).trim().replace(/[～－\-]/g, '~'), rngM = amtSpec.match(/^(\d+(?:\.\d+)?)\s*~\s*(\d+(?:\.\d+)?)$/), amt = rngM ? parseFloat(rngM[1]) : parseFloat(r && r.amount), amtMax = rngM ? parseFloat(rngM[2]) : ((parseFloat(r && r.max) > amt) ? parseFloat(r.max) : 0), hasMax = !!rngM || amtMax > 0;
     if (!nm) return { error: where + ' 有獎勵沒填名稱' };
     if (!isFinite(amt) || amt <= 0 || amt > 1000000) return { error: where + ' 「' + nm + '」數量不正確(1~1000000,可填範圍如 1~5)' };
     if (rngM && (!(amtMax > amt) || amtMax > 1000000)) return { error: where + ' 「' + nm + '」數量範圍要「小~大」(例 1~5)' };
     let chance = parseFloat(r && r.chance); if (!isFinite(chance) || chance >= 100 || (r && (r.chance === '' || r.chance === null || r.chance === undefined))) chance = 100; if (chance <= 0) return { error: where + ' 「' + nm + '」掉落機率要大於 0(填 100 或留空=必掉)' };
-    out.push({ type, name: nm, amount: type === 'item' ? Math.max(1, Math.round(amt)) : Math.round(amt * 100) / 100, max: rngM ? (type === 'item' ? Math.max(1, Math.round(amtMax)) : Math.round(amtMax * 100) / 100) : 0, box: !!(r && (r.box === true || r.box === 'true')), chance: Math.round(chance * 100) / 100, ann: !!(r && (r.ann === true || r.ann === 'true')) });
+    out.push({ type, name: nm, amount: type === 'item' ? Math.max(1, Math.round(amt)) : Math.round(amt * 100) / 100, max: hasMax ? (type === 'item' ? Math.max(1, Math.round(amtMax)) : Math.round(amtMax * 100) / 100) : 0, box: !!(r && (r.box === true || r.box === 'true')), chance: Math.round(chance * 100) / 100, ann: !!(r && (r.ann === true || r.ann === 'true')) });
   }
   if (out.length > 8) return { error: where + ' 獎勵最多 8 項' };
   return { list: out };
