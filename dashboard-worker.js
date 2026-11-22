@@ -3599,13 +3599,25 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
         }
 
         const writes = [];
+        const newPlayerRows_ = []; // 🆕 g.create=true 且玩家表還沒有這個人 → 自動建一列(機器人偵測到新團員時用)
         const ignoredFields = new Set(); // 🌟 對不到玩家資料表欄位名稱的欄位(例如名稱打錯/傳過來亂碼):原本會靜默略過、仍回success,現在回報出來讓呼叫端警告
         const scoreColIdx = { score1: 2, score2: 3, score3: 4 };
         for (const g of grants) {
           const discordId = (g.discordId || '').toString().trim();
           if (!discordId) continue;
           if (!lockTokens[discordId]) { results[discordId] = { status: 'error', message: '系統忙碌，請稍後再試' }; continue; }
-          const rowIdx = rowMap[discordId];
+          if (results[discordId] && results[discordId].created) continue; // 同一批重複出現的新玩家只建一列
+          let rowIdx = rowMap[discordId];
+          if (rowIdx === undefined && g.create === true && /^\d{5,25}$/.test(discordId)) {
+            // 新玩家:A欄=DiscordID(文字)、B欄=名稱、C~E 分數欄=0,其他欄位(貨幣等)留空=0;DC身分組/DC暱稱由下面的 setCustom 一起寫入
+            const nr = new Array(Math.max(headers.length, 5)).fill('');
+            nr[0] = "'" + discordId; nr[1] = (g.name || '').toString().slice(0, 60); nr[2] = 0; nr[3] = 0; nr[4] = 0;
+            const sc_ = g.setCustom || {};
+            for (const key in sc_) { const ci = headers.indexOf(key); if (ci === -1) continue; let v = sc_[key]; if (key === PLAYER_ROLE_COLUMN && typeof v === 'string' && v !== '') v = "'" + v; nr[ci] = v; }
+            newPlayerRows_.push(nr);
+            results[discordId] = { status: 'success', created: true, updated: {} };
+            continue;
+          }
           if (rowIdx === undefined) { results[discordId] = { status: 'error', message: '找不到這位玩家(可能還沒經過一次GAS的完整同步)' }; continue; }
           const row = sheetData[rowIdx];
           const rowNumber = rowIdx + 1;
@@ -3640,7 +3652,11 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
           await batchUpdateValues_(accessToken, env.SHEET_ID, writes);
           delete sheetCache['player:' + env.SHEET_ID];
         }
-        return jsonResponse({ status: 'success', results, ignoredFields: [...ignoredFields] }, corsHeaders);
+        if (newPlayerRows_.length > 0) {
+          await appendRowsWithLockedRange_(env, accessToken, env.SHEET_ID, SHEET_NAMES.player, 'playerCreate', newPlayerRows_);
+          delete sheetCache['player:' + env.SHEET_ID];
+        }
+        return jsonResponse({ status: 'success', results, ignoredFields: [...ignoredFields], created: newPlayerRows_.length }, corsHeaders);
       } catch (e) {
         return jsonResponse({ status: 'error', message: '寫入失敗：' + (e && e.message ? e.message : String(e)) }, corsHeaders);
       } finally {
