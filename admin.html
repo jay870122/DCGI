@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.380</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.381</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4709,10 +4709,74 @@ function beRender_() {
       h += '<div class="be-sub">🎯 最後一擊獎</div>' + beRw_(fp + '.rewards.lastHit', f.rewards.lastHit);
       h += '</div>';
     });
-    h += '<button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',BE_FORM_)">➕ 新增 BOSS 型態</button> <button class="btn btn-primary" onclick="bossSave_()">💾 儲存</button></div>';
+    h += '<button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',BE_FORM_)">➕ 新增 BOSS 型態</button> <button class="btn btn-primary" onclick="bossSave_()">💾 儲存</button>';
+    h += '<details class="be-form" ontoggle="if(this.open)beProp_(' + ti + ')"><summary style="cursor:pointer"><b>📄 活動企劃書版本</b>(依上面設定自動產生,可直接貼進企劃書)</summary><div class="be-row"><button class="btn btn-primary" onclick="beCopyProp_(' + ti + ')">📋 複製</button> <button class="btn btn-edit" onclick="beProp_(' + ti + ')">🔄 重新產生</button></div><textarea id="be-prop-' + ti + '" readonly style="width:100%;min-height:260px;font-family:inherit;font-size:13px;line-height:1.5"></textarea></details></div>';
   });
   if (!BED_.tracks.length) h = '<div class="hint">還沒有賽道,按下面「➕ 新增賽道」開始。</div>';
   el.innerHTML = h; beTot_(); beMirror_();
+}
+function beProposal_(t) { // 依賽道設定自動產生「活動企劃書」可貼上的純文字(Markdown 風格)
+  const L = [], num = (v) => (v === undefined || v === null || v === '' ? '' : String(v));
+  const rng = (spec, n) => { const v = (spec !== undefined && spec !== '') ? spec : n; return v === undefined || v === null || v === '' ? '依機率' : String(v); };
+  const cnt = (o) => { const v = o.countSpec !== undefined && o.countSpec !== '' ? o.countSpec : o.count; return v === undefined || v === null || v === '' || String(v) === '0' ? '' : String(v); };
+  const rw1 = (r) => { const a = r.max > r.amount ? r.amount + '~' + r.max : num(r.amount); const c = (r.chance === undefined || r.chance === '' || parseFloat(r.chance) >= 100) ? '' : '(掉落 ' + r.chance + '%)'; return (r.name || '(未填)') + (r.type === 'item' ? '(道具)' : '') + ' ×' + a + c + (r.ann ? ' 📣公告' : ''); };
+  const rws = (l) => (l && l.length ? l.map(rw1).join('、') : '無');
+  const cs = (l) => (l && l.length ? l.map((r) => (r.name || '(未填)') + (r.type === 'item' ? '(道具)' : '') + ' ×' + num(r.amount)).join('、') : '無');
+  const ent = (l) => (l && l.length ? l.map((r) => (r.name || '(未填)') + (r.type === 'item' ? '(道具)' : '') + ' ≥' + num(r.amount)).join('、') : '不限');
+  const forms = t.forms || [], NUM = ['三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+  L.push('# 🎴 ' + (t.name || '翻翻樂') + '(翻翻樂打 BOSS)');
+  L.push('');
+  L.push('## 一、活動基本資訊');
+  L.push('- 活動期間:' + ((t.start || t.end) ? (t.start || '即日起') + ' ~ ' + (t.end || '不限') : '不限期'));
+  const rl = t.roles || [];
+  const acc = t.access === 'test' ? '僅管理員(測試用)' : t.access === 'roles' ? '限定身分組(' + rl.length + ' 個' + (rl.length ? ':' + rl.map((id) => { const r = (typeof ALL_ROLES_LIST !== 'undefined' ? ALL_ROLES_LIST : []).find((x) => x.id === id); return r ? r.name : id; }).join('、') : '') + ')' : '所有玩家';
+  L.push('- 開放對象:' + acc);
+  L.push('- 進場條件(需持有,不扣除):' + ent(t.entry));
+  L.push('- 玩法模式:' + (t.personal ? '個人版 BOSS(每位玩家各自一隻 BOSS,血量/進度/排行/獎勵互不影響)' : t.shared ? '全場共用牌面(多人輪流翻,翻開的牌大家都看得到)' : '每人各自一盤牌面,共同攻擊同一隻 BOSS'));
+  const lf = t.life;
+  if (lf && lf.on) {
+    L.push('- 費用制度:❤️ 生命制');
+    L.push('  - 入場給 ' + (lf.count || 3) + ' 條命,翻錯一次扣 1 命,命數歸 0 即被踢出');
+    L.push('  - 入場費(每次入場都要付):' + cs(lf.entry));
+    L.push('  - 續命費(命用完可付費續命,命數回滿、牌面與 BOSS 血量不變):' + ((lf.cont || []).length ? cs(lf.cont) : '不開放續命'));
+    L.push('  - 被踢出後重新入場:BOSS 血量' + (lf.keepHp === false ? '回滿' : '保留(接著打)'));
+  } else {
+    L.push('- 費用制度:每回合(翻 2 張)消耗 ' + num(t.ticketCost === undefined ? 1 : t.ticketCost) + ' 個「' + (t.ticketCurrency || '全域翻牌貨幣') + '」');
+  }
+  L.push('- 型態進程:共 ' + forms.length + ' 個型態,依序進化' + (t.repeat === false ? '(打完一個型態後不可再挑戰)' : '') + (t.loopBack ? ';最後型態倒下後回到第一型態重來,' + (t.maxLoops ? '最多 ' + t.maxLoops + ' 輪' : '輪數不限') : ';最後型態倒下即結束'));
+  const d = +t.giftDays || 0, h = +t.giftHours || 0, m = +t.giftMins || 0;
+  L.push('- 領獎期限:' + (t.giftUntil ? '至 ' + String(t.giftUntil).replace('T', ' ') : (d || h || m) ? '獎品放進禮物箱後 ' + (d ? d + ' 天' : '') + (h ? h + ' 小時' : '') + (m ? m + ' 分鐘' : '') + '內領取' : '不限期'));
+  if (t.dcKill) L.push('- Discord 通報:BOSS 被打倒時自動公告' + (t.dcKillRank > 0 ? '(附傷害排行前 ' + t.dcKillRank + ' 名)' : ''));
+  L.push('');
+  L.push('## 二、玩法說明');
+  L.push('1. 玩家每回合翻開 2 張牌:兩張相同即「一對」,觸發該牌效果;不同則蓋回' + ((lf && lf.on) ? ',並扣 1 命。' : '。'));
+  L.push('2. 攻擊牌配對成功 → 對 BOSS 造成傷害;獎勵牌配對成功 → 立即獲得獎勵;特殊牌效果詳見各型態。');
+  L.push('3. BOSS 血量歸零即擊倒,依貢獻發放擊倒獎勵並進化至下一型態。');
+  forms.forEach((f, i) => {
+    const b = f.board || {}, at = b.attack || [], rw = b.reward || [], tp = b.trap || {}, rs = b.reset || {}, rt = b.rest || {}, R = f.rewards || {};
+    L.push('');
+    L.push('## ' + (NUM[i] || (i + 3)) + '、型態 ' + (i + 1) + ':' + (f.name || '(未命名)') + '(血量 ' + num(f.hp) + ')');
+    L.push('**牌盤**:' + (b.rows ? b.rows + ' 列 × ' : '') + (b.cols || 4) + ' 欄');
+    if (at.length) { L.push('**⚔️ 攻擊牌**'); at.forEach((a) => L.push('- ' + (a.label || '(圖示)') + ':' + rng(a.pairsSpec, a.pairs) + ' 對,每對傷害 ' + num(a.dmg) + ',出現機率 ' + (a.chance === undefined ? 100 : a.chance) + '%')); }
+    if (rw.length) { L.push('**🎁 獎勵牌**'); rw.forEach((r) => L.push('- ' + (r.label || '(圖示)') + ':' + rng(r.pairsSpec, r.pairs) + ' 對,出現機率 ' + (r.chance === undefined ? 100 : r.chance) + '%;每對獎勵:' + rws(r.rewards))); }
+    const sp = [];
+    if (cnt(tp)) sp.push('- 💣 陷阱:' + cnt(tp) + ' 張,翻開後 BOSS 回血 ' + num(tp.heal) + ',出現機率 ' + (tp.chance === undefined ? 100 : tp.chance) + '%');
+    if (cnt(rs)) sp.push('- 🔄 重置:' + cnt(rs) + ' 張,累計翻到 ' + num(rs.need) + ' 次後整盤重新洗牌,出現機率 ' + (rs.chance === undefined ? 100 : rs.chance) + '%');
+    if (cnt(rt)) sp.push('- 😴 休息:' + cnt(rt) + ' 張,翻開後休息 ' + num(rt.sec) + ' 秒,出現機率 ' + (rt.chance === undefined ? 100 : rt.chance) + '%');
+    if (sp.length) { L.push('**特殊牌**'); sp.forEach((x) => L.push(x)); }
+    L.push('**🏅 擊倒獎勵**');
+    (R.participation || []).forEach((x) => L.push('- 參與保底:攻擊滿 ' + num(x.min) + ' 次' + (x.minPct ? '且傷害達 BOSS 血量 ' + x.minPct + '%' : '') + ' → ' + rws(x.rewards)));
+    if ((R.ranking || []).length) L.push('- 傷害排行獎' + (R.rankingMinPct ? '(門檻:個人傷害達 BOSS 血量 ' + R.rankingMinPct + '%)' : '') + ':');
+    (R.ranking || []).forEach((x) => L.push('  - 第 ' + num(x.from) + (x.to !== x.from ? '~' + num(x.to) : '') + ' 名 → ' + rws(x.rewards)));
+    if ((R.lastHit || []).length) L.push('- 🎯 最後一擊:' + rws(R.lastHit));
+  });
+  return L.join('\n');
+}
+function beProp_(ti) { const t = BED_.tracks[ti], ta = document.getElementById('be-prop-' + ti); if (t && ta) ta.value = beProposal_(t); }
+async function beCopyProp_(ti) {
+  const ta = document.getElementById('be-prop-' + ti); if (!ta) return; ta.value = beProposal_(BED_.tracks[ti]);
+  try { await navigator.clipboard.writeText(ta.value); toast('已複製企劃書版本'); }
+  catch (e) { try { ta.select(); document.execCommand('copy'); toast('已複製企劃書版本'); } catch (e2) { toast('請手動全選複製', false); } }
 }
 function beAddTrack_() { BED_.tracks.push({ id: 't' + (BED_.tracks.length + 1), name: '新賽道', start: '', end: '', repeat: true, shared: false, ticketCurrency: '', ticketCost: 1, loopBack: false, maxLoops: 1, personal: false, life: { on: false, count: 3, entry: [], cont: [], keepHp: true }, dcKill: false, dcKillRank: 0, forms: [beClone_(BE_FORM_)] }); beRender_(); }
 function bossApplyJson_() { let o; try { o = JSON.parse(document.getElementById('boss-json').value || '{"tracks":[]}'); } catch (e) { toast('JSON 格式有誤:' + e.message, false); return; } BED_ = { tracks: Array.isArray(o) ? o : (o.tracks || []) }; beFix_(); beRender_(); toast('已套用到編輯器'); }
