@@ -9417,7 +9417,6 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
     const zoneCur = []; // 加成區放的貨幣 {internal,display,c,colIdx,consFail,consSucc}
     let effRate = rc.successRate, boostPct = 0;
     if (rc.zones && rc.zones.length) {
-      if (times > 1) return { status: 'error', safeNoWrite: true, message: '這個配方有加成區,一次只能合成 1 次' };
       let picks = (opts && opts.zonePick) || [];
       if (typeof picks === 'string') { try { picks = JSON.parse(picks); } catch (e) { picks = []; } }
       if (!Array.isArray(picks)) picks = [];
@@ -9435,7 +9434,7 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
           const ci = playerHeaders.indexOf(nm);
           if (ci === -1) return { status: 'error', safeNoWrite: true, message: '配方設定有誤:找不到貨幣欄位「' + nm + '」,請聯絡管理員' };
           const used = currencyCosts.filter((cc) => cc.colIdx === ci).reduce((a, cc) => a + cc.amount, 0) + zoneCur.filter((q) => q.colIdx === ci).reduce((a, q) => a + q.c, 0);
-          if ((parseFloat(playerRowValues[ci]) || 0) - used < c) return { status: 'error', safeNoWrite: true, message: '加成貨幣不足:「' + (it.d || nm) + '」需要' + c + ',你目前只有' + ((parseFloat(playerRowValues[ci]) || 0) - used) };
+          if ((parseFloat(playerRowValues[ci]) || 0) - used < c * times) return { status: 'error', safeNoWrite: true, message: '加成貨幣不足:「' + (it.d || nm) + '」需要' + (c * times) + ',你目前只有' + ((parseFloat(playerRowValues[ci]) || 0) - used) };
           zoneCur.push({ internal: nm, display: it.d || nm, c, colIdx: ci, consFail: (it.r || it.k) ? 0 : c, consSucc: it.k ? 0 : c });
           boostPct += it.b * (c / (it.s || 1));
           continue;
@@ -9455,10 +9454,11 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
       }
       for (const nm of Object.keys(needByName)) {
         const cands = getCraftableInstancesByNameWorker_(backpackRows, discordId, nm).filter((c) => !consumedIds[c.instanceId] && !(fast && c.instanceId && pendDelIds_[c.instanceId]));
-        if (cands.length < needByName[nm]) return { status: 'error', safeNoWrite: true, message: '加成道具不足:「' + nm + '」需要' + needByName[nm] + '個,你只有' + cands.length + '個可用的' };
+        const needTot_ = needByName[nm] * times; // 一次合成多組:每組都用同樣的加成區選擇
+        if (cands.length < needTot_) return { status: 'error', safeNoWrite: true, message: '加成道具不足:「' + nm + '」' + (times > 1 ? '合成 ' + times + ' 組' : '') + '需要' + needTot_ + '個,你只有' + cands.length + '個可用的' };
         const rows = [], ids = [];
-        for (let ci = 0; ci < needByName[nm]; ci++) { consumedIds[cands[ci].instanceId] = true; rows.push(cands[ci].rowIdx); ids.push((cands[ci].instanceId || '').toString()); }
-        zonePlan.push({ n: nm, c: needByName[nm], consFail: consFail[nm], consSucc: consSucc[nm], rows, ids });
+        for (let ci = 0; ci < needTot_; ci++) { consumedIds[cands[ci].instanceId] = true; rows.push(cands[ci].rowIdx); ids.push((cands[ci].instanceId || '').toString()); }
+        zonePlan.push({ n: nm, c: needTot_, consFail: consFail[nm], consSucc: consSucc[nm], rows, ids }); // consFail/consSucc 是「每組」的消耗量
       }
       effRate = Math.min(100, Math.round((rc.successRate + boostPct) * 100) / 100);
     }
@@ -9509,16 +9509,16 @@ async function doCraftItem_(env, discordId, recipeId, timesRaw, ctx, opts) {
     });
 
     zonePlan.forEach((zp) => {
-      const zq = fails > 0 ? zp.consFail : zp.consSucc; // 「失敗不消耗」失敗時不扣;「都不消耗」成敗都不扣
+      const zq = succ * zp.consSucc + fails * zp.consFail; // 每組各自算:「失敗不消耗」失敗那組不扣;「都不消耗」成敗都不扣
       zp.rows.slice(0, zq).forEach((ri) => consumedRowIdxs.push(ri));
       zp.ids.slice(0, zq).forEach((id) => { if (id) consumedInstIds_.push(id); });
       actualMat.push({ mat: { n: zp.n, d: '加成:' + zp.n, q: zp.c, r: false }, qty: zq, refunded: zq < zp.c });
     });
 
     zoneCur.forEach((q) => {
-      const qq = fails > 0 ? q.consFail : q.consSucc;
+      const qq = succ * q.consSucc + fails * q.consFail;
       if (qq > 0) currencyCosts.push({ internal: q.internal, display: q.display, amount: qq, colIdx: q.colIdx });
-      actualMat.push({ mat: { n: q.internal, d: '加成:' + q.display, q: q.c, r: false }, qty: qq, refunded: qq < q.c });
+      actualMat.push({ mat: { n: q.internal, d: '加成:' + q.display, q: q.c * times, r: false }, qty: qq, refunded: qq < q.c * times });
     });
 
     // 扣貨幣(記憶體)→ 發獎勵

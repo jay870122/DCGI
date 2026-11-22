@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.363</div>
+    <div class="version-tag">系統版本：v5.4.364</div>
   </div>
 
   <script>
@@ -3891,7 +3891,7 @@
       if (nxt < 0) nxt = 0;
       if (nxt === 0) delete pk[k]; else pk[k] = nxt;
       const el = document.getElementById(`craft-box-${scope}-${rid}`);
-      if (el) { const tmp = document.createElement('div'); tmp.innerHTML = craftRecipeHtml_(rc, scope).trim(); const nn = tmp.firstElementChild; const wasOpen = Array.from(el.querySelectorAll('details')).map(d => d.open); el.replaceWith(nn); nn.querySelectorAll('details').forEach((d, i) => { if (wasOpen[i]) d.open = true; }); }
+      if (el) { const tmp = document.createElement('div'); tmp.innerHTML = craftRecipeHtml_(rc, scope).trim(); const nn = tmp.firstElementChild; const wasOpen = Array.from(el.querySelectorAll('details')).map(d => d.open); const qIn_ = el.querySelector('input[id^="craft-qty-"]'), qOld_ = qIn_ ? qIn_.value : null; el.replaceWith(nn); if (qOld_) { const qn_ = nn.querySelector('input[id^="craft-qty-"]'); if (qn_) qn_.value = qOld_; } nn.querySelectorAll('details').forEach((d, i) => { if (wasOpen[i]) d.open = true; }); }
     }
     function craftZoneCur_(scope, rid, zi, ii, val) {
       const key = scope + '|' + rid;
@@ -3907,7 +3907,7 @@
       const k = zi + '|$' + it.n;
       if (n === 0) delete pk[k]; else pk[k] = n;
       const el = document.getElementById(`craft-box-${scope}-${rid}`);
-      if (el) { const tmp = document.createElement('div'); tmp.innerHTML = craftRecipeHtml_(rc, scope).trim(); const nn = tmp.firstElementChild; const wasOpen = Array.from(el.querySelectorAll('details')).map(d => d.open); el.replaceWith(nn); nn.querySelectorAll('details').forEach((d, i) => { if (wasOpen[i]) d.open = true; }); }
+      if (el) { const tmp = document.createElement('div'); tmp.innerHTML = craftRecipeHtml_(rc, scope).trim(); const nn = tmp.firstElementChild; const wasOpen = Array.from(el.querySelectorAll('details')).map(d => d.open); const qIn_ = el.querySelector('input[id^="craft-qty-"]'), qOld_ = qIn_ ? qIn_.value : null; el.replaceWith(nn); if (qOld_) { const qn_ = nn.querySelector('input[id^="craft-qty-"]'); if (qn_) qn_.value = qOld_; } nn.querySelectorAll('details').forEach((d, i) => { if (wasOpen[i]) d.open = true; }); }
     }
     function craftZonePickJson_(rc, key) {
       const pk = craftPick_[key] || {}; const out = [];
@@ -3971,7 +3971,7 @@
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
             <b>🔨 ${craftEsc_(rc.name)}</b>${rateTag}
             <span style="display:flex;align-items:center;gap:6px">
-              <input type="number" id="${qtyId}" min="1" max="20" value="1" style="width:54px;padding:3px;text-align:center${hasZones ? ';display:none' : ''}">
+              <input type="number" id="${qtyId}" min="1" max="20" value="1" style="width:54px;padding:3px;text-align:center" title="一次合成幾組(每組都用上面同樣的選擇)">
               <button class="btn-action" style="padding:4px 12px;font-size:12px;background-color:${can ? '#F0B232' : '#4F545C'};color:${can ? '#1E1F22' : '#B9BBBE'}" ${can ? '' : 'disabled'} onclick="craftRecipe_(this, '${rc.id}', '${scope}')">合成</button>
             </span>
           </div>
@@ -4039,9 +4039,9 @@
       const zkey_ = scope + '|' + recipeId;
       if (hasZones_ && !craftZoneState_(rc, zkey_).ok) { alert('加成區的選擇數量還不符合規定'); return; }
       const zonePick_ = hasZones_ ? craftZonePickJson_(rc, zkey_) : [];
-      const times = hasZones_ ? 1 : (parseInt((document.getElementById(`craft-qty-${scope}-${recipeId}`) || {}).value, 10) || 1);
+      const times = (parseInt((document.getElementById(`craft-qty-${scope}-${recipeId}`) || {}).value, 10) || 1);
       if (times < 1 || times > 20) { alert('合成次數請填 1~20'); return; }
-      const costText = rc.materials.map(m => `${m.d} x${m.q * times}`).concat(zonePick_.map(pp => `加成:${pp.n} x${pp.c}`)).join('、');
+      const costText = rc.materials.map(m => `${m.d} x${m.q * times}`).concat(zonePick_.map(pp => `加成:${pp.n} x${pp.c * times}`)).join('、');
       if (!confirm(`確定要合成「${rc.name}」x${times} 嗎？\n\n將消耗：${costText}${rc.successRate != null && rc.successRate < 100 ? `\n\n⚠️ 成功率 ${Math.round(rc.successRate * 100) / 100}%,失敗時${rc.materials.some(m => m.r) ? '標示「失敗退還」的材料不會被扣,其餘' : ''}材料照扣` : ''}\n\n合成後會立刻隨機抽取獎勵,無法反悔。`)) return;
 
       generalItemActionInFlight = true;
