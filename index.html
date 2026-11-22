@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.361</div>
+    <div class="version-tag">系統版本：v5.4.362</div>
   </div>
 
   <script>
@@ -3990,7 +3990,7 @@
       // 每張道具卡片下方:這個道具可以拿去合成什麼
       document.querySelectorAll('.gi-craft').forEach(el => {
         const name = el.dataset.craftName;
-        const mine = recipes.filter(rc => rc.materials.some(m => m.t === 'item' && m.n === name));
+        const mine = recipes.filter(rc => rc.materials.some(m => m.t === 'item' && m.n === name) || (rc.zones || []).some(z => (z.items || []).some(it => it.t !== 'cur' && it.n === name))); // 加成區裡的道具也算
         el.innerHTML = mine.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:#F0B232;font-size:12px">🔨 可合成表(${mine.length})</summary>${mine.map(rc => craftRecipeHtml_(rc, 'c')).join('')}</details>` : '';
       });
       // 我的道具下方:全部配方
