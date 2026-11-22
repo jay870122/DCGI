@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.362</div>
+    <div class="version-tag">系統版本：v5.4.363</div>
   </div>
 
   <script>
@@ -3920,7 +3920,7 @@
       const rid = JSON.stringify(rc.id).replace(/"/g, '&quot;');
       return `<div style="margin-top:6px;border-top:1px dashed #40444B;padding-top:6px">` + rc.zones.map((z, zi) => {
         const onlyCur = !z.items.some(i => i.t !== 'cur');
-        const need = onlyCur ? '放入貨幣(自由填)' : (z.min > 0 ? `必選 ${z.max} 個` : `可選最多 ${z.max} 個`);
+        const need = onlyCur ? '放入貨幣(自由填)' : (z.min > 0 ? (z.min < z.max ? `必選 ${z.min}~${z.max} 個` : `必選 ${z.max} 個`) : `可選最多 ${z.max} 個`);
         const zs = st.zs[zi];
         return `<div style="margin-bottom:6px"><div style="font-size:12px;color:${zs.ok ? '#9CE5B4' : '#F5A3A3'}">🧪 ${craftEsc_(z.n)} 區:${need}${onlyCur ? '' : (z.rep ? '(可重複)' : '(不可重複)')}${onlyCur ? '' : ` ｜ 已選 ${zs.tot}`}${zs.boost > 0 ? ` ｜ +${Math.round(zs.boost * 100) / 100}%` : ''}</div>`
           + z.items.map((it, ii) => {

@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.377</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.378</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2657,7 +2657,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <button type="button" class="btn btn-edit" onclick="addCraftZone()" style="margin-top:6px">＋ 新增一區</button>
         <details class="gacha-guide" style="margin-top:6px">
           <summary style="cursor:pointer">📖 <b>加成區怎麼用</b></summary>
-          　・<b>必選 X 個</b>:這區一定要放滿 X 個才能合成;<b>可選最多 X 個</b>:可以不放,最多放 X 個<br>
+          　・<b>必選 X 個</b>:這區一定要放滿 X 個才能合成;<b>必選(範圍)</b>:至少放 A 個、最多放 B 個(例如 1~4);<b>可選最多 X 個</b>:可以不放,最多放 X 個<br>
           　・<b>可重複</b>:勾了=同一種道具可以放多個(要有那麼多個);沒勾=每種道具最多放 1 個<br>
           　・<b>加成%</b>:每放一個這種道具,成功率增加這麼多(例如基本 50%,放 2 個加成 10% 的道具 → 70%)<br>
           　・<b>每 X 個為一組</b>:道具和貨幣都可以設,玩家只能以 X 的倍數放入,<b>每一組加一次成功率</b>(例如 X=10、加成 5%:放 10 個+5%、放 30 個+15%);預設 1=每個都算一組<br>
@@ -6699,7 +6699,7 @@ function renderCraftAdmin() {
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">目前沒有任何合成配方</td></tr>'; return; }
   const stateLabel = { open: '🟢 開放中', upcoming: '🕒 尚未開始', ended: '⏹️ 已結束', soldout: '🈵 全服已用完', disabled: '⏸️ 已停用' };
   tbody.innerHTML = list.map((r, idx) => {
-    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}${m.r ? ' <span class="hint">(失敗退還)</span>' : ''}`).join('<br>') + (r.zones && r.zones.length ? '<br>' + r.zones.map(z => `<span class="hint">🧪${crEsc_(z.n)}區 ${z.min > 0 ? '必選' : '可選≤'}${z.max}個${z.rep ? '(可重複)' : ''}:${z.items.map(i => (i.t === 'cur' ? '💰' + crEsc_(i.d || i.n) + '每' + (i.s > 1 ? i.s : 1) + '個+' + i.b + '%' + (i.max ? '(最多' + i.max + ')' : '') : crEsc_(i.n) + (i.s > 1 ? '(每' + i.s + '個一組)' : '') + '+' + i.b + '%') + (i.k ? '(都不消耗)' : i.r ? '(失敗不消耗)' : '')).join('、')}</span>`).join('<br>') : '');
+    const mats = r.materials.map(m => `${m.t === 'cur' ? '💰' : '📦'}${crEsc_(m.d || m.n)} x${m.q}${m.r ? ' <span class="hint">(失敗退還)</span>' : ''}`).join('<br>') + (r.zones && r.zones.length ? '<br>' + r.zones.map(z => `<span class="hint">🧪${crEsc_(z.n)}區 ${z.min > 0 ? (z.min < z.max ? '必選' + z.min + '~' : '必選') : '可選≤'}${z.max}個${z.rep ? '(可重複)' : ''}:${z.items.map(i => (i.t === 'cur' ? '💰' + crEsc_(i.d || i.n) + '每' + (i.s > 1 ? i.s : 1) + '個+' + i.b + '%' + (i.max ? '(最多' + i.max + ')' : '') : crEsc_(i.n) + (i.s > 1 ? '(每' + i.s + '個一組)' : '') + '+' + i.b + '%') + (i.k ? '(都不消耗)' : i.r ? '(失敗不消耗)' : '')).join('、')}</span>`).join('<br>') : '');
     const poolLines = (r.poolRaw || '').split('\n').map(l => l.trim()).filter(Boolean);
     const lim = [];
     if (r.personalTotalLimit) lim.push(`個人${r.personalTotalLimit}次`);
@@ -6776,11 +6776,12 @@ function addCraftZone(z) {
   const box = document.createElement('div');
   box.className = 'cr-zone';
   box.style.cssText = 'border:1px dashed var(--border);border-radius:8px;padding:8px;margin-bottom:8px';
-  const req = z ? z.min > 0 : true;
+  const mode0 = z ? (z.min > 0 ? (z.min < z.max ? 'rng' : 'req') : 'opt') : 'req';
   box.innerHTML = `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <input class="cr-z-name" type="text" style="width:70px" placeholder="區名" value="${crEsc_(z ? z.n : String.fromCharCode(65 + (idx % 26)))}" title="區名(顯示給玩家看)">
-      <select class="cr-z-mode"><option value="req"${req ? ' selected' : ''}>必選</option><option value="opt"${req ? '' : ' selected'}>可選最多</option></select>
-      <input class="cr-z-num" type="number" min="1" value="${z ? z.max : 1}" style="width:64px" title="個數">
+      <select class="cr-z-mode" onchange="this.closest('.cr-zone').querySelector('.cr-z-minw').style.display=this.value==='rng'?'inline':'none'"><option value="req"${mode0 === 'req' ? ' selected' : ''}>必選(剛好)</option><option value="rng"${mode0 === 'rng' ? ' selected' : ''}>必選(範圍)</option><option value="opt"${mode0 === 'opt' ? ' selected' : ''}>可選最多</option></select>
+      <span class="cr-z-minw" style="display:${mode0 === 'rng' ? 'inline' : 'none'};font-size:12px">至少 <input class="cr-z-min" type="number" min="1" value="${z && z.min > 0 ? z.min : 1}" style="width:56px" title="最少要放幾個"> ~ 最多</span>
+      <input class="cr-z-num" type="number" min="1" value="${z ? z.max : 1}" style="width:64px" title="個數(必選=剛好這個數;範圍/可選=最多這個數)">
       <span style="font-size:12px">個</span>
       <label style="font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" class="cr-z-rep"${z && z.rep ? ' checked' : ''}> 可重複(同種可放多個)</label>
       <button type="button" class="btn btn-del" style="margin-left:auto" onclick="this.closest('.cr-zone').remove()">✕ 刪除這區</button>
@@ -6815,7 +6816,8 @@ function collectCraftZones_() {
   const out = [];
   document.querySelectorAll('#cr-zones .cr-zone').forEach(box => {
     const num = Math.max(1, parseInt(box.querySelector('.cr-z-num').value, 10) || 1);
-    const req = box.querySelector('.cr-z-mode').value === 'req';
+    const mode = box.querySelector('.cr-z-mode').value, req = mode !== 'opt';
+    let zmin = mode === 'rng' ? Math.max(1, parseInt(box.querySelector('.cr-z-min').value, 10) || 1) : num; if (zmin > num) zmin = num;
     const items = [];
     box.querySelectorAll('.cr-z-item').forEach(r => {
       if (r.dataset.type === 'cur') {
@@ -6833,7 +6835,7 @@ function collectCraftZones_() {
       if (n) { const isz = parseInt(r.querySelector('.cr-z-is').value, 10); const it = { n, b: isNaN(b) || b < 0 ? 0 : b }; if (isz > 1) it.s = isz; const mv = r.querySelector('.cr-z-ir').value; if (mv === 'f') it.r = true; else if (mv === 'a') it.k = true; items.push(it); }
     });
     if (!items.length) return;
-    out.push({ n: (box.querySelector('.cr-z-name').value || '').trim() || String.fromCharCode(65 + (out.length % 26)), min: (req && items.some(x => x.t !== 'cur')) ? num : 0, max: num, rep: box.querySelector('.cr-z-rep').checked, items });
+    out.push({ n: (box.querySelector('.cr-z-name').value || '').trim() || String.fromCharCode(65 + (out.length % 26)), min: (req && items.some(x => x.t !== 'cur')) ? zmin : 0, max: num, rep: box.querySelector('.cr-z-rep').checked, items });
   });
   return out;
 }
