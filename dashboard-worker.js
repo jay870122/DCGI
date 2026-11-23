@@ -1507,8 +1507,60 @@ async function d1AppendHistory_(env, rows) {
     await env.DB.batch(batch);
   } catch (e) { /* D1 失敗不影響試算表流程 */ }
 }
+// 🌟🆕 兌換紀錄「先寫 D1、背景合併補寫試算表」(write-behind):
+// 每筆發放原本要「整張重讀+查格線+寫入」(≥3次Sheets呼叫),人多時撞到 Google 每分鐘寫入配額(429)。
+// 現在只把列內容丟進 D1 的 history_q 佇列(玩家端與D1讀取都立刻看得到,因為 history 表本來就即時雙寫),
+// 由 flushHistoryQueue_ 把佇列內「所有」列一次合併寫進試算表。觸發:每分鐘 cron 保底 + 寫入當下盡力背景補寫(1.5秒後)。
+// 失敗不丟資料:列留在佇列,下一輪重試;佇列寫入本身失敗就退回原本的同步寫法。環境變數 HISTORY_Q=0 可整個關閉。
+let historyFlushTimer_ = false;
+async function enqueueHistorySheet_(env, rows) {
+  try {
+    if (!env || !env.DB || env.HISTORY_Q === '0' || !rows || !rows.length) return false;
+    const stmt = env.DB.prepare('INSERT INTO history_q (row, at) VALUES (?, ?)');
+    const now = Date.now();
+    await env.DB.batch(rows.map((r) => stmt.bind(JSON.stringify(r), now)));
+    scheduleHistoryFlush_(env);
+    return true;
+  } catch (e) { return false; }
+}
+function scheduleHistoryFlush_(env) {
+  try {
+    if (historyFlushTimer_) return;
+    const ctx = globalThis.__reqCtx_;
+    if (!ctx || typeof ctx.waitUntil !== 'function') return;
+    historyFlushTimer_ = true;
+    ctx.waitUntil(new Promise((r) => setTimeout(r, 1500)).then(() => { historyFlushTimer_ = false; return flushHistoryQueue_(env); }).catch(() => { historyFlushTimer_ = false; }));
+  } catch (e) { historyFlushTimer_ = false; }
+}
+async function flushHistoryQueue_(env) {
+  if (!env || !env.DB) return;
+  let lockToken = null;
+  try {
+    lockToken = await acquireWorkerLock_(env, 'history', 'global', 8000, 15000);
+    if (!lockToken) return; // 別人正在寫,他會把佇列清掉;沒清完 cron 會再來
+    const accessToken = await getGoogleAccessToken(env);
+    for (let round = 0; round < 5; round++) {
+      const rs = await env.DB.prepare('SELECT id,row FROM history_q ORDER BY id LIMIT 300').all();
+      const items = (rs && rs.results) || [];
+      if (!items.length) return;
+      const rows = items.map((x) => JSON.parse(x.row));
+      const width = Math.max.apply(null, rows.map((r) => r.length));
+      rows.forEach((r) => { while (r.length < width) r.push(''); });
+      const existingRows = await fetchSingleSheet(accessToken, env.SHEET_ID, SHEET_NAMES.history);
+      const nextRow = existingRows.length + 1, lastRow = nextRow + rows.length - 1;
+      await ensureSheetRowCapacity_(accessToken, env.SHEET_ID, SHEET_NAMES.history, lastRow);
+      await batchUpdateValues_(accessToken, env.SHEET_ID, [{ range: `'${SHEET_NAMES.history}'!A${nextRow}:${colToA1_(width - 1)}${lastRow}`, values: rows }]);
+      const ids = items.map((x) => x.id);
+      await env.DB.prepare('DELETE FROM history_q WHERE id IN (' + ids.map(() => '?').join(',') + ')').bind(...ids).run();
+      try { await snapApi_(env).invalidate('history'); } catch (e) {}
+      if (items.length < 300) return;
+    }
+  } catch (e) { console.error('兌換紀錄補寫試算表失敗(留在佇列,稍後重試):', e && e.message ? e.message : e); }
+  finally { if (lockToken) { try { await releaseWorkerLock_(env, 'history', 'global', lockToken); } catch (e) {} } }
+}
 async function appendHistoryRowSafe_(env, accessToken, spreadsheetId, rowValues, knownRowCount) {
   await d1AppendHistory_(env, [rowValues]);
+  if (await enqueueHistorySheet_(env, [rowValues])) return;
   let lockToken = null;
   try {
     lockToken = await acquireWorkerLock_(env, 'history', 'global', 5000, 4000);
@@ -1689,6 +1741,7 @@ function fastStockApi_(env, itemId) {
 async function appendHistoryRowsBatch_(env, accessToken, spreadsheetId, rows) {
   if (!rows || rows.length === 0) return;
   await d1AppendHistory_(env, rows);
+  if (await enqueueHistorySheet_(env, rows)) return;
   let lockToken = null;
   try {
     lockToken = await acquireWorkerLock_(env, 'history', 'global', 8000, 10000);
@@ -2403,7 +2456,9 @@ async function refundMisChargedCryptoFees_(env) {
 
 export default {
   async scheduled(event, env, ctx) {
+    globalThis.__reqCtx_ = ctx;
     globalEnvRef_ = env;
+    try { await flushHistoryQueue_(env); } catch (e) {}
     d1EnvRef_ = env;
     // 通知佇列保底:每分鐘戳一下,卡住的訊息會被重新處理
     try { await env.GENERAL_ITEM_LOCK.get(env.GENERAL_ITEM_LOCK.idFromName('outbox:main')).fetch('https://lock/?action=obKick', { method: 'POST', body: '{}' }); } catch (e) {}
@@ -2421,6 +2476,7 @@ export default {
     try { await runAutoOpenExpiredScan_(env, ctx); } catch (e) { console.error('過期自動開啟巡邏失敗:', e && e.message ? e.message : e); }
   },
   async fetch(request, env, ctx) {
+    globalThis.__reqCtx_ = ctx;
     globalEnvRef_ = env;
     d1EnvRef_ = env;
     // 🌟🆕 修正bug:botGetGamblingInfo(以及其他bot輪詢端點)回報過HTTP 500(outcome:exception)——
@@ -8979,6 +9035,7 @@ async function raffleApplyBatch_(env, token, entries) {
 async function appendRowsWithLockedRange_(env, accessToken, spreadsheetId, sheetName, lockCategory, rows) {
   if (!rows || rows.length === 0) return;
   if (sheetName === SHEET_NAMES.history) await d1AppendHistory_(env, rows); // D1 雙寫(兌換紀錄)
+  if (sheetName === SHEET_NAMES.history && (await enqueueHistorySheet_(env, rows))) return;
   let lockToken = null;
   try {
     lockToken = await acquireWorkerLock_(env, lockCategory, 'global', 8000, 6000);
