@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.382</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.383</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1117,6 +1117,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             </table>
           </div>
           <div id="hist-summary" style="color:var(--mu);font-size:12px;margin-top:8px"></div>
+        </div>
+        <div class="tbl-wrap" style="padding:24px;margin-top:16px">
+          <div style="font-weight:700">🗄️ 背包 D1 同步工具(搬家用)</div>
+          <div style="color:var(--mu);font-size:12px;margin:6px 0 10px">通用道具背包的寫入已同步鏡像進 D1。第一次請先按「匯入」,再按「對帳」;差異格數要是 0。有差異按「以試算表補齊」。建議沒人操作時做。</div>
+          <div class="toolbar">
+            <button class="btn btn-edit" onclick="bagD1_('adminD1ImportPlayers')">📥 匯入背包到 D1</button>
+            <button class="btn btn-primary" onclick="bagD1_('adminD1PlayerCheck')">🔍 對帳</button>
+            <button class="btn btn-edit" onclick="bagD1_('adminD1PlayerCheck','&repair=1')">🛠️ 以試算表補齊</button>
+          </div>
+          <pre id="bag-d1-out" style="margin-top:10px;white-space:pre-wrap;font-size:12px;color:var(--mu)"></pre>
         </div>
       </div>
 
@@ -4289,6 +4299,15 @@ function gsExportCsv_() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '團任團戰統計_' + d.month + '.csv'; document.body.appendChild(a); a.click(); a.remove();
 }
 let grKinds_ = [], grPeriods_ = [];
+async function bagD1_(action, extra) {
+  const box = document.getElementById('bag-d1-out'); box.textContent = '處理中…(背包大時可能要幾十秒)';
+  try {
+    const qs = new URLSearchParams({ action, sheet: 'bag', discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
+    const r = await fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}${extra || ''}`, 90000);
+    const d = await r.json();
+    box.textContent = JSON.stringify(d, null, 2);
+  } catch (e) { box.textContent = '失敗:' + (e && e.message || e); }
+}
 function grCall_(action, body) {
   const qs = new URLSearchParams({ action, discordId: (ME && ME.id) || '', accessToken: localStorage.getItem('admin_dc_access_token') || '' });
   return fetchWithTimeout_(`${DASHBOARD_WORKER_URL}?${qs}`, 30000, body ? { method: 'POST', body: JSON.stringify(body) } : undefined).then((r) => r.json());
