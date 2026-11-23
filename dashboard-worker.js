@@ -1759,9 +1759,19 @@ async function flushFastPurchases_(env, itemId, api) {
 const GOOGLE_FETCH_TIMEOUT_MS = 8000;
 async function fetchWithTimeout_(url, options, timeoutMs) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs || GOOGLE_FETCH_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), (timeoutMs || GOOGLE_FETCH_TIMEOUT_MS) + (typeof url === 'string' && url.indexOf('sheets.googleapis.com') >= 0 ? 9000 : 0));
   try {
-    return await fetch(url, { ...(options || {}), signal: controller.signal });
+    let res = await fetch(url, { ...(options || {}), signal: controller.signal });
+    // 🌟 Google Sheets 429(每分鐘配額)被拒絕=沒寫入,可安全重試:退避最多3次(約1.2/2.5/4秒+抖動),避免偶發尖峰直接讓玩家看到入帳失敗
+    if (res.status === 429 && typeof url === 'string' && url.indexOf('sheets.googleapis.com') >= 0) {
+      const waits = [1200, 2500, 4000];
+      for (let i = 0; i < waits.length && res.status === 429; i++) {
+        try { await res.body.cancel(); } catch (e2) {}
+        await new Promise((r) => setTimeout(r, waits[i] + Math.floor(Math.random() * 500)));
+        res = await fetch(url, { ...(options || {}), signal: controller.signal });
+      }
+    }
+    return res;
   } catch (e) {
     if (e && e.name === 'AbortError') {
       throw new Error(`對Google API的請求逾時(超過${Math.round((timeoutMs || GOOGLE_FETCH_TIMEOUT_MS) / 1000)}秒沒回應): ${url}`);
