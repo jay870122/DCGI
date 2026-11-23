@@ -5890,6 +5890,7 @@ async function fetchSheetValuesRetry_(apiUrl, accessToken) {
 }
 
 async function fetchSingleSheet(accessToken, spreadsheetId, sheetName) {
+  if (sheetName === GENERAL_BACKPACK_SHEET_NAME_) { const b_ = await bagRowsFromD1_(); if (b_) return b_; }
   const apiUrl =
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent("'" + sheetName + "'")}` +
     `?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`;
@@ -5979,7 +5980,19 @@ async function getCachedSheetTitles_(accessToken, spreadsheetId) {
   }, 300000);
 }
 
+// 🌟 背包階段2:BAG_FROM_D1=1 時,「通用道具背包」整張改讀 D1(cells sh='bag',寫入時已鏡像)。
+// 形狀與 Sheets 相同(第1列表頭、列號=試算表列號),沒資料/出錯自動退回讀試算表。
+async function bagRowsFromD1_() {
+  try {
+    const env = d1EnvRef_ || globalEnvRef_;
+    if (!env || !env.DB || env.BAG_FROM_D1 !== '1') return null;
+    const rows = await d1ReadSheetRows_(env, 'bag');
+    if (rows && rows.length > 1 && rows[0] && String(rows[0][0] || '') === 'DiscordID') return rows;
+  } catch (e) { /* 退回試算表 */ }
+  return null;
+}
 async function fetchOptionalSheet_(accessToken, spreadsheetId, sheetName) {
+  if (sheetName === GENERAL_BACKPACK_SHEET_NAME_) { const b_ = await bagRowsFromD1_(); if (b_) return b_; }
   const existingNames = await getCachedSheetTitles_(accessToken, spreadsheetId);
   if (existingNames.indexOf(sheetName) === -1) return [];
   const apiUrl =
