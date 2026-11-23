@@ -2459,6 +2459,7 @@ export default {
     globalThis.__reqCtx_ = ctx;
     globalEnvRef_ = env;
     try { await flushHistoryQueue_(env); } catch (e) {}
+    try { await flushBagQueue_(env); } catch (e) {}
     d1EnvRef_ = env;
     // 通知佇列保底:每分鐘戳一下,卡住的訊息會被重新處理
     try { await env.GENERAL_ITEM_LOCK.get(env.GENERAL_ITEM_LOCK.idFromName('outbox:main')).fetch('https://lock/?action=obKick', { method: 'POST', body: '{}' }); } catch (e) {}
@@ -5486,6 +5487,7 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
         const accessToken = await getGoogleAccessToken(env);
         const isBag_ = url.searchParams.get('sheet') === 'bag';
         const shK_ = isBag_ ? 'bag' : 'player';
+        if (isBag_) { try { await flushBagQueue_(env); } catch (e) {} } // 對帳前先把排隊中的背包寫入送進試算表
         const sheetRows = await fetchSingleSheet(accessToken, env.SHEET_ID, isBag_ ? GENERAL_BACKPACK_SHEET_NAME_ : SHEET_NAMES.player);
         const d1Rows = await d1ReadSheetRows_(env, shK_);
         const norm = (v) => (v === undefined || v === null ? '' : String(v));
@@ -8678,14 +8680,14 @@ function tsToExcelSerialTaipei_(ts) {
 // 只複製,不改變讀寫來源。寫入來源=batchUpdateValues_(含 appendRowsWithLockedRange_)與 deleteSheetRows_;
 // 手動在試算表改的值不會同步,需用 adminD1PlayerCheck(repair=1) 補齊。空字串=刪除該格,與 Sheets API 省略空白一致。
 // ============================================================
-async function d1PutCells_(env, sh, cells) {
-  if (!env || !env.DB || !cells || !cells.length) return;
+function d1PutCellsStmts_(env, sh, cells) {
+  const stmts = [];
+  if (!env || !env.DB || !cells || !cells.length) return stmts;
   const ups = [], dels = [];
   for (const [r, c, v0] of cells) {
     const v = v0 === undefined || v0 === null ? '' : v0;
     if (v === '') dels.push([r, c]); else ups.push([r, c, typeof v === 'number' ? 'n' : typeof v === 'boolean' ? 'b' : 's', String(v)]);
   }
-  const stmts = [];
   for (let i = 0; i < ups.length; i += 19) { // 每格5個參數,單句上限100 → 每句19格
     const ch = ups.slice(i, i + 19);
     stmts.push(env.DB.prepare('INSERT INTO cells (sh,r,c,t,v) VALUES ' + ch.map(() => '(?,?,?,?,?)').join(',') + ' ON CONFLICT(sh,r,c) DO UPDATE SET v=excluded.v, t=excluded.t').bind(...ch.flatMap((x) => [sh, x[0], x[1], x[2], x[3]])));
@@ -8694,6 +8696,11 @@ async function d1PutCells_(env, sh, cells) {
     const ch = dels.slice(i, i + 32);
     stmts.push(env.DB.prepare('DELETE FROM cells WHERE ' + ch.map(() => '(sh=? AND r=? AND c=?)').join(' OR ')).bind(...ch.flatMap((x) => [sh, x[0], x[1]])));
   }
+  return stmts;
+}
+async function d1PutCells_(env, sh, cells) {
+  if (!env || !env.DB || !cells || !cells.length) return;
+  const stmts = d1PutCellsStmts_(env, sh, cells);
   for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
 }
 async function d1MirrorPlayerWrites_(dataArr) {
@@ -8843,8 +8850,121 @@ async function applyDateFormatToWrittenCells_(accessToken, spreadsheetId, rangeS
 // 解析成數字/日期格式),剛好順便避開了之前BINGO那個「逗號分隔數字被誤判成千分位格式」的整類bug,
 // 不需要再像GAS那邊額外包forceTextValue_。Date物件統一在這裡經sanitizeSheetValuesForWrite_換算成
 // Excel序列值(見上面說明),不會被RAW模式誤存成UTC的ISO字串。
+// ============================================================
+// 🌟 背包階段3:「通用道具背包」寫入先寫 D1(cells sh='bag',讀取已走 D1),同一交易內把「操作」記進 bag_q 佇列,
+// 背景依序重播到試算表(連續的寫入合併成一次 batchUpdate;刪列照順序重播,列號一致)。
+// 條件:BAG_FROM_D1=1 且 BAG_WB=1(wrangler vars)。任何一步出錯→先把佇列清掉再退回原本的同步寫法。BAG_WB 拿掉即退回。
+// ============================================================
+function bagQueueOn_(env) { return !!(env && env.DB && env.BAG_FROM_D1 === '1' && env.BAG_WB === '1'); }
+let bagFlushTimer_ = false;
+function bagEnc_(data) { return JSON.stringify(data, function (k, v) { const raw = this[k]; return raw instanceof Date ? { $d: raw.getTime() } : v; }); }
+function bagDec_(str) { return JSON.parse(str, (k, v) => (v && typeof v === 'object' && v.$d !== undefined ? new Date(v.$d) : v)); }
+function scheduleBagFlush_(env) {
+  try {
+    if (bagFlushTimer_) return;
+    const ctx = globalThis.__reqCtx_;
+    if (!ctx || typeof ctx.waitUntil !== 'function') return;
+    bagFlushTimer_ = true;
+    ctx.waitUntil(new Promise((r) => setTimeout(r, 1500)).then(() => { bagFlushTimer_ = false; return flushBagQueue_(env); }).catch(() => { bagFlushTimer_ = false; }));
+  } catch (e) { bagFlushTimer_ = false; }
+}
+async function bagQueuePut_(env, dataSan, dataRaw) {
+  let lock = null;
+  try {
+    lock = await acquireWorkerLock_(env, 'bagq', 'global', 8000, 10000);
+    if (!lock) return false;
+    const cells = [];
+    for (const d of dataSan) {
+      const p = parseA1RangeWithRow_(d.range);
+      const rows = Array.isArray(d.values) ? d.values : [d.values];
+      rows.forEach((row, ri) => { const arr = Array.isArray(row) ? row : [row]; arr.forEach((v, ci) => cells.push([p.startRow + ri + 1, p.startCol + ci, v])); });
+    }
+    const stmts = d1PutCellsStmts_(env, 'bag', cells);
+    stmts.push(env.DB.prepare('INSERT INTO bag_q (op, payload, at) VALUES (?,?,?)').bind('put', bagEnc_(dataRaw), Date.now()));
+    for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50)); // 佇列那筆在最後一批
+    scheduleBagFlush_(env);
+    return true;
+  } catch (e) { console.error('背包佇列寫入失敗,退回同步寫:', e && e.message ? e.message : e); return false; }
+  finally { if (lock) { try { await releaseWorkerLock_(env, 'bagq', 'global', lock); } catch (e) {} } }
+}
+async function bagQueueDel_(env, rowNumbers) {
+  let lock = null;
+  try {
+    lock = await acquireWorkerLock_(env, 'bagq', 'global', 8000, 10000);
+    if (!lock) return false;
+    const stmts = [];
+    for (const n of rowNumbers.slice().sort((a, b) => b - a)) {
+      stmts.push(env.DB.prepare("DELETE FROM cells WHERE sh='bag' AND r=?").bind(n));
+      stmts.push(env.DB.prepare("UPDATE cells SET r=r-1 WHERE sh='bag' AND r>?").bind(n));
+    }
+    stmts.push(env.DB.prepare('INSERT INTO bag_q (op, payload, at) VALUES (?,?,?)').bind('del', JSON.stringify(rowNumbers), Date.now()));
+    for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+    scheduleBagFlush_(env);
+    return true;
+  } catch (e) { console.error('背包刪列佇列失敗,退回同步寫:', e && e.message ? e.message : e); return false; }
+  finally { if (lock) { try { await releaseWorkerLock_(env, 'bagq', 'global', lock); } catch (e) {} } }
+}
+async function bagNextRowFromD1_(env) {
+  const r = await env.DB.prepare("SELECT MAX(r) AS m FROM cells WHERE sh='bag'").first();
+  return ((r && r.m) || 0) + 1;
+}
+async function flushBagQueue_(env) {
+  if (!env || !env.DB) return;
+  let lock = null;
+  try {
+    lock = await acquireWorkerLock_(env, 'bagflush', 'global', 10000, 60000);
+    if (!lock) return;
+    const accessToken = await getGoogleAccessToken(env);
+    for (let round = 0; round < 5; round++) {
+      const rs = await env.DB.prepare('SELECT id,op,payload FROM bag_q ORDER BY id LIMIT 200').all();
+      const ops = (rs && rs.results) || [];
+      if (!ops.length) return;
+      let seg = null;
+      const dropIds = async (ids) => { if (ids.length) await env.DB.prepare('DELETE FROM bag_q WHERE id IN (' + ids.map(() => '?').join(',') + ')').bind(...ids).run(); };
+      const flushSeg = async () => {
+        if (!seg || !seg.data.length) { seg = null; return; }
+        let maxRow = 0;
+        seg.data.forEach((d) => { const p = parseA1RangeWithRow_(d.range); const n = Array.isArray(d.values) ? d.values.length : 1; if (p) maxRow = Math.max(maxRow, p.startRow + n); });
+        if (maxRow > 0) await ensureSheetRowCapacity_(accessToken, env.SHEET_ID, GENERAL_BACKPACK_SHEET_NAME_, maxRow);
+        await batchUpdateValues_(accessToken, env.SHEET_ID, seg.data, { skipD1: true, skipBagQ: true });
+        await dropIds(seg.ids);
+        seg = null;
+      };
+      for (const op of ops) {
+        if (op.op === 'put') {
+          const data = bagDec_(op.payload);
+          const keys = [];
+          data.forEach((d) => { const p = parseA1RangeWithRow_(d.range); const rows = Array.isArray(d.values) ? d.values : [d.values]; if (!p) return; rows.forEach((row, ri) => { const arr = Array.isArray(row) ? row : [row]; arr.forEach((v, ci) => keys.push((p.startRow + ri) + ',' + (p.startCol + ci))); }); });
+          if (seg && keys.some((k) => seg.keys.has(k))) await flushSeg(); // 同一格重複寫:拆段,保證後寫的蓋掉先寫的
+          if (!seg) seg = { data: [], keys: new Set(), ids: [] };
+          data.forEach((d) => seg.data.push(d)); keys.forEach((k) => seg.keys.add(k)); seg.ids.push(op.id);
+        } else {
+          await flushSeg();
+          const sheetId = await getSheetIdByName_(accessToken, env.SHEET_ID, GENERAL_BACKPACK_SHEET_NAME_);
+          await deleteSheetRows_(accessToken, env.SHEET_ID, sheetId, JSON.parse(op.payload), undefined, { skipD1: true, skipBagQ: true });
+          await dropIds([op.id]); // 刪列不能重播第二次,所以做完立刻從佇列移除
+        }
+      }
+      await flushSeg();
+      if (ops.length < 200) return;
+    }
+  } catch (e) { console.error('背包補寫試算表失敗(留在佇列,稍後重試):', e && e.message ? e.message : e); }
+  finally { if (lock) { try { await releaseWorkerLock_(env, 'bagflush', 'global', lock); } catch (e) {} } }
+}
 async function batchUpdateValues_(accessToken, spreadsheetId, dataArr, opts) {
   if (!dataArr || dataArr.length === 0) return;
+  if (!(opts && opts.skipBagQ)) {
+    const env_ = d1EnvRef_ || globalEnvRef_;
+    if (bagQueueOn_(env_)) {
+      const bagD = [], rest = [];
+      for (const d of dataArr) { const p_ = parseA1RangeWithRow_(d.range); (p_ && p_.sheetName === GENERAL_BACKPACK_SHEET_NAME_ ? bagD : rest).push(d); }
+      if (bagD.length) {
+        const ok_ = await bagQueuePut_(env_, bagD.map((d) => ({ ...d, values: sanitizeSheetValuesForWrite_(d.values) })), bagD);
+        if (ok_) { if (!rest.length) return { queued: true }; dataArr = rest; }
+        else { await flushBagQueue_(env_).catch(() => {}); } // 退回同步寫前,先把前面排隊的送完,順序才不會錯
+      }
+    }
+  }
   const sanitizedData = dataArr.map((d) => ({ ...d, values: sanitizeSheetValuesForWrite_(d.values) }));
   const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;
   const res = await fetchWithTimeout_(apiUrl, {
@@ -9064,11 +9184,13 @@ async function appendRowsWithLockedRange_(env, accessToken, spreadsheetId, sheet
   let lockToken = null;
   try {
     lockToken = await acquireWorkerLock_(env, lockCategory, 'global', 8000, 6000);
-    const existingRows = await fetchSingleSheet(accessToken, spreadsheetId, sheetName);
-    const nextRow = existingRows.length + 1;
+    const bagQ_ = sheetName === GENERAL_BACKPACK_SHEET_NAME_ && bagQueueOn_(env);
+    let nextRow = bagQ_ ? await bagNextRowFromD1_(env) : 0;
+    if (!bagQ_ || nextRow < 3) nextRow = (await fetchSingleSheet(accessToken, spreadsheetId, sheetName)).length + 1; // D1 沒資料(<3列)時保險退回讀表,絕不覆蓋表頭
+    // 背包佇列模式:直接問 D1 最後一列,不整張讀
     const lastRow = nextRow + rows.length - 1;
     const lastColLetter = colToA1_(rows[0].length - 1);
-    await ensureSheetRowCapacity_(accessToken, spreadsheetId, sheetName, lastRow);
+    if (!bagQ_) await ensureSheetRowCapacity_(accessToken, spreadsheetId, sheetName, lastRow); // 佇列模式的格線擴充留到補寫時做
     const range = `'${sheetName}'!A${nextRow}:${lastColLetter}${lastRow}`;
     await batchUpdateValues_(accessToken, spreadsheetId, [{ range, values: rows }]);
   } finally {
@@ -15050,8 +15172,18 @@ async function getSheetIdByName_(accessToken, spreadsheetId, sheetName) {
 // 🌟🔧 timeoutMs選填:預設沿用fetchWithTimeout_的全站預設值(8秒),但這支函式現在也被「不限制數量」
 // 的批次清除道具功能呼叫(可能一次要刪幾百~上千列,全部塞在同一個batchUpdate請求裡送給Google),
 // 數量大的時候Google那邊處理時間會拉長,呼叫端可以自己傳一個更寬裕的timeout,不影響其他小量刪除的呼叫端。
-async function deleteSheetRows_(accessToken, spreadsheetId, sheetId, rowNumbers, timeoutMs) {
+async function deleteSheetRows_(accessToken, spreadsheetId, sheetId, rowNumbers, timeoutMs, opts) {
   if (!rowNumbers || rowNumbers.length === 0) return;
+  if (!(opts && opts.skipBagQ)) {
+    const env_ = d1EnvRef_ || globalEnvRef_;
+    if (bagQueueOn_(env_)) {
+      const bid_ = await getCachedSheetIdByName_(accessToken, spreadsheetId, GENERAL_BACKPACK_SHEET_NAME_);
+      if (bid_ !== null && bid_ !== undefined && String(bid_) === String(sheetId)) {
+        if (await bagQueueDel_(env_, rowNumbers)) return { queued: true };
+        await flushBagQueue_(env_).catch(() => {});
+      }
+    }
+  }
   const sorted = rowNumbers.slice().sort((a, b) => b - a);
   const requests = sorted.map((rowNum) => ({
     deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: rowNum - 1, endIndex: rowNum } },
@@ -15064,7 +15196,7 @@ async function deleteSheetRows_(accessToken, spreadsheetId, sheetId, rowNumbers,
   }, timeoutMs);
   const json = await res.json();
   if (json.error) throw new Error('刪除列失敗: ' + JSON.stringify(json.error));
-  await d1MirrorPlayerDeleteRows_(accessToken, spreadsheetId, sheetId, rowNumbers);
+  if (!(opts && opts.skipD1)) await d1MirrorPlayerDeleteRows_(accessToken, spreadsheetId, sheetId, rowNumbers);
   return json;
 }
 
