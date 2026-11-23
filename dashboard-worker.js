@@ -587,6 +587,20 @@ export class GeneralItemLockDO {
   }
   // 只回傳「某位玩家的列」(大表如道具背包數萬列,整張傳回Worker太重):回傳 {n:總列數, rows:[[列索引, 列資料],...]},含表頭
   async _snapMine(b) {
+    // 🌟 背包走 D1 時:不整張建快照,直接用索引只撈這位玩家的列(含表頭)——整張讀 8.8 萬格要 2~3 秒
+    if (b.name === 'genbp' && this.env.DB && this.env.BAG_FROM_D1 === '1') {
+      try {
+        const did0 = (b.discordId || '').toString();
+        const idr = await this.env.DB.prepare("SELECT r FROM cells WHERE sh='bag' AND c=0 AND v IN (?,?)").bind(did0, "'" + did0).all();
+        const rowNos = [1].concat(((idr && idr.results) || []).map((x) => x.r).filter((x) => x > 1));
+        const mx = await this.env.DB.prepare("SELECT MAX(r) AS m FROM cells WHERE sh='bag'").first();
+        const jobs = [];
+        for (let i = 0; i < rowNos.length; i += 90) { const ch = rowNos.slice(i, i + 90); jobs.push(this.env.DB.prepare("SELECT r,c,t,v FROM cells WHERE sh='bag' AND r IN (" + ch.map(() => '?').join(',') + ') ORDER BY r,c').bind(...ch).all()); }
+        const parts = await Promise.all(jobs), byRow = {};
+        for (const res of parts) for (const x of ((res && res.results) || [])) { const row = byRow[x.r] || (byRow[x.r] = []); while (row.length < x.c) row.push(''); row[x.c] = x.t === 'n' ? Number(x.v) : x.t === 'b' ? x.v === 'true' : x.v; }
+        if (byRow[1] && String(byRow[1][0] || '') === 'DiscordID') return { n: (mx && mx.m) || 1, rows: rowNos.filter((r) => byRow[r]).map((r) => [r - 1, byRow[r]]), at: Date.now() };
+      } catch (e) { /* 退回快照 */ }
+    }
     const r = await this._snap('snapGet', { name: b.name, ttl: b.ttl === undefined ? 10000 : b.ttl, internal: true });
     if (!r || !r.rows) return { error: 'no rows' };
     const did = (b.discordId || '').toString(), out = [];
@@ -8742,20 +8756,22 @@ async function d1MirrorPlayerDeleteRows_(accessToken, spreadsheetId, sheetId, ro
 }
 // D1 cells → 與 fetchSingleSheet 相同形狀的二維陣列(空白補 '',列尾空白省略)
 async function d1ReadSheetRows_(env, sh) {
+  // 🌟 分段平行讀:先問最大列號,再每 600 列一段同時查(原本每 5000 格依序一段,8.8 萬格的背包要依序 18 次來回)
+  const mx = await env.DB.prepare('SELECT MAX(r) AS m FROM cells WHERE sh=?').bind(sh).first();
+  const maxR = (mx && mx.m) || 0;
   const rows = [];
-  let lr = 0, lc = -1;
-  for (;;) {
-    const res = await env.DB.prepare('SELECT r,c,t,v FROM cells WHERE sh=? AND (r>? OR (r=? AND c>?)) ORDER BY r,c LIMIT 5000').bind(sh, lr, lr, lc).all();
-    const list = (res && res.results) || [];
-    for (const x of list) {
+  if (maxR <= 0) return rows;
+  const CH = 600, jobs = [];
+  for (let a = 1; a <= maxR; a += CH) jobs.push(env.DB.prepare('SELECT r,c,t,v FROM cells WHERE sh=? AND r>=? AND r<? ORDER BY r,c').bind(sh, a, a + CH).all());
+  const parts = await Promise.all(jobs);
+  for (const res of parts) {
+    for (const x of ((res && res.results) || [])) {
       const row = rows[x.r - 1] || (rows[x.r - 1] = []);
       while (row.length < x.c) row.push('');
       row[x.c] = x.t === 'n' ? Number(x.v) : x.t === 'b' ? x.v === 'true' : x.v;
-      lr = x.r; lc = x.c;
     }
-    if (list.length < 5000) break;
   }
-  for (let i = 0; i < rows.length; i++) if (!rows[i]) rows[i] = [];
+  for (let i = 0; i < maxR; i++) if (!rows[i]) rows[i] = [];
   return rows;
 }
 function sanitizeSheetValuesForWrite_(v) {
