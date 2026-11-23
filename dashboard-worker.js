@@ -22305,15 +22305,15 @@ async function doPokeBot_(env, action, b) {
   }
   if (action === 'botPokeUngranted') {
     const cut = new Date(Date.now() - 30000).toISOString();
-    const rs = await env.DB.prepare("SELECT board_id,idx,pi,taken_by FROM poke_cells WHERE taken_by!='' AND granted=0 AND pi>=0 AND taken_at<? LIMIT 20").bind(cut).all();
+    const rs = await env.DB.prepare("SELECT board_id,idx,pi,taken_by,taken_at FROM poke_cells WHERE taken_by!='' AND granted=0 AND pi>=0 AND taken_at<? LIMIT 20").bind(cut).all();
     const out = [];
-    for (const c of (rs.results || [])) { const bd = await pokeBoard_(env, c.board_id); if (bd && bd.cfg.prizes[c.pi]) out.push({ id: bd.id, idx: c.idx, playerId: c.taken_by, boardName: bd.name, prize: bd.cfg.prizes[c.pi] }); }
+    for (const c of (rs.results || [])) { const bd = await pokeBoard_(env, c.board_id); if (bd && bd.cfg.prizes[c.pi]) out.push({ id: bd.id, idx: c.idx, playerId: c.taken_by, boardName: bd.name, prize: bd.cfg.prizes[c.pi], takenAt: c.taken_at || '' }); }
     // 最後賞還沒發成功的(idx=-1;發獎用固定 claimId,重發不會重複入帳)
     const lrs = await env.DB.prepare("SELECT k,v FROM group_reward_cfg WHERE k LIKE 'pokelast:%' AND v LIKE '%\"granted\":0%' AND updated<? LIMIT 10").bind(cut).all();
     for (const r of (lrs.results || [])) {
       let v = {}; try { v = JSON.parse(r.v); } catch (e) {}
       const bd = await pokeBoard_(env, String(r.k).slice(8));
-      if (bd && v.uid && bd.cfg.lastPrize && bd.cfg.lastPrize.enabled) out.push({ id: bd.id, idx: -1, playerId: v.uid, boardName: bd.name, prize: bd.cfg.lastPrize });
+      if (bd && v.uid && bd.cfg.lastPrize && bd.cfg.lastPrize.enabled) { const lc_ = await env.DB.prepare("SELECT taken_at FROM poke_cells WHERE board_id=? AND taken_by!='' ORDER BY taken_at DESC, idx DESC LIMIT 1").bind(bd.id).first(); out.push({ id: bd.id, idx: -1, playerId: v.uid, boardName: bd.name, prize: bd.cfg.lastPrize, takenAt: (lc_ && lc_.taken_at) || '' }); }
     }
     return { status: 'success', items: out };
   }
@@ -22338,7 +22338,8 @@ async function doPokeBot_(env, action, b) {
       if (!feeOk(cr)) { const m = cr && cr.results && cr.results[0] && cr.results[0].result && cr.results[0].result.message; return { status: 'error', message: m || '扣款失敗,請稍後再試(沒有扣到錢)' }; }
     }
     const refund = async () => { if (fee) { try { await doBotGrantRewardBatch_(env, [feeGrant(1, 'pokerefund-' + feeTag)], null); } catch (e) { console.error('戳戳樂退費失敗', feeTag, e); } } };
-    const r = await env.DB.prepare("UPDATE poke_cells SET taken_by=?, taken_at=? WHERE board_id=? AND idx=? AND taken_by=''").bind(pid, new Date().toISOString(), id, idx).run();
+    const takenAt = new Date().toISOString();
+    const r = await env.DB.prepare("UPDATE poke_cells SET taken_by=?, taken_at=? WHERE board_id=? AND idx=? AND taken_by=''").bind(pid, takenAt, id, idx).run();
     if (!(r && r.meta && r.meta.changes)) { await refund(); const t = await pokeTaken_(env, bd, false); return { status: 'error', message: '這格已經被戳走了', taken: t.taken, cfg: c, leftBy: t.leftBy, msg: bd.msg }; }
     await env.DB.prepare('INSERT INTO poke_plays (board_id,player_id,idx,ts,day) VALUES (?,?,?,?,?)').bind(id, pid, idx, nowMs, day).run();
     const st2 = await env.DB.prepare('SELECT COUNT(*) AS n, SUM(CASE WHEN day=? THEN 1 ELSE 0 END) AS d, SUM(CASE WHEN ts<? AND ?-ts<? THEN 1 ELSE 0 END) AS cd FROM poke_plays WHERE board_id=? AND player_id=?').bind(day, nowMs, nowMs, (c.cooldownSec || 0) * 1000, id, pid).first();
@@ -22360,7 +22361,7 @@ async function doPokeBot_(env, action, b) {
         await env.DB.prepare('INSERT OR IGNORE INTO group_reward_cfg (k,v,updated) VALUES (?,?,?)').bind('pokelast:' + id, JSON.stringify({ uid: pid, granted: 0 }), new Date().toISOString()).run();
       }
     }
-    return { status: 'success', lastPrize, cfg: c, fee: fee, leftBy: t.leftBy, msg: bd.msg, boardName: bd.name, label: pokeLabel_(c, pi), prize, taken: t.taken, left: t.left, total: t.total, playsLeft: c.maxPerPlayer ? Math.max(0, c.maxPerPlayer - st2.n) : null, announceChannelId: c.announceChannelId || c.channelId || '' };
+    return { status: 'success', takenAt, lastPrize, cfg: c, fee: fee, leftBy: t.leftBy, msg: bd.msg, boardName: bd.name, label: pokeLabel_(c, pi), prize, taken: t.taken, left: t.left, total: t.total, playsLeft: c.maxPerPlayer ? Math.max(0, c.maxPerPlayer - st2.n) : null, announceChannelId: c.announceChannelId || c.channelId || '' };
   }
   if (action === 'botPokeBoard') {
     const bd = await pokeBoard_(env, String(b.id || '')); if (!bd) return { status: 'error', message: '找不到板子' };
