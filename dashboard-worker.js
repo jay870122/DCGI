@@ -1993,6 +1993,7 @@ async function doBotGrantRewardBatch_(env, grants, ctx) {
               rec.idx[internal] = rec.pairs.length; rec.pairs.push({ internal, display, delta, skip });
             };
             addPair(currencyInternal, curDisplay, amount, false);
+            if (g.chPost && amount > 0) sendHook('[購買] ' + discordId + ' [' + reason.replace(/ /g, '　') + '] 1 0 幻彩水晶 💰' + String(curDisplay).replace(/ /g, '　') + ' ' + amount); // 戳戳樂:水晶也貼到機器人頻道(跟道具一樣)
             if (currencyInternal === '升階2' && amount > 0 && col1Idx !== -1 && !noComboHere) addPair('升階1', '幻彩水晶(總獲得)', amount, true);
             one = { status: 'success', rewardType: 'currency', currency: currencyInternal, amount, before: curVal, after: newVal, message: (amount > 0 ? '已發放 ' + amount + ' ' : '已扣除 ' + Math.abs(amount) + ' ') + currencyInternal };
             }
