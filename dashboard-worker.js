@@ -5420,11 +5420,13 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
         if (!(await isAdminAllowed_(discordId, env))) return jsonResponse({ status: 'error', message: '權限不足' }, corsHeaders);
         if (!env.DB) return jsonResponse({ status: 'error', message: '尚未綁定 D1(env.DB)' }, corsHeaders);
         const accessToken = await getGoogleAccessToken(env);
-        const sheetRows = await fetchSingleSheet(accessToken, env.SHEET_ID, SHEET_NAMES.player);
-        await env.DB.prepare("DELETE FROM cells WHERE sh='player'").run();
+        const isBag_ = url.searchParams.get('sheet') === 'bag'; // sheet=bag → 匯入「通用道具背包」(sh='bag')
+        const shK_ = isBag_ ? 'bag' : 'player';
+        const sheetRows = await fetchSingleSheet(accessToken, env.SHEET_ID, isBag_ ? GENERAL_BACKPACK_SHEET_NAME_ : SHEET_NAMES.player);
+        await env.DB.prepare('DELETE FROM cells WHERE sh=?').bind(shK_).run();
         const cells = [];
         sheetRows.forEach((row, ri) => (row || []).forEach((v, ci) => { if (v !== '' && v !== null && v !== undefined) cells.push([ri + 1, ci, v]); }));
-        for (let i = 0; i < cells.length; i += 1900) await d1PutCells_(env, 'player', cells.slice(i, i + 1900));
+        for (let i = 0; i < cells.length; i += 1900) await d1PutCells_(env, shK_, cells.slice(i, i + 1900));
         return jsonResponse({ status: 'success', sheetRows: sheetRows.length, cells: cells.length }, corsHeaders);
       }
       // D1 2a 對帳:逐格比對試算表與 D1(repair=1 時以試算表為準補齊差異格)
@@ -5482,8 +5484,10 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
         let wbStatus_ = null;
         try { const r_ = await env.GENERAL_ITEM_LOCK.get(env.GENERAL_ITEM_LOCK.idFromName('wb:main')).fetch('https://lock/?action=wbFlush', { method: 'POST', body: '{}' }); wbStatus_ = await r_.json(); } catch (e) {} // 對帳前先把背景補寫送完
         const accessToken = await getGoogleAccessToken(env);
-        const sheetRows = await fetchSingleSheet(accessToken, env.SHEET_ID, SHEET_NAMES.player);
-        const d1Rows = await d1ReadSheetRows_(env, 'player');
+        const isBag_ = url.searchParams.get('sheet') === 'bag';
+        const shK_ = isBag_ ? 'bag' : 'player';
+        const sheetRows = await fetchSingleSheet(accessToken, env.SHEET_ID, isBag_ ? GENERAL_BACKPACK_SHEET_NAME_ : SHEET_NAMES.player);
+        const d1Rows = await d1ReadSheetRows_(env, shK_);
         const norm = (v) => (v === undefined || v === null ? '' : String(v));
         const diffs = [];
         const nr = Math.max(sheetRows.length, d1Rows.length);
@@ -5494,7 +5498,7 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
         }
         let repaired = 0;
         if (url.searchParams.get('repair') === '1' && diffs.length) {
-          await d1PutCells_(env, 'player', diffs.map((d) => [d.r, d.c, sheetRows[d.r - 1] ? sheetRows[d.r - 1][d.c] : '']));
+          await d1PutCells_(env, shK_, diffs.map((d) => [d.r, d.c, sheetRows[d.r - 1] ? sheetRows[d.r - 1][d.c] : '']));
           repaired = diffs.length;
         }
         return jsonResponse({ status: 'success', sheetRows: sheetRows.length, d1Rows: d1Rows.length, diffCells: diffs.length, repaired, wbPending: wbStatus_ ? wbStatus_.pending : null, sample: diffs.slice(0, 10) }, corsHeaders);
@@ -8683,27 +8687,35 @@ async function d1MirrorPlayerWrites_(dataArr) {
   try {
     const env = d1EnvRef_ || globalEnvRef_;
     if (!env || !env.DB) return;
-    const cells = [];
+    const cellsBy = { player: [], bag: [] };
     for (const d of dataArr) {
       const p = parseA1RangeWithRow_(d.range);
-      if (!p || p.sheetName !== SHEET_NAMES.player) continue;
+      if (!p) continue;
+      const sh = p.sheetName === SHEET_NAMES.player ? 'player' : (p.sheetName === GENERAL_BACKPACK_SHEET_NAME_ && env.BAG_MIRROR !== '0' ? 'bag' : null); // 🌟 背包階段1:通用道具背包也鏡像進 D1(sh='bag'),讀取仍用試算表
+      if (!sh) continue;
       const rows = Array.isArray(d.values) ? d.values : [d.values];
-      rows.forEach((row, ri) => { const arr = Array.isArray(row) ? row : [row]; arr.forEach((v, ci) => cells.push([p.startRow + ri + 1, p.startCol + ci, v])); });
+      rows.forEach((row, ri) => { const arr = Array.isArray(row) ? row : [row]; arr.forEach((v, ci) => cellsBy[sh].push([p.startRow + ri + 1, p.startCol + ci, v])); });
     }
-    if (cells.length) await d1PutCells_(env, 'player', cells);
+    for (const sh of Object.keys(cellsBy)) if (cellsBy[sh].length) await d1PutCells_(env, sh, cellsBy[sh]);
   } catch (e) { console.error('D1 玩家鏡像失敗:', e && e.message ? e.message : e); }
 }
 async function d1MirrorPlayerDeleteRows_(accessToken, spreadsheetId, sheetId, rowNumbers) {
   try {
     const env = d1EnvRef_ || globalEnvRef_;
     if (!env || !env.DB || !rowNumbers || !rowNumbers.length) return;
+    let sh = null;
     const pid = await getCachedSheetIdByName_(accessToken, spreadsheetId, SHEET_NAMES.player);
-    if (pid === null || pid === undefined || String(pid) !== String(sheetId)) return;
+    if (pid !== null && pid !== undefined && String(pid) === String(sheetId)) sh = 'player';
+    else if (env.BAG_MIRROR !== '0') {
+      const bid = await getCachedSheetIdByName_(accessToken, spreadsheetId, GENERAL_BACKPACK_SHEET_NAME_);
+      if (bid !== null && bid !== undefined && String(bid) === String(sheetId)) sh = 'bag';
+    }
+    if (!sh) return;
     const sorted = rowNumbers.slice().sort((a, b) => b - a); // 由大到小,與 Sheets 刪列語意一致
     const stmts = [];
     for (const n of sorted) {
-      stmts.push(env.DB.prepare("DELETE FROM cells WHERE sh='player' AND r=?").bind(n));
-      stmts.push(env.DB.prepare("UPDATE cells SET r=r-1 WHERE sh='player' AND r>?").bind(n));
+      stmts.push(env.DB.prepare("DELETE FROM cells WHERE sh=? AND r=?").bind(sh, n));
+      stmts.push(env.DB.prepare("UPDATE cells SET r=r-1 WHERE sh=? AND r>?").bind(sh, n));
     }
     for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
   } catch (e) { /* 失敗由對帳補回 */ }
