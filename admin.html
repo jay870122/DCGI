@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.381</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.382</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4504,6 +4504,14 @@ async function crLoad_(withImgs) {
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); msg.textContent = '❌ 查詢失敗'; }
   finally { if (withImgs) { qb.disabled = false; qb.textContent = '🔍 查詢'; } }
 }
+function crZoom_(u) { // 點縮圖就地放大(不開新分頁);點空白處或按 Esc 關閉
+  let o = document.getElementById('cr-zoom'); if (o) o.remove();
+  o = document.createElement('div'); o.id = 'cr-zoom';
+  o.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:16px';
+  const im = document.createElement('img'); im.src = u; im.style.cssText = 'max-width:96vw;max-height:94vh;border-radius:8px;box-shadow:0 4px 30px #000';
+  o.appendChild(im); o.onclick = () => o.remove(); document.body.appendChild(o);
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const z = document.getElementById('cr-zoom'); if (z) z.remove(); } });
 function crRender_() {
   const only = document.getElementById('cr-onlyrep').checked;
   const list = crEvents_.filter((e) => !only || (e.replies || []).length);
@@ -4514,7 +4522,7 @@ function crRender_() {
     const can = e.status === 'open' && !e.busy;
     const reps = (e.replies || []).map((r) => {
       const imgs = crImg_[r.id];
-      const body = r.img ? (imgs === undefined ? '<span class="hint">圖片載入中…</span>' : (imgs === null ? '<span class="hint">⚠️ 這則回覆已被刪除</span>' : (imgs.length ? imgs.map((u) => '<a href="' + grEsc_(u) + '" target="_blank" rel="noopener"><img loading="lazy" src="' + grEsc_(u) + '"></a>').join('') : '<span class="hint">(讀不到圖片,點跳轉看)</span>'))) : '';
+      const body = r.img ? (imgs === undefined ? '<span class="hint">圖片載入中…</span>' : (imgs === null ? '<span class="hint">⚠️ 這則回覆已被刪除</span>' : (imgs.length ? imgs.map((u) => '<img loading="lazy" src="' + grEsc_(u) + '" style="cursor:zoom-in" title="點一下放大" onclick="crZoom_(this.src)">').join('') : '<span class="hint">(讀不到圖片,點跳轉看)</span>'))) : '';
       return '<div class="cr-rep">💬 ' + grEsc_(r.ts || '') + ' ' + (r.uid !== e.uid ? '<b>(' + grEsc_(r.name || r.uid) + ')</b> ' : '') + (r.img ? '🖼️' : '文字') + ' <a href="' + grEsc_(r.url || '#') + '" target="_blank" rel="noopener">跳轉</a>' + (body ? '<div class="cr-imgs">' + body + '</div>' : '') + '</div>';
     }).join('') || '<div class="cr-rep hint">還沒有回覆</div>';
     const rw = (e.rewardLines && e.rewardLines.length) ? e.rewardLines.map((x) => grEsc_(x)).join(' ・ ') : ((e.pts > 0 ? e.pts + ' ' + grEsc_(e.rcur || '幻彩水晶') : '') + (e.bingos ? ' 活動貨幣×' + grEsc_(e.bingos) : '') + (e.blind ? ' 盲盒' : ''));
