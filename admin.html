@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.386</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.387</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1526,6 +1526,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="hint" style="margin-bottom:10px">勾選前請先把 瓜.sk 的「on message received」那段和玩家留言按鈕關掉,否則會重複公告/私訊。機器人需有「管理訊息」(刪原始訊息)、「管理身分組」(發 [身分組] 獎勵)權限。</div>
           <div class="pk-grid">
             <div class="field"><label>公告時間(台北)</label><input id="cc-time" type="time"></div>
+            <div class="field"><label>⏰ 開啟時段:從(台北,空=不限)</label><input id="cc-open-from" type="time"></div>
+            <div class="field"><label>⏰ 開啟時段:到(兩格都填才生效)</label><input id="cc-open-until" type="time"></div>
             <div class="field"><label>公告頻道ID</label><input id="cc-ch"></div>
             <div class="field"><label>提醒身分組ID</label><input id="cc-ping"></div>
             <div class="field"><label>生日身分組ID<span class="hint">挑戰直接PASS</span></label><input id="cc-bday"></div>
@@ -5120,7 +5122,7 @@ async function loadChallengeCfg() {
     const d = await grCall_('adminChallengeCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
     const c = d.cfg, g = (i) => document.getElementById(i), cd = c.candy || {};
-    g('cc-enabled').checked = !!c.enabled; g('cc-relay').checked = !!c.relayEnabled; g('cc-time').value = c.announceTime || '22:00';
+    g('cc-enabled').checked = !!c.enabled; g('cc-relay').checked = !!c.relayEnabled; g('cc-time').value = c.announceTime || '22:00'; g('cc-open-from').value = c.openFrom || ''; g('cc-open-until').value = c.openUntil || '';
     g('cc-ch').value = c.channelId || ''; g('cc-ping').value = c.pingRoleId || ''; g('cc-bday').value = c.birthdayRoleId || '';
     g('cc-wname').value = c.webhookName || ''; g('cc-wav').value = c.webhookAvatar || ''; g('cc-img').value = c.announceImage || ''; g('cc-extra').value = c.announceExtra || ''; g('cc-admins').value = (c.adminRoleIds || []).join('\n');
     if (!(itemTemplates || []).length) { try { const dt = await apiWorkerRead('adminItemTemplates', {}, { action: 'adminGetItemTemplates' }); if (dt && dt.status === 'success') itemTemplates = dt.templates || []; } catch (e) {} }
@@ -5134,7 +5136,7 @@ async function loadChallengeCfg() {
 }
 async function saveChallengeCfg() {
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
-  const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
+  const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), openFrom: g('cc-open-from'), openUntil: g('cc-open-until'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), announceImage: g('cc-img').trim(), announceExtra: g('cc-extra'), adminRoleIds: g('cc-admins'),
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),

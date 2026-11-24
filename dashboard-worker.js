@@ -22706,6 +22706,10 @@ function challengeCfgNormalize_(c) {
   const out = { enabled: !!c.enabled, relayEnabled: !!c.relayEnabled };
   out.announceTime = s(c.announceTime, 5) || d.announceTime;
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(out.announceTime)) return { error: '公告時間格式要 HH:MM(台北時間)' };
+  // 開啟限時:兩個都填才生效(台北時間,含起訖分鐘;空=不限);只擋「開啟今日挑戰」,測試按鈕不受限
+  out.openFrom = s(c.openFrom, 5); out.openUntil = s(c.openUntil, 5);
+  if (!out.openFrom || !out.openUntil) { out.openFrom = ''; out.openUntil = ''; }
+  else if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(out.openFrom) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(out.openUntil)) return { error: '開啟時段格式要 HH:MM(台北時間)' };
   for (const k of ['channelId', 'pingRoleId', 'birthdayRoleId']) { out[k] = s(c[k], 25); if (out[k] && !idOk(out[k])) return { error: k + ' 不是正確的 Discord ID' }; }
   if (!out.channelId) return { error: '公告頻道ID 不能空' };
   out.adminRoleIds = lines(c.adminRoleIds, 20, 25);
@@ -24344,6 +24348,10 @@ async function doChallengeBot_(env, action, b) {
     const uid = String(b.userId || '');
     if (!/^\d{15,22}$/.test(uid)) return { status: 'error', message: '缺少玩家ID' };
     const date = today;
+    if (!b.test && cfg.openFrom && cfg.openUntil) { // ⏰ 限時開啟(後台「開啟時段」):時段外不給開,也不佔今日名額
+      const inWin = cfg.openFrom <= cfg.openUntil ? (hm >= cfg.openFrom && hm <= cfg.openUntil) : (hm >= cfg.openFrom || hm <= cfg.openUntil);
+      if (!inWin) return { status: 'error', message: '個人挑戰只開放 ' + cfg.openFrom + '~' + cfg.openUntil + ' 領取(現在 ' + hm + ')' };
+    }
     if (!b.test) { // 測試:不佔今日名額
       const r = await env.DB.prepare('INSERT OR IGNORE INTO group_reward_cfg (k,v,updated) VALUES (?,?,?)').bind('chopen:' + date + ':' + uid, '1', nowIso).run();
       if (!(r && r.meta && r.meta.changes)) return { status: 'success', already: true };
