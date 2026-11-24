@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.385</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.386</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5652,7 +5652,7 @@ function ctAdmRender_() {
   const byT = {}; d.works.forEach((w) => { (byT[w.track] = byT[w.track] || []).push(w); });
   document.getElementById('ct-adm-works').innerHTML = d.tracks.map((t) => {
     const ws = (byT[t.id] || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99));
-    // 🏅 目前優異圈(投票中即時推算,規則同結算:最高票併列 + 其餘依賽道得分前 ceil(作品數×10%) 名、同分一起算);👀=圈外緊接著的 2 名(同分一起算)
+    // 🏅 目前優異圈(投票中即時推算,規則同結算:最高票併列 + 其餘依賽道得分前 ceil(作品數×10%) 名、同分一起算)
     if (!ws.some((w) => w.award) && ws.length) {
       const N = ws.length, topN = Math.max(1, Math.ceil(N * 0.1 - 1e-9)), byS = ws.slice().sort((x, y) => (y.score || 0) - (x.score || 0) || (x.rank || 99) - (y.rank || 99));
       const champs = byS.filter((w) => (w.raw || 0) > 0 && w.rank === 1), cid = {}; champs.forEach((w) => { cid[w.id] = 1; w._live = '最高票'; });
@@ -5660,12 +5660,10 @@ function ctAdmRender_() {
       if (rest.length) {
         const cut = rest[Math.min(topN, rest.length) - 1].score || 0;
         rest.forEach((w) => { if ((w.raw || 0) > 0 && (w.score || 0) >= cut) w._live = '前10%'; });
-        const out = rest.filter((w) => !w._live);
-        if (out.length) { const nearCut = out[Math.min(1, out.length - 1)].score; out.forEach((w) => { if ((w.score || 0) >= nearCut) w._near = true; }); }
       }
     }
     return '<div><div class="ct-tb">' + ctEsc_(t.name) + ' <span class="hint" style="font-weight:400">第' + t.round + '輪 · ' + ctEsc_(t.effStatus || t.status) + ' · ' + ws.length + ' 件作品 · ' + ((d.voters || {})[t.id] || 0) + ' 人已投票' + (((d.limits || {})[t.id] && ws.length) ? ' · 每人可投 ' + d.limits[t.id].total + ' 票(優異 ' + d.limits[t.id].excellent + ' + 一般 ' + (d.limits[t.id].total - d.limits[t.id].excellent) + ')' : '') + '</span></div>'
-      + (ws.length ? '<div class="ct-tw"><table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.award ? ' <span title="優異獎(' + w.award + ')">🏅' + ctEsc_(w.award) + '</span>' : (w._live ? ' <span title="目前在優異圈內(投票中,暫定)" style="color:#57f287">🏅目前' + ctEsc_(w._live) + '</span>' : (w._near ? ' <span title="目前在優異圈外,但差距在 2 名內" style="color:#faa61a">👀有機會</span>' : ''))) + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',0);return false">Talesbook</a>' : '', w.url2 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',1);return false">遊戲截圖</a>' : ''].filter(Boolean).join(' · ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有作品</div>') + '</div>';
+      + (ws.length ? '<div class="ct-tw"><table style="margin-top:4px"><thead><tr><th>名次</th><th>參賽者</th><th>支持</th><th>優異</th><th>計票</th><th>得票分</th><th>排名分</th><th>賽道得分</th><th>截圖</th><th></th></tr></thead><tbody>' + ws.map((w) => '<tr><td>' + (w.rank || '') + '</td><td>' + ctEsc_(w.name) + (w.award ? ' <span title="優異獎(' + w.award + ')">🏅' + ctEsc_(w.award) + '</span>' : (w._live ? ' <span title="目前在優異圈內(投票中,暫定)" style="color:#57f287">🏅目前' + ctEsc_(w._live) + '</span>' : '')) + '<div class="hint">' + ctEsc_(w.user) + '</div></td><td>' + (w.support || 0) + '</td><td>' + (w.excellent || 0) + '</td><td>' + (w.raw || 0) + '</td><td>' + (w.voteScore != null ? w.voteScore.toFixed(1) : '') + '</td><td>' + (w.rankScore != null ? w.rankScore.toFixed(1) : '') + '</td><td><b>' + (w.score != null ? w.score : '') + '</b></td><td>' + [w.url1 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',0);return false">Talesbook</a>' : '', w.url2 ? '<a href="#" onclick="ctAdmImg_(\'' + ctEsc_(w.id) + '\',1);return false">遊戲截圖</a>' : ''].filter(Boolean).join(' · ') + '</td><td><button class="btn btn-edit" onclick="ctAdmEditWork(\'' + ctEsc_(w.id) + '\')">編輯</button> <button class="btn btn-del" onclick="ctAdmDelWork(\'' + ctEsc_(w.id) + '\')">刪除</button></td></tr>').join('') + '</tbody></table></div>' : '<div class="hint">還沒有作品</div>') + '</div>';
   }).join('') || '<div class="hint">還沒有賽道</div>';
   ctAdmRenderBallots_();
   ctAdmRenderCfg_();
