@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.365</div>
+    <div class="version-tag">系統版本：v5.4.366</div>
   </div>
 
   <script>
@@ -3738,7 +3738,7 @@
         <div class="gi-card" data-idx="${idx}" data-name="${giNameAttr_}" data-count="${g.totalCount}" data-expire="${giExpireMs_ || ''}" data-tradable="${g.tradable ? 1 : 0}" style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <span style="display:flex;align-items:flex-start;gap:10px;min-width:0">
-              ${g.iconUrl ? `<img class="gi-icon${g.imageUrl ? ' gi-bigimg' : ''}" src="${escapeHtml_(g.iconUrl)}" ${g.imageUrl ? `data-big="${escapeHtml_(g.imageUrl)}" title="點擊看大圖"` : ''} loading="lazy" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#202225;${g.imageUrl ? 'cursor:zoom-in' : ''}" onerror="this.style.display='none'">` : ''}
+              ${g.iconUrl ? `<img class="gi-icon gi-bigimg" src="${escapeHtml_(g.iconUrl)}" ${g.imageUrl ? `data-big="${escapeHtml_(g.imageUrl)}" ` : ''}title="點擊放大" loading="lazy" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#202225;cursor:zoom-in" onerror="this.style.display='none'">` : ''}
               <span>
               <b class="gi-name" onclick="toggleGiCardOpen_(this)">${g.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（共 ${g.totalCount} 個）</span>
               ${countdownHtml}
