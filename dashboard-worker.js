@@ -17389,7 +17389,29 @@ async function doAdminContestMarkGranted_(env, body) {
   const granted = await ctGrantedMap_(env, accessToken), now = new Date().toISOString(), rows = [];
   (Array.isArray(body && body.awards) ? body.awards : []).forEach((a) => { const k = ((a && a.key) || '').toString().slice(0, 100); if (k && !granted[k]) { granted[k] = true; rows.push([k, (a.user || '').toString().replace(/\D/g, ''), (a.label || '').toString().slice(0, 80), parseFloat(a.exch) || 0, parseFloat(a.lottery) || 0, now]); } });
   if (rows.length) await appendRowsWithLockedRange_(env, accessToken, env.SHEET_ID, CTR_SHEET_, 'contestReward', rows);
-  return { status: 'success', marked: rows.length };
+  // 📣 發放時順便在大獎頻道公布該賽道「排名 + 得票數」(沿用機器人的 [BOSS公告] 格式:標題|玩家ID@內容;…,免改機器人);body.announce===false 可關;總排名獎(overall)不公布;每次發放只對「這次真的新標記」的賽道公布一次
+  let announced = 0;
+  if (rows.length && !(body && body.announce === false)) {
+    try {
+      const trackIds = {}; rows.forEach((r) => { const t = (r[0] || '').toString().split('|')[1]; if (t) trackIds[t] = true; });
+      const ids = Object.keys(trackIds);
+      if (ids.length) {
+        const data = await ctLoad_(env, accessToken), res = ctResults_(data);
+        const clean = (x) => (x == null ? '' : String(x)).replace(/[|;@\n]/g, '、').replace(/\[(大獎|二獎|三獎|通知)\]/g, '').trim();
+        const hook = (m) => { const c = globalThis.__reqCtx_; if (c && typeof c.waitUntil === 'function') c.waitUntil(queueWebhookWorker_(m)); else queueWebhookWorker_(m); };
+        ids.forEach((tid) => {
+          const t = data.tracks.find((x) => x.id === tid); if (!t) return;
+          const ws = data.works.filter((w) => w.track === tid && res.perWork[w.id]).sort((a, b) => res.perWork[a.id].rank - res.perWork[b.id].rank || res.perWork[b.id].score - res.perWork[a.id].score);
+          if (!ws.length) return;
+          const voters = {}; data.votes.filter((v) => v.active && v.track === tid).forEach((v) => { voters[v.voter] = 1; });
+          const lines = ws.map((w) => { const p = res.perWork[w.id]; return w.user + '@第' + p.rank + '名 計票' + p.raw + '(支持' + p.support + '/優異' + p.excellent + ') 得分' + p.score + (p.award ? ' 🏅' + p.award : ''); });
+          const chunks = []; for (let i = 0; i < lines.length; i += 15) chunks.push(lines.slice(i, i + 15));
+          chunks.forEach((c, i) => { hook('[BOSS公告] 📊 ' + clean(t.name) + ' 排名與得票數' + (i === 0 ? '(共 ' + ws.length + ' 件作品、' + Object.keys(voters).length + ' 人投票)' : '(續)') + '|' + c.join(';')); announced++; });
+        });
+      }
+    } catch (e) { /* 公告失敗不影響發放記錄 */ }
+  }
+  return { status: 'success', marked: rows.length, announced };
 }
 async function doAdminContestGet_(env) {
   const accessToken = await getGoogleAccessToken(env);
