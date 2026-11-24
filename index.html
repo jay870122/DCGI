@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.364</div>
+    <div class="version-tag">系統版本：v5.4.365</div>
   </div>
 
   <script>
@@ -1351,7 +1351,7 @@
     // 🔍 資訊卡內的圖片:點一下全螢幕放大,再點一下(或按 Esc)關閉
     (function () {
       function box() { let b = document.getElementById('img-zoom'); if (!b) { b = document.createElement('div'); b.id = 'img-zoom'; b.innerHTML = '<span class="iz-x">×</span><img alt="">'; b.addEventListener('click', () => b.classList.remove('open')); document.body.appendChild(b); } return b; }
-      document.addEventListener('click', (e) => { const im = e.target && e.target.closest && e.target.closest('.info-card img, .ct-img'); if (!im) return; e.preventDefault(); const b = box(); b.querySelector('img').src = im.currentSrc || im.src; b.classList.add('open'); });
+      document.addEventListener('click', (e) => { const im = e.target && e.target.closest && e.target.closest('.info-card img, .ct-img, .gi-bigimg'); if (!im) return; e.preventDefault(); e.stopPropagation(); const b = box(); b.querySelector('img').src = (im.dataset && im.dataset.big) || im.currentSrc || im.src; b.classList.add('open'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const b = document.getElementById('img-zoom'); if (b) b.classList.remove('open'); } });
     })();
     // 🔗 DC 通知附的留言連結 ?card=卡片ID&cm=留言ID:先記起來(登入跳轉會丟掉網址參數),卡片與商店都載入後自動切分類、展開留言並捲動到該則
@@ -3737,13 +3737,16 @@
         return `
         <div class="gi-card" data-idx="${idx}" data-name="${giNameAttr_}" data-count="${g.totalCount}" data-expire="${giExpireMs_ || ''}" data-tradable="${g.tradable ? 1 : 0}" style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-            <span>
+            <span style="display:flex;align-items:flex-start;gap:10px;min-width:0">
+              ${g.iconUrl ? `<img class="gi-icon${g.imageUrl ? ' gi-bigimg' : ''}" src="${escapeHtml_(g.iconUrl)}" ${g.imageUrl ? `data-big="${escapeHtml_(g.imageUrl)}" title="點擊看大圖"` : ''} loading="lazy" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#202225;${g.imageUrl ? 'cursor:zoom-in' : ''}" onerror="this.style.display='none'">` : ''}
+              <span>
               <b class="gi-name" onclick="toggleGiCardOpen_(this)">${g.itemName}</b> <span style="color:#B9BBBE;font-size:12px">（共 ${g.totalCount} 個）</span>
               ${countdownHtml}
               ${maxOpenHintHtml}
               ${openLimitHintHtml}
               ${tradableHintHtml}
               ${g.autoOpenOnExpire ? `<span style="color:#F0B232;font-size:11px;display:block">⏰ 過期未開會自動開啟</span>` : ''}
+              </span>
             </span>
             <span style="display:flex;align-items:center;gap:6px">
               ${g.noOpen ? `<span style="color:#72767D;font-size:12px">🔒 不可開啟</span>` : g.chamberOnly ? `<button class="btn-action" style="padding:5px 14px;font-size:13px;background-color:#1ABC9C;flex-shrink:0" onclick="openChamber()">🧊 放入開啟室</button>` : `<input type="number" id="gi-qty-${idx}" data-max-open="${g.maxOpenPerRequest || effectiveMaxOpen}" min="1" max="${g.totalCount}" value="1" style="width:60px;padding:4px;text-align:center">
@@ -3753,6 +3756,7 @@
           </div>
           <div class="gi-craft" data-craft-name="${giNameAttr_}"></div>
           <div class="gi-extra">
+          ${g.imageUrl ? `<img class="gi-bigimg" src="${escapeHtml_(g.imageUrl)}" data-big="${escapeHtml_(g.imageUrl)}" loading="lazy" alt="" style="max-width:100%;max-height:220px;border-radius:8px;margin:6px 0;cursor:zoom-in" onerror="this.style.display='none'">` : ''}
           ${generalItemRemarkHtml_}
           ${breakdownHtml}
           ${instancesVaryHtml_}

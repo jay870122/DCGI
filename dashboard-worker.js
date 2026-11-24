@@ -6809,6 +6809,7 @@ function buildAdminItemTemplates(templateData) {
       discardDisabled: row[16] ? row[16].toString().trim().toUpperCase() === 'TRUE' : false,
       chamberOnly: row[21] ? row[21].toString().trim().toUpperCase() === 'TRUE' : false,
       noOpen: row[22] ? row[22].toString().trim().toUpperCase() === 'TRUE' : false, // 🌟🆕 W欄:不可開啟
+      iconUrl: row[23] ? row[23].toString().trim() : '', imageUrl: row[24] ? row[24].toString().trim() : '', // 🌟🆕 X欄圖示圖片 / Y欄大圖
       chamberMinSec: row[17] !== '' && row[17] !== undefined ? row[17] : '', chamberMaxSec: row[18] !== '' && row[18] !== undefined ? row[18] : '', // 🌟🆕 開啟室等待秒數(R/S欄)
       chamberSpeedCurrency: row[19] ? row[19].toString().trim() : '', chamberSpeedPrice: row[20] !== '' && row[20] !== undefined ? row[20] : '', // 🌟🆕 開啟室加速(T/U欄)
     });
@@ -7090,6 +7091,8 @@ function buildGeneralBackpack(discordId, backpackData, templateData, openLimitDa
     g.discardDisabled = groupTemplateRow && groupTemplateRow[16] ? groupTemplateRow[16].toString().trim().toUpperCase() === 'TRUE' : false;
     g.chamberOnly = groupTemplateRow && groupTemplateRow[21] ? groupTemplateRow[21].toString().trim().toUpperCase() === 'TRUE' : false;
     g.noOpen = groupTemplateRow && groupTemplateRow[22] ? groupTemplateRow[22].toString().trim().toUpperCase() === 'TRUE' : false; // 🌟🆕 不可開啟
+    g.iconUrl = groupTemplateRow && groupTemplateRow[23] ? groupTemplateRow[23].toString().trim() : ''; // 🌟🆕 圖示圖片(X欄)
+    g.imageUrl = groupTemplateRow && groupTemplateRow[24] ? groupTemplateRow[24].toString().trim() : ''; // 🌟🆕 大圖(Y欄)
     let openLimitStatusList;
     if (perInstance) {
       g.instances.forEach((inst) => {
@@ -11801,8 +11804,8 @@ async function doAdminSmallOp_(env, body) {
         await invalidateTpl();
         return { status: 'success', message: '已刪除道具模板「' + name + '」' };
       }
-      const COLS = 23;
-      const hdr = { 15: '備註(玩家背包可見)', 16: '過期自動開啟(TRUE=過期未開由系統代開)', 17: '禁止丟棄(TRUE=玩家不能丟棄)', 18: '開啟室等待秒數(最小,空白=不能放入)', 19: '開啟室等待秒數(最大)', 20: '開啟室加速貨幣', 21: '開啟室加速每分鐘價格', 22: '必須經過開啟室才能開啟(TRUE)', 23: '不可開啟(TRUE=背包不顯示開啟,伺服器也擋)' };
+      const COLS = 25; // A~Y:X=圖示圖片網址、Y=大圖網址
+      const hdr = { 15: '備註(玩家背包可見)', 16: '過期自動開啟(TRUE=過期未開由系統代開)', 17: '禁止丟棄(TRUE=玩家不能丟棄)', 18: '開啟室等待秒數(最小,空白=不能放入)', 19: '開啟室等待秒數(最大)', 20: '開啟室加速貨幣', 21: '開啟室加速每分鐘價格', 22: '必須經過開啟室才能開啟(TRUE)', 23: '不可開啟(TRUE=背包不顯示開啟,伺服器也擋)' , 24: '圖示圖片(網址,背包卡片的小圖示)', 25: '大圖(網址,點圖示放大看)'};
       const hdrWrites = [];
       for (const c of Object.keys(hdr)) { const ci = parseInt(c, 10); if (!(tsheet[0] && tsheet[0][ci - 1])) { const col = String.fromCharCode(64 + ci); hdrWrites.push({ range: `'${T}'!${col}1`, values: [[hdr[c]]] }); } }
       let rowValues;
@@ -11853,7 +11856,7 @@ async function doAdminSmallOp_(env, body) {
         if (isNaN(cMin)) cMin = ''; if (isNaN(cMax)) cMax = '';
         if (cMin !== '' && cMax !== '' && cMin > cMax) { const tmp = cMin; cMin = cMax; cMax = tmp; }
         let cPrice = parseFloat(body.chamberSpeedPrice); if (isNaN(cPrice) || cPrice <= 0) cPrice = '';
-        rowValues = [name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpen || '', tradable ? 'TRUE' : '', rules.length ? JSON.stringify(rules) : '', '', reqTrade ? 'TRUE' : '', tradeCountLimit || '', tf(body.perInstanceOpenLimit) ? 'TRUE' : '', reqTradeCount > 1 ? reqTradeCount : '', (body.remark || '').toString().trim(), tf(body.autoOpenOnExpire) ? 'TRUE' : '', tf(body.discardDisabled) ? 'TRUE' : '', cMin, cMax, (body.chamberSpeedCurrency || '').toString().trim(), cPrice, tf(body.chamberOnly) ? 'TRUE' : '', tf(body.noOpen) ? 'TRUE' : ''];
+        rowValues = [name, poolRaw, maxUses, expiryMode, expiryValue, usableFrom, maxOpen || '', tradable ? 'TRUE' : '', rules.length ? JSON.stringify(rules) : '', '', reqTrade ? 'TRUE' : '', tradeCountLimit || '', tf(body.perInstanceOpenLimit) ? 'TRUE' : '', reqTradeCount > 1 ? reqTradeCount : '', (body.remark || '').toString().trim(), tf(body.autoOpenOnExpire) ? 'TRUE' : '', tf(body.discardDisabled) ? 'TRUE' : '', cMin, cMax, (body.chamberSpeedCurrency || '').toString().trim(), cPrice, tf(body.chamberOnly) ? 'TRUE' : '', tf(body.noOpen) ? 'TRUE' : '', (body.iconUrl || '').toString().trim(), (body.imageUrl || '').toString().trim()];
       }
       const lastCol = String.fromCharCode(64 + COLS);
       const targetRow = foundRow !== -1 ? foundRow : tsheet.length + 1;
