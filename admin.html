@@ -361,7 +361,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.389</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.390</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1521,7 +1521,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="hint" style="line-height:1.7;margin-bottom:12px">機器人每天在「公告時間」自動貼團任公告 + 「個人挑戰」按鈕(取代 Skript)。<b>啟用前請先把 Skript 的 團任提醒/個人挑戰 關掉,不然會重複公告。</b>也可用 /個人挑戰公告 手動貼。</div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">🔮 人生解答題庫 <span class="hint" id="pp-count" style="font-weight:400"></span></div>
-          <div class="hint" style="margin-bottom:6px">一行一句(重複的會自動合併)。儲存後,機器人約 15 秒內自動套用;在 DC 用 /人生解答管理 改的會直接寫進這裡。</div>
+          <div class="hint" style="margin-bottom:6px">一行一句(重複的會自動合併)。儲存後,機器人會立刻同步(正常 1~2 秒);在 DC 用 /人生解答管理 改的會直接寫進這裡。</div>
           <textarea id="pp-text" rows="10" style="width:100%" placeholder="載入中…"></textarea>
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ppLoad()">🔄 重新讀取</button><button class="btn btn-primary" onclick="ppSave()">💾 儲存人生解答</button></div>
         </div>
@@ -5135,7 +5135,7 @@ async function ppSave() {
   const text = document.getElementById('pp-text').value;
   if (!text.trim()) { toast('題庫不能是空的', false); return; }
   const d = await grCall_('adminPeopleSave', { text });
-  if (d && d.status === 'success') { toast('✅ 已儲存 ' + d.count + ' 句,機器人約 15 秒內同步'); ppLoad(); } else toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false);
+  if (d && d.status === 'success') { toast('✅ 已儲存 ' + d.count + ' 句,機器人會立刻同步'); ppLoad(); } else toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false);
 }
 async function loadChallengeCfg() {
   ppLoad();

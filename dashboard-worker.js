@@ -5159,6 +5159,7 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
           const list = Array.isArray(pb.list) ? pb.list : String(pb.text || '').split(/\r?\n/);
           if (!peopleClean_(list).length) return jsonResponse({ status: 'error', safeNoWrite: true, message: '題庫不能是空的(沒有儲存)' }, corsHeaders);
           const sv = await peopleSave_(env, list);
+          { const m = '[人生解答更新] ' + sv.ver, c = globalThis.__reqCtx_; try { if (c && typeof c.waitUntil === 'function') c.waitUntil(queueWebhookWorker_(m)); else queueWebhookWorker_(m); } catch (e) {} } // 📣 即時通知機器人:走既有的 webhook 中繼頻道,機器人看到就立刻同步(輪詢只是備援)
           return jsonResponse({ status: 'success', count: sv.list.length, ver: sv.ver }, corsHeaders);
         } catch (e) { return jsonResponse({ status: 'error', safeNoWrite: true, message: String(e && e.message || e).slice(0, 160) }, corsHeaders); }
       }
