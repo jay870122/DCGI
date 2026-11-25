@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.395</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.396</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1616,7 +1616,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             📦 <b>[非即時]</b>:例如 <code>[非即時]角色加布</code>,只顯示在挑戰訊息、<b>不會自動入帳</b>,由管理員另外處理。
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑥ 跟商店盲盒不一樣的地方</b></div>
             　・❌ <b>不支援</b> <code>[序號]</code>、<code>[身分組]</code>、<code>[留言]</code>、<code>[統計]</code>(存檔時會擋下來)<br>
-            　・📉 <b>「份」不會被扣</b>:挑戰沒有庫存存檔,寫 <code>300份</code> 只會當成比例權重,永遠抽不完;要控制機率請直接寫 <code>%</code><br>
+            　・📦 <b>「份」= 限量,先完成先得</b>:開挑戰時照樣抽(不扣),<b>管理員按「挑戰成功」時才扣 1 份</b>;份被領完時,有寫代替獎就改發代替獎,沒有就在還有份/不限量的獎項裡重抽一次,訊息會註明。份數是累計的,在下方「📦 限量獎已發份數」可以查看/歸零<br>
+            　・🔁 <b>代替獎</b>:另外寫一行 <code>[代替:獎項名稱]顯示名稱, 變數:數量</code>(獎項名稱要跟限量那行的第一格完全一樣,可用 {倍數});這行不參加抽獎,只在那個限量獎領完時才發<br>
             　・🔄 開了「重新抽選」時,玩家每重抽一次就重新抽一個獎項(只勾「任務」則照該頁說明)<br>
             　・🏷️ 題目有標【難度】且該難度有填獎勵時,用依難度的規則;否則限定日期組(有符合今天的)優先,最後才是上面平常的規則
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑦ 範例</b></div>
@@ -1632,12 +1633,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <b>道具 / 背包</b><br>
             <code>神秘寶箱, [道具:木頭寶箱]神秘寶箱, 5%</code>　<span class="hint">← 發一個「木頭寶箱」模板的道具到我的道具</span><br>
             <code>指定券(24h), [背包:PICK_FREE||HOURS|24]指定券, 3%</code><br>
+            <b>限量 + 代替獎</b><br>
+            <code>七大罪箱子, [道具:七大罪的箱子]七大罪箱子, 1%, 3份</code>　<span class="hint">← 全部只發 3 份,先完成先得</span><br>
+            <code>[代替:七大罪箱子]幻彩水晶x{倍數*5}, 幻彩水晶:{倍數*5}</code>　<span class="hint">← 3 份發完後,抽到七大罪箱子的人改拿這個</span><br>
             <b>非即時 / 保底</b><br>
             <code>角色加布, [非即時]角色加布, 0.5%</code>　<span class="hint">← 只顯示,管理員另外發</span><br>
             <code>安慰獎={倍數}, 幻彩水晶:{倍數}</code>　<span class="hint">← 沒寫機率/份數 = 保底,放最後一行</span>
           </details>
           <div style="font-weight:700;margin:12px 0 4px">📅 限定日期的獎勵 <span class="hint">一天或一段日期;那幾天抽獎只用符合的限定組(取代上面平常的盲盒規則);同一天符合多組會合併一起抽</span></div>
           <div id="cc-sets-blindSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('blindSets')">➕ 新增限定日期獎勵</button>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b>📦 限量獎已發份數</b><button class="btn btn-edit" style="margin-left:auto" onclick="ccStockLoad_()">🔄 重新整理</button></div>
+          <div class="hint" style="margin-bottom:6px">獎項有寫 <code>N份</code> 就是限量:開挑戰時照樣抽,<b>管理員按「挑戰成功」時才扣份,先完成先得</b>。份被領完時:有寫 <code>[代替:獎項名稱]</code> 那行就改發代替獎,沒有就在還有份/不限量的獎項裡重抽一次(訊息會註明)。份數是累計的,要重新開始就按「歸零」。</div>
+          <div id="cc-stock-box" class="hint">(按「重新整理」查看)</div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🏷️ 依難度設定成功獎勵</div>
@@ -4287,6 +4296,7 @@ function navTo(p) {
   if (p==='group-reward') loadGroupReward();
   if (p==='cat-budget') loadCatBudget();
   if (p==='challenge-cfg' || p==='challenge-puz') loadChallengeCfg();
+  if (p==='challenge-puz') ccStockLoad_();
   if (p==='people') ppLoad();
   if (p==='quest-cfg') loadQuestCfg();
   if (p==='challenge-review') crInit_();
@@ -5136,9 +5146,20 @@ function ccBlindSubst_(text, mul) {
     return String(Math.max(0, Math.round(v)));
   });
 }
+// 📦 [代替:獎項名稱] 的行不參加抽獎,預覽時拿掉並另外列出
+function ccPreviewWithAlts_(box, text, mul) {
+  const alts = [], keep = [];
+  String(text || '').split(/\r?\n/).forEach((ln) => { const m = ln.match(/^\s*\[代替[:：]([^\]]+)\]\s*(.*)$/); if (m) alts.push([m[1].trim(), m[2].trim()]); else keep.push(ln); });
+  renderGachaPreviewToBox_(box, ccBlindSubst_(keep.join('\n'), mul));
+  if (alts.length) {
+    const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    box.style.display = '';
+    box.insertAdjacentHTML('beforeend', '<div style="margin-top:6px;border-top:1px dashed var(--bd);padding-top:6px">🔁 <b>代替獎</b>(限量領完時改發,不參加抽獎):<br>' + alts.map((a) => '　・「' + esc(a[0]) + '」領完 → <code>' + esc(ccBlindSubst_(a[1], mul)) + '</code>').join('<br>') + '</div>');
+  }
+}
 function ccBlindPreview_() {
   const box = document.getElementById('cc-blind-preview'), ta = document.getElementById('cc-blind'), sel = document.getElementById('cc-blind-mul'); if (!box || !ta) return;
-  renderGachaPreviewToBox_(box, ccBlindSubst_(ta.value, parseFloat(sel && sel.value) || 1));
+  ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1);
   if (typeof ccDiff_ !== 'undefined') ccDiff_.forEach((x, i) => ccDiffPreview_(i)); // 依難度的獎勵也用同一個倍數預覽
 }
 let ccSets_ = { announceSets: [], puzzleSets: [], blindSets: [] };
@@ -5276,7 +5297,19 @@ function ccDiffRender_() {
 }
 function ccDiffPreview_(i) {
   const box = document.querySelector('#cc-diff-rows [data-ccp="' + i + '"]'), sel = document.getElementById('cc-blind-mul'); if (!box || !ccDiff_[i]) return;
-  renderGachaPreviewToBox_(box, ccBlindSubst_(ccDiff_[i].text || '', parseFloat(sel && sel.value) || 1));
+  ccPreviewWithAlts_(box, ccDiff_[i].text || '', parseFloat(sel && sel.value) || 1);
+}
+async function ccStockLoad_(resetKey) {
+  const box = document.getElementById('cc-stock-box'); if (!box) return;
+  if (resetKey && !confirm('確定要把這個限量獎的已發份數歸零嗎?(歸零後又可以再發滿)')) return;
+  box.textContent = '讀取中…';
+  try {
+    const d = await grCall_('adminChallengeStock', resetKey ? { reset: resetKey } : {});
+    if (!d || d.status !== 'success') { box.textContent = '讀取失敗:' + ((d && d.message) || ''); return; }
+    const esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const pn = (p) => p === 'base' ? '平常' : p.indexOf('d-') === 0 ? '難度【' + p.slice(2) + '】' : p.indexOf('set-') === 0 ? '限定日期 ' + p.slice(4) : p;
+    box.innerHTML = (d.list || []).length ? '<table style="width:100%;font-size:13px"><tr><th style="text-align:left">獎池</th><th style="text-align:left">獎項</th><th>已發</th><th></th></tr>' + d.list.map((r) => '<tr><td>' + esc(pn(r.pool)) + '</td><td>' + esc(r.name) + '</td><td style="text-align:center">' + r.used + ' 份</td><td style="text-align:right"><button class="btn btn-del" onclick="ccStockLoad_(\'' + esc(r.key) + '\')">歸零</button></td></tr>').join('') + '</table>' : '目前還沒有發出任何限量獎';
+  } catch (e) { box.textContent = '讀取失敗'; }
 }
 function ccDiffAdd_() { const el = document.getElementById('cc-diff-new'); const t = (el.value || '').replace(/[【】\s]/g, '').slice(0, 10); if (!t) return; if (!ccDiff_.some((x) => x.tag === t)) ccDiff_.push({ tag: t, text: '' }); el.value = ''; ccDiffRender_(); }
 // ===== 🧩 互檢任務設定 =====
