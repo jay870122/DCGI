@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.394</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.395</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1587,11 +1587,54 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="field" style="margin-top:8px"><label>盲盒規則 <span class="hint">一行一個獎項,寫法跟商店盲盒一樣;空白=沿用舊設定</span></label><textarea id="cc-blind" rows="6" oninput="ccBlindPreview_()" style="width:100%" placeholder="萬聖節糖果盒,50%,1~3&#10;糖果大包裝,5%,[道具:糖果大包裝]糖果大包裝&#10;幻彩水晶,30%,2"></textarea></div>
           <div style="margin-top:8px;display:flex;gap:8px;align-items:center"><span class="hint">預覽代入當日倍數:</span><select id="cc-blind-mul" onchange="ccBlindPreview_()"><option value="1">1 倍</option><option value="2">2 倍</option><option value="3">3 倍</option><option value="5">5 倍</option><option value="20">20 倍</option></select></div>
           <div class="gacha-preview" id="cc-blind-preview" style="display:none;margin-top:8px"></div>
-          <details class="gacha-guide" style="margin-top:8px"><summary style="cursor:pointer">📖 <b>寫法與限制</b></summary>
-            一行 = 一個獎項,逗號分隔:<code>顯示名稱,機率%,數量</code>(玩家看到的名稱就是這個「顯示名稱」,例如想顯示自訂名稱就寫在第一格)(數量可寫範圍 <code>1~3</code>;名稱跟貨幣欄位不同時用 <code>名稱,30%,貨幣欄位:2</code>);多種一起發用 <code>+</code>:<code>粽子:1+黃金粽子:1</code>。<br>
-            🔢 <b>{倍數}</b>:規則裡任何地方(顯示名稱或數量)都可以寫 <code>{倍數}</code>、<code>{倍數*2}</code>、<code>{倍數+1}</code>、<code>{倍數-1}</code>、<code>{倍數/2}</code>,會自動代入當天的挑戰倍數計算(小數四捨五入成整數)。例:<code>幻彩水晶X{倍數*1}={倍數*1}, 幻彩水晶:{倍數*1}, 100%</code>;2 倍日就會抽到「幻彩水晶X2=2」給 2 個。上面可選預覽用的倍數。舊的 <code>[倍數]變數名</code> 寫法仍可用。<br>支援:貨幣、<code>[道具:模板名稱]</code>、<code>[背包]</code>/<code>[背包:參數]</code>、<code>[非即時]</code>(只顯示、不入帳,由管理員另外處理)。<br>
-            💱 <b>幣價運算式</b>:數量也可以寫 <code>{BTC/100}</code>、<code>名稱*{DOGE*1000}</code>(當下美元報價,可 + - * / 括號,無條件捨去、最少 1;只支援幣價),跟商店盲盒規則指南相同。<br>
-            ⚠️ 不支援 [序號]/[身分組]/[留言]/[統計];「份」庫存在這裡不生效(只看機率);機率加起來不滿 100% 時剩下的機率=抽不到盲盒。
+          <details class="gacha-guide" style="margin-top:8px"><summary style="cursor:pointer">📖 <b>盲盒規則寫法與限制</b>(點這裡展開;上面平常的、限定日期、依難度的獎勵都是同一種寫法)</summary>
+            <div style="margin:6px 0 10px;color:var(--mu)">目錄：①基本寫法　②數量怎麼寫　③一個獎項發多種東西　④道具/背包　⑤特殊標籤　⑥跟商店盲盒不一樣的地方　⑦範例</div>
+            <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">① 基本寫法</b></div>
+            一行 = 一個獎項,用逗號分隔幾個設定,順序不限,系統會自動辨識:<br>
+            　・第一個一定是<code>獎項顯示名稱</code>——<b>玩家在挑戰訊息看到的就是這個名稱</b>,系統不會自動幫你補「×數量」或「(×N倍)」,想讓玩家看到數量就自己寫進名稱(可以用 <code>{倍數}</code>,見②)<br>
+            　・帶 <code>%</code> 的是<b>中獎機率</b>,例如 <code>30%</code><br>
+            　・純數字是<b>單次獲得數量</b>,例如中獎後給 <code>2</code> 個(沒寫=1)<br>
+            　・其他文字會當作<b>對應的貨幣/道具欄位名稱</b>(跟顯示名稱不同時才需要),例如 <code>幻彩水晶</code>;要同時指定數量可寫 <code>幻彩水晶:2</code><br>
+            玩家<b>開啟挑戰時就會抽出 1 個獎項</b>並顯示在訊息裡,管理員按「挑戰成功」才真的發。<br>
+            🛡️ <b>保底獎</b>:一行如果<b>沒有寫機率、也沒有寫份數</b>,其他獎項都沒中時就一定開出它;建議放在<b>最後一行</b>。<br>
+            ⚠️ 沒有保底獎、機率又加起來不滿 100% 時,剩下的機率 = <b>這次沒有盲盒獎勵</b>(訊息不會顯示🎁那行)。
+            <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">② 數量怎麼寫(固定 / 隨機範圍 / 當日倍數 / 幣價)</b></div>
+            　・<b>固定</b>:純數字,例如 <code>2</code><br>
+            　・🎲 <b>隨機範圍</b>:<code>最小~最大</code>,例如 <code>1~3</code>,在範圍內隨機一個數量<br>
+            　・🔢 <b>{倍數}(當日挑戰倍數)</b>:規則裡<b>任何地方(顯示名稱或數量)</b>都可以寫 <code>{倍數}</code>、<code>{倍數*2}</code>、<code>{倍數+1}</code>、<code>{倍數-1}</code>、<code>{倍數/2}</code>,會自動代入當天的倍數計算(小數四捨五入成整數)。<br>
+            　　- 例:<code>幻彩水晶X{倍數*1}={倍數*1}, 幻彩水晶:{倍數*1}, 100%</code> → 2 倍日抽到「幻彩水晶X2=2」並給 2 個<br>
+            　　- 名稱跟數量要各自寫 <code>{倍數}</code>,只寫在名稱裡數量不會跟著變<br>
+            　　- 舊寫法 <code>[倍數]變數名</code>(數量 × 當日倍數)仍可用<br>
+            　　- 上方「預覽代入當日倍數」可以切 1/2/3/5/20 倍看結果<br>
+            　・💱 <b>幣價運算式</b>:數量填 <code>{BTC/100}</code>、<code>名稱*{DOGE*1000}</code>(當下美元報價,可 + - * / 括號,無條件捨去、最少 1;只支援幣價),跟商店盲盒相同。
+            <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">③ 一個獎項發多種東西</b></div>
+            🎁 把要發的變數用 <code>+</code> 串起來,每個可以用 <code>:數量</code> 各自指定(不寫=1),例如 <code>幻彩水晶:{倍數*2}+聖誕節禮物襪:1</code>。數量可以用②的任何寫法。
+            <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">④ 發放道具 / 背包道具</b></div>
+            🎁 <b>[道具:模板名稱]</b>:變數名寫 <code>[道具:模板名稱]顯示名稱</code>,挑戰成功時依「道具模板管理」的模板發一個道具到玩家的「我的道具」背包(玩家自己打開才抽內容)。<br>
+            🎒 <b>[背包] / [背包:參數]</b>:發 BINGO 一次性道具到玩家的 BINGO 背包,參數寫法跟商店盲盒相同 <code>[背包:效果|範圍|過期模式|過期值|限定活動ID]</code>,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券</code>。
+            <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑤ 特殊標籤</b></div>
+            📦 <b>[非即時]</b>:例如 <code>[非即時]角色加布</code>,只顯示在挑戰訊息、<b>不會自動入帳</b>,由管理員另外處理。
+            <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑥ 跟商店盲盒不一樣的地方</b></div>
+            　・❌ <b>不支援</b> <code>[序號]</code>、<code>[身分組]</code>、<code>[留言]</code>、<code>[統計]</code>(存檔時會擋下來)<br>
+            　・📉 <b>「份」不會被扣</b>:挑戰沒有庫存存檔,寫 <code>300份</code> 只會當成比例權重,永遠抽不完;要控制機率請直接寫 <code>%</code><br>
+            　・🔄 開了「重新抽選」時,玩家每重抽一次就重新抽一個獎項(只勾「任務」則照該頁說明)<br>
+            　・🏷️ 題目有標【難度】且該難度有填獎勵時,用依難度的規則;否則限定日期組(有符合今天的)優先,最後才是上面平常的規則
+            <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑦ 範例</b></div>
+            <b>跟著當日倍數</b><br>
+            <code>幻彩水晶x1={倍數*1}, 幻彩水晶:{倍數*1}, 40%</code>　<span class="hint">← 1 倍日給 1 個、2 倍日給 2 個</span><br>
+            <code>幻彩水晶x2={倍數*2}, 幻彩水晶:{倍數*2}, 7%</code><br>
+            <b>固定量(不跟倍數)</b><br>
+            <code>幻彩水晶+1=1, 幻彩水晶:1, 40%</code><br>
+            <b>隨機範圍</b><br>
+            <code>糖果1~3顆, 萬聖節糖果盒:1~3, 10%</code>　<span class="hint">← 隨機給 1~3 個</span><br>
+            <b>大獎標籤 + 多種一起發</b><br>
+            <code>[大獎]幻彩水晶+50與禮物襪, 幻彩水晶:50+聖誕節禮物襪:1, 0.1%</code><br>
+            <b>道具 / 背包</b><br>
+            <code>神秘寶箱, [道具:木頭寶箱]神秘寶箱, 5%</code>　<span class="hint">← 發一個「木頭寶箱」模板的道具到我的道具</span><br>
+            <code>指定券(24h), [背包:PICK_FREE||HOURS|24]指定券, 3%</code><br>
+            <b>非即時 / 保底</b><br>
+            <code>角色加布, [非即時]角色加布, 0.5%</code>　<span class="hint">← 只顯示,管理員另外發</span><br>
+            <code>安慰獎={倍數}, 幻彩水晶:{倍數}</code>　<span class="hint">← 沒寫機率/份數 = 保底,放最後一行</span>
           </details>
           <div style="font-weight:700;margin:12px 0 4px">📅 限定日期的獎勵 <span class="hint">一天或一段日期;那幾天抽獎只用符合的限定組(取代上面平常的盲盒規則);同一天符合多組會合併一起抽</span></div>
           <div id="cc-sets-blindSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('blindSets')">➕ 新增限定日期獎勵</button>
