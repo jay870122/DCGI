@@ -195,7 +195,7 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 #page-poke input:focus,#page-challenge-cfg input:focus,#page-challenge-cfg textarea:focus,#page-quest-cfg input:focus,#page-quest-cfg textarea:focus{outline:none;border-color:var(--gold)}
 #page-poke .field input,#page-challenge-cfg .field input,#page-challenge-cfg .field textarea,#page-quest-cfg .field input,#page-quest-cfg .field textarea{width:100%}
 #page-challenge-cfg textarea,#page-quest-cfg textarea,#page-challenge-puz textarea,#page-people textarea{width:100%}
-#page-challenge-puz textarea,#page-challenge-puz input:not([type=checkbox]),#page-people textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
+#page-challenge-puz textarea,#page-challenge-puz input:not([type=checkbox]),#page-challenge-puz select,#page-people textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
 #page-challenge-puz textarea:focus,#page-people textarea:focus{outline:none;border-color:var(--gold)}
 #page-challenge-review input:not([type=checkbox]),#page-challenge-review select{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:7px 10px}
 .cr-card{background:var(--s1,#2b2d31);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.391</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.392</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -407,7 +407,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
       <div class="nav-item" onclick="navTo('cat-budget')">📊 額度(自訂單位)</div>
       <div class="nav-item" onclick="navTo('challenge-cfg')">🎯 個人挑戰設定</div>
-      <div class="nav-item" onclick="navTo('challenge-puz')">🔍 挑戰題目/難度獎勵</div>
+      <div class="nav-item" onclick="navTo('challenge-puz')">🔍 挑戰題目/成功獎勵</div>
       <div class="nav-item" onclick="navTo('people')">🔮 人生解答題庫</div>
       <div class="nav-item" onclick="navTo('quest-cfg')">🧩 互檢任務設定</div>
       <div class="nav-item" onclick="navTo('challenge-review')">🖼️ 挑戰回覆審查</div>
@@ -1561,7 +1561,27 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div id="cc-sched-rows"></div>
           <button class="btn btn-edit" style="margin-top:6px" onclick="ccSchedAdd_()">➕ 新增日期</button>
         </div>
-        <div class="hint" style="margin-bottom:14px">🔍 挑戰題目、🏷️ 依難度設定的獎勵 → 左邊「🔍 挑戰題目/難度獎勵」;🔮 人生解答 → 左邊「🔮 人生解答題庫」</div>
+        <div class="hint" style="margin-bottom:14px">🔍 挑戰題目、🎁 成功獎勵(盲盒)、🏷️ 依難度設定的獎勵 → 左邊「🔍 挑戰題目/難度獎勵」;🔮 人生解答 → 左邊「🔮 人生解答題庫」</div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🧪 測試功能 <span class="hint">貼一則測試公告到指定頻道,按鈕可以完整走一遍流程,但不會發任何獎勵、不佔今日名額</span></div>
+          <div class="pk-grid"><div class="field"><label>測試頻道ID</label><input id="cc-test-ch" placeholder="右鍵頻道 → 複製頻道ID"></div></div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="ccTest_()">📣 貼出測試公告</button><span class="hint">要先儲存設定(題目、盲盒等)再測;機器人約 10 秒內貼出</span></div>
+        </div>
+        <div class="ct-card" style="padding:14px 18px">
+          <div style="font-weight:700;margin-bottom:8px">❌ 失敗懲罰(一行一種,目前只顯示文字,不扣東西;訊息顯示「無」)</div>
+          <textarea id="cc-fail" rows="4" style="width:100%"></textarea>
+        </div>
+      </div>
+            <div id="page-challenge-puz" style="display:none">
+        <div class="page-header"><div class="page-title">🔍 挑戰題目/成功獎勵</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
+        <div class="hint" style="margin-bottom:12px">跟「🎯 個人挑戰設定」是同一份設定,在這頁或那頁按 💾 儲存 都會一起存。</div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🔍 挑戰題目(一行一題)</div>
+          <div class="hint" style="margin-bottom:6px">上面這欄=平常的題目。下面可新增「限定日期」的題目組(一天或一段):那幾天只會從符合的限定組抽題(取代平常題目);沒符合的日子才用平常題目。</div>
+          <textarea id="cc-puz" rows="22" oninput="ccDiffRender_()" style="width:100%"></textarea>
+          <div style="font-weight:700;margin:10px 0 4px">📅 限定日期的題目</div>
+          <div id="cc-sets-puzzleSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('puzzleSets')">➕ 新增限定日期題目</button>
+        </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎁 成功獎勵(盲盒) <span class="hint">玩家開啟挑戰時直接抽出 1 份並顯示,管理員按「挑戰成功」才發。留空=沿用舊的「幻彩水晶 ×當日倍數」</span></div>
           <div class="field" style="margin-top:8px"><label>盲盒規則 <span class="hint">一行一個獎項,寫法跟商店盲盒一樣;空白=沿用舊設定</span></label><textarea id="cc-blind" rows="6" oninput="ccBlindPreview_()" style="width:100%" placeholder="萬聖節糖果盒,50%,1~3&#10;糖果大包裝,5%,[道具:糖果大包裝]糖果大包裝&#10;幻彩水晶,30%,2"></textarea></div>
@@ -1577,28 +1597,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div id="cc-sets-blindSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('blindSets')">➕ 新增限定日期獎勵</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">🧪 測試功能 <span class="hint">貼一則測試公告到指定頻道,按鈕可以完整走一遍流程,但不會發任何獎勵、不佔今日名額</span></div>
-          <div class="pk-grid"><div class="field"><label>測試頻道ID</label><input id="cc-test-ch" placeholder="右鍵頻道 → 複製頻道ID"></div></div>
-          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="ccTest_()">📣 貼出測試公告</button><span class="hint">要先儲存設定(題目、盲盒等)再測;機器人約 10 秒內貼出</span></div>
-        </div>
-        <div class="ct-card" style="padding:14px 18px">
-          <div style="font-weight:700;margin-bottom:8px">❌ 失敗懲罰(一行一種,目前只顯示文字,不扣東西;訊息顯示「無」)</div>
-          <textarea id="cc-fail" rows="4" style="width:100%"></textarea>
-        </div>
-      </div>
-            <div id="page-challenge-puz" style="display:none">
-        <div class="page-header"><div class="page-title">🔍 挑戰題目/難度獎勵</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
-        <div class="hint" style="margin-bottom:12px">跟「🎯 個人挑戰設定」是同一份設定,在這頁或那頁按 💾 儲存 都會一起存。</div>
-        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">🔍 挑戰題目(一行一題)</div>
-          <div class="hint" style="margin-bottom:6px">上面這欄=平常的題目。下面可新增「限定日期」的題目組(一天或一段):那幾天只會從符合的限定組抽題(取代平常題目);沒符合的日子才用平常題目。</div>
-          <textarea id="cc-puz" rows="22" oninput="ccDiffRender_()" style="width:100%"></textarea>
-          <div style="font-weight:700;margin:10px 0 4px">📅 限定日期的題目</div>
-          <div id="cc-sets-puzzleSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('puzzleSets')">➕ 新增限定日期題目</button>
-        </div>
-        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🏷️ 依難度設定成功獎勵</div>
-          <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時,成功獎勵改用下面填的盲盒規則;<b>沒填的難度、或題目沒標難度 → 照「個人挑戰設定」裡的成功獎勵(盲盒)</b>。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
+          <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時,成功獎勵改用下面填的盲盒規則;<b>沒填的難度、或題目沒標難度 → 照上面的成功獎勵(盲盒)</b>。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
           <div id="cc-diff-rows"></div>
           <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="cc-diff-new" placeholder="新增其他難度名稱(例:傳說)" style="width:220px"><button class="btn btn-edit" onclick="ccDiffAdd_()">➕ 新增難度</button></div>
         </div>
