@@ -23844,6 +23844,7 @@ async function doChallengeAdmin_(env, action, b, adminId) {
       await env.DB.prepare("INSERT INTO ch_jobs (type,payload,status,created_at) VALUES ('review',?,'pending',?)").bind(JSON.stringify({ msgId: mid, action: act, by: adminId }), nowIso).run();
       queued++;
     }
+    if (queued) chJobsPing_();
     return { status: 'success', queued, skipped };
   }
   if (action === 'adminChallengeImages') {
@@ -23853,11 +23854,13 @@ async function doChallengeAdmin_(env, action, b, adminId) {
     const by = {};
     rows.forEach((r) => { (by[r.cid] = by[r.cid] || []).push(r.rid); });
     const r = await env.DB.prepare("INSERT INTO ch_jobs (type,payload,status,created_at) VALUES ('images',?,'pending',?)").bind(JSON.stringify({ items: Object.keys(by).map((cid) => ({ channelId: cid, replyIds: by[cid] })) }), nowIso).run();
+    chJobsPing_();
     return { status: 'success', jobId: r && r.meta ? r.meta.last_row_id : 0 };
   }
   if (action === 'adminChallengeBlindFix') { // 手動:請機器人現在就補編輯(可指定日期,預設今天)
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || '')) ? String(b.date) : '';
     const r = await env.DB.prepare("INSERT INTO ch_jobs (type,payload,status,created_at) VALUES ('blindfix',?,'pending',?)").bind(JSON.stringify({ date }), nowIso).run();
+    chJobsPing_();
     return { status: 'success', jobId: r && r.meta ? r.meta.last_row_id : 0 };
   }
   if (action === 'adminChallengeJobGet') {
@@ -24249,6 +24252,8 @@ async function peopleSave_(env, list) {
   await env.DB.prepare('INSERT INTO group_reward_cfg (k,v,updated) VALUES (?,?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v, updated=excluded.updated').bind('people', JSON.stringify(o), new Date().toISOString()).run();
   return o;
 }
+// 📣 後台丟了挑戰工作(審核/抓圖/補編輯)→ 發一則 webhook 即時叫機器人去領(一次請求不管幾筆工作只發一則;輪詢 8 秒只是備援)
+function chJobsPing_() { const m = '[個人挑戰工作] ' + Date.now(), c = globalThis.__reqCtx_; try { if (c && typeof c.waitUntil === 'function') c.waitUntil(queueWebhookWorker_(m)); else queueWebhookWorker_(m); } catch (e) {} }
 async function doChallengeBot_(env, action, b) {
   if (action === 'botPeopleGet') { // 機器人定時抓:ver 一樣就不回清單;還沒有資料 → none(機器人會自動上傳本機題庫)
     const o = await peopleLoad_(env);
