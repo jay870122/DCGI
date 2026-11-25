@@ -5102,7 +5102,7 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
           Object.values(events).forEach((e) => { if (byKind[e.kind]) byKind[e.kind].events++; });
           const opIds = [...new Set(Object.values(events).map((e) => e.operator).filter(Boolean))];
           Object.values(events).forEach((e) => { e.operatorName = names[e.operator] || e.operator; });
-          return jsonResponse({ status: 'success', month, kind: kindQ, kindList, totals, byKind, players: Object.values(players).sort((a, b) => b.total - a.total), events: Object.values(events), truncated: rows.length >= 20000 }, corsHeaders);
+          return jsonResponse({ status: 'success', month, kind: kindQ, kindList, totals, byKind, players: Object.values(players).sort((a, b) => b.total - a.total), events: Object.values(events).sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0)), truncated: rows.length >= 20000 }, corsHeaders);
         } catch (e) { return jsonResponse({ status: 'error', message: String(e && e.message || e).slice(0, 160) }, corsHeaders); }
       }
       if (action === 'adminPokeOp') {
