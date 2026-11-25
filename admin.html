@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.399</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.400</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1666,11 +1666,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎫 PASS券</div>
-          <div class="hint" style="margin-bottom:8px">有設定的話,玩家開啟挑戰的訊息會多一顆「🎫 使用PASS券」按鈕(只有本人能按)。按下會從玩家的<b>通用道具背包</b>扣 1 張符合條件的券,<b>直接算挑戰成功並發放抽到的獎勵</b>(不用截圖、不用管理員按)。<br>
+          <div class="hint" style="margin-bottom:8px">有設定的話,玩家開啟挑戰的訊息會多一顆「🎫 使用PASS券」按鈕(只有本人能按)。按下會跳出只有本人看得到的選單,列出每種券能不能用在這題、持有幾張;選好券按「✅ 確定使用」才從玩家的<b>通用道具背包</b>扣 1 張,<b>直接算挑戰成功並發放抽到的獎勵</b>(不用截圖、不用管理員按)。<br>
           ・<b>道具模板</b>:填道具背包裡的道具名稱(跟商店上架的道具同名)。<br>
           ・<b>水晶上限</b>:這張券只能用在「抽到的獎勵 ≤ N 幻彩水晶」的挑戰;留空=不限。獎勵含水晶以外的東西(道具、限量獎…)時,只有「不限」的券能用。<br>
           ・<b>可用難度</b>:都不勾=全部難度都能用;有勾=只能用在題目開頭是那些難度的挑戰。<br>
-          ・玩家有好幾種券都符合時,會<b>優先扣限制最嚴(水晶上限最低)</b>的那張,好券留著。生日 PASS 不會出現這顆按鈕。測試頻道按了不扣券、不發獎(測試時獎勵水晶當 0 算)。</div>
+          ・選單預設選<b>限制最嚴(水晶上限最低)</b>的那張,玩家可以自己換。生日 PASS 不會出現這顆按鈕。測試頻道按了不扣券、不發獎(測試時獎勵水晶當 0 算)。</div>
           <div id="cc-pass-rows"></div>
           <button class="btn btn-edit" style="margin-top:8px" onclick="ccPass_.push({ tpl: '', max: '', diffs: [] }); ccPassRender_()">➕ 新增 PASS券</button>
         </div>
