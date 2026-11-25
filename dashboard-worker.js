@@ -3432,7 +3432,7 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
       catch (e) { return jsonResponse({ status: 'error', message: String(e && e.message || e).slice(0, 160) }, corsHeaders); }
     }
     // 🌟🆕 個人挑戰/團任公告(取代 Skript 的 團任提醒() 與 個人挑戰按鈕)。設定存 D1 group_reward_cfg(k='challenge'),每日狀態/領取記錄存同表(k='chday:日期'、'chopen:日期:玩家'、'chann:日期')。
-    if (['botChallengeCfg', 'botChallengeAnnounceInfo', 'botChallengeAnnounceRelease', 'botChallengeOpen', 'botChallengeOpenRelease', 'botChallengeBlindGrant', 'botChallengeTestPoll', 'botChallengeRecord', 'botChallengeReply', 'botChallengeMark', 'botChallengeAdminPoll', 'botChallengeAdminDone', 'botChallengeBlindFix'].includes(url.searchParams.get('action'))) {
+    if (['botChallengeCfg', 'botChallengeAnnounceInfo', 'botChallengeAnnounceRelease', 'botChallengeOpen', 'botChallengeOpenRelease', 'botChallengeBlindGrant', 'botChallengeTestPoll', 'botChallengeRecord', 'botChallengeReply', 'botChallengeMark', 'botChallengeAdminPoll', 'botChallengeAdminDone', 'botChallengeBlindFix', 'botPeopleGet', 'botPeopleOp'].includes(url.searchParams.get('action'))) {
       const secret = url.searchParams.get('secret') || url.searchParams.get('botSecret');
       if (secret !== BOT_API_SECRET) return jsonResponse({ status: 'error', message: '密鑰不正確' }, corsHeaders);
       if (!env.DB) return jsonResponse({ status: 'error', message: 'D1 未綁定' }, corsHeaders);
@@ -5149,6 +5149,18 @@ ${imageUrl ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">\n<met
           }
           return jsonResponse({ status: 'success', archived: list }, corsHeaders);
         } catch (e) { return jsonResponse({ status: 'error', message: String(e && e.message || e).slice(0, 160) }, corsHeaders); }
+      }
+      if (action === 'adminPeopleGet' || action === 'adminPeopleSave') {
+        if (!(await isAdminAllowed_(discordId, env))) return jsonResponse({ status: 'error', safeNoWrite: true, message: '權限不足' }, corsHeaders);
+        if (!env.DB) return jsonResponse({ status: 'error', safeNoWrite: true, message: '尚未綁定 D1(env.DB)' }, corsHeaders);
+        try {
+          if (action === 'adminPeopleGet') { const o = await peopleLoad_(env); return jsonResponse({ status: 'success', list: o ? o.list : [], ver: o ? o.ver : '', fromBot: !o }, corsHeaders); }
+          let pb = {}; if (request.method === 'POST') { try { pb = JSON.parse(await request.text()) || {}; } catch (e) { pb = {}; } }
+          const list = Array.isArray(pb.list) ? pb.list : String(pb.text || '').split(/\r?\n/);
+          if (!peopleClean_(list).length) return jsonResponse({ status: 'error', safeNoWrite: true, message: '題庫不能是空的(沒有儲存)' }, corsHeaders);
+          const sv = await peopleSave_(env, list);
+          return jsonResponse({ status: 'success', count: sv.list.length, ver: sv.ver }, corsHeaders);
+        } catch (e) { return jsonResponse({ status: 'error', safeNoWrite: true, message: String(e && e.message || e).slice(0, 160) }, corsHeaders); }
       }
       if (action === 'adminChallengeCfgGet') {
         if (!(await isAdminAllowed_(discordId, env))) return jsonResponse({ status: 'error', message: '權限不足' }, corsHeaders);
@@ -24222,7 +24234,38 @@ async function doAdminQuest_(env, action, b) {
   return { status: 'error', message: '未知動作' };
 }
 
+// 🔮 人生解答題庫:存 D1 group_reward_cfg k='people' = {list:[句子], ver:毫秒時間};後台編輯、機器人定時抓(botPeopleGet)、DC 指令改動走 botPeopleOp
+async function peopleLoad_(env) {
+  await groupRewardEnsure_(env);
+  const row = await env.DB.prepare("SELECT v FROM group_reward_cfg WHERE k='people'").first();
+  if (!row || !row.v) return null;
+  try { const o = JSON.parse(row.v); return o && Array.isArray(o.list) ? o : null; } catch (e) { return null; }
+}
+function peopleClean_(arr) { const seen = new Set(), out = []; (arr || []).forEach((x) => { const t = String(x == null ? '' : x).replace(/[\r\n]+/g, ' ').trim().slice(0, 500); if (t && !seen.has(t)) { seen.add(t); out.push(t); } }); return out.slice(0, 3000); }
+async function peopleSave_(env, list) {
+  const o = { list: peopleClean_(list), ver: String(Date.now()) };
+  await groupRewardEnsure_(env);
+  await env.DB.prepare('INSERT INTO group_reward_cfg (k,v,updated) VALUES (?,?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v, updated=excluded.updated').bind('people', JSON.stringify(o), new Date().toISOString()).run();
+  return o;
+}
 async function doChallengeBot_(env, action, b) {
+  if (action === 'botPeopleGet') { // 機器人定時抓:ver 一樣就不回清單;還沒有資料 → none(機器人會自動上傳本機題庫)
+    const o = await peopleLoad_(env);
+    if (!o) return { status: 'success', none: true };
+    if (b.ver && String(b.ver) === o.ver) return { status: 'success', same: true, ver: o.ver };
+    return { status: 'success', ver: o.ver, list: o.list };
+  }
+  if (action === 'botPeopleOp') { // DC 端的新增/修改/刪除(整份取代只給「第一次自動上傳」用:後台已經有資料就拒絕)
+    let o = await peopleLoad_(env), list = o ? o.list.slice() : [];
+    const op = String(b.op || ''), t = (x) => String(x == null ? '' : x).replace(/[\r\n]+/g, ' ').trim().slice(0, 500);
+    if (op === 'replace') { if (o) return { status: 'success', ver: o.ver, list: o.list, skipped: true }; list = peopleClean_(b.list); }
+    else if (op === 'add') { const x = t(b.text); if (!x) return { status: 'error', message: '內容是空的' }; if (list.includes(x)) return { status: 'error', message: '這句已經有了' }; list.push(x); }
+    else if (op === 'del') { const i = list.indexOf(t(b.old)); if (i < 0) return { status: 'error', message: '找不到這句(可能剛被後台改掉了)' }; list.splice(i, 1); }
+    else if (op === 'edit') { const i = list.indexOf(t(b.old)), x = t(b.text); if (i < 0) return { status: 'error', message: '找不到這句(可能剛被後台改掉了)' }; if (!x) return { status: 'error', message: '新內容是空的' }; if (list.includes(x) && x !== list[i]) return { status: 'error', message: '改後的內容跟別句重複了' }; list[i] = x; }
+    else return { status: 'error', message: '未知操作' };
+    const sv = await peopleSave_(env, list);
+    return { status: 'success', ver: sv.ver, list: sv.list };
+  }
   const cfg = await challengeCfgLoad_(env);
   const tp = new Date(Date.now() + 8 * 3600 * 1000).toISOString();
   const today = tp.slice(0, 10), hm = tp.slice(11, 16);
