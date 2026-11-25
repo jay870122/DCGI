@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.393</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.394</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1607,7 +1607,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="hint" style="margin-bottom:8px">勾選後,玩家開啟挑戰的訊息會多一顆「🔄 重抽」按鈕(只有本人能按),按了會換掉訊息裡的任務/獎勵;管理員按「挑戰成功」前都可以重抽。生日 PASS 不會出現這顆按鈕。<br>只勾「任務」時獎勵不變;但新任務的難度跟原本不同、而且有設「依難度獎勵」時,獎勵會跟著重抽(才會對得上難度)。</div>
           <label class="pk-chk"><input type="checkbox" id="cc-rr-puz"> 可以重抽任務</label>
           <label class="pk-chk"><input type="checkbox" id="cc-rr-rew"> 可以重抽獎勵(盲盒)</label>
-          <div class="field" style="margin-top:6px;max-width:260px"><label>每人每天最多重抽幾次 <span class="hint">0=不能重抽,最多 20</span></label><input id="cc-rr-max" type="number" min="0" max="20" step="1" value="0"></div>
+          <div class="field" style="margin-top:6px;max-width:320px"><label>每人每天最多重抽幾次(全部難度合計) <span class="hint">0=不能重抽</span></label><div style="display:flex;gap:10px;align-items:center"><input id="cc-rr-max" type="number" min="0" max="999" step="1" value="0" style="width:120px"><label class="pk-chk" style="margin:0"><input type="checkbox" id="cc-rr-unl" onchange="document.getElementById('cc-rr-max').disabled=this.checked"> 不限次數</label></div></div>
+          <div class="hint" style="margin-top:6px">每個難度能不能重抽、每天最多幾次,在上面「🏷️ 依難度設定」每個難度的格子裡設(不限=只受這裡的總次數限制)。次數算在「被換掉的那題」的難度上。</div>
         </div>
       </div>
       <div id="page-people" style="display:none">
@@ -5181,7 +5182,8 @@ async function loadChallengeCfg() {
     ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
     ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
     ccDiff_ = JSON.parse(JSON.stringify(c.diffBlind || []));
-    g('cc-rr-puz').checked = !!c.rerollPuzzle; g('cc-rr-rew').checked = !!c.rerollReward; g('cc-rr-max').value = c.rerollMax || 0;
+    g('cc-rr-puz').checked = !!c.rerollPuzzle; g('cc-rr-rew').checked = !!c.rerollReward; g('cc-rr-unl').checked = c.rerollMax < 0; g('cc-rr-max').value = c.rerollMax > 0 ? c.rerollMax : 0; g('cc-rr-max').disabled = c.rerollMax < 0;
+    (c.diffReroll || []).forEach((r) => { let x = ccDiff_.find((y) => y.tag === r.tag); if (!x) { x = { tag: r.tag, text: '' }; ccDiff_.push(x); } x.rrAllow = r.allow !== false; x.rrMax = r.max < 0 ? '' : String(r.max); });
     ccLoaded_ = true;
     for (const k of ['announceSets', 'puzzleSets', 'blindSets']) { ccSets_[k] = JSON.parse(JSON.stringify(c[k] || [])).map((x) => ({ start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccSetRender_(k); }
     ccDiffRender_();
@@ -5195,7 +5197,7 @@ async function saveChallengeCfg() {
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: parseInt(g('cc-rr-max'), 10) || 0, diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })) };
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
@@ -5224,6 +5226,8 @@ function ccDiffRender_() {
   box.innerHTML = ccDiff_.map((x, i) => '<div data-cct="' + esc(x.tag) + '" style="border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin-bottom:8px">'
     + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>【' + esc(x.tag) + '】</b><span class="hint" data-cch="' + i + '">題目 ' + (cnt[x.tag] || 0) + ' 題 · ' + st(x) + '</span>'
     + (CC_DIFF_DEF_.indexOf(x.tag) === -1 && !cnt[x.tag] ? '<button class="btn btn-del" style="margin-left:auto" onclick="ccDiff_.splice(' + i + ',1);ccDiffRender_()">🗑</button>' : '') + '</div>'
+    + '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:13px"><label class="pk-chk" style="margin:0"><input type="checkbox"' + (x.rrAllow !== false ? ' checked' : '') + ' onchange="ccDiff_[' + i + '].rrAllow=this.checked;this.closest(\'div\').querySelectorAll(\'.ccrr\').forEach((e)=>e.disabled=!this.checked)"> 🔄 這個難度的任務可以重抽</label>'
+    + '<span class="hint">每天最多</span><input class="ccrr" type="number" min="0" max="999" placeholder="不限" value="' + esc(x.rrMax === undefined ? '' : x.rrMax) + '"' + (x.rrAllow === false ? ' disabled' : '') + ' style="width:80px" oninput="ccDiff_[' + i + '].rrMax=this.value"><span class="hint">次(空白=不限)</span></div>'
     + '<textarea rows="3" style="width:100%" placeholder="空白=用平常的成功獎勵(盲盒)&#10;例:幻彩水晶,100%,{倍數*2}" oninput="ccDiff_[' + i + '].text=this.value;ccDiffRender_();ccDiffPreview_(' + i + ')">' + esc(x.text) + '</textarea><div class="gacha-preview" data-ccp="' + i + '" style="display:none;margin-top:6px"></div></div>').join('');
   ccDiff_.forEach((x, i) => ccDiffPreview_(i));
 }
