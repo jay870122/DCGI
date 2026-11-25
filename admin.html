@@ -194,7 +194,9 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 #page-poke input:not([type=checkbox]),#page-poke select,#page-poke textarea,#page-challenge-cfg input:not([type=checkbox]),#page-challenge-cfg select,#page-challenge-cfg textarea,#page-quest-cfg input:not([type=checkbox]),#page-quest-cfg select,#page-quest-cfg textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
 #page-poke input:focus,#page-challenge-cfg input:focus,#page-challenge-cfg textarea:focus,#page-quest-cfg input:focus,#page-quest-cfg textarea:focus{outline:none;border-color:var(--gold)}
 #page-poke .field input,#page-challenge-cfg .field input,#page-challenge-cfg .field textarea,#page-quest-cfg .field input,#page-quest-cfg .field textarea{width:100%}
-#page-challenge-cfg textarea,#page-quest-cfg textarea{width:100%}
+#page-challenge-cfg textarea,#page-quest-cfg textarea,#page-challenge-puz textarea,#page-people textarea{width:100%}
+#page-challenge-puz textarea,#page-challenge-puz input:not([type=checkbox]),#page-people textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
+#page-challenge-puz textarea:focus,#page-people textarea:focus{outline:none;border-color:var(--gold)}
 #page-challenge-review input:not([type=checkbox]),#page-challenge-review select{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:7px 10px}
 .cr-card{background:var(--s1,#2b2d31);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
 .cr-card.cr-done{opacity:.75}
@@ -361,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.390</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.391</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -405,6 +407,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('group-reward')">👥 團任/團戰獎勵</div>
       <div class="nav-item" onclick="navTo('cat-budget')">📊 額度(自訂單位)</div>
       <div class="nav-item" onclick="navTo('challenge-cfg')">🎯 個人挑戰設定</div>
+      <div class="nav-item" onclick="navTo('challenge-puz')">🔍 挑戰題目/難度獎勵</div>
+      <div class="nav-item" onclick="navTo('people')">🔮 人生解答題庫</div>
       <div class="nav-item" onclick="navTo('quest-cfg')">🧩 互檢任務設定</div>
       <div class="nav-item" onclick="navTo('challenge-review')">🖼️ 挑戰回覆審查</div>
       <div class="nav-item" onclick="navTo('poke')">🎁 戳戳樂</div>
@@ -1520,12 +1524,6 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="page-header"><div class="page-title">🎯 個人挑戰/團任公告</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" id="cc-save-btn" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
         <div class="hint" style="line-height:1.7;margin-bottom:12px">機器人每天在「公告時間」自動貼團任公告 + 「個人挑戰」按鈕(取代 Skript)。<b>啟用前請先把 Skript 的 團任提醒/個人挑戰 關掉,不然會重複公告。</b>也可用 /個人挑戰公告 手動貼。</div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div class="pk-sec">🔮 人生解答題庫 <span class="hint" id="pp-count" style="font-weight:400"></span></div>
-          <div class="hint" style="margin-bottom:6px">一行一句(重複的會自動合併)。儲存後,機器人會立刻同步(正常 1~2 秒);在 DC 用 /人生解答管理 改的會直接寫進這裡。</div>
-          <textarea id="pp-text" rows="10" style="width:100%" placeholder="載入中…"></textarea>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ppLoad()">🔄 重新讀取</button><button class="btn btn-primary" onclick="ppSave()">💾 儲存人生解答</button></div>
-        </div>
-        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div class="pk-sec">⚙️ 基本</div>
           <label class="pk-chk"><input type="checkbox" id="cc-enabled"> 啟用每日自動公告</label>
           <label class="pk-chk"><input type="checkbox" id="cc-relay"> 接管 Skript 的 webhook 公告/私訊(拍賣、賭博、貨幣調整、BINGO、抽獎、道具、序號、購買、玩家留言)</label>
@@ -1563,13 +1561,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div id="cc-sched-rows"></div>
           <button class="btn btn-edit" style="margin-top:6px" onclick="ccSchedAdd_()">➕ 新增日期</button>
         </div>
-        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:8px">🔍 挑戰題目(一行一題)</div>
-          <div class="hint" style="margin-bottom:6px">上面這欄=平常的題目。下面可新增「限定日期」的題目組(一天或一段):那幾天只會從符合的限定組抽題(取代平常題目);沒符合的日子才用平常題目。</div>
-          <textarea id="cc-puz" rows="10" style="width:100%"></textarea>
-          <div style="font-weight:700;margin:10px 0 4px">📅 限定日期的題目</div>
-          <div id="cc-sets-puzzleSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('puzzleSets')">➕ 新增限定日期題目</button>
-        </div>
+        <div class="hint" style="margin-bottom:14px">🔍 挑戰題目、🏷️ 依難度設定的獎勵 → 左邊「🔍 挑戰題目/難度獎勵」;🔮 人生解答 → 左邊「🔮 人生解答題庫」</div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎁 成功獎勵(盲盒) <span class="hint">玩家開啟挑戰時直接抽出 1 份並顯示,管理員按「挑戰成功」才發。留空=沿用舊的「幻彩水晶 ×當日倍數」</span></div>
           <div class="field" style="margin-top:8px"><label>盲盒規則 <span class="hint">一行一個獎項,寫法跟商店盲盒一樣;空白=沿用舊設定</span></label><textarea id="cc-blind" rows="6" oninput="ccBlindPreview_()" style="width:100%" placeholder="萬聖節糖果盒,50%,1~3&#10;糖果大包裝,5%,[道具:糖果大包裝]糖果大包裝&#10;幻彩水晶,30%,2"></textarea></div>
@@ -1594,7 +1586,33 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <textarea id="cc-fail" rows="4" style="width:100%"></textarea>
         </div>
       </div>
-      <div id="page-boss-cfg" style="display:none">
+            <div id="page-challenge-puz" style="display:none">
+        <div class="page-header"><div class="page-title">🔍 挑戰題目/難度獎勵</div><div class="toolbar"><button class="btn btn-edit" onclick="loadChallengeCfg()">🔄 重新讀取</button><button class="btn btn-primary" onclick="saveChallengeCfg()">💾 儲存</button></div></div>
+        <div class="hint" style="margin-bottom:12px">跟「🎯 個人挑戰設定」是同一份設定,在這頁或那頁按 💾 儲存 都會一起存。</div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🔍 挑戰題目(一行一題)</div>
+          <div class="hint" style="margin-bottom:6px">上面這欄=平常的題目。下面可新增「限定日期」的題目組(一天或一段):那幾天只會從符合的限定組抽題(取代平常題目);沒符合的日子才用平常題目。</div>
+          <textarea id="cc-puz" rows="22" oninput="ccDiffRender_()" style="width:100%"></textarea>
+          <div style="font-weight:700;margin:10px 0 4px">📅 限定日期的題目</div>
+          <div id="cc-sets-puzzleSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('puzzleSets')">➕ 新增限定日期題目</button>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🏷️ 依難度設定成功獎勵</div>
+          <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時,成功獎勵改用下面填的盲盒規則;<b>沒填的難度、或題目沒標難度 → 照「個人挑戰設定」裡的成功獎勵(盲盒)</b>。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
+          <div id="cc-diff-rows"></div>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="cc-diff-new" placeholder="新增其他難度名稱(例:傳說)" style="width:220px"><button class="btn btn-edit" onclick="ccDiffAdd_()">➕ 新增難度</button></div>
+        </div>
+      </div>
+      <div id="page-people" style="display:none">
+        <div class="page-header"><div class="page-title">🔮 人生解答題庫</div><div class="toolbar"><button class="btn btn-edit" onclick="ppLoad()">🔄 重新讀取</button></div></div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div class="pk-sec">🔮 人生解答題庫 <span class="hint" id="pp-count" style="font-weight:400"></span></div>
+          <div class="hint" style="margin-bottom:6px">一行一句(重複的會自動合併)。儲存後,機器人會立刻同步(正常 1~2 秒);在 DC 用 /人生解答管理 改的會直接寫進這裡。</div>
+          <textarea id="pp-text" rows="24" style="width:100%" placeholder="載入中…"></textarea>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="ppLoad()">🔄 重新讀取</button><button class="btn btn-primary" onclick="ppSave()">💾 儲存人生解答</button></div>
+        </div>
+      </div>
+<div id="page-boss-cfg" style="display:none">
         <div class="page-header"><div class="page-title">🐲 翻翻樂打BOSS</div><div class="toolbar"><button class="btn btn-edit" onclick="bossLoad_()">🔄 重新讀取</button><button class="btn btn-primary" onclick="bossSave_()">💾 儲存設定</button></div></div>
         <div class="hint" style="line-height:1.8;margin-bottom:12px">玩家在商店左邊選單會看到「🐲 翻翻樂打BOSS」(<b>啟用且有在期間內的賽道</b>才會出現)。每翻一張牌扣 1 張「翻牌券」(玩家的貨幣欄位,請先在貨幣設定新增這個貨幣,再用商店/道具/盲盒/調整貨幣發給玩家);BOSS 血量全體共用,被打倒會依序進化成下一型態。<b>擊倒獎勵會自動發放</b>(保底 / 排行 / 最後一擊),發放失敗的下方可「重新結算」,不會重複發。</div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
@@ -4183,7 +4201,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['cat-budget','shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','quest-cfg','challenge-review','poke','boss-cfg','group-stats'];
+const pages = ['cat-budget','shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-puz','people','quest-cfg','challenge-review','poke','boss-cfg','group-stats'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -4217,7 +4235,8 @@ function navTo(p) {
   if (p==='lock-settings') { loadCategoryLocks(); loadUnlockCodes(); }
   if (p==='group-reward') loadGroupReward();
   if (p==='cat-budget') loadCatBudget();
-  if (p==='challenge-cfg') loadChallengeCfg();
+  if (p==='challenge-cfg' || p==='challenge-puz') loadChallengeCfg();
+  if (p==='people') ppLoad();
   if (p==='quest-cfg') loadQuestCfg();
   if (p==='challenge-review') crInit_();
   if (p==='poke') loadPoke();
@@ -5137,8 +5156,9 @@ async function ppSave() {
   const d = await grCall_('adminPeopleSave', { text });
   if (d && d.status === 'success') { toast('✅ 已儲存 ' + d.count + ' 句,機器人會立刻同步'); ppLoad(); } else toast('儲存失敗: ' + ((d && d.message) || '未知錯誤'), false);
 }
+let ccLoaded_ = false, ccDiff_ = [];
+const CC_DIFF_DEF_ = ['簡單', '普通', '困難', '地獄', '夢魘'];
 async function loadChallengeCfg() {
-  ppLoad();
   try {
     const d = await grCall_('adminChallengeCfgGet');
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
@@ -5152,24 +5172,52 @@ async function loadChallengeCfg() {
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
     ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
     ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
+    ccDiff_ = JSON.parse(JSON.stringify(c.diffBlind || []));
+    ccLoaded_ = true;
     for (const k of ['announceSets', 'puzzleSets', 'blindSets']) { ccSets_[k] = JSON.parse(JSON.stringify(c[k] || [])).map((x) => ({ start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccSetRender_(k); }
+    ccDiffRender_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 async function saveChallengeCfg() {
+  if (!ccLoaded_) { toast('設定還沒讀取完成,請先按「重新讀取」再儲存', false); return; }
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
   const cfg = { enabled: ck('cc-enabled'), relayEnabled: ck('cc-relay'), announceTime: g('cc-time'), openFrom: g('cc-open-from'), openUntil: g('cc-open-until'), channelId: g('cc-ch').trim(), pingRoleId: g('cc-ping').trim(), birthdayRoleId: g('cc-bday').trim(),
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), announceImage: g('cc-img').trim(), announceExtra: g('cc-extra'), adminRoleIds: g('cc-admins'),
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets };
-  const btn = document.getElementById('cc-save-btn'); btn.disabled = true;
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })) };
+  const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
     if (d && d.status === 'success') { toast('已儲存'); await loadChallengeCfg(); } else toast((d && d.message) || '儲存失敗', false);
   } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
-  btn.disabled = false;
+  btn.disabled = false; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = false; });
 }
+// 🏷️ 依難度設定成功獎勵:預設五種 + 題目裡出現的其他【xx】+ 已存的;空白=用平常盲盒
+function ccDiffCounts_() {
+  const cnt = {}; const t = (document.getElementById('cc-puz') || {}).value || '';
+  const add = (txt) => txt.split(/\r?\n/).forEach((l) => { const m = l.match(/^\s*【([^】]{1,10})】/); if (m) { const k = m[1].replace(/\s/g, ''); cnt[k] = (cnt[k] || 0) + 1; } });
+  add(t); ((typeof ccSets_ !== 'undefined' && ccSets_.puzzleSets) || []).forEach((x) => add(x.text || ''));
+  return cnt;
+}
+function ccDiffRender_() {
+  const box = document.getElementById('cc-diff-rows'); if (!box) return;
+  const cnt = ccDiffCounts_(), tags = [];
+  CC_DIFF_DEF_.concat(Object.keys(cnt), ccDiff_.map((x) => x.tag)).forEach((k) => { if (k && tags.indexOf(k) === -1) tags.push(k); });
+  tags.forEach((k) => { if (!ccDiff_.some((x) => x.tag === k)) ccDiff_.push({ tag: k, text: '' }); });
+  ccDiff_.sort((a, b) => tags.indexOf(a.tag) - tags.indexOf(b.tag));
+  const esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const st = (x) => ((x.text || '').trim() ? '✅ 用下面的獎勵' : '↩️ 空白=用平常盲盒');
+  // 已經畫過且難度列一樣 → 只更新題數,不重畫(避免打字時游標跳掉)
+  const cur = [...box.querySelectorAll('[data-cct]')].map((e) => e.dataset.cct).join('|');
+  if (cur && cur === ccDiff_.map((x) => x.tag).join('|')) { ccDiff_.forEach((x, i) => { const h = box.querySelector('[data-cch="' + i + '"]'); if (h) h.textContent = '題目 ' + (cnt[x.tag] || 0) + ' 題 · ' + st(x); }); return; }
+  box.innerHTML = ccDiff_.map((x, i) => '<div data-cct="' + esc(x.tag) + '" style="border:1px solid var(--bd);border-radius:8px;padding:8px 10px;margin-bottom:8px">'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>【' + esc(x.tag) + '】</b><span class="hint" data-cch="' + i + '">題目 ' + (cnt[x.tag] || 0) + ' 題 · ' + st(x) + '</span>'
+    + (CC_DIFF_DEF_.indexOf(x.tag) === -1 && !cnt[x.tag] ? '<button class="btn btn-del" style="margin-left:auto" onclick="ccDiff_.splice(' + i + ',1);ccDiffRender_()">🗑</button>' : '') + '</div>'
+    + '<textarea rows="3" style="width:100%" placeholder="空白=用平常的成功獎勵(盲盒)&#10;例:幻彩水晶,100%,{倍數*2}" oninput="ccDiff_[' + i + '].text=this.value;ccDiffRender_()">' + esc(x.text) + '</textarea></div>').join('');
+}
+function ccDiffAdd_() { const el = document.getElementById('cc-diff-new'); const t = (el.value || '').replace(/[【】\s]/g, '').slice(0, 10); if (!t) return; if (!ccDiff_.some((x) => x.tag === t)) ccDiff_.push({ tag: t, text: '' }); el.value = ''; ccDiffRender_(); }
 // ===== 🧩 互檢任務設定 =====
 let qcLv_ = [], qcMs_ = [];
 function qcLvRender_() {
