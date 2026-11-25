@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.398</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.399</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1663,6 +1663,16 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <label class="pk-chk"><input type="checkbox" id="cc-rr-rew"> 可以重抽獎勵(盲盒)</label>
           <div class="field" style="margin-top:6px;max-width:320px"><label>每人每天最多重抽幾次(全部難度合計) <span class="hint">0=不能重抽</span></label><div style="display:flex;gap:10px;align-items:center"><input id="cc-rr-max" type="number" min="0" max="999" step="1" value="0" style="width:120px"><label class="pk-chk" style="margin:0"><input type="checkbox" id="cc-rr-unl" onchange="document.getElementById('cc-rr-max').disabled=this.checked"> 不限次數</label></div></div>
           <div class="hint" style="margin-top:6px">每個難度能不能重抽、每天最多幾次,在上面「🏷️ 依難度設定」每個難度的格子裡設(不限=只受這裡的總次數限制)。次數算在「被換掉的那題」的難度上。</div>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🎫 PASS券</div>
+          <div class="hint" style="margin-bottom:8px">有設定的話,玩家開啟挑戰的訊息會多一顆「🎫 使用PASS券」按鈕(只有本人能按)。按下會從玩家的<b>通用道具背包</b>扣 1 張符合條件的券,<b>直接算挑戰成功並發放抽到的獎勵</b>(不用截圖、不用管理員按)。<br>
+          ・<b>道具模板</b>:填道具背包裡的道具名稱(跟商店上架的道具同名)。<br>
+          ・<b>水晶上限</b>:這張券只能用在「抽到的獎勵 ≤ N 幻彩水晶」的挑戰;留空=不限。獎勵含水晶以外的東西(道具、限量獎…)時,只有「不限」的券能用。<br>
+          ・<b>可用難度</b>:都不勾=全部難度都能用;有勾=只能用在題目開頭是那些難度的挑戰。<br>
+          ・玩家有好幾種券都符合時,會<b>優先扣限制最嚴(水晶上限最低)</b>的那張,好券留著。生日 PASS 不會出現這顆按鈕。測試頻道按了不扣券、不發獎(測試時獎勵水晶當 0 算)。</div>
+          <div id="cc-pass-rows"></div>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="ccPass_.push({ tpl: '', max: '', diffs: [] }); ccPassRender_()">➕ 新增 PASS券</button>
         </div>
       </div>
       <div id="page-people" style="display:none">
@@ -5249,12 +5259,25 @@ async function loadChallengeCfg() {
     ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
     ccDiff_ = JSON.parse(JSON.stringify(c.diffBlind || []));
     g('cc-rr-puz').checked = !!c.rerollPuzzle; g('cc-rr-rew').checked = !!c.rerollReward; g('cc-rr-unl').checked = c.rerollMax < 0; g('cc-rr-max').value = c.rerollMax > 0 ? c.rerollMax : 0; g('cc-rr-max').disabled = c.rerollMax < 0;
+    ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
     (c.diffReroll || []).forEach((r) => { let x = ccDiff_.find((y) => y.tag === r.tag); if (!x) { x = { tag: r.tag, text: '' }; ccDiff_.push(x); } x.rrAllow = r.allow !== false; x.rrMax = r.max < 0 ? '' : String(r.max); });
     ccLoaded_ = true;
     for (const k of ['announceSets', 'puzzleSets', 'blindSets']) { ccSets_[k] = JSON.parse(JSON.stringify(c[k] || [])).map((x) => ({ start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccSetRender_(k); }
     ccDiffRender_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
+let ccPass_ = [];
+function ccPassRender_() {
+  const box = document.getElementById('cc-pass-rows'); if (!box) return;
+  const tags = ['簡單', '普通', '困難', '地獄', '夢魘'].concat((ccDiff_ || []).map((x) => x.tag).filter((t) => t && ['簡單', '普通', '困難', '地獄', '夢魘'].indexOf(t) < 0));
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  box.innerHTML = ccPass_.length ? ccPass_.map((r, i) => '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+    '<input placeholder="道具模板名稱(例:PASS券)" value="' + esc(r.tpl) + '" oninput="ccPass_[' + i + '].tpl=this.value" style="width:200px">' +
+    '<input type="number" min="0" step="1" placeholder="水晶上限(空=不限)" value="' + esc(r.max) + '" oninput="ccPass_[' + i + '].max=this.value" style="width:150px">' +
+    '<span class="hint">可用難度:</span>' + tags.map((t) => '<label class="pk-chk" style="margin:0"><input type="checkbox"' + (r.diffs.indexOf(t) >= 0 ? ' checked' : '') + ' onchange="ccPassTag_(' + i + ',\'' + esc(t) + '\',this.checked)">' + esc(t) + '</label>').join('') +
+    '<button class="btn btn-del" onclick="ccPass_.splice(' + i + ',1);ccPassRender_()">🗑️</button></div>').join('') : '<div class="hint">(尚未設定 PASS券,挑戰訊息不會出現 PASS 按鈕)</div>';
+}
+function ccPassTag_(i, t, on) { const d = ccPass_[i].diffs; const k = d.indexOf(t); if (on && k < 0) d.push(t); if (!on && k >= 0) d.splice(k, 1); }
 async function saveChallengeCfg() {
   if (!ccLoaded_) { toast('設定還沒讀取完成,請先按「重新讀取」再儲存', false); return; }
   const g = (i) => document.getElementById(i).value, ck = (i) => document.getElementById(i).checked;
@@ -5263,7 +5286,7 @@ async function saveChallengeCfg() {
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })) };
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
