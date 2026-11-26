@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.406</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.407</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1643,7 +1643,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             　・🔢 挑戰訊息會顯示「(限量 3 份,目前剩 2 份,先完成先得;完成時如已發完會改發「代替獎名稱」)」(沒設代替獎則寫「…會重抽其他獎項」);被按成功時會寫「限量獎「X」已領取,剩 1/3 份」或「限量已被領完 → 改發代替獎/重新抽到…」<br>
             　・🔁 <b>代替獎</b>:另外寫一行 <code>[代替:獎項名稱]顯示名稱, 變數:數量</code>(獎項名稱要跟限量那行的第一格完全一樣,可用 {倍數});這行不參加抽獎,只在那個限量獎領完時才發<br>
             　・🔄 開了「重新抽選」時,玩家每重抽一次就重新抽一個獎項(只勾「任務」則照該頁說明)<br>
-            　・🏷️ <b>抽取順序:先抽 🏆 大獎區;沒中 → 這題【難度】有填盲盒就只用難度盲盒,否則只用共通盲盒(限定日期組有符合今天的優先,否則平常規則)</b>;有大獎區時,難度/共通盲盒的機率要填滿「100% − 大獎區」
+            　・🏷️ <b>抽取順序:先抽 🏆 大獎區;沒中 → 這題【難度】有盲盒就只用難度盲盒(限定日期難度組 > 平常難度),否則只用共通盲盒(限定日期組有符合今天的優先,否則平常規則)</b>;有大獎區時,難度/共通盲盒的機率要填滿「100% − 大獎區」
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑦ 範例</b></div>
             <b>跟著當日倍數</b><br>
             <code>幻彩水晶x1={倍數*1}, 幻彩水晶:{倍數*1}, 40%</code>　<span class="hint">← 1 倍日給 1 個、2 倍日給 2 個</span><br>
@@ -1677,6 +1677,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時(🏆 大獎區沒中後)只用下面填的盲盒規則,不會再抽共通盲盒;<b>沒填的難度、或題目沒標難度 → 用上面的共通成功獎勵(盲盒)</b>。有大獎區時,機率要填滿大獎區剩下的 %。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
           <div id="cc-diff-rows"></div>
           <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="cc-diff-new" placeholder="新增其他難度名稱(例:傳說)" style="width:220px"><button class="btn btn-edit" onclick="ccDiffAdd_()">➕ 新增難度</button></div>
+          <div style="font-weight:700;margin:14px 0 4px">📅 限定日期的難度獎勵</div>
+          <div class="hint" style="margin-bottom:6px">那幾天抽到該難度的題目時,改用這組盲盒(取代上面那個難度平常的盲盒;結束日期含當天)。順序:🏆 大獎區 → <b>限定日期難度 > 平常難度</b> → 共通盲盒(限定日期 > 平常)。寫法同盲盒;有大獎區時機率一樣要填滿剩餘 %;<code>N份</code> 整個期間共用(改開始日期=新一組)。</div>
+          <div id="cc-dsets-rows"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccDSets_.push({ tag: '', start: '', end: '', text: '' }); ccDSetsRender_()">➕ 新增限定日期難度獎勵</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🔄 重新抽選</div>
@@ -5202,7 +5205,8 @@ function ccBlindPreview_() {
   ccJpPreview_();
   const box = document.getElementById('cc-blind-preview'), ta = document.getElementById('cc-blind'), sel = document.getElementById('cc-blind-mul'); if (!box || !ta) return;
   ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1); ccRestNote_(box);
-  if (typeof ccDiff_ !== 'undefined') ccDiff_.forEach((x, i) => ccDiffPreview_(i)); // 依難度的獎勵也用同一個倍數預覽
+  if (typeof ccDiff_ !== 'undefined') ccDiff_.forEach((x, i) => ccDiffPreview_(i));
+  if (typeof ccDSets_ !== 'undefined') ccDSets_.forEach((x, i) => ccDSetPreview_(i)); // 依難度的獎勵也用同一個倍數預覽
 }
 let ccSets_ = { announceSets: [], puzzleSets: [], blindSets: [], jackpotSets: [] };
 const CC_SET_PH_ = { announceSets: '例如:📢 本週末限時活動…', puzzleSets: '一行一題', blindSets: '幻彩水晶X{倍數*2}={倍數*2}, 幻彩水晶:{倍數*2}, 100%', jackpotSets: '[公告]聖誕超級大獎, [非即時]聖誕超級大獎, 1%, 3份\n幻彩水晶X100, 幻彩水晶:100, 1%' };
@@ -5292,6 +5296,7 @@ async function loadChallengeCfg() {
     ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
     (c.diffReroll || []).forEach((r) => { let x = ccDiff_.find((y) => y.tag === r.tag); if (!x) { x = { tag: r.tag, text: '' }; ccDiff_.push(x); } x.rrAllow = r.allow !== false; x.rrMax = r.max < 0 ? '' : String(r.max); });
     ccLoaded_ = true;
+    ccDSets_ = (c.diffBlindSets || []).map((x) => ({ tag: x.tag, start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccDSetsRender_();
     for (const k of ['announceSets', 'puzzleSets', 'blindSets', 'jackpotSets']) { ccSets_[k] = JSON.parse(JSON.stringify(c[k] || [])).map((x) => ({ start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccSetRender_(k); }
     ccDiffRender_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
@@ -5316,7 +5321,7 @@ async function saveChallengeCfg() {
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), jackpotBlind: g('cc-jackpot'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, diffBlindSets: ccDSets_.filter((x) => x.tag || x.start || (x.text || '').trim()).map((x) => ({ tag: x.tag, start: x.start, end: x.end, text: x.text })), rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
@@ -5330,6 +5335,27 @@ function ccDiffCounts_() {
   const add = (txt) => txt.split(/\r?\n/).forEach((l) => { const m = l.match(/^\s*【([^】]{1,10})】/); if (m) { const k = m[1].replace(/\s/g, ''); cnt[k] = (cnt[k] || 0) + 1; } });
   add(t); ((typeof ccSets_ !== 'undefined' && ccSets_.puzzleSets) || []).forEach((x) => add(x.text || ''));
   return cnt;
+}
+let ccDSets_ = [];
+function ccDSetsRender_() {
+  const el = document.getElementById('cc-dsets-rows'); if (!el) return;
+  const e = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const tags = ['簡單', '普通', '困難', '地獄', '夢魘']; (ccDiff_ || []).forEach((x) => { if (x.tag && tags.indexOf(x.tag) < 0) tags.push(x.tag); }); ccDSets_.forEach((x) => { if (x.tag && tags.indexOf(x.tag) < 0) tags.push(x.tag); });
+  el.innerHTML = ccDSets_.length ? ccDSets_.map((x, i) => `<div class="pk-card" style="margin-top:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div class="field"><label>難度</label><select onchange="ccDSets_[${i}].tag=this.value"><option value="">(選擇)</option>${tags.map((t) => `<option value="${e(t)}"${t === x.tag ? ' selected' : ''}>【${e(t)}】</option>`).join('')}</select></div>
+      <div class="field"><label>開始日期</label><input type="date" value="${e(x.start)}" oninput="ccDSets_[${i}].start=this.value"></div>
+      <div class="field"><label>結束日期(含,空=只有當天)</label><input type="date" value="${e(x.end)}" oninput="ccDSets_[${i}].end=this.value"></div>
+      <button class="btn btn-edit" onclick="ccDSets_.splice(${i},1);ccDSetsRender_()">🗑 刪除</button>
+    </div>
+    <textarea rows="5" style="width:100%;margin-top:6px" placeholder="[公告]聖誕困難獎, [非即時]聖誕困難獎, 98%, 5份" oninput="ccDSets_[${i}].text=this.value;ccDSetPreview_(${i})">${e(x.text)}</textarea>
+    <div class="gacha-preview" data-ccdp="${i}" style="display:none;margin-top:6px"></div></div>`).join('') : '<div class="hint" style="margin-top:6px">(沒有限定日期的難度獎勵)</div>';
+  ccDSets_.forEach((x, i) => ccDSetPreview_(i));
+}
+function ccDSetPreview_(i) {
+  const box = document.querySelector('#cc-dsets-rows [data-ccdp="' + i + '"]'), sel = document.getElementById('cc-blind-mul'); if (!box || !ccDSets_[i]) return;
+  if (!(ccDSets_[i].text || '').trim()) { box.style.display = 'none'; return; }
+  ccPreviewWithAlts_(box, ccDSets_[i].text, parseFloat(sel && sel.value) || 1); ccRestNote_(box);
 }
 function ccDiffRender_() {
   const box = document.getElementById('cc-diff-rows'); if (!box) return;
