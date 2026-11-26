@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.419</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.420</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -10810,15 +10810,31 @@ function addAdjustItemGrantRow() {
   row.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s2);border-radius:6px;padding:6px 8px';
   const esc_ = (v) => String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   row.innerHTML = `
-    <input class="adjitem-template" list="adjitem-dl" value="${esc_(itemTemplates[0].name)}" placeholder="輸入道具名稱關鍵字,從清單選" onfocus="this.select()" onchange="updateAdjustItemColumn('${rowId}')" style="flex:1;min-width:0">
+    <div style="position:relative;flex:1;min-width:0">
+      <input class="adjitem-template" autocomplete="off" value="${esc_(itemTemplates[0].name)}" placeholder="輸入道具名稱關鍵字,從清單選" onfocus="this.select();adjItemDd_('${rowId}')" oninput="adjItemDd_('${rowId}')" onblur="setTimeout(()=>adjItemDdHide_('${rowId}'),200)" onchange="updateAdjustItemColumn('${rowId}')" style="width:100%">
+      <div class="adjitem-dd" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;max-height:320px;overflow:auto;background:var(--s1,#2b2d31);border:1px solid var(--bd,#444);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.4)"></div>
+    </div>
     <button class="btn btn-del" onclick="removeAdjustItemColumn('${rowId}')">✕</button>
     <div class="hint adjitem-remark" style="flex-basis:100%;white-space:pre-wrap"></div>
   `;
-  if (!document.getElementById('adjitem-dl')) { const dl = document.createElement('datalist'); dl.id = 'adjitem-dl'; document.body.appendChild(dl); }
-  document.getElementById('adjitem-dl').innerHTML = itemTemplates.map((t) => `<option value="${esc_(t.name)}">${t.remark ? esc_('📖 ' + String(t.remark).replace(/🎯個人挑戰:/g, '').slice(0, 80)) : ''}</option>`).join('');
   document.getElementById('adjust-itemgrant-container').appendChild(row);
   adjItemRemarkShow_(rowId);
   renderAdjustPlayerTable(true);
+}
+function adjItemDd_(colId) { // 自訂下拉:每個選項下方直接顯示備註
+  const row = document.getElementById(colId); if (!row) return;
+  const inp = row.querySelector('.adjitem-template'), dd = row.querySelector('.adjitem-dd');
+  const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const q = (inp.selectionStart === 0 && inp.selectionEnd === inp.value.length) ? '' : inp.value.trim().toLowerCase(); // 剛點進來(全選)時列全部
+  const list = (itemTemplates || []).filter((t) => !q || String(t.name).toLowerCase().indexOf(q) >= 0 || String(t.remark || '').toLowerCase().indexOf(q) >= 0).slice(0, 60);
+  dd.innerHTML = list.length ? list.map((t) => '<div class="adjitem-opt" data-n="' + esc(t.name) + '" onmousedown="event.preventDefault();adjItemPick_(\'' + colId + '\',this.dataset.n)" style="padding:6px 10px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06)" onmouseover="this.style.background=\'rgba(88,101,242,.25)\'" onmouseout="this.style.background=\'\'">' +
+    '<div style="font-weight:600">' + esc(t.name) + '</div>' + (t.remark ? '<div class="hint" style="white-space:pre-wrap;margin-top:2px">📖 ' + esc(String(t.remark).replace(/🎯個人挑戰:/g, '')) + '</div>' : '') + '</div>').join('') : '<div class="hint" style="padding:8px 10px">找不到符合的道具</div>';
+  dd.style.display = 'block';
+}
+function adjItemDdHide_(colId) { const row = document.getElementById(colId); if (row) { const dd = row.querySelector('.adjitem-dd'); if (dd) dd.style.display = 'none'; } }
+function adjItemPick_(colId, name) {
+  const row = document.getElementById(colId); if (!row) return;
+  const inp = row.querySelector('.adjitem-template'); inp.value = name; adjItemDdHide_(colId); updateAdjustItemColumn(colId);
 }
 function adjItemRemarkShow_(colId) { // 選道具時顯示模板備註(玩家背包看得到的那段說明)
   const row = document.getElementById(colId); if (!row) return;
