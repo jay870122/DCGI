@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.409</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.410</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -606,7 +606,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券+[非即時]特殊道具</code>(用 <code>+</code> 分開不同變數各自帶標籤,不要把兩個標籤疊在同一個變數上)<br>
               　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
 
-              <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑤ 特殊標籤</b>（[非即時]、[統計]、[留言]）</div>
+              <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑤ 特殊標籤</b>（[非即時]、[統計]、[留言]、[隱藏名稱]）</div>
               📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
               📊 <b>[統計:群組]獎品名 自動統計發出數量</b>:加在盲盒/獎勵規則的變數名前面,每次發出就記到「獎品統計」分頁,後台「統計區」依群組出表格、可複製/下載 CSV。<br>
               　・範例:<code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>(只計數,不發任何東西,實際獎品另外處理)<br>
@@ -621,6 +621,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・範例:<code>角色加布, [留言:請寫上遊戲ID]角色加布, 1</code>、<code>角色加布, [留言:請寫上遊戲ID:100:3:2天]角色加布, 1</code>(100 字、再改 3 次、2 天內)<br>
               　・這個標籤本身不會發任何東西,實際獎品還是要另外一行發(或人工處理);留言內容會存在試算表「玩家留言」分頁(K~M 欄可直接改單筆的上限與期限)<br>
 
+              🎭 <b>[隱藏名稱]對外名稱|揭曉後名稱</b>:寫在獎項的<b>第一格(顯示名稱)</b>,例 <code>[隱藏名稱]神秘大禮|七大罪箱子, [道具:七大罪的箱子]七大罪箱子, 1%</code>。「內容物一覽」/預覽只看得到「神秘大禮」,抽中後(開獎結果、兌換紀錄)才顯示「七大罪箱子」。沒寫 <code>|</code> 時前後同名。商品名稱本身也可以用同樣寫法<br>
               <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑥ 範例</b></div>
               <b>基本（機率 / 份數）</b><br>
               <code>幻彩水晶,30%,300份</code><br>
@@ -1635,7 +1636,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             🎁 <b>[道具:模板名稱]</b>:變數名寫 <code>[道具:模板名稱]顯示名稱</code>,挑戰成功時依「道具模板管理」的模板發一個道具到玩家的「我的道具」背包(玩家自己打開才抽內容)。<br>
             🎒 <b>[背包] / [背包:參數]</b>:發 BINGO 一次性道具到玩家的 BINGO 背包,參數寫法跟商店盲盒相同 <code>[背包:效果|範圍|過期模式|過期值|限定活動ID]</code>,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券</code>。
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑤ 特殊標籤</b></div>
-            📦 <b>[非即時]</b>:例如 <code>[非即時]角色加布</code>,只顯示在挑戰訊息、<b>不會自動入帳</b>,由管理員另外處理。
+            📦 <b>[非即時]</b>:例如 <code>[非即時]角色加布</code>,只顯示在挑戰訊息、<b>不會自動入帳</b>,由管理員另外處理。<br>
+            🎭 <b>[隱藏名稱]對外名稱|揭曉後名稱</b>:寫在獎項第一格,例 <code>[公告][隱藏名稱]神秘大禮|七大罪箱子, [道具:七大罪的箱子]七大罪箱子, 1%, 3份</code>。<b>開挑戰時訊息只顯示「神秘大禮」</b>(每日公告也是),<b>管理員按「挑戰成功」發獎時才揭曉</b>「七大罪箱子」。代替獎 <code>[代替:名稱]</code> 寫對外名稱或揭曉後名稱都可以;代替獎本身也能用 [隱藏名稱]。
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑥ 跟商店盲盒不一樣的地方</b></div>
             　・❌ <b>不支援</b> <code>[序號]</code>、<code>[身分組]</code>、<code>[留言]</code>、<code>[統計]</code>(存檔時會擋下來)<br>
             　・📦 <b>「份」= 限量,先完成先得</b>:開挑戰時照樣抽(不扣),<b>已經發完的限量獎不會再被抽到</b>;<b>管理員按「挑戰成功」時才扣 1 份</b>;份被領完時,有寫代替獎就改發代替獎,沒有就在還有份/不限量的獎項裡重抽一次,訊息會註明。份數是累計的,在下方「📦 限量獎已發份數」可以查看/歸零<br>
@@ -2027,7 +2029,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・支援標籤組合: 可以跟 <code>[非即時]</code> 等標籤結合,例如 <code>[背包:PICK_FREE_RANGE|1~50|HOURS|24]指定券+[非即時]特殊道具</code>(用 <code>+</code> 分開不同變數各自帶標籤,不要把兩個標籤疊在同一個變數上)<br>
               　・不輸出到 Discord: 背包道具不會出現在 Discord 的「獲得」欄位中,只會直接放進背包。如果盲盒同時發放背包道具和普通貨幣(例如 <code>[背包]指定券+幻彩水晶:100</code>),DC 只會顯示 <code>幻彩水晶:100</code><br>
 
-              <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑤ 特殊標籤</b>（[非即時]、[統計]、[留言]）</div>
+              <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑤ 特殊標籤</b>（[非即時]、[統計]、[留言]、[隱藏名稱]）</div>
               📦 <b>[非即時] 商品規定要用盲盒格式</b>：商品名稱或獎項的貨幣/道具欄位名稱只要帶有 <code>[非即時]</code>,系統才會把它標記成「需要人工/延遲發送」,這個機制<b>只有盲盒格式才有支援</b>。所以即使是「保證拿到、機率100%」的非即時商品,也要用盲盒格式填一行保底獎(不寫機率、不寫份數),不能用「固定獎勵變數名」直接填。<br>
               📊 <b>[統計:群組]獎品名 自動統計發出數量</b>:加在盲盒/獎勵規則的變數名前面,每次發出就記到「獎品統計」分頁,後台「統計區」依群組出表格、可複製/下載 CSV。<br>
               　・範例:<code>七大罪箱子X1, [統計:服裝大賽]七大罪箱子:1</code>(只計數,不發任何東西,實際獎品另外處理)<br>
@@ -2042,6 +2044,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               　・範例:<code>角色加布, [留言:請寫上遊戲ID]角色加布, 1</code>、<code>角色加布, [留言:請寫上遊戲ID:100:3:2天]角色加布, 1</code>(100 字、再改 3 次、2 天內)<br>
               　・這個標籤本身不會發任何東西,實際獎品還是要另外一行發(或人工處理);留言內容會存在試算表「玩家留言」分頁(K~M 欄可直接改單筆的上限與期限)<br>
 
+              🎭 <b>[隱藏名稱]對外名稱|揭曉後名稱</b>:寫在獎項的<b>第一格(顯示名稱)</b>,例 <code>[隱藏名稱]神秘大禮|七大罪箱子, [道具:七大罪的箱子]七大罪箱子, 1%</code>。「內容物一覽」/預覽只看得到「神秘大禮」,抽中後(開獎結果、兌換紀錄)才顯示「七大罪箱子」。沒寫 <code>|</code> 時前後同名。商品名稱本身也可以用同樣寫法<br>
               <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑥ 範例</b></div>
               <b>基本（機率 / 份數）</b><br>
               <code>幻彩水晶,30%,300份</code><br>
