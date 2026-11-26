@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.418</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.419</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -10810,12 +10810,12 @@ function addAdjustItemGrantRow() {
   row.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s2);border-radius:6px;padding:6px 8px';
   const esc_ = (v) => String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   row.innerHTML = `
-    <select class="adjitem-template" onchange="updateAdjustItemColumn('${rowId}')" style="width:auto;flex:1;min-width:0">
-      ${itemTemplates.map(t => `<option value="${esc_(t.name)}" title="${esc_(t.remark)}">${esc_(t.name)}${t.remark ? ' 📖' : ''}</option>`).join('')}
-    </select>
+    <input class="adjitem-template" list="adjitem-dl" value="${esc_(itemTemplates[0].name)}" placeholder="輸入道具名稱關鍵字,從清單選" onfocus="this.select()" onchange="updateAdjustItemColumn('${rowId}')" style="flex:1;min-width:0">
     <button class="btn btn-del" onclick="removeAdjustItemColumn('${rowId}')">✕</button>
     <div class="hint adjitem-remark" style="flex-basis:100%;white-space:pre-wrap"></div>
   `;
+  if (!document.getElementById('adjitem-dl')) { const dl = document.createElement('datalist'); dl.id = 'adjitem-dl'; document.body.appendChild(dl); }
+  document.getElementById('adjitem-dl').innerHTML = itemTemplates.map((t) => `<option value="${esc_(t.name)}">${t.remark ? esc_('📖 ' + String(t.remark).replace(/🎯個人挑戰:/g, '').slice(0, 80)) : ''}</option>`).join('');
   document.getElementById('adjust-itemgrant-container').appendChild(row);
   adjItemRemarkShow_(rowId);
   renderAdjustPlayerTable(true);
@@ -10823,7 +10823,7 @@ function addAdjustItemGrantRow() {
 function adjItemRemarkShow_(colId) { // 選道具時顯示模板備註(玩家背包看得到的那段說明)
   const row = document.getElementById(colId); if (!row) return;
   const nm = row.querySelector('.adjitem-template').value, t = (itemTemplates || []).find((x) => x.name === nm), el = row.querySelector('.adjitem-remark');
-  if (el) el.textContent = t && t.remark ? '📖 ' + t.remark : '';
+  if (el) { el.style.color = t ? '' : 'var(--red)'; el.textContent = !t ? '⚠️ 找不到這個道具模板,請從清單選(名稱要完全一樣)' : (t.remark ? '📖 ' + t.remark : ''); }
 }
 
 function updateAdjustItemColumn(colId) {
@@ -10944,6 +10944,8 @@ async function confirmAdjustCurrency() {
     return;
   }
 
+  const badTpl_ = itemGrantAffectedCount > 0 ? adjustItemColumns.map((c) => c.templateName).filter((n) => !(itemTemplates || []).some((t) => t.name === n)) : [];
+  if (badTpl_.length) { document.getElementById('adjust-warning').textContent = '找不到道具模板:「' + badTpl_.join('、') + '」,請從清單選(名稱要完全一樣)'; return; }
   const btn = document.getElementById('adjust-confirm-btn');
   const extraParts = [];
   if (serialKeyNames.length > 0) extraParts.push(`「${serialKeyNames.join('、')}」序號`);
