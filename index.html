@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.370</div>
+    <div class="version-tag">系統版本：v5.4.371</div>
   </div>
 
   <script>
@@ -8402,7 +8402,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
               ${isHold ? `✨ 條件：<span class="item-price" style="color:#58FF9C;">${holdMaxM_ ? `持有 ${Math.max(0, item.price)} ~ ${holdMaxM_[1]} ${item.displayCurrency}` : `需持有 ${item.price} ${item.displayCurrency}`}</span><br><span class="hold-me" data-cur="${item.displayCurrency}" style="font-size:12px;color:#B9BBBE;display:block;margin:2px 0"></span>` : 
                 (item.itemOptions && item.itemOptions.length > 0)
                 ? `💰 價格：<span class="item-price" style="color:#B9BBBE">依選項而定,請往下選擇</span><br>`
-                : `💰 ${item.isRaffle ? '投1花費' : item.isGambling ? '每單位下注' : '價格'}：${item.promo ? `<span style="text-decoration:line-through;color:#949BA4;font-size:12px;margin-right:4px">${formatCost_(item.promo.orig, item.displayCurrency)}</span>` : ''}<span class="item-price">${formatCost_(item.price, item.displayCurrency)}${item.priceExpr ? ' <span style="color:#F0B232;font-size:12px" title="價格會隨報價/你的持有量浮動:' + String(item.priceExpr).replace(/"/g, '&quot;') + '">⚡浮動價</span>' : ''}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => formatCost_(e.amount, e.displayName)).join(' + ') : ''}</span><br>${promoBadge_(item)}`}
+                : `💰 ${item.isRaffle ? '投1花費' : item.isGambling ? '每單位下注' : '價格'}：${item.promo && !item.promo.optOnly && !(item.itemOptions && item.itemOptions.length) ? `<span style="text-decoration:line-through;color:#949BA4;font-size:12px;margin-right:4px">${formatCost_(item.promo.orig, item.displayCurrency)}</span>` : ''}<span class="item-price">${formatCost_(item.price, item.displayCurrency)}${item.priceExpr ? ' <span style="color:#F0B232;font-size:12px" title="價格會隨報價/你的持有量浮動:' + String(item.priceExpr).replace(/"/g, '&quot;') + '">⚡浮動價</span>' : ''}${(item.extraCost && item.extraCost.length > 0) ? ' + ' + item.extraCost.map(e => formatCost_(e.amount, e.displayName)).join(' + ') : ''}</span><br>${promoBadge_(item)}`}
               ${(item.requiredItems && item.requiredItems.length > 0) ? `<div style="margin:2px 0;font-size:12px;color:#F0B232">🎒 需要持有：${item.requiredItems.map(r => `${r.n} x${r.q}${r.c ? '（兌換時扣除）' : '（只檢查，不扣除）'}`).join('、')}</div>` : ''}
               ${item.itemOptions && item.itemOptions.length > 0 ? `
                 <select id="opt-${safeId}" style="width:100%;margin:6px 0" onchange="updateItemOptionPreview('${safeId}', ${JSON.stringify(item.itemOptions).replace(/"/g,'&quot;')})">
@@ -8410,7 +8410,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
                   ${item.itemOptions.map((opt, idx) => {
                     const soldOut = opt.stock !== null && opt.stock !== undefined && opt.stock <= 0;
                     const stockText = opt.stock !== null && opt.stock !== undefined ? (soldOut ? '（已售罄）' : `（剩餘${opt.stock}）`) : '';
-                    const oo_ = item.optOrig && item.optOrig[idx] !== undefined && item.optOrig[idx] !== opt.price ? `原價${formatCost_(item.optOrig[idx], item.displayCurrency)}→` : '';
+                    const oo_ = item.optOrig && item.optOrig[idx] !== undefined && item.optOrig[idx] !== opt.price ? `🏷️原價${formatCost_(item.optOrig[idx], item.displayCurrency)}→` : '';
                     return `<option value="${idx}" ${soldOut ? 'disabled' : ''}>${opt.name} — ${oo_}${formatCost_(opt.price, item.displayCurrency)}${stockText}</option>`;
                   }).join('')}
                 </select>
@@ -9296,6 +9296,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
     }
     function promoBadge_(item) {
       const p = item && item.promo; if (!p) return '';
+      if (p.optOnly) return `<span style="display:inline-block;margin:2px 0 4px;padding:2px 8px;border-radius:6px;background:rgba(237,66,69,.18);border:1px solid rgba(237,66,69,.55);color:#FF7A7C;font-size:12px;font-weight:700">🏷️ 部分選項促銷中${p.note ? '・' + escapeHtml_(p.note) : ''}</span> <span class="promo-left" data-end="${Number(p.end)}" style="color:#F0B232;font-size:12px">⏳ ${promoLeftText_(p.end)}</span><br>`;
       const lab = p.type === 'pct' ? ((100 - Number(p.val)) % 10 === 0 ? ((100 - Number(p.val)) / 10) + ' 折' : (100 - Number(p.val)) + ' 折') + '(-' + p.val + '%)' : '限時特價';
       const endTxt = (() => { try { const t = new Date(Number(p.end)); return (t.getMonth() + 1) + '/' + t.getDate() + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); } catch (e) { return ''; } })();
       return `<span style="display:inline-block;margin:2px 0 4px;padding:2px 8px;border-radius:6px;background:rgba(237,66,69,.18);border:1px solid rgba(237,66,69,.55);color:#FF7A7C;font-size:12px;font-weight:700">🏷️ ${lab}${p.note ? '・' + escapeHtml_(p.note) : ''}</span> <span class="promo-left" data-end="${Number(p.end)}" style="color:#F0B232;font-size:12px" title="${endTxt} 結束">⏳ ${promoLeftText_(p.end)}(${endTxt})</span><br>`;
