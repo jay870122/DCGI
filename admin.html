@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.424</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.425</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1724,7 +1724,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="hint" style="margin-bottom:10px">指定商品在一段時間內打折或改成特價,時間到自動恢復原價(不會改到商店表的價格)。前台會顯示「<s>原價</s> 促銷價 🏷️ 8 折 ⏳ X 天 X 小時後恢復原價」。<br>
           ・<b>打折 %</b>:填要折掉幾 %(例 20 = 打 8 折,四捨五入);有「商品選項」的商品,每個選項價格也一起打折。<br>
           ・<b>指定價格</b>:促銷期間直接改成這個價格;有「商品選項」的商品不能用指定價格(請用打折 %)。<br>
-          ・開始時間留空=儲存後立刻開始;結束時間必填。結束後列表會標「已結束」,可以刪掉或改日期重用。<br>
+          ・開始時間留空=儲存後立刻開始;結束時間必填。可設「名額(總份數)」與「每人上限」,用完自動恢復原價。結束後列表會標「已結束」,可以刪掉或改日期重用。<br>
           ・價格是運算式 {…} 的商品也可以打折(依算出來的價格再打折)。玩家結帳時剛好遇到促銷開始/結束,會跳「價格已更新」請他再確認一次,不會用錯的價格扣款。</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
             <input id="pm-q" placeholder="搜尋商品名稱加入促銷…" oninput="pmSearch_()" style="flex:1;min-width:220px">
@@ -2000,7 +2000,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="full field" id="em-promo-box" style="background:rgba(237,66,69,.08);border:1px solid rgba(237,66,69,.35);border-radius:8px;padding:10px 12px">
         <div style="display:flex;align-items:center;gap:8px"><b>🏷️ 期間促銷</b> <span class="hint" id="em-promo-state"></span><button type="button" class="btn btn-edit" style="margin-left:auto" onclick="emPmAdd_()">➕ 新增一段</button></div>
         <div id="em-promo-rows" style="margin-top:6px"></div>
-        <div class="hint" style="margin-top:4px">可以設多段(例:週末 8 折、聖誕夜特價 50),每段各自的時間與價格;有商品選項時,每段可以選「套用到」整個商品或某個選項(選項專屬的段優先)。時間到自動恢復原價(不會改到上面的價格欄)。段落時間重疊時以開始時間較晚的那段為準。「整個商品」打折 % 時所有選項一起打折;「指定價格」要選某個選項。所有促銷也可以在左側「🏷️ 期間促銷」頁一次查看。</div>
+        <div class="hint" style="margin-top:4px">可以設多段(例:週末 8 折、聖誕夜特價 50),每段各自的時間與價格;有商品選項時,每段可以選「套用到」整個商品或某個選項(選項專屬的段優先)。時間到自動恢復原價(不會改到上面的價格欄)。段落時間重疊時以開始時間較晚的那段為準。「名額」=全服合計能用促銷價買的份數、「每人上限」=每人最多幾份(空=不限),用完自動恢復原價(該段已用完時會改用其他還有名額的段)。「整個商品」打折 % 時所有選項一起打折;「指定價格」要選某個選項。所有促銷也可以在左側「🏷️ 期間促銷」頁一次查看。</div>
       </div>
       <div class="full field">
         <label>額外必付費用 <span class="hint">留空=不用;可新增多種,每次購買都會一起收(不是選填折抵)</span></label>
@@ -4477,7 +4477,8 @@ async function bagD1_(action, extra) {
 }
 // ===== 🏷️ 期間促銷(商品編輯內,可多段) =====
 let emPm_ = [], emPmOrigJson_ = '[]'; // 這個商品的促銷段落;Orig 用來判斷有沒有改
-function emPmNorm_(arr) { const mn = (v) => Math.floor((Number(v) || 0) / 60000); return JSON.stringify((arr || []).map((x) => [x.type, Number(x.val) || 0, mn(x.start), mn(x.end), x.note || '', x.opt === undefined || x.opt === null || x.opt === '' ? -1 : Number(x.opt)])); }
+function emPmNorm_(arr) { const mn = (v) => Math.floor((Number(v) || 0) / 60000); return JSON.stringify((arr || []).map((x) => [x.type, Number(x.val) || 0, mn(x.start), mn(x.end), x.note || '', x.opt === undefined || x.opt === null || x.opt === '' ? -1 : Number(x.opt), Number(x.quota) || 0, Number(x.perUser) || 0])); }
+let emPmUsed_ = {};
 function emOpts_() { try { const a = JSON.parse(serializeItemOptions('em') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 async function emPromoLoad_(itemId) {
   const box = document.getElementById('em-promo-rows'); if (!box) return;
@@ -4486,7 +4487,8 @@ async function emPromoLoad_(itemId) {
     const d = await grCall_('adminPromoGet');
     if (document.getElementById('em-id').value !== String(itemId)) return;
     const p = d && d.status === 'success' ? (d.promo || {})[itemId] : null;
-    emPm_ = (Array.isArray(p) ? p : (p ? [p] : [])).map((x) => ({ type: x.type === 'price' ? 'price' : 'pct', val: x.val, start: Number(x.start) || 0, end: Number(x.end) || 0, note: x.note || '', opt: x.opt === undefined || x.opt === null ? -1 : Number(x.opt) }));
+    emPmUsed_ = (d && d.used) || {};
+    emPm_ = (Array.isArray(p) ? p : (p ? [p] : [])).map((x) => ({ sid: x.sid || '', type: x.type === 'price' ? 'price' : 'pct', val: x.val, start: Number(x.start) || 0, end: Number(x.end) || 0, note: x.note || '', opt: x.opt === undefined || x.opt === null ? -1 : Number(x.opt), quota: Number(x.quota) || '', perUser: Number(x.perUser) || '' }));
     emPmOrigJson_ = emPmNorm_(emPm_);
   } catch (e) { box.innerHTML = '<div class="hint" style="color:var(--red)">讀取促銷失敗</div>'; return; }
   emPromoUi_();
@@ -4511,6 +4513,9 @@ function emPromoUi_() {
       '<div class="field"><label>開始(空=立刻)</label><input type="datetime-local" value="' + pmLocal_(x.start) + '" onchange="emPm_[' + i + '].start=this.value?new Date(this.value).getTime():0;emPromoUi_()"></div>' +
       '<div class="field"><label>結束(必填)</label><input type="datetime-local" value="' + pmLocal_(x.end) + '" onchange="emPm_[' + i + '].end=this.value?new Date(this.value).getTime():0;emPromoUi_()"></div>' +
       '<div class="field"><label>標語</label><input value="' + e(x.note) + '" maxlength="30" placeholder="選填" oninput="emPm_[' + i + '].note=this.value" style="width:120px"></div>' +
+      '<div class="field"><label>名額(總份數)</label><input type="number" min="0" step="1" value="' + e(x.quota) + '" placeholder="空=不限" oninput="emPm_[' + i + '].quota=this.value" style="width:90px"></div>' +
+      '<div class="field"><label>每人上限</label><input type="number" min="0" step="1" value="' + e(x.perUser) + '" placeholder="空=不限" oninput="emPm_[' + i + '].perUser=this.value" style="width:80px"></div>' +
+      (x.sid && Number(x.quota) > 0 ? '<span class="hint" style="align-self:center">已用 ' + (emPmUsed_[document.getElementById('em-id').value + ':' + x.sid] || 0) + '/' + x.quota + '</span>' : '') +
       '<span class="hint" style="align-self:center">' + (priceBad ? '<b style="color:var(--red)">有選項時「指定價格」要選某個選項</b>' : base + ' → <b style="color:var(--gold)">' + after + '</b> ' + (st ? '(' + st + ')' : '')) + '</span>' +
       '<button type="button" class="btn btn-del" onclick="emPm_.splice(' + i + ',1);emPromoUi_()">🗑️</button></div>';
   }).join('') : '<div class="hint">(沒有促銷)</div>';
@@ -4528,19 +4533,19 @@ async function emPromoSave_(itemId) { // 回傳錯誤文字;沒變動就不存
   const g = await grCall_('adminPromoGet'); if (!g || g.status !== 'success') return (g && g.message) || '讀取促銷失敗';
   const all = g.promo || {}, nm = document.getElementById('em-name').value || '';
   const ops2 = emOpts_();
-  if (emPm_.length) all[itemId] = emPm_.map((x) => { const oi = x.opt === undefined || x.opt === null || x.opt === '' ? -1 : Number(x.opt); return Object.assign({ type: x.type, val: Number(x.val) || 0, start: Number(x.start) || 0, end: Number(x.end) || 0, name: nm, note: x.note || '' }, oi >= 0 ? { opt: oi, optName: (ops2[oi] || {}).name || '' } : {}); }); else delete all[itemId];
+  if (emPm_.length) all[itemId] = emPm_.map((x) => { const oi = x.opt === undefined || x.opt === null || x.opt === '' ? -1 : Number(x.opt); return Object.assign({ sid: x.sid || '', type: x.type, val: Number(x.val) || 0, start: Number(x.start) || 0, end: Number(x.end) || 0, name: nm, note: x.note || '', quota: Number(x.quota) || 0, perUser: Number(x.perUser) || 0 }, oi >= 0 ? { opt: oi, optName: (ops2[oi] || {}).name || '' } : {}); }); else delete all[itemId];
   const d = await grCall_('adminPromoSave', { promo: all });
   return d && d.status === 'success' ? '' : ((d && d.message) || '儲存失敗');
 }
 // ===== 🏷️ 期間促銷 =====
-let pm_ = [], pmNow_ = Date.now();
+let pm_ = [], pmNow_ = Date.now(), pmUsed_ = {};
 const pmLocal_ = (ms) => { if (!ms) return ''; const d = new Date(Number(ms)); const z = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); };
 async function pmLoad_() {
   document.getElementById('pm-rows').innerHTML = '<div class="hint">讀取中…</div>';
   try { if (!shopItems || !shopItems.length) await loadShopItems(); } catch (e) {}
   const d = await grCall_('adminPromoGet');
   if (!d || d.status !== 'success') { document.getElementById('pm-rows').innerHTML = '<div class="hint" style="color:var(--red)">讀取失敗:' + ((d && d.message) || '') + '</div>'; return; }
-  pmNow_ = d.now || Date.now();
+  pmNow_ = d.now || Date.now(); pmUsed_ = d.used || {};
   pm_ = []; Object.keys(d.promo || {}).forEach((id) => { const p = d.promo[id]; (Array.isArray(p) ? p : [p]).forEach((x) => pm_.push(Object.assign({ id }, x))); }); // 多段促銷攤平成一列一段
   pm_.sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)) || (a.start || 0) - (b.start || 0));
   pmRender_();
@@ -4577,6 +4582,9 @@ function pmRender_() {
       '<div class="field"><label>開始(空=立刻)</label><input type="datetime-local" value="' + pmLocal_(x.start) + '" onchange="pm_[' + i + '].start=this.value?new Date(this.value).getTime():0;pmRender_()"></div>' +
       '<div class="field"><label>結束(必填)</label><input type="datetime-local" value="' + pmLocal_(x.end) + '" onchange="pm_[' + i + '].end=this.value?new Date(this.value).getTime():0;pmRender_()"></div>' +
       '<div class="field"><label>標語(選填)</label><input value="' + e(x.note) + '" maxlength="30" placeholder="例:聖誕特賣" oninput="pm_[' + i + '].note=this.value" style="width:140px"></div>' +
+      '<div class="field"><label>名額(總份數)</label><input type="number" min="0" step="1" value="' + e(x.quota || '') + '" placeholder="空=不限" oninput="pm_[' + i + '].quota=this.value" style="width:90px"></div>' +
+      '<div class="field"><label>每人上限</label><input type="number" min="0" step="1" value="' + e(x.perUser || '') + '" placeholder="空=不限" oninput="pm_[' + i + '].perUser=this.value" style="width:80px"></div>' +
+      (x.sid && Number(x.quota) > 0 ? '<span class="hint" style="align-self:center">已用 ' + (pmUsed_[x.id + ':' + x.sid] || 0) + '/' + x.quota + '</span>' : '') +
       '</div></div>';
   }).join('') : '<div class="hint">目前沒有促銷,用上面的搜尋框加入商品。</div>';
 }
@@ -4584,7 +4592,7 @@ async function pmSave_() {
   const out = {};
   for (const x of pm_) {
     if (x.type === 'price' && !(x.opt !== undefined && x.opt !== null && Number(x.opt) >= 0)) { const it = pmItem_(x.id); if (pmHasOpt_(it)) { toast('「' + it.name + '」有商品選項,指定價格要到商品編輯裡選套用的選項', false); return; } }
-    (out[x.id] = out[x.id] || []).push(Object.assign({ type: x.type, val: Number(x.val) || 0, start: Number(x.start) || 0, end: Number(x.end) || 0, name: (pmItem_(x.id) || {}).name || x.name || '', note: x.note || '' }, x.opt !== undefined && x.opt !== null && Number(x.opt) >= 0 ? { opt: Number(x.opt), optName: x.optName || '' } : {}));
+    (out[x.id] = out[x.id] || []).push(Object.assign({ sid: x.sid || '', quota: Number(x.quota) || 0, perUser: Number(x.perUser) || 0, type: x.type, val: Number(x.val) || 0, start: Number(x.start) || 0, end: Number(x.end) || 0, name: (pmItem_(x.id) || {}).name || x.name || '', note: x.note || '' }, x.opt !== undefined && x.opt !== null && Number(x.opt) >= 0 ? { opt: Number(x.opt), optName: x.optName || '' } : {}));
   }
   const d = await grCall_('adminPromoSave', { promo: out });
   if (d && d.status === 'success') { toast('已儲存促銷設定'); pmLoad_(); } else toast((d && d.message) || '儲存失敗', false);
