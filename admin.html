@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.403</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.404</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1600,6 +1600,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           ・寫法跟盲盒一樣(可用 {倍數}、[限量]、N份、[代替:名稱])。抽中大獎訊息會顯示「🏆大獎!」。限量大獎已發完:有 [代替:] 發代替獎,沒有就改抽下面那區。留空=沒有大獎區(下面的盲盒照舊填滿 100%)。</div>
           <textarea id="cc-jackpot" rows="4" oninput="ccBlindPreview_()" style="width:100%" placeholder="[限量]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
           <div class="gacha-preview" id="cc-jackpot-preview" style="display:none;margin-top:8px"></div>
+          <div style="font-weight:700;margin:10px 0 4px">📅 期間限定大獎</div>
+          <div class="hint" style="margin-bottom:6px">設定的日期內<b>取代</b>上面的平常大獎(一天或一段;結束日期含當天)。合計機率要<b>跟平常大獎區一樣</b>(下面盲盒的剩餘機率才對得上),存檔會檢查。寫 <code>N份</code> 的限量獎=<b>整個期間共用 N 份</b>(例 12/24~12/26 限量 3 份=三天加起來 3 份);改了開始日期會當成新的一組、份數重新算。期間內每日公告會顯示「🏆期間限定 名稱 剩 M/N 份」(名稱前要加 [限量])。</div>
+          <div id="cc-sets-jackpotSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('jackpotSets')">➕ 新增期間大獎</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎁 成功獎勵(盲盒) <span class="hint">玩家開啟挑戰時直接抽出 1 份並顯示,管理員按「挑戰成功」才發。留空=沿用舊的「幻彩水晶 ×當日倍數」</span></div>
@@ -5201,8 +5204,8 @@ function ccBlindPreview_() {
   ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1); ccRestNote_(box);
   if (typeof ccDiff_ !== 'undefined') ccDiff_.forEach((x, i) => ccDiffPreview_(i)); // 依難度的獎勵也用同一個倍數預覽
 }
-let ccSets_ = { announceSets: [], puzzleSets: [], blindSets: [] };
-const CC_SET_PH_ = { announceSets: '例如:📢 本週末限時活動…', puzzleSets: '一行一題', blindSets: '幻彩水晶X{倍數*2}={倍數*2}, 幻彩水晶:{倍數*2}, 100%' };
+let ccSets_ = { announceSets: [], puzzleSets: [], blindSets: [], jackpotSets: [] };
+const CC_SET_PH_ = { announceSets: '例如:📢 本週末限時活動…', puzzleSets: '一行一題', blindSets: '幻彩水晶X{倍數*2}={倍數*2}, 幻彩水晶:{倍數*2}, 100%', jackpotSets: '[限量]聖誕超級大獎, [非即時]聖誕超級大獎, 1%, 3份\n幻彩水晶X100, 幻彩水晶:100, 1%' };
 function ccSetRender_(kind) {
   const el = document.getElementById('cc-sets-' + kind); if (!el) return;
   const e = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -5289,7 +5292,7 @@ async function loadChallengeCfg() {
     ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
     (c.diffReroll || []).forEach((r) => { let x = ccDiff_.find((y) => y.tag === r.tag); if (!x) { x = { tag: r.tag, text: '' }; ccDiff_.push(x); } x.rrAllow = r.allow !== false; x.rrMax = r.max < 0 ? '' : String(r.max); });
     ccLoaded_ = true;
-    for (const k of ['announceSets', 'puzzleSets', 'blindSets']) { ccSets_[k] = JSON.parse(JSON.stringify(c[k] || [])).map((x) => ({ start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccSetRender_(k); }
+    for (const k of ['announceSets', 'puzzleSets', 'blindSets', 'jackpotSets']) { ccSets_[k] = JSON.parse(JSON.stringify(c[k] || [])).map((x) => ({ start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccSetRender_(k); }
     ccDiffRender_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
@@ -5313,7 +5316,7 @@ async function saveChallengeCfg() {
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), jackpotBlind: g('cc-jackpot'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
