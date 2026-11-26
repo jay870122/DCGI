@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.425</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.426</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4510,8 +4510,8 @@ function emPromoUi_() {
       '<b style="align-self:center">#' + (i + 1) + '</b>' + optSel +
       '<div class="field"><label>方式</label><select onchange="emPm_[' + i + '].type=this.value;emPromoUi_()"><option value="pct"' + (x.type !== 'price' ? ' selected' : '') + '>打折 %</option><option value="price"' + (x.type === 'price' ? ' selected' : '') + '>指定價格</option></select></div>' +
       '<div class="field"><label>' + (x.type === 'price' ? '促銷價格' : '折掉幾 %') + '</label><input type="number" min="0" step="1" value="' + e(x.val) + '" oninput="emPm_[' + i + '].val=this.value" onchange="emPromoUi_()" style="width:100px"></div>' +
-      '<div class="field"><label>開始(空=立刻)</label><input type="datetime-local" value="' + pmLocal_(x.start) + '" onchange="emPm_[' + i + '].start=this.value?new Date(this.value).getTime():0;emPromoUi_()"></div>' +
-      '<div class="field"><label>結束(必填)</label><input type="datetime-local" value="' + pmLocal_(x.end) + '" onchange="emPm_[' + i + '].end=this.value?new Date(this.value).getTime():0;emPromoUi_()"></div>' +
+      '<div class="field"><label>開始(空=立刻)</label><input type="datetime-local" value="' + pmLocal_(x.start) + '" onchange="emPm_[' + i + '].start=this.value?new Date(this.value).getTime():0"></div>' +
+      '<div class="field"><label>結束(必填)</label><input type="datetime-local" value="' + pmLocal_(x.end) + '" onchange="emPm_[' + i + '].end=this.value?new Date(this.value).getTime():0"></div>' +
       '<div class="field"><label>標語</label><input value="' + e(x.note) + '" maxlength="30" placeholder="選填" oninput="emPm_[' + i + '].note=this.value" style="width:120px"></div>' +
       '<div class="field"><label>名額(總份數)</label><input type="number" min="0" step="1" value="' + e(x.quota) + '" placeholder="空=不限" oninput="emPm_[' + i + '].quota=this.value" style="width:90px"></div>' +
       '<div class="field"><label>每人上限</label><input type="number" min="0" step="1" value="' + e(x.perUser) + '" placeholder="空=不限" oninput="emPm_[' + i + '].perUser=this.value" style="width:80px"></div>' +
@@ -4579,8 +4579,8 @@ function pmRender_() {
       '<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:6px">' +
       '<div class="field"><label>方式</label><select onchange="pm_[' + i + '].type=this.value;pmRender_()"><option value="pct"' + (x.type !== 'price' ? ' selected' : '') + '>打折 %</option><option value="price"' + (x.type === 'price' ? ' selected' : '') + (hasOpt && !(Number(x.opt) >= 0) ? ' disabled' : '') + '>指定價格' + (hasOpt && !(Number(x.opt) >= 0) ? '(有選項不可用)' : '') + '</option></select></div>' +
       '<div class="field"><label>' + (x.type === 'price' ? '促銷價格' : '折掉幾 %') + '</label><input type="number" min="0" ' + (x.type === 'price' ? '' : 'max="100"') + ' step="1" value="' + e(x.val) + '" oninput="pm_[' + i + '].val=this.value" onchange="pmRender_()" style="width:110px"></div>' +
-      '<div class="field"><label>開始(空=立刻)</label><input type="datetime-local" value="' + pmLocal_(x.start) + '" onchange="pm_[' + i + '].start=this.value?new Date(this.value).getTime():0;pmRender_()"></div>' +
-      '<div class="field"><label>結束(必填)</label><input type="datetime-local" value="' + pmLocal_(x.end) + '" onchange="pm_[' + i + '].end=this.value?new Date(this.value).getTime():0;pmRender_()"></div>' +
+      '<div class="field"><label>開始(空=立刻)</label><input type="datetime-local" value="' + pmLocal_(x.start) + '" onchange="pm_[' + i + '].start=this.value?new Date(this.value).getTime():0"></div>' +
+      '<div class="field"><label>結束(必填)</label><input type="datetime-local" value="' + pmLocal_(x.end) + '" onchange="pm_[' + i + '].end=this.value?new Date(this.value).getTime():0"></div>' +
       '<div class="field"><label>標語(選填)</label><input value="' + e(x.note) + '" maxlength="30" placeholder="例:聖誕特賣" oninput="pm_[' + i + '].note=this.value" style="width:140px"></div>' +
       '<div class="field"><label>名額(總份數)</label><input type="number" min="0" step="1" value="' + e(x.quota || '') + '" placeholder="空=不限" oninput="pm_[' + i + '].quota=this.value" style="width:90px"></div>' +
       '<div class="field"><label>每人上限</label><input type="number" min="0" step="1" value="' + e(x.perUser || '') + '" placeholder="空=不限" oninput="pm_[' + i + '].perUser=this.value" style="width:80px"></div>' +
