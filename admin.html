@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.402</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.403</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1594,10 +1594,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🏆 共通大獎區 <span class="hint">所有難度共用、每次開挑戰最先抽</span></div>
-          <div class="hint" style="margin-bottom:6px"><b>抽取順序:🏆 大獎區 → 🏷️ 這題難度的盲盒(下面「依難度設定」)→ 🎁 共通盲盒(限定日期 > 平常)</b>。<br>
-          每一區只有「沒抽中」才會往下一區:機率加起來不到 100%、而且<b>沒有保底行</b>(沒寫機率也沒寫份數的行)時,剩下的機率就是沒中。例:大獎區只寫一行 2% → 98% 會往下抽;難度盲盒如果有保底行就一定在那區中,不會再到共通盲盒。<br>
-          寫法跟盲盒一樣(可用 {倍數}、[限量]、N份、[代替:名稱])。抽中大獎會在訊息顯示「🏆大獎!」。限量大獎已發完時:有 [代替:] 就發代替獎,沒有就依序往難度盲盒 → 共通盲盒重抽。留空=沒有大獎區。</div>
-          <textarea id="cc-jackpot" rows="4" oninput="ccJpPreview_()" style="width:100%" placeholder="[限量]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
+          <div class="hint" style="margin-bottom:6px"><b>先抽 🏆 大獎區;沒中才抽下面的盲盒——這題有標【難度】且有填該難度盲盒 → 只用難度盲盒;否則 → 只用共通盲盒(限定日期 > 平常)。難度盲盒跟共通盲盒只會用其中一個。</b><br>
+          ・大獎區每一行都要寫機率(不能有保底行/只寫份數的行),合計要小於 100%。<br>
+          ・有大獎區時,<b>難度盲盒、共通盲盒(含限定日期組)的機率只能填「剩餘機率」</b>=100% − 大獎區合計。例:大獎區 2% → 下面每個盲盒的機率加起來要剛好 98%(或少於 98% 但有一行保底);寫的數字就是實際機率。存檔時會檢查。<br>
+          ・寫法跟盲盒一樣(可用 {倍數}、[限量]、N份、[代替:名稱])。抽中大獎訊息會顯示「🏆大獎!」。限量大獎已發完:有 [代替:] 發代替獎,沒有就改抽下面那區。留空=沒有大獎區(下面的盲盒照舊填滿 100%)。</div>
+          <textarea id="cc-jackpot" rows="4" oninput="ccBlindPreview_()" style="width:100%" placeholder="[限量]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
           <div class="gacha-preview" id="cc-jackpot-preview" style="display:none;margin-top:8px"></div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
@@ -1639,7 +1640,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             　・🔢 挑戰訊息會顯示「(限量 3 份,目前剩 2 份,先完成先得;完成時如已發完會改發「代替獎名稱」)」(沒設代替獎則寫「…會重抽其他獎項」);被按成功時會寫「限量獎「X」已領取,剩 1/3 份」或「限量已被領完 → 改發代替獎/重新抽到…」<br>
             　・🔁 <b>代替獎</b>:另外寫一行 <code>[代替:獎項名稱]顯示名稱, 變數:數量</code>(獎項名稱要跟限量那行的第一格完全一樣,可用 {倍數});這行不參加抽獎,只在那個限量獎領完時才發<br>
             　・🔄 開了「重新抽選」時,玩家每重抽一次就重新抽一個獎項(只勾「任務」則照該頁說明)<br>
-            　・🏷️ <b>抽取順序:🏆 大獎區 → 這題【難度】的盲盒 → 共通盲盒(限定日期組有符合今天的優先,否則平常規則)</b>;前一區「沒中」(機率加起來不到100%且沒有保底行)才往下一區
+            　・🏷️ <b>抽取順序:先抽 🏆 大獎區;沒中 → 這題【難度】有填盲盒就只用難度盲盒,否則只用共通盲盒(限定日期組有符合今天的優先,否則平常規則)</b>;有大獎區時,難度/共通盲盒的機率要填滿「100% − 大獎區」
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑦ 範例</b></div>
             <b>跟著當日倍數</b><br>
             <code>幻彩水晶x1={倍數*1}, 幻彩水晶:{倍數*1}, 40%</code>　<span class="hint">← 1 倍日給 1 個、2 倍日給 2 個</span><br>
@@ -1670,7 +1671,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🏷️ 依難度設定成功獎勵</div>
-          <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時,先抽(🏆 大獎區之後)下面填的盲盒規則;<b>沒填的難度、題目沒標難度、或這區沒中(機率不到100%且沒保底行)→ 往下抽上面的共通成功獎勵(盲盒)</b>。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
+          <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時(🏆 大獎區沒中後)只用下面填的盲盒規則,不會再抽共通盲盒;<b>沒填的難度、或題目沒標難度 → 用上面的共通成功獎勵(盲盒)</b>。有大獎區時,機率要填滿大獎區剩下的 %。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
           <div id="cc-diff-rows"></div>
           <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="cc-diff-new" placeholder="新增其他難度名稱(例:傳說)" style="width:220px"><button class="btn btn-edit" onclick="ccDiffAdd_()">➕ 新增難度</button></div>
         </div>
@@ -5182,12 +5183,22 @@ function ccJpPreview_() {
   if (!ta.value.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
   ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1);
   const w = box.querySelector('.gp-summary.warn'); // 大獎區本來就該可以「沒中」→ 換成說明
-  if (w && /沒有保底獎/.test(w.textContent)) { const m = w.textContent.match(/合計 ([\d.]+)%/), t = m ? parseFloat(m[1]) : 0; w.className = 'gp-summary'; w.textContent = '🏆 大獎區合計 ' + t + '% → 沒中 ' + Math.max(0, Math.round((100 - t) * 100) / 100) + '% 會往下抽(難度盲盒 → 共通盲盒);限量都發完的大獎不會再被抽到'; }
+  if (w && /沒有保底獎/.test(w.textContent)) { const m = w.textContent.match(/合計 ([\d.]+)%/), t = m ? parseFloat(m[1]) : 0; w.className = 'gp-summary'; w.textContent = '🏆 大獎區合計 ' + t + '% → 剩下 ' + Math.max(0, Math.round((100 - t) * 100) / 100) + '% 給難度盲盒或共通盲盒(那邊的機率要加起來剛好 ' + Math.max(0, Math.round((100 - t) * 100) / 100) + '%,或加保底行);限量都發完的大獎不會再被抽到'; }
+}
+function ccRestNote_(box) { // 有大獎區時:下面盲盒的機率要填滿剩餘 %
+  const jt = (document.getElementById('cc-jackpot') || {}).value || ''; if (!jt.trim() || !box) return;
+  let jp = 0; try { parseGachaRulesPreview(jt.split(/\r?\n/).filter((l) => !/^\s*\[代替[:：]/.test(l)).join('\n')).forEach((p) => { if (p.prob !== null && p.prob !== undefined) jp += p.prob; }); } catch (e) { return; }
+  const rest = Math.round((100 - jp) * 1000) / 1000, sm = box.querySelector('.gp-summary'); if (!sm) return;
+  const m = sm.textContent.match(/合計 ([\d.]+)%/), t = m ? parseFloat(m[1]) : null; if (t === null) return;
+  const fb = !/沒有保底獎/.test(sm.textContent);
+  const ok = Math.abs(t - rest) < 0.001 || (fb && t < rest);
+  sm.className = 'gp-summary' + (ok ? '' : ' warn');
+  sm.textContent = (ok ? '✅ ' : '⚠️ ') + '機率合計 ' + t + '%,大獎區剩下 ' + rest + '%' + (ok ? '(OK)' : ' → 要剛好填滿 ' + rest + '%(或少一點但加一行保底),存檔會被擋');
 }
 function ccBlindPreview_() {
   ccJpPreview_();
   const box = document.getElementById('cc-blind-preview'), ta = document.getElementById('cc-blind'), sel = document.getElementById('cc-blind-mul'); if (!box || !ta) return;
-  ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1);
+  ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1); ccRestNote_(box);
   if (typeof ccDiff_ !== 'undefined') ccDiff_.forEach((x, i) => ccDiffPreview_(i)); // 依難度的獎勵也用同一個倍數預覽
 }
 let ccSets_ = { announceSets: [], puzzleSets: [], blindSets: [] };
@@ -5338,7 +5349,7 @@ function ccDiffRender_() {
 }
 function ccDiffPreview_(i) {
   const box = document.querySelector('#cc-diff-rows [data-ccp="' + i + '"]'), sel = document.getElementById('cc-blind-mul'); if (!box || !ccDiff_[i]) return;
-  ccPreviewWithAlts_(box, ccDiff_[i].text || '', parseFloat(sel && sel.value) || 1);
+  ccPreviewWithAlts_(box, ccDiff_[i].text || '', parseFloat(sel && sel.value) || 1); ccRestNote_(box);
 }
 async function ccStockLoad_(resetKey) {
   const box = document.getElementById('cc-stock-box'); if (!box) return;
