@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.408</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.409</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1601,7 +1601,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <textarea id="cc-jackpot" rows="4" oninput="ccBlindPreview_()" style="width:100%" placeholder="[公告]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
           <div class="gacha-preview" id="cc-jackpot-preview" style="display:none;margin-top:8px"></div>
           <div style="font-weight:700;margin:10px 0 4px">📅 期間限定大獎</div>
-          <div class="hint" style="margin-bottom:6px">設定的日期內<b>取代</b>上面的平常大獎(一天或一段;結束日期含當天)。每行都要寫機率、合計小於 100%,<b>可以跟平常大獎不同</b>:下面的盲盒照平常的「剩餘機率」填就好,期間內會<b>自動按比例縮放</b>(例:平常大獎 2%、共通 A 49%/B 49%;期間大獎 98% → 那幾天 A 1%/B 1%)。寫 <code>N份</code> 的限量獎=<b>整個期間共用 N 份</b>(例 12/24~12/26 限量 3 份=三天加起來 3 份);改了開始日期會當成新的一組、份數重新算。名稱前加 [公告] 的,期間內每日公告會顯示「🏆期間限定 名稱 剩 M/N 份」(沒限量就只列名稱)。</div>
+          <div class="hint" style="margin-bottom:6px">設定的日期內<b>取代</b>上面的平常大獎(一天或一段;結束日期含當天)。每行都要寫機率、合計小於 100%,<b>可以跟平常大獎不同</b>:下面的盲盒照平常的「剩餘機率」填就好,期間內會<b>自動按比例縮放</b>(例:平常大獎 2%、共通 A 49%/B 49%;期間大獎 98% → 那幾天 A 1%/B 1%)。寫 <code>N份</code> 的限量獎=<b>整個期間共用 N 份</b>,代替獎 <code>[代替:名稱]...</code> 寫在同一組框裡(例 12/24~12/26 限量 3 份=三天加起來 3 份);改了開始日期會當成新的一組、份數重新算。名稱前加 [公告] 的,期間內每日公告會顯示「🏆期間限定 名稱 剩 M/N 份」(沒限量就只列名稱)。</div>
           <div id="cc-sets-jackpotSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('jackpotSets')">➕ 新增期間大獎</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
@@ -1641,7 +1641,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             　・📦 <b>「份」= 限量,先完成先得</b>:開挑戰時照樣抽(不扣),<b>已經發完的限量獎不會再被抽到</b>;<b>管理員按「挑戰成功」時才扣 1 份</b>;份被領完時,有寫代替獎就改發代替獎,沒有就在還有份/不限量的獎項裡重抽一次,訊息會註明。份數是累計的,在下方「📦 限量獎已發份數」可以查看/歸零<br>
             　・📣 <b>[公告] 標籤</b>:名稱前面加 <code>[公告]</code>,每天的團任/個人挑戰公告就會多一段「📣 今日個人挑戰特別獎項(限量的先完成先得):」列出它——有寫份數的顯示「・七大罪箱子 剩 2/3 份」,沒限量的只列名稱「・🏆超級大獎」。沒加 [公告] 的獎項(限量的照樣限量)不會被列出。舊寫法 <code>[限量]</code> 一樣有效,改成 [公告] 份數不會歸零。玩家看到的名稱不會出現「[公告]」這幾個字<br>
             　・🔢 挑戰訊息會顯示「(限量 3 份,目前剩 2 份,先完成先得;完成時如已發完會改發「代替獎名稱」)」(沒設代替獎則寫「…會重抽其他獎項」);被按成功時會寫「限量獎「X」已領取,剩 1/3 份」或「限量已被領完 → 改發代替獎/重新抽到…」<br>
-            　・🔁 <b>代替獎</b>:另外寫一行 <code>[代替:獎項名稱]顯示名稱, 變數:數量</code>(獎項名稱要跟限量那行的第一格完全一樣,可用 {倍數});這行不參加抽獎,只在那個限量獎領完時才發<br>
+            　・🔁 <b>代替獎</b>:另外寫一行 <code>[代替:獎項名稱]顯示名稱, 變數:數量</code>(獎項名稱要跟限量那行的第一格一樣,前面的 [公告] 寫不寫都可以;可用 {倍數});這行不參加抽獎,只在那個限量獎領完時才發。<b>所有盲盒都能用</b>(🏆大獎區、📅期間大獎、各難度、限定日期難度、共通/限定日期盲盒),但<b>要寫在跟限量獎同一格</b>(例:期間大獎的代替獎寫在那組期間大獎的框裡)。沒寫代替獎 → 先在同一格重抽,沒中再往下一層抽<br>
             　・🔄 開了「重新抽選」時,玩家每重抽一次就重新抽一個獎項(只勾「任務」則照該頁說明)<br>
             　・🏷️ <b>抽取順序:先抽 🏆 大獎區;沒中 → 這題【難度】有盲盒就只用難度盲盒(限定日期難度組 > 平常難度),否則只用共通盲盒(限定日期組有符合今天的優先,否則平常規則)</b>;有大獎區時,難度/共通盲盒的機率要填滿「100% − 大獎區」
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑦ 範例</b></div>
@@ -1660,6 +1660,9 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <b>限量 + 代替獎</b><br>
             <code>[公告]七大罪箱子, [道具:七大罪的箱子]七大罪箱子, 1%, 3份</code>　<span class="hint">← 全部只發 3 份,先完成先得;有 [公告] 所以每日公告會列出剩餘份數</span><br>
             <code>[代替:七大罪箱子]幻彩水晶x{倍數*5}, 幻彩水晶:{倍數*5}</code>　<span class="hint">(限量那行有加 [公告] 時,這裡寫不寫 [公告] 都可以)</span>　<span class="hint">← 3 份發完後,抽到七大罪箱子的人改拿這個</span><br>
+            <b>期間大獎 + 代替獎</b>(寫在「📅 期間限定大獎」那組的框裡)<br>
+            <code>[公告]聖誕超級大獎, [道具:聖誕超級寶箱]聖誕超級大獎, 90%, 3份</code><br>
+            <code>[代替:聖誕超級大獎]聖誕安慰獎, 幻彩水晶:{倍數*10}</code>　<span class="hint">← 3 份發完後,已經抽到但還沒按成功的人改拿安慰獎;之後開挑戰的人不會再抽到超級大獎(那 90% 改抽下面的盲盒)</span><br>
             <b>非即時 / 保底</b><br>
             <code>角色加布, [非即時]角色加布, 0.5%</code>　<span class="hint">← 只顯示,管理員另外發</span><br>
             <code>安慰獎={倍數}, 幻彩水晶:{倍數}</code>　<span class="hint">← 沒寫機率/份數 = 保底,放最後一行</span>
