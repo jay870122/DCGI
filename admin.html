@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.404</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.405</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1597,11 +1597,11 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div class="hint" style="margin-bottom:6px"><b>先抽 🏆 大獎區;沒中才抽下面的盲盒——這題有標【難度】且有填該難度盲盒 → 只用難度盲盒;否則 → 只用共通盲盒(限定日期 > 平常)。難度盲盒跟共通盲盒只會用其中一個。</b><br>
           ・大獎區每一行都要寫機率(不能有保底行/只寫份數的行),合計要小於 100%。<br>
           ・有大獎區時,<b>難度盲盒、共通盲盒(含限定日期組)的機率只能填「剩餘機率」</b>=100% − 大獎區合計。例:大獎區 2% → 下面每個盲盒的機率加起來要剛好 98%(或少於 98% 但有一行保底);寫的數字就是實際機率。存檔時會檢查。<br>
-          ・寫法跟盲盒一樣(可用 {倍數}、[限量]、N份、[代替:名稱])。抽中大獎訊息會顯示「🏆大獎!」。限量大獎已發完:有 [代替:] 發代替獎,沒有就改抽下面那區。留空=沒有大獎區(下面的盲盒照舊填滿 100%)。</div>
-          <textarea id="cc-jackpot" rows="4" oninput="ccBlindPreview_()" style="width:100%" placeholder="[限量]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
+          ・寫法跟盲盒一樣(可用 {倍數}、[公告]、N份、[代替:名稱])。抽中大獎訊息會顯示「🏆大獎!」。限量大獎已發完:有 [代替:] 發代替獎,沒有就改抽下面那區。留空=沒有大獎區(下面的盲盒照舊填滿 100%)。</div>
+          <textarea id="cc-jackpot" rows="4" oninput="ccBlindPreview_()" style="width:100%" placeholder="[公告]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
           <div class="gacha-preview" id="cc-jackpot-preview" style="display:none;margin-top:8px"></div>
           <div style="font-weight:700;margin:10px 0 4px">📅 期間限定大獎</div>
-          <div class="hint" style="margin-bottom:6px">設定的日期內<b>取代</b>上面的平常大獎(一天或一段;結束日期含當天)。合計機率要<b>跟平常大獎區一樣</b>(下面盲盒的剩餘機率才對得上),存檔會檢查。寫 <code>N份</code> 的限量獎=<b>整個期間共用 N 份</b>(例 12/24~12/26 限量 3 份=三天加起來 3 份);改了開始日期會當成新的一組、份數重新算。期間內每日公告會顯示「🏆期間限定 名稱 剩 M/N 份」(名稱前要加 [限量])。</div>
+          <div class="hint" style="margin-bottom:6px">設定的日期內<b>取代</b>上面的平常大獎(一天或一段;結束日期含當天)。合計機率要<b>跟平常大獎區一樣</b>(下面盲盒的剩餘機率才對得上),存檔會檢查。寫 <code>N份</code> 的限量獎=<b>整個期間共用 N 份</b>(例 12/24~12/26 限量 3 份=三天加起來 3 份);改了開始日期會當成新的一組、份數重新算。名稱前加 [公告] 的,期間內每日公告會顯示「🏆期間限定 名稱 剩 M/N 份」(沒限量就只列名稱)。</div>
           <div id="cc-sets-jackpotSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('jackpotSets')">➕ 新增期間大獎</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
@@ -1639,7 +1639,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑥ 跟商店盲盒不一樣的地方</b></div>
             　・❌ <b>不支援</b> <code>[序號]</code>、<code>[身分組]</code>、<code>[留言]</code>、<code>[統計]</code>(存檔時會擋下來)<br>
             　・📦 <b>「份」= 限量,先完成先得</b>:開挑戰時照樣抽(不扣),<b>已經發完的限量獎不會再被抽到</b>;<b>管理員按「挑戰成功」時才扣 1 份</b>;份被領完時,有寫代替獎就改發代替獎,沒有就在還有份/不限量的獎項裡重抽一次,訊息會註明。份數是累計的,在下方「📦 限量獎已發份數」可以查看/歸零<br>
-            　・📣 <b>[限量] 標籤</b>:限量獎的名稱前面加 <code>[限量]</code>(例如 <code>[限量]七大罪箱子, ..., 3份</code>),每天的團任/個人挑戰公告就會多一段「📦 今日個人挑戰限量獎:・七大罪箱子 剩 2/3 份」;沒加 [限量] 的限量獎照樣限量,只是公告不列出。玩家看到的名稱不會出現「[限量]」這幾個字<br>
+            　・📣 <b>[公告] 標籤</b>:名稱前面加 <code>[公告]</code>,每天的團任/個人挑戰公告就會多一段「📣 今日個人挑戰獎項(限量的先完成先得):」列出它——有寫份數的顯示「・七大罪箱子 剩 2/3 份」,沒限量的只列名稱「・🏆超級大獎」。沒加 [公告] 的獎項(限量的照樣限量)不會被列出。舊寫法 <code>[限量]</code> 一樣有效,改成 [公告] 份數不會歸零。玩家看到的名稱不會出現「[公告]」這幾個字<br>
             　・🔢 挑戰訊息會顯示「(限量 3 份,目前剩 2 份,先完成先得;完成時如已發完會改發「代替獎名稱」)」(沒設代替獎則寫「…會重抽其他獎項」);被按成功時會寫「限量獎「X」已領取,剩 1/3 份」或「限量已被領完 → 改發代替獎/重新抽到…」<br>
             　・🔁 <b>代替獎</b>:另外寫一行 <code>[代替:獎項名稱]顯示名稱, 變數:數量</code>(獎項名稱要跟限量那行的第一格完全一樣,可用 {倍數});這行不參加抽獎,只在那個限量獎領完時才發<br>
             　・🔄 開了「重新抽選」時,玩家每重抽一次就重新抽一個獎項(只勾「任務」則照該頁說明)<br>
@@ -1658,8 +1658,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             <code>神秘寶箱, [道具:木頭寶箱]神秘寶箱, 5%</code>　<span class="hint">← 發一個「木頭寶箱」模板的道具到我的道具</span><br>
             <code>指定券(24h), [背包:PICK_FREE||HOURS|24]指定券, 3%</code><br>
             <b>限量 + 代替獎</b><br>
-            <code>[限量]七大罪箱子, [道具:七大罪的箱子]七大罪箱子, 1%, 3份</code>　<span class="hint">← 全部只發 3 份,先完成先得;有 [限量] 所以每日公告會列出剩餘份數</span><br>
-            <code>[代替:七大罪箱子]幻彩水晶x{倍數*5}, 幻彩水晶:{倍數*5}</code>　<span class="hint">(限量那行有加 [限量] 時,這裡寫不寫 [限量] 都可以)</span>　<span class="hint">← 3 份發完後,抽到七大罪箱子的人改拿這個</span><br>
+            <code>[公告]七大罪箱子, [道具:七大罪的箱子]七大罪箱子, 1%, 3份</code>　<span class="hint">← 全部只發 3 份,先完成先得;有 [公告] 所以每日公告會列出剩餘份數</span><br>
+            <code>[代替:七大罪箱子]幻彩水晶x{倍數*5}, 幻彩水晶:{倍數*5}</code>　<span class="hint">(限量那行有加 [公告] 時,這裡寫不寫 [公告] 都可以)</span>　<span class="hint">← 3 份發完後,抽到七大罪箱子的人改拿這個</span><br>
             <b>非即時 / 保底</b><br>
             <code>角色加布, [非即時]角色加布, 0.5%</code>　<span class="hint">← 只顯示,管理員另外發</span><br>
             <code>安慰獎={倍數}, 幻彩水晶:{倍數}</code>　<span class="hint">← 沒寫機率/份數 = 保底,放最後一行</span>
@@ -1669,7 +1669,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b>📦 限量獎已發份數</b><button class="btn btn-edit" style="margin-left:auto" onclick="ccStockLoad_()">🔄 重新整理</button></div>
-          <div class="hint" style="margin-bottom:6px">獎項有寫 <code>N份</code> 就是限量:開挑戰時照樣抽(已發完的不會再抽到),<b>管理員按「挑戰成功」時才扣份,先完成先得</b>。份被領完時:有寫 <code>[代替:獎項名稱]</code> 那行就改發代替獎,沒有就在還有份/不限量的獎項裡重抽一次(訊息會註明)。份數是累計的,要重新開始就按「歸零」。名稱加 <code>[限量]</code> 的,每日公告會顯示剩餘份數。</div>
+          <div class="hint" style="margin-bottom:6px">獎項有寫 <code>N份</code> 就是限量:開挑戰時照樣抽(已發完的不會再抽到),<b>管理員按「挑戰成功」時才扣份,先完成先得</b>。份被領完時:有寫 <code>[代替:獎項名稱]</code> 那行就改發代替獎,沒有就在還有份/不限量的獎項裡重抽一次(訊息會註明)。份數是累計的,要重新開始就按「歸零」。名稱加 <code>[公告]</code> 的,每日公告會列出(限量的顯示剩餘份數,沒限量的只列名稱)。</div>
           <div id="cc-stock-box" class="hint">(按「重新整理」查看)</div>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
@@ -5205,7 +5205,7 @@ function ccBlindPreview_() {
   if (typeof ccDiff_ !== 'undefined') ccDiff_.forEach((x, i) => ccDiffPreview_(i)); // 依難度的獎勵也用同一個倍數預覽
 }
 let ccSets_ = { announceSets: [], puzzleSets: [], blindSets: [], jackpotSets: [] };
-const CC_SET_PH_ = { announceSets: '例如:📢 本週末限時活動…', puzzleSets: '一行一題', blindSets: '幻彩水晶X{倍數*2}={倍數*2}, 幻彩水晶:{倍數*2}, 100%', jackpotSets: '[限量]聖誕超級大獎, [非即時]聖誕超級大獎, 1%, 3份\n幻彩水晶X100, 幻彩水晶:100, 1%' };
+const CC_SET_PH_ = { announceSets: '例如:📢 本週末限時活動…', puzzleSets: '一行一題', blindSets: '幻彩水晶X{倍數*2}={倍數*2}, 幻彩水晶:{倍數*2}, 100%', jackpotSets: '[公告]聖誕超級大獎, [非即時]聖誕超級大獎, 1%, 3份\n幻彩水晶X100, 幻彩水晶:100, 1%' };
 function ccSetRender_(kind) {
   const el = document.getElementById('cc-sets-' + kind); if (!el) return;
   const e = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
