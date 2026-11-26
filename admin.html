@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.407</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.408</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1601,7 +1601,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <textarea id="cc-jackpot" rows="4" oninput="ccBlindPreview_()" style="width:100%" placeholder="[公告]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
           <div class="gacha-preview" id="cc-jackpot-preview" style="display:none;margin-top:8px"></div>
           <div style="font-weight:700;margin:10px 0 4px">📅 期間限定大獎</div>
-          <div class="hint" style="margin-bottom:6px">設定的日期內<b>取代</b>上面的平常大獎(一天或一段;結束日期含當天)。合計機率要<b>跟平常大獎區一樣</b>(下面盲盒的剩餘機率才對得上),存檔會檢查。寫 <code>N份</code> 的限量獎=<b>整個期間共用 N 份</b>(例 12/24~12/26 限量 3 份=三天加起來 3 份);改了開始日期會當成新的一組、份數重新算。名稱前加 [公告] 的,期間內每日公告會顯示「🏆期間限定 名稱 剩 M/N 份」(沒限量就只列名稱)。</div>
+          <div class="hint" style="margin-bottom:6px">設定的日期內<b>取代</b>上面的平常大獎(一天或一段;結束日期含當天)。每行都要寫機率、合計小於 100%,<b>可以跟平常大獎不同</b>:下面的盲盒照平常的「剩餘機率」填就好,期間內會<b>自動按比例縮放</b>(例:平常大獎 2%、共通 A 49%/B 49%;期間大獎 98% → 那幾天 A 1%/B 1%)。寫 <code>N份</code> 的限量獎=<b>整個期間共用 N 份</b>(例 12/24~12/26 限量 3 份=三天加起來 3 份);改了開始日期會當成新的一組、份數重新算。名稱前加 [公告] 的,期間內每日公告會顯示「🏆期間限定 名稱 剩 M/N 份」(沒限量就只列名稱)。</div>
           <div id="cc-sets-jackpotSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('jackpotSets')">➕ 新增期間大獎</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
