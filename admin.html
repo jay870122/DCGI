@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.414</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.415</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1576,7 +1576,18 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           ・<b>可用難度</b>:都不勾=全部難度都能用;有勾=只能用在題目開頭是那些難度的挑戰。<br>
           ・選單預設選<b>限制最嚴(水晶上限最低)</b>的那張,玩家可以自己換。生日 PASS 不會出現這顆按鈕。測試頻道按了不扣券、不發獎(測試時獎勵水晶當 0 算)。</div>
           <div id="cc-pass-rows"></div>
-          <button class="btn btn-edit" style="margin-top:8px" onclick="ccPass_.push({ tpl: '', max: '', diffs: [] }); ccPassRender_()">➕ 新增 PASS券</button>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="ccPass_.push({ tpl: '', target: 'self', max: '', diffs: [] }); ccPassRender_()">➕ 新增 PASS券</button>
+          <div class="hint" style="margin-top:6px">・<b>PASS 自己</b>:自己這題直接成功。<b>指定別人 PASS</b>:選一位玩家,他今天的挑戰直接成功、獎勵發給他。<b>隨機幫一人 PASS</b>:從符合水晶上限/難度條件、今天已開挑戰還沒結算的其他玩家裡隨機挑一位。幫別人 PASS 時,水晶上限/難度看的是<b>對方那題</b>,頻道會公告。</div>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🔀 任務交換券</div>
+          <div class="hint" style="margin-bottom:8px">一樣在「🎒 使用道具」選單裡使用,按確定才扣背包 1 張。<b>只會換到「今天已開挑戰、還沒結算」的玩家</b>(生日 PASS 不算),<b>對方不用同意、直接生效</b>,雙方挑戰訊息會自動改、頻道會公告。<br>
+          ・<b>指定玩家交換</b>:選一位玩家,你們兩個互換。<b>隨機1人交換</b>:隨機挑一位跟你互換。<br>
+          ・<b>隨機N人兩兩互換</b>:不含自己,隨機挑 N 個人(2、4、6…)兩兩配對互換(搗蛋用;人數不夠 N 人時不能用)。<br>
+          ・<b>全體隨機交換</b>:所有進行中的玩家(含自己)任務打亂重新分配,每個人都會拿到別人的。<br>
+          ・<b>只換任務</b>=獎勵各自保留;<b>任務+獎勵全換</b>=連成功獎勵(含盲盒)一起換。</div>
+          <div id="cc-swap-rows"></div>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="ccSwap_.push({ tpl: '', kind: 'target', mode: 'puzzle', n: 2 }); ccSwapRender_()">➕ 新增任務交換券</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎟️ 題目重抽券</div>
@@ -5309,8 +5320,9 @@ async function loadChallengeCfg() {
     ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; g('cc-jackpot').value = c.jackpotBlind || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
     ccDiff_ = JSON.parse(JSON.stringify(c.diffBlind || []));
     g('cc-rr-puz').checked = !!c.rerollPuzzle; g('cc-rr-rew').checked = !!c.rerollReward; g('cc-rr-unl').checked = c.rerollMax < 0; g('cc-rr-max').value = c.rerollMax > 0 ? c.rerollMax : 0; g('cc-rr-max').disabled = c.rerollMax < 0;
+    ccSwap_ = (c.swapItems || []).map((x) => ({ tpl: x.tpl, kind: x.kind || 'target', mode: x.mode || 'puzzle', n: x.n || 2 })); ccSwapRender_();
     ccRri_ = (c.rerollItems || []).map((x) => ({ tpl: x.tpl, diffs: (x.diffs || []).slice(), mode: x.mode === 'all' ? 'all' : 'puzzle', to: (x.to || []).slice() })); ccRriRender_();
-    ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
+    ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, target: x.target || 'self', max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
     (c.diffReroll || []).forEach((r) => { let x = ccDiff_.find((y) => y.tag === r.tag); if (!x) { x = { tag: r.tag, text: '' }; ccDiff_.push(x); } x.rrAllow = r.allow !== false; x.rrMax = r.max < 0 ? '' : String(r.max); });
     ccLoaded_ = true;
     ccDSets_ = (c.diffBlindSets || []).map((x) => ({ tag: x.tag, start: x.start || '', end: x.end && x.end !== x.start ? x.end : '', text: x.text || '' })); ccDSetsRender_();
@@ -5331,6 +5343,18 @@ function ccRriRender_() {
     '<div style="flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="hint">只換到這些難度(都不勾=任何難度):</span>' + tags.map((t) => '<label class="pk-chk" style="margin:0"><input type="checkbox"' + ((r.to || []).indexOf(t) >= 0 ? ' checked' : '') + ' onchange="ccRriTag_(' + i + ',\'to\',\'' + esc(t) + '\',this.checked)">' + esc(t) + '</label>').join('') + '</div></div>').join('') : '<div class="hint">(尚未設定題目重抽券,挑戰訊息不會出現這顆按鈕)</div>';
 }
 function ccRriTag_(i, f, t, on) { const d = ccRri_[i][f] = ccRri_[i][f] || []; const k = d.indexOf(t); if (on && k < 0) d.push(t); if (!on && k >= 0) d.splice(k, 1); }
+let ccSwap_ = [];
+function ccSwapRender_() {
+  const box = document.getElementById('cc-swap-rows'); if (!box) return; ccItemList_();
+  const esc = (t) => String(t === undefined || t === null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const op = (v, cur, t) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + t + '</option>';
+  box.innerHTML = ccSwap_.length ? ccSwap_.map((r, i) => '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+    '<input list="cc-item-list" placeholder="道具模板名稱(點一下可選)" value="' + esc(r.tpl) + '" oninput="ccSwap_[' + i + '].tpl=this.value" style="width:200px">' +
+    '<select onchange="ccSwap_[' + i + '].kind=this.value;ccSwapRender_()">' + op('target', r.kind, '指定玩家交換') + op('random', r.kind, '隨機1人交換') + op('group', r.kind, '隨機N人兩兩互換(不含自己)') + op('all', r.kind, '全體隨機交換') + '</select>' +
+    (r.kind === 'group' ? '<span class="hint">N=</span><input type="number" min="2" step="2" value="' + esc(r.n || 2) + '" oninput="ccSwap_[' + i + '].n=this.value" style="width:70px"><span class="hint">人(雙數)</span>' : '') +
+    '<select onchange="ccSwap_[' + i + '].mode=this.value">' + op('puzzle', r.mode, '只換任務') + op('all', r.mode, '任務+獎勵全換') + '</select>' +
+    '<button class="btn btn-del" onclick="ccSwap_.splice(' + i + ',1);ccSwapRender_()">🗑️</button></div>').join('') : '<div class="hint">(尚未設定任務交換券)</div>';
+}
 let ccPass_ = [];
 function ccPassRender_() {
   const box = document.getElementById('cc-pass-rows'); if (!box) return; ccItemList_();
@@ -5338,6 +5362,7 @@ function ccPassRender_() {
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   box.innerHTML = ccPass_.length ? ccPass_.map((r, i) => '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
     '<input list="cc-item-list" placeholder="道具模板名稱(點一下可選)" value="' + esc(r.tpl) + '" oninput="ccPass_[' + i + '].tpl=this.value" style="width:200px">' +
+    '<select onchange="ccPass_[' + i + '].target=this.value"><option value="self"' + (!r.target || r.target === 'self' ? ' selected' : '') + '>PASS 自己</option><option value="pick"' + (r.target === 'pick' ? ' selected' : '') + '>指定別人 PASS</option><option value="random"' + (r.target === 'random' ? ' selected' : '') + '>隨機幫一人 PASS</option></select>' +
     '<input type="number" min="0" step="1" placeholder="水晶上限(空=不限)" value="' + esc(r.max) + '" oninput="ccPass_[' + i + '].max=this.value" style="width:150px">' +
     '<span class="hint">可用難度:</span>' + tags.map((t) => '<label class="pk-chk" style="margin:0"><input type="checkbox"' + (r.diffs.indexOf(t) >= 0 ? ' checked' : '') + ' onchange="ccPassTag_(' + i + ',\'' + esc(t) + '\',this.checked)">' + esc(t) + '</label>').join('') +
     '<button class="btn btn-del" onclick="ccPass_.splice(' + i + ',1);ccPassRender_()">🗑️</button></div>').join('') : '<div class="hint">(尚未設定 PASS券,挑戰訊息不會出現 PASS 按鈕)</div>';
@@ -5351,7 +5376,7 @@ async function saveChallengeCfg() {
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), jackpotBlind: g('cc-jackpot'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, diffBlindSets: ccDSets_.filter((x) => x.tag || x.start || (x.text || '').trim()).map((x) => ({ tag: x.tag, start: x.start, end: x.end, text: x.text })), rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), rerollItems: ccRri_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), diffs: x.diffs, mode: x.mode === 'all' ? 'all' : 'puzzle', to: x.to || [] })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, diffBlindSets: ccDSets_.filter((x) => x.tag || x.start || (x.text || '').trim()).map((x) => ({ tag: x.tag, start: x.start, end: x.end, text: x.text })), rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), swapItems: ccSwap_.filter((x) => (x.tpl || '').trim()).map((x) => { let n = parseInt(x.n, 10) || 2; if (n < 2) n = 2; if (n % 2) n += 1; return { tpl: x.tpl.trim(), kind: x.kind, mode: x.mode, n }; }), rerollItems: ccRri_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), diffs: x.diffs, mode: x.mode === 'all' ? 'all' : 'puzzle', to: x.to || [] })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ target: x.target || 'self', tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
