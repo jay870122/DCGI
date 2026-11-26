@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.410</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.411</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1577,6 +1577,15 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           ・選單預設選<b>限制最嚴(水晶上限最低)</b>的那張,玩家可以自己換。生日 PASS 不會出現這顆按鈕。測試頻道按了不扣券、不發獎(測試時獎勵水晶當 0 算)。</div>
           <div id="cc-pass-rows"></div>
           <button class="btn btn-edit" style="margin-top:8px" onclick="ccPass_.push({ tpl: '', max: '', diffs: [] }); ccPassRender_()">➕ 新增 PASS券</button>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🎟️ 題目重抽券</div>
+          <div class="hint" style="margin-bottom:8px">有設定的話,玩家開啟挑戰的訊息會多一顆「🎟️ 題目重抽券」按鈕(只有本人能按,生日 PASS 不出現)。按下跳出選單列出每種券能不能用在這題、持有幾張;選好按「✅ 確定使用」才從<b>通用道具背包</b>扣 1 張,<b>換一個新題目</b>。<br>
+          ・<b>不受</b>「🔄 重新抽選」的每日次數、難度不可重抽的限制(那邊沒開也能用券);可以一直用券換到滿意為止。<br>
+          ・只換題目、<b>獎勵不變</b>;但換到不同難度、而且有設「依難度獎勵」時,獎勵會照新難度重抽(跟免費重抽一樣)。<br>
+          ・<b>可用難度</b>:看的是「目前這題」的難度;都不勾=全部都能用(例:只勾【地獄】【夢魘】=只能拿來換掉地獄/夢魘題)。測試頻道按了不扣券。</div>
+          <div id="cc-rri-rows"></div>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="ccRri_.push({ tpl: '', diffs: [] }); ccRriRender_()">➕ 新增題目重抽券</button>
         </div>
         <div class="ct-card" style="padding:14px 18px">
           <div style="font-weight:700;margin-bottom:8px">❌ 失敗懲罰(一行一種,目前只顯示文字,不扣東西;訊息顯示「無」)</div>
@@ -5299,6 +5308,7 @@ async function loadChallengeCfg() {
     ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; g('cc-jackpot').value = c.jackpotBlind || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
     ccDiff_ = JSON.parse(JSON.stringify(c.diffBlind || []));
     g('cc-rr-puz').checked = !!c.rerollPuzzle; g('cc-rr-rew').checked = !!c.rerollReward; g('cc-rr-unl').checked = c.rerollMax < 0; g('cc-rr-max').value = c.rerollMax > 0 ? c.rerollMax : 0; g('cc-rr-max').disabled = c.rerollMax < 0;
+    ccRri_ = (c.rerollItems || []).map((x) => ({ tpl: x.tpl, diffs: (x.diffs || []).slice() })); ccRriRender_();
     ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
     (c.diffReroll || []).forEach((r) => { let x = ccDiff_.find((y) => y.tag === r.tag); if (!x) { x = { tag: r.tag, text: '' }; ccDiff_.push(x); } x.rrAllow = r.allow !== false; x.rrMax = r.max < 0 ? '' : String(r.max); });
     ccLoaded_ = true;
@@ -5307,6 +5317,17 @@ async function loadChallengeCfg() {
     ccDiffRender_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
+let ccRri_ = [];
+function ccRriRender_() {
+  const box = document.getElementById('cc-rri-rows'); if (!box) return; ccItemList_();
+  const tags = ['簡單', '普通', '困難', '地獄', '夢魘'].concat((ccDiff_ || []).map((x) => x.tag).filter((t) => t && ['簡單', '普通', '困難', '地獄', '夢魘'].indexOf(t) < 0));
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  box.innerHTML = ccRri_.length ? ccRri_.map((r, i) => '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+    '<input list="cc-item-list" placeholder="道具模板名稱(點一下可選)" value="' + esc(r.tpl) + '" oninput="ccRri_[' + i + '].tpl=this.value" style="width:200px">' +
+    '<span class="hint">可用難度:</span>' + tags.map((t) => '<label class="pk-chk" style="margin:0"><input type="checkbox"' + (r.diffs.indexOf(t) >= 0 ? ' checked' : '') + ' onchange="ccRriTag_(' + i + ',\'' + esc(t) + '\',this.checked)">' + esc(t) + '</label>').join('') +
+    '<button class="btn btn-del" onclick="ccRri_.splice(' + i + ',1);ccRriRender_()">🗑️</button></div>').join('') : '<div class="hint">(尚未設定題目重抽券,挑戰訊息不會出現這顆按鈕)</div>';
+}
+function ccRriTag_(i, t, on) { const d = ccRri_[i].diffs; const k = d.indexOf(t); if (on && k < 0) d.push(t); if (!on && k >= 0) d.splice(k, 1); }
 let ccPass_ = [];
 function ccPassRender_() {
   const box = document.getElementById('cc-pass-rows'); if (!box) return; ccItemList_();
@@ -5327,7 +5348,7 @@ async function saveChallengeCfg() {
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), jackpotBlind: g('cc-jackpot'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, diffBlindSets: ccDSets_.filter((x) => x.tag || x.start || (x.text || '').trim()).map((x) => ({ tag: x.tag, start: x.start, end: x.end, text: x.text })), rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, diffBlindSets: ccDSets_.filter((x) => x.tag || x.start || (x.text || '').trim()).map((x) => ({ tag: x.tag, start: x.start, end: x.end, text: x.text })), rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), rerollItems: ccRri_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), diffs: x.diffs })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
