@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.421</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.422</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1997,6 +1997,20 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       </div>
       <div class="field"><label>價格</label><input id="em-price" type="text" placeholder="0 或運算式 {BTC*2}" title="整格填 {…} 可以用 + - * / 括號;變數:BTC/ETH/DOGE… 美元報價、持有(貨幣)、獲得(貨幣@本月|本週|本季|YYYY-MM-DD~YYYY-MM-DD)。報價每分鐘更新一次"><details class="gacha-guide" style="margin-top:6px"><summary style="cursor:pointer">📖 <b>價格運算式教學</b>(價格要隨報價/玩家狀況浮動才需要看,點這裡展開)</summary><div style="margin:6px 0 4px;color:var(--mu)">目錄：①怎麼寫　②變數　③範例　④規則　⑤獎池也能用</div><div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">① 怎麼寫</b></div>價格整格填 <code>{…}</code> 就會變成「<b>隨報價/玩家狀況浮動</b>」的價格,可用 <code>+ - * /</code> 和括號。<br><div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">② 變數</b></div>　・<b>幣價</b>:<code>BTC</code>、<code>ETH</code>、<code>DOGE</code>…(美元報價)<br>　・<b>持有</b>:<code>持有(幻彩水晶)</code>=玩家目前持有量(含股票/加密持倉)<br>　・<b>獲得</b>:<code>獲得(幻彩水晶@本月)</code>=該期間已獲得量<br>　　- 期間可寫 本月 / 本週 / 本季 / <code>2026-11-01~2026-11-30</code><br>　　- 該貨幣要先開啟獲得紀錄<br><div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">③ 範例</b></div><code>{BTC/10000}</code><br><code>{BTC/1000 + 持有(幻彩水晶)*0.1}</code><br><code>{(BTC+ETH)/2000 + 3}</code><br><div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">④ 規則</b></div>　・結果無條件捨去、最少 1<br>　・報價每 1 分鐘更新一次;購買時價格若已變動,會請玩家重新確認<br>　・算不出來(抓不到報價等)就不能買<br><div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑤ 獎池也能用</b></div>獎池數量可寫 <code>名稱*{DOGE*1000}</code> 或 <code>名稱:{BTC/100}</code>,但<b>只支援幣價</b>。</details></div>
       <div class="field"><label>貨幣欄位</label><input id="em-currency" list="dc-list"></div>
+      <div class="full field" id="em-promo-box" style="background:rgba(237,66,69,.08);border:1px solid rgba(237,66,69,.35);border-radius:8px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="em-promo-on" onchange="emPromoUi_()" style="width:auto"> 🏷️ 期間促銷 <span class="hint" id="em-promo-state"></span></label>
+        <div id="em-promo-fields" style="display:none;margin-top:8px">
+          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <div class="field"><label>方式</label><select id="em-promo-type" onchange="emPromoUi_()"><option value="pct">打折 %</option><option value="price">指定價格</option></select></div>
+            <div class="field"><label id="em-promo-vlab">折掉幾 %</label><input id="em-promo-val" type="number" min="0" step="1" value="20" oninput="emPromoUi_()" style="width:110px"></div>
+            <div class="field"><label>開始(空=立刻)</label><input id="em-promo-start" type="datetime-local" onchange="emPromoUi_()"></div>
+            <div class="field"><label>結束(必填)</label><input id="em-promo-end" type="datetime-local" onchange="emPromoUi_()"></div>
+            <div class="field"><label>標語(選填)</label><input id="em-promo-note" maxlength="30" placeholder="例:聖誕特賣" style="width:140px"></div>
+          </div>
+          <div class="hint" id="em-promo-preview" style="margin-top:6px"></div>
+          <div class="hint">時間到自動恢復原價(不會改到上面的價格欄)。打折 % 時商品選項價格也一起打折;有商品選項不能用指定價格。所有促銷也可以在左側「🏷️ 期間促銷」頁一次查看。</div>
+        </div>
+      </div>
       <div class="full field">
         <label>額外必付費用 <span class="hint">留空=不用;可新增多種,每次購買都會一起收(不是選填折抵)</span></label>
         <div id="em-extracost-list"></div>
@@ -4469,6 +4483,46 @@ async function bagD1_(action, extra) {
     const d = await r.json();
     box.textContent = JSON.stringify(d, null, 2);
   } catch (e) { box.textContent = '失敗:' + (e && e.message || e); }
+}
+// ===== 🏷️ 期間促銷(商品編輯內) =====
+let emPromoOrig_ = null; // 開啟編輯時讀到的這個商品促銷(null=沒有);用來判斷要不要存
+async function emPromoLoad_(itemId) {
+  const f = (id) => document.getElementById(id); if (!f('em-promo-on')) return;
+  emPromoOrig_ = null; f('em-promo-on').checked = false; f('em-promo-type').value = 'pct'; f('em-promo-val').value = 20; f('em-promo-start').value = ''; f('em-promo-end').value = pmLocal_(Date.now() + 7 * 86400000); f('em-promo-note').value = ''; f('em-promo-state').textContent = '讀取中…'; emPromoUi_();
+  try {
+    const d = await grCall_('adminPromoGet');
+    if (f('em-id').value !== String(itemId)) return;
+    const p = d && d.status === 'success' ? (d.promo || {})[itemId] : null;
+    if (p) { emPromoOrig_ = p; f('em-promo-on').checked = true; f('em-promo-type').value = p.type === 'price' ? 'price' : 'pct'; f('em-promo-val').value = p.val; f('em-promo-start').value = pmLocal_(p.start); f('em-promo-end').value = pmLocal_(p.end); f('em-promo-note').value = p.note || ''; }
+    f('em-promo-state').textContent = '';
+  } catch (e) { f('em-promo-state').textContent = '(讀取促銷失敗)'; }
+  emPromoUi_();
+}
+function emPromoUi_() {
+  const f = (id) => document.getElementById(id); if (!f('em-promo-on')) return;
+  const on = f('em-promo-on').checked, type = f('em-promo-type').value, v = Number(f('em-promo-val').value) || 0, base = Number(f('em-price').value) || 0;
+  f('em-promo-fields').style.display = on ? '' : 'none';
+  f('em-promo-vlab').textContent = type === 'price' ? '促銷價格' : '折掉幾 %';
+  const after = type === 'price' ? v : Math.max(0, Math.round(base * (100 - v) / 100));
+  const now = Date.now(), st = f('em-promo-start').value ? new Date(f('em-promo-start').value).getTime() : 0, en = f('em-promo-end').value ? new Date(f('em-promo-end').value).getTime() : 0;
+  const stTxt = !en ? '' : now >= en ? '(已結束)' : st && now < st ? '(尚未開始)' : '(促銷中)';
+  f('em-promo-preview').textContent = on ? '原價 ' + base + ' → 促銷價 ' + after + (type === 'pct' ? '(' + (100 - v) + '%)' : '') + ' ' + stTxt : '';
+  if (f('em-promo-state').textContent !== '讀取中…') f('em-promo-state').textContent = on ? stTxt : '';
+}
+async function emPromoSave_(itemId) { // 回傳錯誤文字;沒變動就不存
+  const f = (id) => document.getElementById(id); if (!f('em-promo-on') || !itemId) return '';
+  const on = f('em-promo-on').checked;
+  if (!on && !emPromoOrig_) return '';
+  const want = on ? { type: f('em-promo-type').value, val: Number(f('em-promo-val').value) || 0, start: f('em-promo-start').value ? new Date(f('em-promo-start').value).getTime() : 0, end: f('em-promo-end').value ? new Date(f('em-promo-end').value).getTime() : 0, name: f('em-name').value || '', note: f('em-promo-note').value || '' } : null;
+  if (on && !want.end) return '期間促銷要填結束時間';
+  if (on && want.type === 'price' && pmHasOpt_({ itemOptionsRaw: serializeItemOptions('em') })) return '有商品選項不能用指定價格';
+  const mn_ = (v) => Math.floor((Number(v) || 0) / 60000); // 時間比到分鐘(輸入框只到分鐘)
+  if (emPromoOrig_ && want && ['type', 'val', 'note'].every((k) => String(emPromoOrig_[k] || '') === String(want[k] || '')) && mn_(emPromoOrig_.start) === mn_(want.start) && mn_(emPromoOrig_.end) === mn_(want.end)) return '';
+  const g = await grCall_('adminPromoGet'); if (!g || g.status !== 'success') return (g && g.message) || '讀取促銷失敗';
+  const all = g.promo || {};
+  if (want) all[itemId] = want; else delete all[itemId];
+  const d = await grCall_('adminPromoSave', { promo: all });
+  return d && d.status === 'success' ? '' : ((d && d.message) || '儲存失敗');
 }
 // ===== 🏷️ 期間促銷 =====
 let pm_ = [], pmNow_ = Date.now();
@@ -8993,6 +9047,7 @@ function condEdit_(px, i, f, v) { const arr = condsGet_(px); if (arr[i]) { arr[i
 function openEditShop(itemId) {
   const i = shopItems.find(x => x.itemId === itemId);
   if (!i) return;
+  setTimeout(() => emPromoLoad_(itemId), 0);
   const f = id => document.getElementById(id);
   f('em-id').value=i.itemId; { const t_ = nameTagsSplit_(i.name); f('em-name').value=t_.base; condsSet_('em', t_.conds, true); renderConds_('em'); } f('em-price').value=i.price;
   updateHiddenNamePreview('em-name', 'em-name-preview'); // 🌟 打開既有商品編輯時就先跑一次,不用等打字才觸發
@@ -9102,7 +9157,7 @@ async function saveShopItem() {
     upEnabled:document.getElementById('em-up').checked,upMin:f('em-up-min'),upMax:f('em-up-max'),
     upAnswer:f('em-up-answer'),upHideRange:document.getElementById('em-up-hiderange').checked,excludeSpend:document.getElementById('em-excludespend').checked,upResetNarrow:document.getElementById('em-up-resetnarrow').checked});
   btn.disabled=false; btn.textContent='💾 儲存變更';
-  if (d.status==='success') { await cbFormSave_('em', f('em-id')); toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
+  if (d.status==='success') { await cbFormSave_('em', f('em-id')); const pmErr_ = await emPromoSave_(f('em-id')); if (pmErr_) toast('⚠️ 商品已更新,但促銷沒存成功:' + pmErr_, false); else toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
 
