@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.417</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.418</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -10807,21 +10807,30 @@ function addAdjustItemGrantRow() {
 
   const row = document.createElement('div');
   row.id = rowId;
-  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:var(--s2);border-radius:6px;padding:6px 8px';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s2);border-radius:6px;padding:6px 8px';
+  const esc_ = (v) => String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   row.innerHTML = `
     <select class="adjitem-template" onchange="updateAdjustItemColumn('${rowId}')" style="width:auto;flex:1;min-width:0">
-      ${itemTemplates.map(t => `<option value="${t.name}">${t.name}</option>`).join('')}
+      ${itemTemplates.map(t => `<option value="${esc_(t.name)}" title="${esc_(t.remark)}">${esc_(t.name)}${t.remark ? ' 📖' : ''}</option>`).join('')}
     </select>
     <button class="btn btn-del" onclick="removeAdjustItemColumn('${rowId}')">✕</button>
+    <div class="hint adjitem-remark" style="flex-basis:100%;white-space:pre-wrap"></div>
   `;
   document.getElementById('adjust-itemgrant-container').appendChild(row);
+  adjItemRemarkShow_(rowId);
   renderAdjustPlayerTable(true);
+}
+function adjItemRemarkShow_(colId) { // 選道具時顯示模板備註(玩家背包看得到的那段說明)
+  const row = document.getElementById(colId); if (!row) return;
+  const nm = row.querySelector('.adjitem-template').value, t = (itemTemplates || []).find((x) => x.name === nm), el = row.querySelector('.adjitem-remark');
+  if (el) el.textContent = t && t.remark ? '📖 ' + t.remark : '';
 }
 
 function updateAdjustItemColumn(colId) {
   const col = adjustItemColumns.find(c => c.id === colId);
   if (!col) return;
   col.templateName = document.getElementById(colId).querySelector('.adjitem-template').value;
+  adjItemRemarkShow_(colId);
   renderAdjustPlayerTable(true); // 保留玩家已經填的數量,只更新表頭文字
 }
 
