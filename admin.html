@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.416</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.417</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1574,7 +1574,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           ・<b>道具模板</b>:點輸入框會列出所有道具模板可直接選(也可打字篩選)。<br>
           ・<b>水晶上限</b>:這張券只能用在「抽到的獎勵 ≤ N 幻彩水晶」的挑戰;留空=不限。獎勵含水晶以外的東西(道具、限量獎…)時,只有「不限」的券能用。<br>
           ・<b>可用難度</b>:都不勾=全部難度都能用;有勾=只能用在題目開頭是那些難度的挑戰。<br>
-          ・選單預設選<b>限制最嚴(水晶上限最低)</b>的那張,玩家可以自己換。生日 PASS 不會出現這顆按鈕。測試頻道按了不扣券、不發獎(測試時獎勵水晶當 0 算)。</div>
+          ・選單預設選<b>限制最嚴(水晶上限最低)</b>的那張,玩家可以自己換。<br>
+          ・📖 <b>存檔時會自動把效果寫進道具模板的「備註」</b>(以「🎯個人挑戰:」開頭的那行,玩家背包、丟寶箱公告都看得到);你手寫的其他備註會保留,從這裡移除的券,自動那行也會被拿掉。道具名稱可以取短一點。生日 PASS 不會出現這顆按鈕。測試頻道按了不扣券、不發獎(測試時獎勵水晶當 0 算)。</div>
           <div id="cc-pass-rows"></div>
           <button class="btn btn-edit" style="margin-top:8px" onclick="ccPass_.push({ tpl: '', target: 'self', max: '', diffs: [] }); ccPassRender_()">➕ 新增 PASS券</button>
           <div class="hint" style="margin-top:6px">・<b>PASS 自己</b>:自己這題直接成功。<b>指定別人 PASS</b>:選一位玩家,他今天的挑戰直接成功、獎勵發給他。<b>隨機幫一人 PASS(不含自己)</b>:從符合水晶上限/難度條件、今天已開挑戰還沒結算的其他玩家裡隨機挑一位。<b>隨機 PASS 一人(含自己)</b>:同上但自己也在抽選名單裡,抽到自己=PASS 自己。幫別人 PASS 時,水晶上限/難度看的是<b>對方那題</b>,頻道會公告。</div>
@@ -5380,7 +5381,7 @@ async function saveChallengeCfg() {
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
-    if (d && d.status === 'success') { toast('已儲存'); await loadChallengeCfg(); } else toast((d && d.message) || '儲存失敗', false);
+    if (d && d.status === 'success') { toast('已儲存' + (d.remarkNote ? '(' + d.remarkNote + ')' : ''), !/失敗|找不到/.test(d.remarkNote || '')); if (d.remarkNote) itemTemplates = []; await loadChallengeCfg(); } else toast((d && d.message) || '儲存失敗', false);
   } catch (e) { toast('儲存失敗:' + (e && e.message || e), false); }
   btn.disabled = false; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = false; });
 }
