@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.401</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.402</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1593,6 +1593,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div id="cc-sets-puzzleSets"></div><button class="btn btn-edit" style="margin-top:6px" onclick="ccSetAdd_('puzzleSets')">➕ 新增限定日期題目</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">🏆 共通大獎區 <span class="hint">所有難度共用、每次開挑戰最先抽</span></div>
+          <div class="hint" style="margin-bottom:6px"><b>抽取順序:🏆 大獎區 → 🏷️ 這題難度的盲盒(下面「依難度設定」)→ 🎁 共通盲盒(限定日期 > 平常)</b>。<br>
+          每一區只有「沒抽中」才會往下一區:機率加起來不到 100%、而且<b>沒有保底行</b>(沒寫機率也沒寫份數的行)時,剩下的機率就是沒中。例:大獎區只寫一行 2% → 98% 會往下抽;難度盲盒如果有保底行就一定在那區中,不會再到共通盲盒。<br>
+          寫法跟盲盒一樣(可用 {倍數}、[限量]、N份、[代替:名稱])。抽中大獎會在訊息顯示「🏆大獎!」。限量大獎已發完時:有 [代替:] 就發代替獎,沒有就依序往難度盲盒 → 共通盲盒重抽。留空=沒有大獎區。</div>
+          <textarea id="cc-jackpot" rows="4" oninput="ccJpPreview_()" style="width:100%" placeholder="[限量]超級大獎, [非即時]超級大獎, 1%, 1份&#10;幻彩水晶X100, 幻彩水晶:100, 2%"></textarea>
+          <div class="gacha-preview" id="cc-jackpot-preview" style="display:none;margin-top:8px"></div>
+        </div>
+        <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎁 成功獎勵(盲盒) <span class="hint">玩家開啟挑戰時直接抽出 1 份並顯示,管理員按「挑戰成功」才發。留空=沿用舊的「幻彩水晶 ×當日倍數」</span></div>
           <div class="field" style="margin-top:8px"><label>盲盒規則 <span class="hint">一行一個獎項,寫法跟商店盲盒一樣;空白=沿用舊設定</span></label><textarea id="cc-blind" rows="6" oninput="ccBlindPreview_()" style="width:100%" placeholder="萬聖節糖果盒,50%,1~3&#10;糖果大包裝,5%,[道具:糖果大包裝]糖果大包裝&#10;幻彩水晶,30%,2"></textarea></div>
           <div style="margin-top:8px;display:flex;gap:8px;align-items:center"><span class="hint">預覽代入當日倍數:</span><select id="cc-blind-mul" onchange="ccBlindPreview_()"><option value="1">1 倍</option><option value="2">2 倍</option><option value="3">3 倍</option><option value="5">5 倍</option><option value="20">20 倍</option></select></div>
@@ -1631,7 +1639,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
             　・🔢 挑戰訊息會顯示「(限量 3 份,目前剩 2 份,先完成先得;完成時如已發完會改發「代替獎名稱」)」(沒設代替獎則寫「…會重抽其他獎項」);被按成功時會寫「限量獎「X」已領取,剩 1/3 份」或「限量已被領完 → 改發代替獎/重新抽到…」<br>
             　・🔁 <b>代替獎</b>:另外寫一行 <code>[代替:獎項名稱]顯示名稱, 變數:數量</code>(獎項名稱要跟限量那行的第一格完全一樣,可用 {倍數});這行不參加抽獎,只在那個限量獎領完時才發<br>
             　・🔄 開了「重新抽選」時,玩家每重抽一次就重新抽一個獎項(只勾「任務」則照該頁說明)<br>
-            　・🏷️ 題目有標【難度】且該難度有填獎勵時,用依難度的規則;否則限定日期組(有符合今天的)優先,最後才是上面平常的規則
+            　・🏷️ <b>抽取順序:🏆 大獎區 → 這題【難度】的盲盒 → 共通盲盒(限定日期組有符合今天的優先,否則平常規則)</b>;前一區「沒中」(機率加起來不到100%且沒有保底行)才往下一區
             <div style="border-top:1px dashed var(--bd);margin-top:8px;padding-top:8px"><b style="color:var(--gold)">⑦ 範例</b></div>
             <b>跟著當日倍數</b><br>
             <code>幻彩水晶x1={倍數*1}, 幻彩水晶:{倍數*1}, 40%</code>　<span class="hint">← 1 倍日給 1 個、2 倍日給 2 個</span><br>
@@ -1662,7 +1670,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🏷️ 依難度設定成功獎勵</div>
-          <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時,成功獎勵改用下面填的盲盒規則;<b>沒填的難度、或題目沒標難度 → 照上面的成功獎勵(盲盒)</b>。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
+          <div class="hint" style="margin-bottom:8px">題目開頭寫【簡單】【普通】【困難】【地獄】【夢魘】(或其他自訂名稱)就是難度。抽到該難度的題目時,先抽(🏆 大獎區之後)下面填的盲盒規則;<b>沒填的難度、題目沒標難度、或這區沒中(機率不到100%且沒保底行)→ 往下抽上面的共通成功獎勵(盲盒)</b>。寫法跟那邊的盲盒規則一樣(可用 {倍數})。</div>
           <div id="cc-diff-rows"></div>
           <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="cc-diff-new" placeholder="新增其他難度名稱(例:傳說)" style="width:220px"><button class="btn btn-edit" onclick="ccDiffAdd_()">➕ 新增難度</button></div>
         </div>
@@ -5169,7 +5177,15 @@ function ccPreviewWithAlts_(box, text, mul) {
     box.insertAdjacentHTML('beforeend', '<div style="margin-top:6px;border-top:1px dashed var(--bd);padding-top:6px">🔁 <b>代替獎</b>(限量領完時改發,不參加抽獎):<br>' + alts.map((a) => '　・「' + esc(a[0]) + '」領完 → <code>' + esc(ccBlindSubst_(a[1], mul)) + '</code>').join('<br>') + '</div>');
   }
 }
+function ccJpPreview_() {
+  const box = document.getElementById('cc-jackpot-preview'), ta = document.getElementById('cc-jackpot'), sel = document.getElementById('cc-blind-mul'); if (!box || !ta) return;
+  if (!ta.value.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1);
+  const w = box.querySelector('.gp-summary.warn'); // 大獎區本來就該可以「沒中」→ 換成說明
+  if (w && /沒有保底獎/.test(w.textContent)) { const m = w.textContent.match(/合計 ([\d.]+)%/), t = m ? parseFloat(m[1]) : 0; w.className = 'gp-summary'; w.textContent = '🏆 大獎區合計 ' + t + '% → 沒中 ' + Math.max(0, Math.round((100 - t) * 100) / 100) + '% 會往下抽(難度盲盒 → 共通盲盒);限量都發完的大獎不會再被抽到'; }
+}
 function ccBlindPreview_() {
+  ccJpPreview_();
   const box = document.getElementById('cc-blind-preview'), ta = document.getElementById('cc-blind'), sel = document.getElementById('cc-blind-mul'); if (!box || !ta) return;
   ccPreviewWithAlts_(box, ta.value, parseFloat(sel && sel.value) || 1);
   if (typeof ccDiff_ !== 'undefined') ccDiff_.forEach((x, i) => ccDiffPreview_(i)); // 依難度的獎勵也用同一個倍數預覽
@@ -5256,7 +5272,7 @@ async function loadChallengeCfg() {
     ccTiers_ = (c.rollTiers || []).map((x) => { const q = x.split('/'); return { mul: q[0], pct: q[1] }; });
     ccSched_ = (c.schedule || []).map((x) => { const q = x.split('/'), dt = q[0].split('|'); return { date: dt[0] + '-' + String(dt[1]).padStart(2, '0') + '-' + String(dt[2]).padStart(2, '0'), mul: q[1], note: q.slice(2).join('/') }; });
     ccRender_(); g('cc-puz').value = (c.puzzles || []).join('\n');
-    ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
+    ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; g('cc-jackpot').value = c.jackpotBlind || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
     ccDiff_ = JSON.parse(JSON.stringify(c.diffBlind || []));
     g('cc-rr-puz').checked = !!c.rerollPuzzle; g('cc-rr-rew').checked = !!c.rerollReward; g('cc-rr-unl').checked = c.rerollMax < 0; g('cc-rr-max').value = c.rerollMax > 0 ? c.rerollMax : 0; g('cc-rr-max').disabled = c.rerollMax < 0;
     ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
@@ -5285,7 +5301,7 @@ async function saveChallengeCfg() {
     webhookName: g('cc-wname'), webhookAvatar: g('cc-wav').trim(), announceImage: g('cc-img').trim(), announceExtra: g('cc-extra'), adminRoleIds: g('cc-admins'),
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
-    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
+    rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), jackpotBlind: g('cc-jackpot'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
     announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
