@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.366</div>
+    <div class="version-tag">系統版本：v5.4.367</div>
   </div>
 
   <script>
@@ -5868,7 +5868,9 @@
           : pub ? '<br>🏆 成績已公布' : t.status === '已截止' ? '<br>' +  '⏹️ 投票已截止,等待公布成績' : '<br>尚未開放投票');
       const wl = pub ? t.works.slice().sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0)) : t.works; // 公布後自己的作品置頂,其他照名次
       const vbar = open && wl.length ? '<div style="position:sticky;top:-1px;z-index:5;background:rgba(30,31,34,.92);border-radius:0 0 8px 8px;padding:2px 10px;margin:0 0 8px;font-size:12px;line-height:1.5;color:#B9BBBE;text-align:center;white-space:nowrap;overflow:hidden">🗳️ 剩 <b style="color:#3BA55D">' + Math.max(0, (t.limits.total || t.limits.support) - t.used.support - t.used.excellent) + '</b> 張 · ⭐ 優異剩 <b style="color:#F0B232">' + Math.max(0, t.limits.excellent - t.used.excellent) + '</b> 張</div>' : '';
-      document.getElementById('ct-works').innerHTML = vbar + wl.map((w) => {
+      const myV_ = !open ? wl.filter((w) => w.myVote) : [];
+      const mybar = !open && !t.hidden && (pub || t.status === '已截止') ? '<div style="background:rgba(88,101,242,.12);border:1px solid rgba(88,101,242,.45);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:13px;color:#DBDEE1">🗳️ <b>你在這個賽道的投票</b>:' + (myV_.length ? myV_.map((w) => (w.myVote === 'excellent' ? '🌟' : '✅') + ' ' + (pub ? '#' + w.rank + ' ' + E(w.name || '') : '作品 #' + w.no)).join('、') : '<span style="color:#949BA4">沒有投票</span>') + '</div>' : '';
+      document.getElementById('ct-works').innerHTML = vbar + mybar + wl.map((w) => {
         const imgs = [w.url1, w.url2].filter(Boolean).map((u) => '<div class="ct-imgbox"><img class="ct-img" src="' + E(u) + '" referrerpolicy="no-referrer" decoding="async" onerror="ctImgFail_(this)"></div>').join('');
         let btns = '';
         if (open) {
@@ -5877,10 +5879,12 @@
             const vb = (type, cls, label, onLabel, hint) => { const on = w.myVote === type; return '<button type="button" class="ct-vbtn ' + cls + (on ? ' on' : '') + (ctPop_ === w.id + '|' + type ? ' pop' : '') + '" onclick="ctVote_(\'' + E(w.id) + '\',\'' + (on ? 'none' : type) + '\',this)">' + (on ? onLabel + '<small>點擊收回</small>' : label + '<small>' + hint + '</small>') + '</button>'; };
             btns = '<div class="ct-vb">' + vb('support', 'sup', '👍 支持', '✅ 已支持', '計 1 票') + vb('excellent', 'exc', '⭐ 優異', '🌟 已優異', '計 2 票') + '</div>';
           }
+        } else if (w.myVote) { // 截止/公布後:顯示自己投了這件作品什麼
+          btns = '<div style="display:inline-block;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;' + (w.myVote === 'excellent' ? 'background:rgba(240,178,50,.18);color:#F0B232;border:1px solid rgba(240,178,50,.5)">🌟 你投了「優異」(2 票)' : 'background:rgba(59,165,93,.18);color:#3BA55D;border:1px solid rgba(59,165,93,.5)">✅ 你投了「支持」(1 票)') + '</div>';
         }
         const head = t.hidden ? '<b style="color:#fff">你的作品</b> <span style="color:#3BA55D;font-size:12px">✅ 已上傳完成</span>' : pub ? '<b style="color:#fff">#' + w.rank + ' ' + E(w.name) + '</b> <span style="color:#F0B232">' + (w.score != null ? w.score + ' 分' : '') + '</span> <span style="color:#949BA4;font-size:12px">(支持 ' + w.support + ' · 優異 ' + w.excellent + ' · 計 ' + w.raw + ' 票)</span>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '') : '<b style="color:#fff">作品 #' + w.no + '</b>' + (w.mine ? ' <span style="color:#FEE75C;font-size:12px">(你的作品)</span>' : '') + (w.adminSee ? ' <span style="font-size:12px;background:rgba(0,0,0,.25);border-radius:6px;padding:2px 8px;color:#FEE75C" title="只有管理員看得到">👑 ' + E(w.name || '') + ' <span style="opacity:.7">' + E(w.user || '') + '</span></span>' : '');
         return '<div style="background:#3A3C43;border:1px solid #5865F2aa;border-radius:12px;padding:14px;margin-bottom:30px;box-shadow:0 4px 14px rgba(0,0,0,.35)"><div style="margin:-14px -14px 12px;padding:10px 14px;background:#4752C4;border-radius:11px 11px 0 0;font-size:16px">' + head + '</div>' + (imgs ? '<div class="ct-imgs">' + imgs + '</div>' : '')
-          + (w.text ? '<div class="ct-desc">' + E(w.text) + '</div>' : '') + (btns ? '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #ffffff33"><div style="font-size:12px;color:#B9BBBE;margin-bottom:6px">▼ 以下按鈕是投給上面的「作品 #' + w.no + '」</div>' + btns + '</div>' : '') + '</div>';
+          + (w.text ? '<div class="ct-desc">' + E(w.text) + '</div>' : '') + (btns ? '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #ffffff33"><div style="font-size:12px;color:#B9BBBE;margin-bottom:6px">' + (open ? '▼ 以下按鈕是投給上面的「作品 #' + w.no + '」' : '🗳️ 我的投票') + '</div>' + btns + '</div>' : '') + '</div>';
       }).join('') + (t.hidden ? '<div style="color:#949BA4;padding:18px 0;text-align:center">🔒 這個賽道尚未開放,作品將在開放後顯示' + (Date.parse(t.start) > Date.now() ? '<div style="margin-top:10px;font-size:15px;color:#F0B232">⏳ 開放倒數 <b id="ct-cd" data-t="' + Date.parse(t.start) + '" style="font-variant-numeric:tabular-nums"></b><div style="font-size:12px;color:#949BA4;margin-top:2px">(' + fmtT(t.start) + ' 開放)</div></div>' : '') + '</div>' : '') || ('<div style="color:#949BA4">這個賽道還沒有作品</div>');
       if (document.getElementById('ct-cd')) { ctCdTick_(); if (!ctCdTimer_) ctCdTimer_ = setInterval(ctCdTick_, 1000); }
       if (d.overall && d.overall.length) {
