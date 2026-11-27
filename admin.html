@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.437</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.438</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1584,13 +1584,14 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🔀 任務交換券</div>
-          <div class="hint" style="margin-bottom:8px">一樣在「🎒 使用道具」選單裡使用,按確定才扣背包 1 張。<b>只會換到「今天已開挑戰、還沒結算」的玩家</b>(生日 PASS 不算),<b>對方不用同意、直接生效</b>,雙方挑戰訊息會自動改、頻道會公告。<br>
+          <div class="hint" style="margin-bottom:8px">一樣在「🎒 使用道具」選單裡使用,按確定才扣背包 1 張。<b>只會換到「今天已開挑戰、還沒結算」的玩家</b>(生日 PASS 不算),預設<b>對方不用同意、直接生效</b>,雙方挑戰訊息會自動改、頻道會公告。<br>
+          ・<b>🤝 要對方同意</b>(只有「指定玩家/隨機1人」能勾):使用後頻道會貼出邀請,對方在 N 分鐘內按「✅ 同意」才交換並扣券;對方拒絕、逾時或發起人撤回都<b>不扣券</b>。同一時間每人只能有一個等待中的請求。<br>
           ・<b>指定玩家交換</b>:選一位玩家,你們兩個互換。<b>隨機1人交換</b>:隨機挑一位跟你互換。<br>
           ・<b>隨機N人兩兩互換</b>:不含自己,隨機挑 N 個人(2、4、6…)兩兩配對互換(搗蛋用;人數不夠 N 人時不能用)。<br>
           ・<b>全體隨機交換</b>:所有進行中的玩家(含自己)任務打亂重新分配,每個人都會拿到別人的。<br>
           ・<b>只換任務</b>=獎勵各自保留;<b>任務+獎勵全換</b>=連成功獎勵(含盲盒)一起換。</div>
           <div id="cc-swap-rows"></div>
-          <button class="btn btn-edit" style="margin-top:8px" onclick="ccSwap_.push({ tpl: '', kind: 'target', mode: 'puzzle', n: 2 }); ccSwapRender_()">➕ 新增任務交換券</button>
+          <button class="btn btn-edit" style="margin-top:8px" onclick="ccSwap_.push({ tpl: '', kind: 'target', mode: 'puzzle', n: 2, consent: false, consentMin: 10 }); ccSwapRender_()">➕ 新增任務交換券</button>
         </div>
         <div class="ct-card" style="padding:14px 18px;margin-bottom:14px">
           <div style="font-weight:700;margin-bottom:8px">🎟️ 題目重抽券</div>
@@ -5684,7 +5685,7 @@ async function loadChallengeCfg() {
     ccRew_ = JSON.parse(JSON.stringify(c.rewardRows || [])); ccRewRender_(); g('cc-test-ch').value = g('cc-test-ch').value || (function () { try { return localStorage.getItem('cc_test_ch') || ''; } catch (e) { return ''; } })(); g('cc-blind').value = c.blindRewards || ''; g('cc-jackpot').value = c.jackpotBlind || ''; ccBlindPreview_(); g('cc-fail').value = (c.failures || []).join('\n');
     ccDiff_ = JSON.parse(JSON.stringify(c.diffBlind || []));
     g('cc-rr-puz').checked = !!c.rerollPuzzle; g('cc-rr-rew').checked = !!c.rerollReward; g('cc-rr-unl').checked = c.rerollMax < 0; g('cc-rr-max').value = c.rerollMax > 0 ? c.rerollMax : 0; g('cc-rr-max').disabled = c.rerollMax < 0;
-    ccSwap_ = (c.swapItems || []).map((x) => ({ tpl: x.tpl, kind: x.kind || 'target', mode: x.mode || 'puzzle', n: x.n || 2 })); ccSwapRender_();
+    ccSwap_ = (c.swapItems || []).map((x) => ({ tpl: x.tpl, kind: x.kind || 'target', mode: x.mode || 'puzzle', n: x.n || 2, consent: !!x.consent, consentMin: x.consentMin || 10 })); ccSwapRender_();
     ccRri_ = (c.rerollItems || []).map((x) => ({ tpl: x.tpl, diffs: (x.diffs || []).slice(), mode: x.mode === 'all' ? 'all' : 'puzzle', to: (x.to || []).slice() })); ccRriRender_();
     ccPass_ = (c.passItems || []).map((x) => ({ tpl: x.tpl, target: x.target || 'self', max: x.maxCrystal < 0 ? '' : String(x.maxCrystal), diffs: (x.diffs || []).slice() })); ccPassRender_();
     (c.diffReroll || []).forEach((r) => { let x = ccDiff_.find((y) => y.tag === r.tag); if (!x) { x = { tag: r.tag, text: '' }; ccDiff_.push(x); } x.rrAllow = r.allow !== false; x.rrMax = r.max < 0 ? '' : String(r.max); });
@@ -5717,6 +5718,8 @@ function ccSwapRender_() {
     '<select onchange="ccSwap_[' + i + '].kind=this.value;ccSwapRender_()">' + op('target', r.kind, '指定玩家交換') + op('random', r.kind, '隨機1人交換') + op('group', r.kind, '隨機N人兩兩互換(不含自己)') + op('all', r.kind, '全體隨機交換') + '</select>' +
     (r.kind === 'group' ? '<span class="hint">N=</span><input type="number" min="2" step="2" value="' + esc(r.n || 2) + '" oninput="ccSwap_[' + i + '].n=this.value" style="width:70px"><span class="hint">人(雙數)</span>' : '') +
     '<select onchange="ccSwap_[' + i + '].mode=this.value">' + op('puzzle', r.mode, '只換任務') + op('all', r.mode, '任務+獎勵全換') + '</select>' +
+    ((r.kind === 'target' || r.kind === 'random') ? '<label class="pk-chk" style="margin:0"><input type="checkbox"' + (r.consent ? ' checked' : '') + ' onchange="ccSwap_[' + i + '].consent=this.checked;ccSwapRender_()"> 🤝 要對方同意</label>' +
+      (r.consent ? '<input type="number" min="1" max="720" value="' + esc(r.consentMin || 10) + '" oninput="ccSwap_[' + i + '].consentMin=this.value" style="width:70px"><span class="hint">分鐘內回覆</span>' : '') : '') +
     '<button class="btn btn-del" onclick="ccSwap_.splice(' + i + ',1);ccSwapRender_()">🗑️</button></div>').join('') : '<div class="hint">(尚未設定任務交換券)</div>';
 }
 let ccPass_ = [];
@@ -5740,7 +5743,7 @@ async function saveChallengeCfg() {
     candies: ccCandies_.map((x) => ({ enabled: !!x.enabled, currency: (x.currency || '').trim(), start: x.start || '', end: x.end || '', min: x.min, max: x.max, item: !!x.item })),
     schedule: ccSched_.filter((r) => r.date && r.mul !== '').map((r) => { const d = r.date.split('-').map((x) => parseInt(x, 10)); return d.join('|') + '/' + r.mul + (r.note ? '/' + r.note.replace(/\n/g, ' ') : ''); }),
     rollTiers: ccTiers_.filter((t) => t.mul !== '' && t.pct !== '').map((t) => t.mul + '/' + t.pct), puzzles: g('cc-puz'), blindRewards: g('cc-blind'), jackpotBlind: g('cc-jackpot'), rewardRows: g('cc-blind').trim() ? [] : ccRew_.filter((r) => r.currency || parseFloat(r.amount) > 0 || r.pct !== '').map((r) => ({ pct: r.pct, currency: (r.currency || '').trim(), amount: r.amount, mode: r.mode })), failures: g('cc-fail'),
-    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, diffBlindSets: ccDSets_.filter((x) => x.tag || x.start || (x.text || '').trim()).map((x) => ({ tag: x.tag, start: x.start, end: x.end, text: x.text })), rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), swapItems: ccSwap_.filter((x) => (x.tpl || '').trim()).map((x) => { let n = parseInt(x.n, 10) || 2; if (n < 2) n = 2; if (n % 2) n += 1; return { tpl: x.tpl.trim(), kind: x.kind, mode: x.mode, n }; }), rerollItems: ccRri_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), diffs: x.diffs, mode: x.mode === 'all' ? 'all' : 'puzzle', to: x.to || [] })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ target: x.target || 'self', tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
+    announceSets: ccSets_.announceSets, puzzleSets: ccSets_.puzzleSets, blindSets: ccSets_.blindSets, jackpotSets: ccSets_.jackpotSets, diffBlindSets: ccDSets_.filter((x) => x.tag || x.start || (x.text || '').trim()).map((x) => ({ tag: x.tag, start: x.start, end: x.end, text: x.text })), rerollPuzzle: ck('cc-rr-puz'), rerollReward: ck('cc-rr-rew'), rerollMax: ck('cc-rr-unl') ? -1 : (parseInt(g('cc-rr-max'), 10) || 0), diffReroll: ccDiff_.filter((x) => x.tag).map((x) => ({ tag: x.tag, allow: x.rrAllow !== false, max: (x.rrMax === undefined || x.rrMax === '') ? -1 : (parseInt(x.rrMax, 10) || 0) })), diffBlind: ccDiff_.filter((x) => x.tag && (x.text || '').trim()).map((x) => ({ tag: x.tag, text: x.text })), swapItems: ccSwap_.filter((x) => (x.tpl || '').trim()).map((x) => { let n = parseInt(x.n, 10) || 2; if (n < 2) n = 2; if (n % 2) n += 1; const cs = (x.kind === 'target' || x.kind === 'random') && !!x.consent; return { tpl: x.tpl.trim(), kind: x.kind, mode: x.mode, n, consent: cs, consentMin: Math.min(720, Math.max(1, parseInt(x.consentMin, 10) || 10)) }; }), rerollItems: ccRri_.filter((x) => (x.tpl || '').trim()).map((x) => ({ tpl: x.tpl.trim(), diffs: x.diffs, mode: x.mode === 'all' ? 'all' : 'puzzle', to: x.to || [] })), passItems: ccPass_.filter((x) => (x.tpl || '').trim()).map((x) => ({ target: x.target || 'self', tpl: x.tpl.trim(), maxCrystal: String(x.max).trim() === '' ? -1 : (parseFloat(x.max) || 0), diffs: x.diffs })) };
   const btn = document.getElementById('cc-save-btn'); btn.disabled = true; document.querySelectorAll('#page-challenge-puz .btn-primary').forEach((b) => { b.disabled = true; });
   try {
     const d = await grCall_('adminChallengeCfgSave', { cfg });
