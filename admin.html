@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.436</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.437</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1785,7 +1785,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div id="page-xmas" style="display:none">
         <div class="page-header"><div class="page-title">🎄 聖誕交換禮物 <span class="count-badge" id="xm-count">—</span></div><div class="toolbar"><button class="btn btn-edit" onclick="xmLoad_()">🔄 重新讀取</button><button class="btn btn-primary" onclick="xmCsv_()">⬇️ 匯出 CSV</button></div></div>
         <div class="hint" style="line-height:1.7;margin-bottom:12px">玩家在 Discord 用 <b>/交換禮物面板</b> 貼出的按鈕報名(選地區 → 填收件人/地址/手機)。編號依地區自動發(HK-01、TW-03…),送出後機器人會私訊編號＋下面填的寄件地址。<br>
-        12/12 直播:在要公布的頻道打 <b>/交換禮物抽籤</b>(只抽「✅已到貨」的人,不會抽到自己);12/25 打 <b>/交換禮物揭曉</b> 公布送禮人。<br>
+        抽籤:在要公布的頻道打 <b>/交換禮物抽籤</b>(只抽「✅已到貨」的人,不會抽到自己);12/25 打 <b>/交換禮物揭曉</b> 公布送禮人。<br>
         🔒 地址／電話只存在資料庫,只有這個後台讀得到;活動結束記得按最下面「清除所有個資」。</div>
         <div class="ct-card" id="xm-cfg" style="padding:14px 18px"></div>
         <div class="ct-card" style="padding:14px 18px">
@@ -4884,8 +4884,8 @@ function xmRenderCfg_() {
       <div class="field" style="flex:1;min-width:260px"><label>📬 寄件地址(台灣團員看到的)</label><textarea id="xm-shiptw" rows="4" style="width:100%" placeholder="收件人/地址/電話/7-11店到店…">${e(c.shipTW || '')}</textarea></div>
       <div class="field" style="flex:1;min-width:260px"><label>📬 寄件地址(港／陸／澳團員看到的)</label><textarea id="xm-shipot" rows="4" style="width:100%" placeholder="留空=跟台灣一樣">${e(c.shipOther || '')}</textarea></div>
     </div>
-    <div class="field" style="margin-top:10px"><label>報名成功私訊最後附加的文字(選填,例如寄送期限)</label><textarea id="xm-dm" rows="3" style="width:100%" placeholder="⚠️ 大陸/港澳最晚 12/6 寄出、台灣最晚 12/8 寄出;{抽籤日} 直播抽籤…">${e(c.dmExtra || '')}</textarea></div>
-    <div class="field" style="margin-top:10px"><label>📦 到貨通知內容(後台勾到貨存檔後私訊玩家;可用 {編號}、{暱稱}、{抽籤日}、{寄回日}、{開箱日};留空=預設)</label><textarea id="xm-recvmsg" rows="3" style="width:100%" placeholder="🎄📦 副團長已經收到你的交換禮物了!(編號 {編號}) {抽籤日} 直播抽籤…">${e(c.recvMsg || '')}</textarea></div>
+    <div class="field" style="margin-top:10px"><label>報名成功私訊最後附加的文字(選填,例如寄送期限)</label><textarea id="xm-dm" rows="3" style="width:100%" placeholder="⚠️ 大陸/港澳最晚 12/6 寄出、台灣最晚 12/8 寄出;{抽籤日} 抽籤…">${e(c.dmExtra || '')}</textarea></div>
+    <div class="field" style="margin-top:10px"><label>📦 到貨通知內容(後台勾到貨存檔後私訊玩家;可用 {編號}、{暱稱}、{抽籤日}、{寄回日}、{開箱日};留空=預設)</label><textarea id="xm-recvmsg" rows="3" style="width:100%" placeholder="🎄📦 副團長已經收到你的交換禮物了!(編號 {編號}) {抽籤日} 抽籤…">${e(c.recvMsg || '')}</textarea></div>
     <div class="field" style="margin-top:10px"><label>📣 有人報名/修改/取消時私訊通知誰(Discord ID,多個用逗號分隔;留空=不通知)</label><input id="xm-notify" style="width:100%" value="${e(c.notifyUids || '')}" placeholder="例:176681551189377024, 副團長的ID"><div class="hint" style="font-size:12px">通知只寫暱稱、編號、地區、收禮方式、目前人數,不含地址電話。Discord ID:開發者模式 → 右鍵使用者 → 複製使用者 ID。</div></div>
     <div class="hint" style="margin:6px 0 10px">⚠️ 寄件地址留空的話,私訊會寫「副團長會再私訊給你」。測試模式打勾時「開放報名」跟日期都不看。</div>
     <button class="btn btn-primary" onclick="xmSaveCfg_()">💾 儲存設定</button>`;
@@ -4967,7 +4967,7 @@ function xmRenderDraw_() {
   const ready = (xmData_.list || []).filter((r) => r.received).length;
   let h = `<div style="font-weight:700;margin-bottom:8px">🎲 抽籤</div>`;
   if (!dr || !(dr.pairs || []).length) {
-    h += `<div class="hint" style="margin-bottom:10px">目前已到貨 <b>${ready}</b> 人(只有已到貨的會參加抽籤)。建議直播時在 Discord 打 <b>/交換禮物抽籤</b>,機器人會一個一個公布;也可以在這裡先抽好,直播時用「重播已抽結果」公布。</div>
+    h += `<div class="hint" style="margin-bottom:10px">目前已到貨 <b>${ready}</b> 人(只有已到貨的會參加抽籤)。建議在 Discord 打 <b>/交換禮物抽籤</b>,機器人會一個一個公布;也可以在這裡先抽好,再用「重播已抽結果」公布。</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="xmPreview_()">🧪 試抽(不存檔)</button><button class="btn btn-primary" onclick="xmOp_('draw',null,'正式抽籤後結果就固定了(只有已到貨的 ${ready} 人)。確定?')">🎲 正式抽籤</button></div><div id="xm-prev"></div>`;
   } else {
     h += `<div class="hint" style="margin-bottom:8px">抽籤時間:${e(new Date(dr.at).toLocaleString('zh-TW'))} ・ ${dr.revealed ? '🎉 已揭曉送禮人' : '🤫 送禮人尚未揭曉'}</div>
@@ -4986,7 +4986,7 @@ function xmRenderV_() {
       <td>${e(r.gameName)}</td><td style="max-width:180px;white-space:pre-wrap">${e(r.note)}</td><td>${e(r.giveTo) || '—'}</td><td>${r.gotCode ? '<b>' + e(r.gotCode) + '</b>' : '—'}</td>
       <td>${vd ? `<label><input type="checkbox" ${r.sent ? 'checked' : ''} onchange="xmOp_('vsetSent',{uid:'${e(r.uid)}',value:this.checked})"> ${r.sent ? '✅' : '⏳'}</label>` : '—'}</td>
       <td style="white-space:nowrap"><button class="btn btn-edit" onclick="xmVEdit_('${e(r.uid)}')">✏️</button> <button class="btn btn-del" onclick="xmOp_('vdelete',{uid:'${e(r.uid)}'},'刪除虛擬版 ${e(r.code)} ${e(r.dcName)}?')">🗑</button></td></tr>`).join('') || '<tr><td colspan="8" class="hint">還沒有人報名虛擬版</td></tr>') + '</tbody>';
-  document.getElementById('xm-vdraw').innerHTML = !vd ? `<button class="btn btn-primary" onclick="xmOp_('vdraw',null,'正式抽虛擬版(${vl.length} 人)?建議直播時用 Discord 指令抽,機器人會自動私訊送禮人;在這裡抽的話要再用「📨 重新私訊送禮人」通知。')">🎲 正式抽虛擬版</button>`
+  document.getElementById('xm-vdraw').innerHTML = !vd ? `<button class="btn btn-primary" onclick="xmOp_('vdraw',null,'正式抽虛擬版(${vl.length} 人)?建議用 Discord 指令抽,機器人會自動私訊送禮人;在這裡抽的話要再用「📨 重新私訊送禮人」通知。')">🎲 正式抽虛擬版</button>`
     : `<span class="hint">抽籤時間:${e(new Date(vd.at).toLocaleString('zh-TW'))}</span> <button class="btn btn-del" onclick="xmOp_('vresetDraw',null,'重置虛擬版抽籤?已私訊的送禮對象會作廢、已送出紀錄清空。')">🔁 重置虛擬抽籤</button>`;
 }
 async function xmVEdit_(uid) {
