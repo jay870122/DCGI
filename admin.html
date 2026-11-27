@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.432</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.433</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4873,12 +4873,13 @@ function xmRenderCfg_() {
       <div class="field" style="flex:1;min-width:260px"><label>📬 寄件地址(港／陸／澳團員看到的)</label><textarea id="xm-shipot" rows="4" style="width:100%" placeholder="留空=跟台灣一樣">${e(c.shipOther || '')}</textarea></div>
     </div>
     <div class="field" style="margin-top:10px"><label>報名成功私訊最後附加的文字(選填,例如寄送期限)</label><textarea id="xm-dm" rows="3" style="width:100%" placeholder="⚠️ 大陸/港澳最晚 12/6 寄出、台灣最晚 12/8 寄出…">${e(c.dmExtra || '')}</textarea></div>
+    <div class="field" style="margin-top:10px"><label>📣 有人報名/修改/取消時私訊通知誰(Discord ID,多個用逗號分隔;留空=不通知)</label><input id="xm-notify" style="width:100%" value="${e(c.notifyUids || '')}" placeholder="例:176681551189377024, 副團長的ID"><div class="hint" style="font-size:12px">通知只寫暱稱、編號、地區、收禮方式、目前人數,不含地址電話。Discord ID:開發者模式 → 右鍵使用者 → 複製使用者 ID。</div></div>
     <div class="hint" style="margin:6px 0 10px">⚠️ 寄件地址留空的話,私訊會寫「副團長會再私訊給你」。測試模式打勾時「開放報名」跟日期都不看。</div>
     <button class="btn btn-primary" onclick="xmSaveCfg_()">💾 儲存設定</button>`;
 }
 async function xmSaveCfg_() {
   const g = (id) => document.getElementById(id);
-  const cfg = { testMode: g('xm-test').checked, open: g('xm-open').checked, startAt: g('xm-start').value, endAt: g('xm-end').value, shipTW: g('xm-shiptw').value, shipOther: g('xm-shipot').value, dmExtra: g('xm-dm').value };
+  const cfg = { testMode: g('xm-test').checked, open: g('xm-open').checked, startAt: g('xm-start').value, endAt: g('xm-end').value, shipTW: g('xm-shiptw').value, shipOther: g('xm-shipot').value, dmExtra: g('xm-dm').value, notifyUids: g('xm-notify').value };
   const d = await xmCall_({ op: 'cfgSave', cfg });
   if (d && d.status === 'success') { xmData_.cfg = d.cfg; toast('✅ 已儲存'); } else toast((d && d.message) || '儲存失敗', false);
 }
