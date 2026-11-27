@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.429</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.430</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4918,7 +4918,7 @@ async function xmEdit_(uid) {
   let addr = '', storeName = '', storeNo = '';
   if (store) {
     storeName = prompt(r.shipName + ' 門市名稱', r.storeName || ''); if (storeName === null) return;
-    storeNo = prompt('門市店號(可留空)', r.storeNo || ''); if (storeNo === null) return;
+    storeNo = prompt('門市店號(有填會自動查門市名稱和地址)', r.storeNo || ''); if (storeNo === null) return;
   } else { addr = prompt('收件地址', r.addr || ''); if (addr === null) return; }
   const phone = prompt('手機號碼', r.phone || ''); if (phone === null) return;
   const note = prompt('備註', r.note || ''); if (note === null) return;
