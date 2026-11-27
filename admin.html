@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.426</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.427</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -2015,7 +2015,8 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
               <button type="button" class="btn btn-edit" onclick="addReqItemRow('em')" style="margin-top:6px">➕ 新增一項需求道具</button>
             </div>
             <input type="hidden" id="em-reqitems">
-      <div class="field"><label>分類</label><input id="em-category" list="sc-list"></div>
+      <div class="field"><label>分類</label><input id="em-category" list="sc-list" onchange="emXcatUi_()"></div>
+      <div class="full field"><label>📑 也顯示在這些分頁 <span class="hint">主分頁是上面的「分類」;勾選的分頁也會出現這個商品(同一個商品,庫存/限購共用;分頁密碼鎖以主分頁為準)</span> <span id="em-xcat-state" class="hint"></span></label><div id="em-xcat" style="display:flex;flex-wrap:wrap;gap:6px 12px"></div></div>
       <div class="field"><label>庫存</label><input id="em-stock"></div>
       <div class="field"><label>連結序號庫存 <span class="hint">填「序號庫」A欄的名稱,設定後庫存自動等於該序號剩餘量(忽略上面的庫存欄位),序號發完就自動無法購買,留空=不掛勾</span></label><input id="em-linkedserialpool" placeholder="例：steam虛擬禮物卡NT150(留空=不掛勾)"></div>
       <div class="field"><label>狀態</label><select id="em-status"><option value="">🟢 上架</option><option value="DRAFT">📝 草稿（不會顯示給玩家）</option></select></div>
@@ -4480,6 +4481,29 @@ let emPm_ = [], emPmOrigJson_ = '[]'; // 這個商品的促銷段落;Orig 用來
 function emPmNorm_(arr) { const mn = (v) => Math.floor((Number(v) || 0) / 60000); return JSON.stringify((arr || []).map((x) => [x.type, Number(x.val) || 0, mn(x.start), mn(x.end), x.note || '', x.opt === undefined || x.opt === null || x.opt === '' ? -1 : Number(x.opt), Number(x.quota) || 0, Number(x.perUser) || 0])); }
 let emPmUsed_ = {};
 function emOpts_() { try { const a = JSON.parse(serializeItemOptions('em') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+// 📑 商品多分頁(存 D1 xcat)
+let emXcat_ = [], emXcatOrig_ = '[]';
+function emXcatUi_() {
+  const box = document.getElementById('em-xcat'); if (!box) return;
+  const main = (document.getElementById('em-category').value || '').trim();
+  const cats = Array.from(new Set(Array.from(document.querySelectorAll('#sc-list option')).map((o) => (o.value || '').trim()).filter(Boolean).concat(emXcat_))).filter((c) => c !== main);
+  const e = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  box.innerHTML = cats.length ? cats.map((c) => '<label style="display:inline-flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" data-c="' + e(c) + '"' + (emXcat_.indexOf(c) !== -1 ? ' checked' : '') + ' onchange="emXcatToggle_(this)">' + e(c) + '</label>').join('') : '<span class="hint">(還沒有其他分頁)</span>';
+}
+function emXcatToggle_(el) { const c = el.dataset.c; emXcat_ = emXcat_.filter((x) => x !== c); if (el.checked) emXcat_.push(c); }
+async function emXcatLoad_(itemId) {
+  emXcat_ = []; emXcatOrig_ = '[]'; const st = document.getElementById('em-xcat-state'); if (st) st.textContent = '讀取中…'; emXcatUi_();
+  const d = await grCall_('adminXcatGet', {});
+  if (d && d.status === 'success') { emXcat_ = ((d.xcat || {})[itemId] || []).slice(); emXcatOrig_ = JSON.stringify(emXcat_.slice().sort()); if (st) st.textContent = ''; }
+  else if (st) st.textContent = '⚠️ 讀取失敗';
+  emXcatUi_();
+}
+async function emXcatSave_(itemId) {
+  const main = (document.getElementById('em-category').value || '').trim(), cats = emXcat_.filter((c) => c && c !== main);
+  if (JSON.stringify(cats.slice().sort()) === emXcatOrig_) return '';
+  const d = await grCall_('adminXcatSet', { itemId, cats });
+  return d && d.status === 'success' ? '' : ((d && d.message) || '儲存失敗');
+}
 async function emPromoLoad_(itemId) {
   const box = document.getElementById('em-promo-rows'); if (!box) return;
   emPm_ = []; emPmOrigJson_ = '[]'; box.innerHTML = '<div class="hint">讀取中…</div>';
@@ -9065,7 +9089,7 @@ function condEdit_(px, i, f, v) { const arr = condsGet_(px); if (arr[i]) { arr[i
 function openEditShop(itemId) {
   const i = shopItems.find(x => x.itemId === itemId);
   if (!i) return;
-  setTimeout(() => emPromoLoad_(itemId), 0);
+  setTimeout(() => emPromoLoad_(itemId), 0); setTimeout(() => emXcatLoad_(itemId), 0);
   const f = id => document.getElementById(id);
   f('em-id').value=i.itemId; { const t_ = nameTagsSplit_(i.name); f('em-name').value=t_.base; condsSet_('em', t_.conds, true); renderConds_('em'); } f('em-price').value=i.price;
   updateHiddenNamePreview('em-name', 'em-name-preview'); // 🌟 打開既有商品編輯時就先跑一次,不用等打字才觸發
@@ -9175,7 +9199,7 @@ async function saveShopItem() {
     upEnabled:document.getElementById('em-up').checked,upMin:f('em-up-min'),upMax:f('em-up-max'),
     upAnswer:f('em-up-answer'),upHideRange:document.getElementById('em-up-hiderange').checked,excludeSpend:document.getElementById('em-excludespend').checked,upResetNarrow:document.getElementById('em-up-resetnarrow').checked});
   btn.disabled=false; btn.textContent='💾 儲存變更';
-  if (d.status==='success') { await cbFormSave_('em', f('em-id')); const pmErr_ = await emPromoSave_(f('em-id')); if (pmErr_) toast('⚠️ 商品已更新,但促銷沒存成功:' + pmErr_, false); else toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
+  if (d.status==='success') { await cbFormSave_('em', f('em-id')); const pmErr_ = (await emPromoSave_(f('em-id'))) || (await emXcatSave_(f('em-id'))); if (pmErr_) toast('⚠️ 商品已更新,但促銷/多分頁沒存成功:' + pmErr_, false); else toast('✅ 商品已更新'); editShopAutosave.clear(); closeModal('shop-modal'); loadShopItems(); }
   else toast('❌ '+d.message, false);
 }
 

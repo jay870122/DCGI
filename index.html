@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.374</div>
+    <div class="version-tag">系統版本：v5.4.375</div>
   </div>
 
   <script>
@@ -1616,8 +1616,11 @@
     let defaultCatAuto_ = false;
     let catUserPicked_ = false; // 玩家手動點過分類後,就不再自動換首頁分類
     // 預設首頁分類:商品分類 + 只有資訊卡的分類,依分類順序取第一個(資訊卡晚於商品載入,所以載入完要再算一次)
+    // 📑 商品可以同時出現在多個分頁:category=主分頁,extraCats=後台另外勾的分頁
+    function itemCats_(i) { return [i && i.category].concat((i && i.extraCats) || []); }
+    function inCat_(i, c) { return !!i && (i.category === c || (Array.isArray(i.extraCats) && i.extraCats.indexOf(c) !== -1)); }
     function defaultCat_() {
-      const cats = new Set(currentShopItems.filter(shouldShowLinkOnlyItem).map(i => i.category).filter(Boolean));
+      const cats = new Set(currentShopItems.filter(shouldShowLinkOnlyItem).flatMap(itemCats_).filter(Boolean));
       (infoCards_ || []).forEach((c) => { const k = (c.category || '').toString().trim(); if (k) cats.add(k); });
       const arr = Array.from(cats).sort((x, y) => getCategoryOrderIndex(x, CATEGORY_ORDER) - getCategoryOrderIndex(y, CATEGORY_ORDER));
       return arr[0] || null;
@@ -1644,7 +1647,7 @@
       // 🌟 [連結限定]商品沒被揭露的話,連分類清單、分類數量都不該算進去,不然側邊欄會透露出「這裡有個
       // 看不到的東西」,失去隱藏的意義
       const visibleShopItems = currentShopItems.filter(shouldShowLinkOnlyItem);
-      const categories = Array.from(new Set(visibleShopItems.map(item => item.category).concat((infoCards_ || []).map(c => c.category).filter(Boolean)))); // 只有資訊卡片、沒有商品的分類也要列出
+      const categories = Array.from(new Set(visibleShopItems.flatMap(itemCats_).filter(Boolean).concat((infoCards_ || []).map(c => c.category).filter(Boolean)))); // 只有資訊卡片、沒有商品的分類也要列出
       const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const sidebar = document.getElementById('category-sidebar');
 
@@ -1690,7 +1693,7 @@
         const isHideFromSidebar = locked && (!sample.categoryLockVisibility || sample.categoryLockVisibility === '') && sample.categoryLockShowHint === 'HIDE';
         if (isHideFromSidebar && currentCategory !== cat) return '';
 
-        const itemCnt_ = visibleShopItems.filter(i => i.category === cat).length;
+        const itemCnt_ = visibleShopItems.filter(i => inCat_(i, cat)).length;
         const count = itemCnt_ || (infoCards_ || []).filter(c => c.category === cat).length; // 沒商品時顯示資訊卡片數
         const icon = iconOverride || (locked ? '🔒' : '🏷️');
         return `<div class="cat-item${indent ? ' cat-child' : ''} ${currentCategory === cat ? 'active' : ''}" onclick="selectCategory('${cat.replace(/'/g,"\\'")}')">
@@ -1720,7 +1723,7 @@
             const sample = currentShopItems.find(i => i.category === g.selfCat);
             const locked = sample && sample.categoryLocked && !sample.categoryUnlocked && !categoryUnlockedThisSession.has(g.selfCat);
             // 沒商品時改顯示資訊卡片數(跟子分類一致,例如只有資訊卡片的「[活動]穿搭大賽」不會顯示 0)
-            const count = visibleShopItems.filter(i => i.category === g.selfCat).length || (infoCards_ || []).filter(c => c.category === g.selfCat).length;
+            const count = visibleShopItems.filter(i => inCat_(i, g.selfCat)).length || (infoCards_ || []).filter(c => c.category === g.selfCat).length;
             html += `<div class="cat-item cat-parent-item ${currentCategory === g.selfCat ? 'active' : ''}" onclick="catParentClick_('${g.parentName.replace(/'/g,"\\'")}', '${g.selfCat.replace(/'/g,"\\'")}')">
                        <span class="ci-lead">${isCollapsed ? '▸' : '▾'}</span><span class="ci-ico">${locked ? '🔒' : '📂'}</span><span class="ci-name">${g.parentName}</span>
                        <span class="ci-cnt">${count}</span>
@@ -7946,7 +7949,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
           // 就算它平常對外隱藏,也要在這次瀏覽期間放行顯示,不然分享連結進來反而看不到要分享的東西。
           if (targetItem && isLinkOnlyItem(targetItem)) linkOnlyRevealedIds.add(targetItem.id);
 
-          const allCats = Array.from(new Set(currentShopItems.filter(item => shouldShowLinkOnlyItem(item)).map(item => item.category)));
+          const allCats = Array.from(new Set(currentShopItems.filter(item => shouldShowLinkOnlyItem(item)).flatMap(itemCats_).filter(Boolean)));
 
           // 只有資訊卡、沒有商品的分類也算存在(不然按「重整庫存」會被當成分類不見、跳回第一個分類)
           const icCats = (infoCards_ || []).map((c) => (c.category || '').toString().trim()).filter(Boolean);
@@ -8094,7 +8097,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
       let isCatBlurLocked = false; // 🌟 這個分類是「模糊顯示」模式且還沒解鎖,渲染完後要整個包一層模糊遮罩
       let catLockSampleForHint = null; // 🌟 記住分類鎖定資訊(含提示詞),函式結尾組裝模糊橫幅時還要用到
       if (currentCategory) {
-        displayItems = displayItems.filter(item => item.category === currentCategory);
+        displayItems = displayItems.filter(item => inCat_(item, currentCategory));
 
         // 🌟 分類密碼鎖定:還沒解鎖的話,依照顯示模式決定「完全隱藏內容」/「模糊顯示」/「正常顯示只鎖購買」
         const catLockSample = currentShopItems.find(item => item.category === currentCategory);
@@ -9871,7 +9874,7 @@ function fetchScoresAndShop(discordId, callback = null, fresh = false, silent = 
     // 這樣滑動切換到的下一個分類,一定是使用者在側邊欄上實際看得到、點得到的那個,不會滑進被完全隱藏的分類。
     function getOrderedShopCategories() {
       const visibleShopItems = currentShopItems.filter(shouldShowLinkOnlyItem);
-      const categories = Array.from(new Set(visibleShopItems.map(item => item.category).concat((infoCards_ || []).map(c => c.category).filter(Boolean)))); // 只有資訊卡片、沒有商品的分類也要列出
+      const categories = Array.from(new Set(visibleShopItems.flatMap(itemCats_).filter(Boolean).concat((infoCards_ || []).map(c => c.category).filter(Boolean)))); // 只有資訊卡片、沒有商品的分類也要列出
       const getOrderIndex = (cat) => getCategoryOrderIndex(cat, CATEGORY_ORDER);
       const groups = buildCategoryGroups(categories, getOrderIndex);
       const flat = [];
