@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.435</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.436</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -1797,6 +1797,12 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
           <div style="overflow-x:auto"><table id="xm-tbl" style="width:100%"></table></div>
         </div>
         <div class="ct-card" id="xm-draw" style="padding:14px 18px"></div>
+        <div class="ct-card" style="padding:14px 18px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><b>🎮 虛擬版(跑Online 遊戲道具)</b> <span class="hint" id="xm-vsum"></span></div>
+          <div class="hint" style="margin-bottom:8px">只填遊戲角色名,不經副團長。抽籤:Discord 打 <b>/交換禮物抽籤</b> 選 kind=🎮 虛擬版(全部報名者都參加,不看到貨),抽完機器人私訊每位送禮人要送給誰,送禮人按「✅ 我已經送出」會勾上下面的「已送出」。</div>
+          <div style="overflow-x:auto"><table id="xm-vtbl" style="width:100%"></table></div>
+          <div id="xm-vdraw" style="margin-top:10px"></div>
+        </div>
         <div class="ct-card" style="padding:14px 18px;border-color:#ED4245">
           <div style="font-weight:700;margin-bottom:8px">⚠️ 清除資料</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -4854,7 +4860,7 @@ async function xmLoad_() {
   try {
     const d = await xmCall_({ op: 'get' });
     if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
-    xmData_ = d; xmRenderCfg_(); xmRender_(); xmRenderDraw_();
+    xmData_ = d; xmRenderCfg_(); xmRender_(); xmRenderDraw_(); xmRenderV_();
   } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
 }
 function xmRenderCfg_() {
@@ -4903,7 +4909,7 @@ function xmFiltered_() {
 }
 function xmRender_() {
   const e = grEsc_, all = xmData_.list || [], rows = xmFiltered_();
-  document.getElementById('xm-count').textContent = all.length;
+  document.getElementById('xm-count').textContent = all.length + (xmData_.vlist && xmData_.vlist.length ? ' + 🎮' + xmData_.vlist.length : '');
   const by = {}; all.forEach((r) => { by[r.regionName] = (by[r.regionName] || 0) + 1; });
   const pn = Object.keys(xmPending_).length;
   document.getElementById('xm-pend').style.display = pn ? '' : 'none';
@@ -4972,6 +4978,24 @@ function xmRenderDraw_() {
   }
   el.innerHTML = h;
 }
+function xmRenderV_() {
+  const e = grEsc_, vl = xmData_.vlist || [], vd = xmData_.vdraw;
+  document.getElementById('xm-vsum').textContent = `共 ${vl.length} 人` + (vd ? ` ・ 已抽籤,已送出 ${vl.filter((r) => r.sent).length}/${vl.length}` : ' ・ 還沒抽籤');
+  document.getElementById('xm-vtbl').innerHTML = '<thead><tr><th>編號</th><th>DC 暱稱</th><th>遊戲角色</th><th>備註</th><th>要送給</th><th>抽到</th><th>已送出</th><th></th></tr></thead><tbody>' +
+    (vl.map((r) => `<tr><td><b>${e(r.code)}</b>${r.isTest ? ' <span class="hint">🧪</span>' : ''}</td><td>${e(r.dcName)}<div class="hint" style="font-size:11px">${e(r.uid)}</div></td>
+      <td>${e(r.gameName)}</td><td style="max-width:180px;white-space:pre-wrap">${e(r.note)}</td><td>${e(r.giveTo) || '—'}</td><td>${r.gotCode ? '<b>' + e(r.gotCode) + '</b>' : '—'}</td>
+      <td>${vd ? `<label><input type="checkbox" ${r.sent ? 'checked' : ''} onchange="xmOp_('vsetSent',{uid:'${e(r.uid)}',value:this.checked})"> ${r.sent ? '✅' : '⏳'}</label>` : '—'}</td>
+      <td style="white-space:nowrap"><button class="btn btn-edit" onclick="xmVEdit_('${e(r.uid)}')">✏️</button> <button class="btn btn-del" onclick="xmOp_('vdelete',{uid:'${e(r.uid)}'},'刪除虛擬版 ${e(r.code)} ${e(r.dcName)}?')">🗑</button></td></tr>`).join('') || '<tr><td colspan="8" class="hint">還沒有人報名虛擬版</td></tr>') + '</tbody>';
+  document.getElementById('xm-vdraw').innerHTML = !vd ? `<button class="btn btn-primary" onclick="xmOp_('vdraw',null,'正式抽虛擬版(${vl.length} 人)?建議直播時用 Discord 指令抽,機器人會自動私訊送禮人;在這裡抽的話要再用「📨 重新私訊送禮人」通知。')">🎲 正式抽虛擬版</button>`
+    : `<span class="hint">抽籤時間:${e(new Date(vd.at).toLocaleString('zh-TW'))}</span> <button class="btn btn-del" onclick="xmOp_('vresetDraw',null,'重置虛擬版抽籤?已私訊的送禮對象會作廢、已送出紀錄清空。')">🔁 重置虛擬抽籤</button>`;
+}
+async function xmVEdit_(uid) {
+  const r = (xmData_.vlist || []).find((x) => x.uid === uid); if (!r) return;
+  const gameName = prompt('遊戲角色名稱', r.gameName || ''); if (gameName === null) return;
+  const note = prompt('備註', r.note || ''); if (note === null) return;
+  const d = await xmCall_({ op: 'vedit', uid, fields: { gameName, note } });
+  if (d && d.status === 'success') { toast('✅ 已更新'); xmLoad_(); } else toast((d && d.message) || '失敗', false);
+}
 async function xmPreview_() {
   const d = await xmCall_({ op: 'drawPreview' });
   if (!d || d.status !== 'success') { toast((d && d.message) || '失敗', false); return; }
@@ -4983,7 +5007,9 @@ function xmCsv_() {
   const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
   const head = ['編號', 'DC暱稱', 'DiscordID', '地區', '收禮方式', '收件人', '地址/門市', '門市店號', '手機', '備註', '已到貨', '抽到'];
   const csv = '﻿' + [head.map(q).join(',')].concat(rows.map((r) => [r.code, r.dcName, "'" + r.uid, r.regionName, r.shipName || '宅配', r.recvName, r.addr, r.storeNo ? "'" + r.storeNo : '', r.phone, r.note, r.received ? '是' : '否', r.gotCode].map(q).join(','))).join('\r\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = '交換禮物名單.csv'; a.click();
+  const vrows = (xmData_.vlist || []).map((r) => [r.code, r.dcName, "'" + r.uid, '虛擬版', '', r.gameName, '', '', '', r.note, r.sent ? '已送出' : '', r.gotCode].map(q).join(','));
+  const all = csv + (vrows.length ? '\r\n' + vrows.join('\r\n') : '');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([all], { type: 'text/csv' })); a.download = '交換禮物名單.csv'; a.click();
 }
 
 // ===== 🖼️ 挑戰回覆審查 =====
