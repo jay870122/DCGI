@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.430</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.431</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -4894,7 +4894,7 @@ function xmRender_() {
   document.getElementById('xm-count').textContent = all.length;
   const by = {}; all.forEach((r) => { by[r.regionName] = (by[r.regionName] || 0) + 1; });
   document.getElementById('xm-sum').textContent = `共 ${all.length} 人(${Object.keys(by).map((k) => k + ' ' + by[k]).join('、') || '—'}) ・ 已到貨 ${all.filter((r) => r.received).length}`;
-  document.getElementById('xm-tbl').innerHTML = `<thead><tr><th>編號</th><th>DC 暱稱</th><th>地區</th><th>收件人</th><th>地址/門市</th><th>手機</th><th>備註</th><th>到貨</th><th>抽到</th><th></th></tr></thead><tbody>` +
+  document.getElementById('xm-tbl').innerHTML = `<thead><tr><th>編號</th><th>DC 暱稱</th><th>地區</th><th>收件人</th><th>地址/門市</th><th>手機</th><th>備註</th><th title="勾選後機器人會私訊玩家「副團長已收到禮物」(每人只通知一次)">到貨 📩</th><th>抽到</th><th></th></tr></thead><tbody>` +
     (rows.map((r) => `<tr>
       <td><b>${e(r.code)}</b>${r.isTest ? ' <span class="hint">🧪</span>' : ''}</td>
       <td>${e(r.dcName)}<div class="hint" style="font-size:11px">${e(r.uid)}</div></td>
@@ -4908,7 +4908,7 @@ function xmRender_() {
 }
 async function xmRecv_(uid, v) {
   const d = await xmCall_({ op: 'setReceived', uid, value: v });
-  if (d && d.status === 'success') { const r = (xmData_.list || []).find((x) => x.uid === uid); if (r) r.received = v; xmRender_(); toast(v ? '✅ 已標記到貨' : '已取消到貨'); }
+  if (d && d.status === 'success') { const r = (xmData_.list || []).find((x) => x.uid === uid); if (r) r.received = v; xmRender_(); toast(v ? (d.notify === 'queued' ? '✅ 已標記到貨,機器人會私訊通知他' : '✅ 已標記到貨(之前通知過,不重複私訊)') : '已取消到貨'); }
   else { toast((d && d.message) || '失敗', false); xmLoad_(); }
 }
 async function xmEdit_(uid) {
