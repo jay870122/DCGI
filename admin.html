@@ -191,7 +191,7 @@ td.cell-actions .btn-row{flex-wrap:wrap;max-width:560px} /* 按鈕太多時換�
 .pk-row2 .field{flex:1 1 120px}
 .pk-calc{background:#0003;border-radius:var(--r);padding:10px 12px;line-height:1.8;font-size:14px}
 .field input[type=checkbox]{width:auto}
-#page-poke input:not([type=checkbox]),#page-poke select,#page-poke textarea,#page-challenge-cfg input:not([type=checkbox]),#page-challenge-cfg select,#page-challenge-cfg textarea,#page-quest-cfg input:not([type=checkbox]),#page-quest-cfg select,#page-quest-cfg textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
+#page-xmas input:not([type=checkbox]),#page-xmas select,#page-xmas textarea,#page-poke input:not([type=checkbox]),#page-poke select,#page-poke textarea,#page-challenge-cfg input:not([type=checkbox]),#page-challenge-cfg select,#page-challenge-cfg textarea,#page-quest-cfg input:not([type=checkbox]),#page-quest-cfg select,#page-quest-cfg textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--t);font-size:14px;padding:8px 10px}
 #page-poke input:focus,#page-challenge-cfg input:focus,#page-challenge-cfg textarea:focus,#page-quest-cfg input:focus,#page-quest-cfg textarea:focus{outline:none;border-color:var(--gold)}
 #page-poke .field input,#page-challenge-cfg .field input,#page-challenge-cfg .field textarea,#page-quest-cfg .field input,#page-quest-cfg .field textarea{width:100%}
 #page-challenge-cfg textarea,#page-quest-cfg textarea,#page-challenge-puz textarea,#page-people textarea{width:100%}
@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.427</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.428</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -415,6 +415,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
       <div class="nav-item" onclick="navTo('poke')">🎁 戳戳樂</div>
       <div class="nav-item" onclick="navTo('boss-cfg')">🐲 翻翻樂打BOSS</div>
       <div class="nav-item" onclick="navTo('group-stats')">📊 團任/團戰統計</div>
+      <div class="nav-item" onclick="navTo('xmas')">🎄 聖誕交換禮物</div>
     </div>
     <div class="main" id="main-content">
       <!-- 商品管理 -->
@@ -1780,6 +1781,29 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
         <div class="hint" style="line-height:1.7;margin-bottom:12px">建好板子按「📤 發佈」,機器人 10 秒內會貼到指定頻道。玩家按格子就直接開獎、獎勵自動入帳。Discord 一則訊息最多 5 排×5 顆,所以<b>最多 5 欄</b>;超過 5 排會自動拆成多則訊息。</div>
         <div id="pk-list"></div>
         <div id="pk-edit" class="ct-card" style="display:none;padding:14px 18px;margin-top:14px"></div>
+      </div>
+      <div id="page-xmas" style="display:none">
+        <div class="page-header"><div class="page-title">🎄 聖誕交換禮物 <span class="count-badge" id="xm-count">—</span></div><div class="toolbar"><button class="btn btn-edit" onclick="xmLoad_()">🔄 重新讀取</button><button class="btn btn-primary" onclick="xmCsv_()">⬇️ 匯出 CSV</button></div></div>
+        <div class="hint" style="line-height:1.7;margin-bottom:12px">玩家在 Discord 用 <b>/交換禮物面板</b> 貼出的按鈕報名(選地區 → 填收件人/地址/手機)。編號依地區自動發(HK-01、TW-03…),送出後機器人會私訊編號＋下面填的寄件地址。<br>
+        12/12 直播:在要公布的頻道打 <b>/交換禮物抽籤</b>(只抽「✅已到貨」的人,不會抽到自己);12/25 打 <b>/交換禮物揭曉</b> 公布送禮人。<br>
+        🔒 地址／電話只存在資料庫,只有這個後台讀得到;活動結束記得按最下面「清除所有個資」。</div>
+        <div class="ct-card" id="xm-cfg" style="padding:14px 18px"></div>
+        <div class="ct-card" style="padding:14px 18px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><b>👥 報名名單</b>
+            <input id="xm-q" placeholder="搜尋編號/暱稱/姓名…" oninput="xmRender_()" style="min-width:180px">
+            <select id="xm-f" onchange="xmRender_()"><option value="">全部</option><option value="no">只看未到貨</option><option value="yes">只看已到貨</option><option value="HK">香港</option><option value="CN">大陸</option><option value="MO">澳門</option><option value="TW">台灣</option></select>
+            <span class="hint" id="xm-sum"></span></div>
+          <div style="overflow-x:auto"><table id="xm-tbl" style="width:100%"></table></div>
+        </div>
+        <div class="ct-card" id="xm-draw" style="padding:14px 18px"></div>
+        <div class="ct-card" style="padding:14px 18px;border-color:#ED4245">
+          <div style="font-weight:700;margin-bottom:8px">⚠️ 清除資料</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-edit" onclick="xmOp_('wipeTest',null,'刪除所有「🧪 測試模式」期間報名的資料?')">🧪 刪除測試資料</button>
+            <button class="btn btn-del" onclick="xmOp_('wipePii',null,'清除所有人的收件人姓名/地址/手機/備註(編號、抽籤結果保留,12/25 還能揭曉)。確定?')">🧹 清除所有個資</button>
+            <button class="btn btn-del" onclick="xmOp_('wipeAll',null,'刪除整個活動所有資料(名單、編號流水號、抽籤結果)。無法復原,確定?')">🗑 刪除全部活動資料</button>
+          </div>
+        </div>
       </div>
       <div id="page-group-stats" style="display:none">
         <div class="page-header"><div class="page-title">📊 團任/團戰統計</div><div class="toolbar">
@@ -4338,7 +4362,7 @@ function toggleRoleCount(prefix) {
 }
 
 // ── Navigation ──
-const pages = ['promo','cat-budget','shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-puz','people','quest-cfg','challenge-review','poke','boss-cfg','group-stats'];
+const pages = ['promo','cat-budget','shop-list','auction-list','add-shop','add-auction','sort-settings','admin-users','player-currency','cur-exp','cur-mon','display-cfg','prize-stat','contest','bingo','item-templates','craft-recipes','redeem-codes','push','stock-cfg','crypto-cfg','history','reward-keys','auction-bids','lock-settings','group-reward','challenge-cfg','challenge-puz','people','quest-cfg','challenge-review','poke','boss-cfg','group-stats','xmas'];
 let auctionBidsAutoRefreshInterval = null; // 🌟 拍賣出價紀錄頁面開著時,每10秒自動重整一次
 function navTo(p) {
   pages.forEach(pg => document.getElementById('page-'+pg).style.display = pg===p ? '' : 'none');
@@ -4379,6 +4403,7 @@ function navTo(p) {
   if (p==='quest-cfg') loadQuestCfg();
   if (p==='challenge-review') crInit_();
   if (p==='poke') loadPoke();
+  if (p==='xmas') xmLoad_();
   if (p==='boss-cfg') bossLoad_();
   if (p==='group-stats') loadGroupStats();
 }
@@ -4816,6 +4841,118 @@ async function cbSave_() {
   btn.disabled = false;
 }
 function grEsc_(t) { return (t == null ? '' : t).toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// ===== 🎄 聖誕交換禮物 =====
+let xmData_ = { cfg: {}, list: [], draw: null };
+let xmShowFrom_ = false;
+async function xmCall_(body) { return grCall_('adminXmas', body); }
+async function xmLoad_() {
+  try {
+    const d = await xmCall_({ op: 'get' });
+    if (!d || d.status !== 'success') { toast((d && d.message) || '讀取失敗', false); return; }
+    xmData_ = d; xmRenderCfg_(); xmRender_(); xmRenderDraw_();
+  } catch (e) { toast('讀取失敗:' + (e && e.message || e), false); }
+}
+function xmRenderCfg_() {
+  const c = xmData_.cfg || {}, e = grEsc_;
+  document.getElementById('xm-cfg').innerHTML = `<div style="font-weight:700;margin-bottom:10px">⚙️ 報名設定</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <label><input type="checkbox" id="xm-test" ${c.testMode ? 'checked' : ''}> 🧪 測試模式(只有管理員能報名,其他人按了會說「還在測試」)</label>
+      <label><input type="checkbox" id="xm-open" ${c.open ? 'checked' : ''}> 🟢 開放報名</label>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+      <div class="field"><label>報名開始(台北時間)</label><input type="datetime-local" id="xm-start" value="${e(c.startAt || '')}"></div>
+      <div class="field"><label>報名截止(台北時間)</label><input type="datetime-local" id="xm-end" value="${e(c.endAt || '')}"></div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div class="field" style="flex:1;min-width:260px"><label>📬 寄件地址(台灣團員看到的)</label><textarea id="xm-shiptw" rows="4" style="width:100%" placeholder="收件人/地址/電話/7-11店到店…">${e(c.shipTW || '')}</textarea></div>
+      <div class="field" style="flex:1;min-width:260px"><label>📬 寄件地址(港／陸／澳團員看到的)</label><textarea id="xm-shipot" rows="4" style="width:100%" placeholder="留空=跟台灣一樣">${e(c.shipOther || '')}</textarea></div>
+    </div>
+    <div class="field" style="margin-top:10px"><label>報名成功私訊最後附加的文字(選填,例如寄送期限)</label><textarea id="xm-dm" rows="3" style="width:100%" placeholder="⚠️ 大陸/港澳最晚 12/6 寄出、台灣最晚 12/8 寄出…">${e(c.dmExtra || '')}</textarea></div>
+    <div class="hint" style="margin:6px 0 10px">⚠️ 寄件地址留空的話,私訊會寫「副團長會再私訊給你」。測試模式打勾時「開放報名」跟日期都不看。</div>
+    <button class="btn btn-primary" onclick="xmSaveCfg_()">💾 儲存設定</button>`;
+}
+async function xmSaveCfg_() {
+  const g = (id) => document.getElementById(id);
+  const cfg = { testMode: g('xm-test').checked, open: g('xm-open').checked, startAt: g('xm-start').value, endAt: g('xm-end').value, shipTW: g('xm-shiptw').value, shipOther: g('xm-shipot').value, dmExtra: g('xm-dm').value };
+  const d = await xmCall_({ op: 'cfgSave', cfg });
+  if (d && d.status === 'success') { xmData_.cfg = d.cfg; toast('✅ 已儲存'); } else toast((d && d.message) || '儲存失敗', false);
+}
+function xmFiltered_() {
+  const q = (document.getElementById('xm-q').value || '').trim().toLowerCase(), f = document.getElementById('xm-f').value;
+  return (xmData_.list || []).filter((r) => {
+    if (f === 'no' && r.received) return false;
+    if (f === 'yes' && !r.received) return false;
+    if (/^(HK|CN|MO|TW)$/.test(f) && r.region !== f) return false;
+    if (q && ![r.code, r.dcName, r.recvName, r.uid].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function xmRender_() {
+  const e = grEsc_, all = xmData_.list || [], rows = xmFiltered_();
+  document.getElementById('xm-count').textContent = all.length;
+  const by = {}; all.forEach((r) => { by[r.regionName] = (by[r.regionName] || 0) + 1; });
+  document.getElementById('xm-sum').textContent = `共 ${all.length} 人(${Object.keys(by).map((k) => k + ' ' + by[k]).join('、') || '—'}) ・ 已到貨 ${all.filter((r) => r.received).length}`;
+  document.getElementById('xm-tbl').innerHTML = `<thead><tr><th>編號</th><th>DC 暱稱</th><th>地區</th><th>收件人</th><th>地址</th><th>手機</th><th>備註</th><th>到貨</th><th>抽到</th><th></th></tr></thead><tbody>` +
+    (rows.map((r) => `<tr>
+      <td><b>${e(r.code)}</b>${r.isTest ? ' <span class="hint">🧪</span>' : ''}</td>
+      <td>${e(r.dcName)}<div class="hint" style="font-size:11px">${e(r.uid)}</div></td>
+      <td>${e(r.regionName)}</td><td>${e(r.recvName)}</td>
+      <td style="max-width:280px;white-space:pre-wrap;word-break:break-all">${e(r.addr)}</td>
+      <td>${e(r.phone)}</td><td style="max-width:160px;white-space:pre-wrap">${e(r.note)}</td>
+      <td><label style="white-space:nowrap"><input type="checkbox" ${r.received ? 'checked' : ''} onchange="xmRecv_('${e(r.uid)}',this.checked)"> ${r.received ? '✅' : '⏳'}</label></td>
+      <td>${r.gotCode ? '<b>' + e(r.gotCode) + '</b>' : '—'}</td>
+      <td style="white-space:nowrap"><button class="btn btn-edit" onclick="xmEdit_('${e(r.uid)}')">✏️</button> <button class="btn btn-del" onclick="xmOp_('delete',{uid:'${e(r.uid)}'},'刪除 ${e(r.code)} ${e(r.dcName)} 的報名?')">🗑</button></td>
+    </tr>`).join('') || '<tr><td colspan="10" class="hint">還沒有人報名</td></tr>') + '</tbody>';
+}
+async function xmRecv_(uid, v) {
+  const d = await xmCall_({ op: 'setReceived', uid, value: v });
+  if (d && d.status === 'success') { const r = (xmData_.list || []).find((x) => x.uid === uid); if (r) r.received = v; xmRender_(); toast(v ? '✅ 已標記到貨' : '已取消到貨'); }
+  else { toast((d && d.message) || '失敗', false); xmLoad_(); }
+}
+async function xmEdit_(uid) {
+  const r = (xmData_.list || []).find((x) => x.uid === uid); if (!r) return;
+  const recvName = prompt('收件人姓名', r.recvName || ''); if (recvName === null) return;
+  const addr = prompt('收件地址', r.addr || ''); if (addr === null) return;
+  const phone = prompt('手機號碼', r.phone || ''); if (phone === null) return;
+  const note = prompt('備註', r.note || ''); if (note === null) return;
+  const d = await xmCall_({ op: 'edit', uid, fields: { recvName, addr, phone, note } });
+  if (d && d.status === 'success') { toast('✅ 已更新'); xmLoad_(); } else toast((d && d.message) || '失敗', false);
+}
+async function xmOp_(op, extra, msg) {
+  if (msg && !confirm(msg)) return;
+  const d = await xmCall_(Object.assign({ op }, extra || {}));
+  if (d && d.status === 'success') { toast('✅ 完成'); xmLoad_(); } else toast((d && d.message) || '失敗', false);
+}
+function xmRenderDraw_() {
+  const e = grEsc_, dr = xmData_.draw, el = document.getElementById('xm-draw');
+  const ready = (xmData_.list || []).filter((r) => r.received).length;
+  let h = `<div style="font-weight:700;margin-bottom:8px">🎲 抽籤</div>`;
+  if (!dr || !(dr.pairs || []).length) {
+    h += `<div class="hint" style="margin-bottom:10px">目前已到貨 <b>${ready}</b> 人(只有已到貨的會參加抽籤)。建議直播時在 Discord 打 <b>/交換禮物抽籤</b>,機器人會一個一個公布;也可以在這裡先抽好,直播時用「重播已抽結果」公布。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-edit" onclick="xmPreview_()">🧪 試抽(不存檔)</button><button class="btn btn-primary" onclick="xmOp_('draw',null,'正式抽籤後結果就固定了(只有已到貨的 ${ready} 人)。確定?')">🎲 正式抽籤</button></div><div id="xm-prev"></div>`;
+  } else {
+    h += `<div class="hint" style="margin-bottom:8px">抽籤時間:${e(new Date(dr.at).toLocaleString('zh-TW'))} ・ ${dr.revealed ? '🎉 已揭曉送禮人' : '🤫 送禮人尚未揭曉'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-edit" onclick="xmShowFrom_=!xmShowFrom_;xmRenderDraw_()">${xmShowFrom_ ? '🙈 隱藏送禮人' : '👀 顯示送禮人'}</button>
+      <button class="btn btn-del" onclick="xmOp_('resetDraw',null,'重置後可以重新抽籤(已公布的結果會作廢)。確定?')">🔁 重置抽籤</button></div>
+      <table style="width:100%"><thead><tr><th>#</th><th>收禮人</th><th>自己的編號</th><th>抽到</th><th>送禮人</th></tr></thead><tbody>` +
+      dr.pairs.map((p, i) => `<tr><td>${i + 1}</td><td>${e(p.dcName)}</td><td>${e(p.ownCode)}</td><td><b>${e(p.gotCode)}</b></td><td>${xmShowFrom_ ? e(p.fromName) : '🤫'}</td></tr>`).join('') + '</tbody></table>';
+  }
+  el.innerHTML = h;
+}
+async function xmPreview_() {
+  const d = await xmCall_({ op: 'drawPreview' });
+  if (!d || d.status !== 'success') { toast((d && d.message) || '失敗', false); return; }
+  const e = grEsc_;
+  document.getElementById('xm-prev').innerHTML = '<div class="hint" style="margin:10px 0 4px">試抽結果(沒有存檔):</div>' + d.pairs.map((p) => `${e(p.dcName)}(${e(p.ownCode)}) → <b>${e(p.gotCode)}</b>`).join('<br>');
+}
+function xmCsv_() {
+  const rows = xmFiltered_();
+  const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const head = ['編號', 'DC暱稱', 'DiscordID', '地區', '收件人', '地址', '手機', '備註', '已到貨', '抽到'];
+  const csv = '﻿' + [head.map(q).join(',')].concat(rows.map((r) => [r.code, r.dcName, "'" + r.uid, r.regionName, r.recvName, r.addr, r.phone, r.note, r.received ? '是' : '否', r.gotCode].map(q).join(','))).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = '交換禮物名單.csv'; a.click();
+}
 
 // ===== 🖼️ 挑戰回覆審查 =====
 let crQueried_ = false, crEvents_ = [], crImg_ = {}, crSel_ = {}, crWatch_ = null, crJobTimer_ = null;
