@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.442</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.443</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5124,7 +5124,7 @@ async function crSubmit_(items, act) {
 // ===== 🐲 翻翻樂打BOSS 後台 =====
 // ===== 翻翻樂視覺化編輯器 =====
 let BED_ = { tracks: [], bosses: [] };
-let BE_LIB_OPEN_ = false; // 圖鑑區塊展開狀態(重畫時保持,不會一按按鈕就收起來)
+var BE_LIB_OPEN_ = false, BE_PROP_OPEN_ = new Set(); // 圖鑑區塊展開狀態(重畫時保持,不會一按按鈕就收起來)
 const BE_RW_ = { type: 'currency', name: '', amount: 1 };
 const BE_FORM_ = { name: '新BOSS', img: '', hp: 5000, board: { cols: 4, attack: [{ label: '', pairs: 2, dmg: '10~30' }], reward: [], trap: { count: 0, heal: '' }, reset: { count: 0, need: 2 }, rest: { count: 0, sec: '' } }, rewards: { participation: [{ min: 1, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 1 }] }], ranking: [], lastHit: [] } };
 const beEsc_ = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -5141,7 +5141,7 @@ function beDupTrack_(ti) {
   BED_.tracks.splice(ti + 1, 0, c); beRender_(); toast('已複製賽道(新ID:' + c.id + '),改完名稱/期間後記得按儲存');
 }
 function beDup_(path, i) { const r = beRef_(path); r[0][r[1]].splice(i + 1, 0, beClone_(r[0][r[1]][i])); beRender_(); }
-function beIn_(path, val, w, ph, type, list) { return '<input ' + (type ? 'type="' + type + '" ' : '') + (list ? 'list="' + list + '" ' : '') + 'value="' + beEsc_(val) + '" placeholder="' + beEsc_(ph || '') + '" style="width:' + (type === 'number' ? Math.max(w + 26, 82) : w) + 'px" oninput="beSet_(\'' + path + '\',this.value)">'; }
+function beIn_(path, val, w, ph, type, list) { return '<input ' + (type ? 'type="' + type + '" ' + (type === 'number' ? 'step="any" ' : '') : '') + (list ? 'list="' + list + '" ' : '') + 'value="' + beEsc_(val) + '" placeholder="' + beEsc_(ph || '') + '" style="width:' + (type === 'number' ? Math.max(w + 26, 82) : w) + 'px" oninput="beSet_(\'' + path + '\',this.value)">'; }
 function beChk_(path, val, label) { return '<label class="pk-chk" style="margin:0"><input type="checkbox" ' + (val ? 'checked' : '') + ' onchange="beSet_(\'' + path + '\',this.checked)"> ' + label + '</label>'; }
 function beRole_(ti, id, on) { const t = BED_.tracks[ti]; t.roles = (t.roles || []).filter((x) => x !== id); if (on) t.roles.push(id); beTot_(); beMirror_(); }
 function beFixForm_(f) {
@@ -5209,7 +5209,7 @@ function beLibDel_(i) {
   if (used.length && !confirm('「' + no + ' ' + (b.name || '') + '」正在被賽道使用:' + used.map((t) => t.name).join('、') + '\n刪掉後那些層會儲存失敗,確定刪除?')) return;
   BED_.bosses.splice(i, 1); beRender_();
 }
-function beMirror_() { const ta = document.getElementById('boss-json'); if (ta) ta.value = JSON.stringify({ bosses: BED_.bosses, tracks: BED_.tracks }, null, 1); }
+function beMirror_() { const ta = document.getElementById('boss-json'); if (ta) ta.value = JSON.stringify({ bosses: BED_.bosses, tracks: BED_.tracks }, null, 1); clearTimeout(beMirror_.t); beMirror_.t = setTimeout(() => BE_PROP_OPEN_.forEach((ti) => { try { beProp_(ti); } catch (e) {} }), 300); } // 企劃書有打開的話,改設定/存檔後自動重新產生
 function beFormTotal_(f) { const b = f.board || {}; const n = (x) => { if (x === undefined || x === null) return 0; const t = String(x).trim().replace(/～/g, '~'); if (t === '') return 0; const m = t.match(/(\d+)\s*$/); return m ? parseInt(m[1], 10) : 0; }; const sp = (o, k, kk) => (o && o[kk] !== undefined ? o[kk] : (o ? o[k] : undefined)); return (b.attack || []).reduce((a, x) => a + n(sp(x, 'pairs', 'pairsSpec')) * 2, 0) + (b.reward || []).reduce((a, x) => a + n(sp(x, 'pairs', 'pairsSpec')) * 2, 0) + n(sp(b.trap, 'count', 'countSpec')) + n(sp(b.reset, 'count', 'countSpec')) + n(sp(b.rest, 'count', 'countSpec')); }
 // 選一群組欄:「個人||全體:群組」同存一格
 function exclSplitA_(raw){let p='',g='';String(raw||'').split('||').forEach(x=>{x=x.trim();if(!x)return;const m=x.match(/^(全體|全服)\s*[:：]\s*(.+)$/);if(m)g=m[2].trim();else p=x;});return {p,g};}
@@ -5328,7 +5328,7 @@ function beRender_() {
       h += beFormEd_(fp, f, '<div class="be-h">👹 第 ' + (fi + 1) + ' 層(這條賽道自訂)' + tools + '<button class="btn btn-edit" onclick="beToLib_(' + ti + ',' + fi + ')" title="搬進 BOSS 圖鑑給它一個編號,其他賽道/層也能用">📚 搬進圖鑑</button></div>');
     });
     h += '<button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',{use:\'\'})">➕ 新增一層(用圖鑑 BOSS / 隨機)</button> <button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',BE_FORM_)">➕ 新增一層(這條賽道自訂 BOSS)</button> <button class="btn btn-primary" onclick="bossSave_()">💾 儲存</button>';
-    h += '<details class="be-form" ontoggle="if(this.open)beProp_(' + ti + ')"><summary style="cursor:pointer"><b>📄 活動企劃書版本</b>(依上面設定自動產生,可直接貼進企劃書)</summary><div class="be-row"><button class="btn btn-primary" onclick="beCopyProp_(' + ti + ')">📋 複製</button> <button class="btn btn-edit" onclick="beProp_(' + ti + ')">🔄 重新產生</button></div><textarea id="be-prop-' + ti + '" readonly style="width:100%;min-height:260px;font-family:inherit;font-size:13px;line-height:1.5"></textarea></details></div>';
+    h += '<details class="be-form"' + (BE_PROP_OPEN_.has(ti) ? ' open' : '') + ' ontoggle="if(this.open){BE_PROP_OPEN_.add(' + ti + ');beProp_(' + ti + ')}else BE_PROP_OPEN_.delete(' + ti + ')"><summary style="cursor:pointer"><b>📄 活動企劃書版本</b>(依上面設定自動產生,可直接貼進企劃書)</summary><div class="be-row"><button class="btn btn-primary" onclick="beCopyProp_(' + ti + ')">📋 複製</button> <button class="btn btn-edit" onclick="beProp_(' + ti + ')">🔄 重新產生</button></div><textarea id="be-prop-' + ti + '" readonly style="width:100%;min-height:260px;font-family:inherit;font-size:13px;line-height:1.5"></textarea></details></div>';
   });
   if (!BED_.tracks.length) h += '<div class="hint">還沒有賽道,按下面「➕ 新增賽道」開始。</div>';
   el.innerHTML = h; beTot_(); beMirror_();
