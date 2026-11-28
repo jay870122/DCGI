@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.439</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.440</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5163,14 +5163,31 @@ function beNextNo_() { const ns = new Set((BED_.bosses || []).map((b) => String(
 function beUse_(use) {
   const out = [], bad = [];
   String(use || '').replace(/，|、|\s+/g, ',').split(',').filter(Boolean).forEach((tok) => {
-    const m = tok.match(/^([A-Za-z0-9_-]+|\*)(?:\*(\d+))?$/); if (!m) { bad.push(tok); return; }
-    const w = m[2] ? Math.max(1, parseInt(m[2], 10)) : 1;
+    const m = tok.match(/^([A-Za-z0-9_-]+|\*)(?:\*(\d+(?:\.\d+)?))?$/); if (!m) { bad.push(tok); return; }
+    const w = m[2] ? Math.max(0.01, parseFloat(m[2])) : 1;
     const add = (b) => { const ex = out.find((x) => x.no === b.no); if (ex) ex.w += w; else out.push({ no: b.no, w, boss: b }); };
     if (m[1] === '*') { (BED_.bosses || []).forEach(add); return; }
     const no = m[1].toUpperCase(), b = (BED_.bosses || []).find((x) => String(x.no || '').toUpperCase() === no);
     if (b) add(b); else bad.push(no);
   });
   return { list: out, bad };
+}
+// 🆕 圖鑑層的候選清單:「B001*30,B002*70」<-> [{no,w}];用下拉選 BOSS、填機率
+function beUseRows_(use) { return String(use || '').replace(/，|、|\s+/g, ',').split(',').filter(Boolean).map((tok) => { const m = tok.match(/^([A-Za-z0-9_-]+|\*)(?:\*(\d+(?:\.\d+)?))?$/); return m ? { no: m[1] === '*' ? '*' : m[1].toUpperCase(), w: m[2] ? parseFloat(m[2]) : 1 } : { no: tok, w: 1 }; }); }
+function beUseJoin_(rows) { return rows.filter((r) => r.no).map((r) => r.no + (r.w !== 1 ? '*' + r.w : '')).join(','); }
+function beUseEd_(ti, fi, k, field, val) {
+  const f = BED_.tracks[ti].forms[fi], rows = beUseRows_(f.use);
+  if (!rows.length && field !== 'add') rows.push({ no: '', w: 1 });
+  if (field === 'del') rows.splice(k, 1);
+  else if (field === 'add') { const sum = rows.reduce((a, r) => a + r.w, 0), used = new Set(rows.map((r) => r.no)); const nb = (BED_.bosses || []).find((b) => !used.has(String(b.no || '').toUpperCase())); if (rows.length === 1 && rows[0].w === 1) rows[0].w = 50; rows.push({ no: nb ? String(nb.no).toUpperCase() : '', w: rows.length ? (rows.length === 1 && rows[0].w === 50 ? 50 : (100 - sum >= 1 ? Math.round((100 - sum) * 100) / 100 : 10)) : 100 }); }
+  else if (field === 'no') rows[k].no = val;
+  else if (field === 'w') { const x = parseFloat(val); rows[k].w = isFinite(x) && x > 0 ? Math.round(x * 100) / 100 : 1; }
+  f.use = beUseJoin_(rows); beMirror_(); if (field !== 'w') beRender_(); else beUseSum_(ti, fi);
+}
+function beUseSum_(ti, fi) { // 只更新「實際機率」文字,不重畫(避免打字時跳掉)
+  const el = document.getElementById('be-usesum-' + ti + '-' + fi); if (!el) return;
+  const u = beUse_(BED_.tracks[ti].forms[fi].use), tot = u.list.reduce((a, x) => a + x.w, 0) || 1;
+  el.innerHTML = u.list.length > 1 ? '實際機率:' + u.list.map((x) => beEsc_(x.no + ' ' + (x.boss.name || '')) + ' <b>' + Math.round(x.w / tot * 1000) / 10 + '%</b>').join('、') + (Math.abs(tot - 100) > 0.001 ? ' <span class="hint">(你填的加總是 ' + Math.round(tot * 100) / 100 + ',系統會按比例換算)</span>' : '') : '';
 }
 function beToLib_(ti, fi) { // 把賽道裡自訂的型態搬進圖鑑,這一層改成用編號
   const t = BED_.tracks[ti], f = t && t.forms[fi]; if (!f || f.use !== undefined) return;
@@ -5283,10 +5300,22 @@ function beRender_() {
     h += '<div class="be-row">' + beChk_(tp + '.dcKill', t.dcKill, '📣 BOSS 被打倒時通報 DC(含進化/重新降臨/結束)') + '附傷害排行前' + beIn_(tp + '.dcKillRank', t.dcKillRank || 0, 50, '0', 'number') + '名 <span class="hint">0=不放排行,最多 20;測試模式/測試賽道不公告</span></div>';
     (t.forms || []).forEach((f, fi) => {
       const fp = tp + '.forms.' + fi, tools = '<button class="btn btn-edit" onclick="beDup_(\'' + tp + '.forms\',' + fi + ')">📑 複製</button><button class="btn btn-edit" onclick="beDel_(\'' + tp + '.forms\',' + fi + ')">🗑</button>';
-      if (f.use !== undefined) { // 🆕 這一層用圖鑑 BOSS(固定編號或隨機)
-        const u = beUse_(f.use), tot = u.list.reduce((a, x) => a + x.w, 0);
-        const info = u.list.length ? (u.list.length === 1 ? '固定出場:<b>' + beEsc_(u.list[0].no + ' ' + (u.list[0].boss.name || '')) + '</b>(血量 ' + beEsc_(u.list[0].boss.hp) + ')' : '🎲 每次出場隨機抽一隻:' + u.list.map((x) => '<b>' + beEsc_(x.no + ' ' + (x.boss.name || '')) + '</b> ' + Math.round(x.w / tot * 1000) / 10 + '%').join('、')) : '<span style="color:#f04747">還沒選 BOSS</span>';
-        h += '<div class="be-form"><div class="be-h">📚 第 ' + (fi + 1) + ' 層(用圖鑑 BOSS)' + tools + '</div><div class="be-row">BOSS 編號 <input list="be-boss-list" value="' + beEsc_(f.use) + '" placeholder="B001 / B001,B002*3 / *" style="width:240px" oninput="beSet_(\'' + fp + '.use\',this.value)" onchange="beRender_()"> <span class="hint">一個編號=固定;多個用逗號=隨機(<code>*3</code>=權重 3 倍);<code>*</code>=整本圖鑑隨機</span></div><div class="be-row">' + info + (u.bad.length ? ' <span style="color:#f04747">圖鑑裡沒有:' + beEsc_(u.bad.join('、')) + '</span>' : '') + '</div></div>';
+      if (f.use !== undefined) { // 🆕 這一層用圖鑑 BOSS:一隻=固定;多隻=每次出場依機率抽一隻
+        const rows = beUseRows_(f.use), u = beUse_(f.use);
+        const opts = (sel) => '<option value=""' + (!sel ? ' selected' : '') + '>(選 BOSS)</option>' + (BED_.bosses || []).map((b) => { const no = String(b.no || '').toUpperCase(); return '<option value="' + beEsc_(no) + '"' + (no === sel ? ' selected' : '') + '>' + beEsc_(no + ' ' + (b.name || '') + '(血量 ' + b.hp + ')') + '</option>'; }).join('') + '<option value="*"' + (sel === '*' ? ' selected' : '') + '>🎲 整本圖鑑(每隻機率一樣)</option>';
+        h += '<div class="be-form"><div class="be-h">📚 第 ' + (fi + 1) + ' 層(用圖鑑 BOSS)' + tools + '</div>';
+        if (!rows.length) rows.push({ no: '', w: 1 });
+        rows.forEach((r, k) => {
+          h += '<div class="be-row">' + (rows.length > 1 ? '🎲 ' : 'BOSS ') + '<select onchange="beUseEd_(' + ti + ',' + fi + ',' + k + ',\'no\',this.value)">' + opts(r.no) + '</select>';
+          if (rows.length > 1) h += ' 機率 <input type="number" min="0.01" step="0.01" value="' + beEsc_(r.w) + '" style="width:80px" oninput="beUseEd_(' + ti + ',' + fi + ',' + k + ',\'w\',this.value)"> %';
+          if (rows.length > 1 || r.no) h += ' <button class="btn btn-edit" onclick="beUseEd_(' + ti + ',' + fi + ',' + k + ',\'del\')">✕</button>';
+          if (r.no && r.no !== '*' && !(BED_.bosses || []).some((b) => String(b.no || '').toUpperCase() === r.no)) h += ' <span style="color:#f04747">圖鑑裡沒有 ' + beEsc_(r.no) + '</span>';
+          h += '</div>';
+        });
+        h += '<div class="be-row"><button class="btn btn-edit" onclick="beUseEd_(' + ti + ',' + fi + ',0,\'add\')">➕ 新增候選 BOSS(隨機)</button> <span class="hint">只有一隻=固定出場;兩隻以上=每次這層出場時依機率抽一隻</span></div>';
+        h += '<div class="be-row" id="be-usesum-' + ti + '-' + fi + '"></div>';
+        h += '</div>';
+        setTimeout(() => beUseSum_(ti, fi), 0);
         return;
       }
       h += beFormEd_(fp, f, '<div class="be-h">👹 第 ' + (fi + 1) + ' 層(這條賽道自訂)' + tools + '<button class="btn btn-edit" onclick="beToLib_(' + ti + ',' + fi + ')" title="搬進 BOSS 圖鑑給它一個編號,其他賽道/層也能用">📚 搬進圖鑑</button></div>');
