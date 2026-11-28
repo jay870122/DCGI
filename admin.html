@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.441</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.442</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5124,6 +5124,7 @@ async function crSubmit_(items, act) {
 // ===== 🐲 翻翻樂打BOSS 後台 =====
 // ===== 翻翻樂視覺化編輯器 =====
 let BED_ = { tracks: [], bosses: [] };
+let BE_LIB_OPEN_ = false; // 圖鑑區塊展開狀態(重畫時保持,不會一按按鈕就收起來)
 const BE_RW_ = { type: 'currency', name: '', amount: 1 };
 const BE_FORM_ = { name: '新BOSS', img: '', hp: 5000, board: { cols: 4, attack: [{ label: '', pairs: 2, dmg: '10~30' }], reward: [], trap: { count: 0, heal: '' }, reset: { count: 0, need: 2 }, rest: { count: 0, sec: '' } }, rewards: { participation: [{ min: 1, rewards: [{ type: 'currency', name: '幻彩水晶', amount: 1 }] }], ranking: [], lastHit: [] } };
 const beEsc_ = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -5276,7 +5277,7 @@ function beRender_() {
   const el = document.getElementById('boss-ed'); if (!el) return;
   beFillLists_();
   let h = '<datalist id="be-boss-list">' + (BED_.bosses || []).map((b) => '<option value="' + beEsc_(String(b.no || '').toUpperCase()) + '">' + beEsc_((b.name || '') + '(血量 ' + b.hp + ')') + '</option>').join('') + '<option value="*">🎲 整本圖鑑(每隻機率一樣)</option></datalist>';
-  h += '<details class="be-track"' + (BED_.bosses.length ? '' : ' open') + '><summary class="be-h" style="cursor:pointer">📚 BOSS 圖鑑(' + BED_.bosses.length + ' 隻)<span class="hint" style="font-weight:normal;margin-left:8px">在這裡做好 BOSS、給編號,賽道的每一層再填編號使用(多個編號=隨機出場)。改圖鑑會影響所有用到它的層。</span></summary>';
+  h += '<details class="be-track"' + (BE_LIB_OPEN_ || !BED_.bosses.length ? ' open' : '') + ' ontoggle="BE_LIB_OPEN_=this.open"><summary class="be-h" style="cursor:pointer">📚 BOSS 圖鑑(' + BED_.bosses.length + ' 隻)<span class="hint" style="font-weight:normal;margin-left:8px">在這裡做好 BOSS、給編號,賽道的每一層再填編號使用(多個編號=隨機出場)。改圖鑑會影響所有用到它的層。</span></summary>';
   BED_.bosses.forEach((b, bi) => {
     const fp = 'bosses.' + bi;
     h += beFormEd_(fp, b, '<div class="be-h">🐲 ' + beEsc_(b.no || '') + ' ' + beEsc_(b.name || '') + '<button class="btn btn-edit" onclick="beLibDup_(' + bi + ')">📑 複製</button><button class="btn btn-edit" onclick="beLibDel_(' + bi + ')">🗑</button></div><div class="be-row">編號' + '<input value="' + beEsc_(b.no || '') + '" placeholder="B001" style="width:80px" oninput="beSet_(\'' + fp + '.no\',this.value.toUpperCase().replace(/[^A-Z0-9_-]/g,\'\'))" onchange="beRender_()"> <span class="hint">英數字,賽道用這個編號指定</span></div>');
