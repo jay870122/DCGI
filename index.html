@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.375</div>
+    <div class="version-tag">系統版本：v5.4.376</div>
   </div>
 
   <script>
@@ -3649,7 +3649,7 @@
       const groupsHtml = groups.map((g, idx) => {
         const boxId = `gi-pool-${idx}`;
         let contentBoxHtml = '';
-        if (g.pool && g.pool.length > 0) {
+        if (g.pool && g.pool.length > 0 && !g.noOpen) { // 🌟 不可開啟的道具不顯示內容物一覽(只會看到一行「(不可開啟)」沒意義)
           if (g.pool.length <= 3) {
             contentBoxHtml = buildGachaContentBoxHtml_(g.pool, "🎁 內容物一覽：");
           } else {
@@ -3738,7 +3738,7 @@
         const giNameAttr_ = String(g.itemName || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const giExpireMs_ = g.nearestExpiresAt ? new Date(g.nearestExpiresAt).getTime() : 0;
         return `
-        <div class="gi-card" data-idx="${idx}" data-name="${giNameAttr_}" data-count="${g.totalCount}" data-expire="${giExpireMs_ || ''}" data-tradable="${g.tradable ? 1 : 0}" style="background:#2F3136;border-radius:8px;padding:10px 12px">
+        <div class="gi-card" data-idx="${idx}" data-name="${giNameAttr_}" data-noopen="${g.noOpen ? 1 : 0}" data-count="${g.totalCount}" data-expire="${giExpireMs_ || ''}" data-tradable="${g.tradable ? 1 : 0}" style="background:#2F3136;border-radius:8px;padding:10px 12px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <span style="display:flex;align-items:flex-start;gap:10px;min-width:0">
               ${g.iconUrl ? `<img class="gi-icon gi-bigimg" src="${escapeHtml_(g.iconUrl)}" ${g.imageUrl ? `data-big="${escapeHtml_(g.imageUrl)}" ` : ''}title="點擊放大" loading="lazy" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#202225;cursor:zoom-in" onerror="this.style.display='none'">` : ''}
@@ -3841,6 +3841,7 @@
       giApplyView_();
       startGeneralItemCountdowns_();
       loadCraftRecipes_();
+      giApplyFocus_();
     }
 
     // ============================================================
@@ -3998,7 +3999,9 @@
       document.querySelectorAll('.gi-craft').forEach(el => {
         const name = el.dataset.craftName;
         const mine = recipes.filter(rc => rc.materials.some(m => m.t === 'item' && m.n === name) || (rc.zones || []).some(z => (z.items || []).some(it => it.t !== 'cur' && it.n === name))); // 加成區裡的道具也算
-        el.innerHTML = mine.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:#F0B232;font-size:12px">🔨 可合成表(${mine.length})</summary>${mine.map(rc => craftRecipeHtml_(rc, 'c')).join('')}</details>` : '';
+        const card_ = el.closest('.gi-card');
+        const autoOpen_ = card_ && card_.dataset.noopen === '1'; // 🌟 不可開啟的道具唯一用途就是合成,可合成表直接展開
+        el.innerHTML = mine.length ? `<details${autoOpen_ ? ' open' : ''} style="margin-top:6px"><summary style="cursor:pointer;color:#F0B232;font-size:12px">🔨 可合成表(${mine.length})</summary>${mine.map(rc => craftRecipeHtml_(rc, 'c')).join('')}</details>` : '';
       });
       // 我的道具下方:全部配方
       sec.innerHTML = recipes.length ? `
@@ -4006,6 +4009,39 @@
           <summary style="cursor:pointer;font-weight:bold;color:#F0B232;font-size:13px">🔨 合成配方(${recipes.length})</summary>
           ${recipes.map(rc => craftRecipeHtml_(rc, 's')).join('')}
         </details>` : '';
+      giApplyFocus_(); // 可合成表填好後卡片高度會變,再對準一次
+    }
+    // 🌟🆕 合成/開道具後自動捲動:先記下背包每種道具的數量,重新載入後找「新出現或變多」的道具卡片捲過去並閃一下;
+    // 沒有新道具就捲回剛剛操作的那張卡片(不會被重新整理丟回最上面)
+    let giFocus_ = null;
+    function giSnapshotFocus_(fallbackName) {
+      const before = {};
+      document.querySelectorAll('#general-items-container .gi-card').forEach(c => { before[c.dataset.name] = parseInt(c.dataset.count, 10) || 0; });
+      giFocus_ = { before, fallbackName: fallbackName || '', target: null, until: Date.now() + 15000, flashed: false };
+    }
+    function giApplyFocus_() {
+      const f = giFocus_;
+      if (!f) return;
+      if (Date.now() > f.until) { giFocus_ = null; return; }
+      const cards = Array.from(document.querySelectorAll('#general-items-container .gi-card'));
+      if (!cards.length) return;
+      if (!f.target) {
+        const hit = cards.find(c => !(c.dataset.name in f.before) || (parseInt(c.dataset.count, 10) || 0) > f.before[c.dataset.name]);
+        f.target = hit ? hit.dataset.name : f.fallbackName;
+        f.isNew = !!hit;
+        if (!f.target) { giFocus_ = null; return; }
+      }
+      const card = cards.find(c => c.dataset.name === f.target);
+      if (!card) return;
+      if (card.parentElement && card.parentElement.classList.contains('gi-compact')) card.classList.add('gi-open');
+      card.scrollIntoView({ behavior: f.flashed ? 'auto' : 'smooth', block: 'start' });
+      if (f.isNew && !f.flashed) {
+        f.flashed = true;
+        card.style.transition = 'box-shadow .3s';
+        card.style.boxShadow = '0 0 0 2px #F0B232, 0 0 14px #F0B232';
+        setTimeout(() => { card.style.boxShadow = ''; }, 2200);
+      }
+      f.flashed = true;
     }
 
     // 🌟🆕 合成動畫:配方開了「合成動畫」→ 按下合成(確認後)立刻開始敲;伺服器回應後(至少敲滿約1.5秒)才揭曉成功/失敗,按「確定」才顯示結果
@@ -4055,10 +4091,11 @@
       document.querySelectorAll('#general-items-container button, #general-items-container input, #craft-section button, #craft-section input, .gi-craft button, .gi-craft input').forEach(el => { el.disabled = true; });
       btnEl.textContent = '⏳ 合成中...';
       let animH_ = rc.anim ? craftAnimStart_() : null; // 配方開了動畫:按下就開始敲
+      const craftCard_ = btnEl.closest('.gi-card'), craftFocusName_ = craftCard_ ? craftCard_.dataset.name || '' : ''; // 從哪張道具卡片按合成(沒有新道具時捲回這裡)
       function finishError_(msg) { craftAnimAbort_(animH_); generalItemActionInFlight = false; loadGeneralItems(true); alert(msg); }
       function finishSuccess_(data) {
         generalItemActionInFlight = false;
-        const after_ = () => { loadGeneralItems(true); fetchScoresAndShop(currentUser.id); };
+        const after_ = () => { giSnapshotFocus_(craftFocusName_); loadGeneralItems(true); fetchScoresAndShop(currentUser.id); };
         if (!animH_ && data.anim) animH_ = craftAnimStart_();
         if (animH_) { craftAnimReveal_(animH_, data, after_); return; }
         alert(data.message || `🔨 合成「${rc.name}」成功!`);
@@ -4196,6 +4233,7 @@
       function finishSuccess_(data) {
         generalItemActionInFlight = false;
         alert(data.message || `🎉 恭喜！打開「${itemName}」\n\n獲得：${(data.resultStrs || []).join('、')}`);
+        giSnapshotFocus_(itemName);
         loadGeneralItems(true);
         fetchScoresAndShop(currentUser.id);
       }
