@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.440</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.441</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5163,7 +5163,7 @@ function beNextNo_() { const ns = new Set((BED_.bosses || []).map((b) => String(
 function beUse_(use) {
   const out = [], bad = [];
   String(use || '').replace(/，|、|\s+/g, ',').split(',').filter(Boolean).forEach((tok) => {
-    const m = tok.match(/^([A-Za-z0-9_-]+|\*)(?:\*(\d+(?:\.\d+)?))?$/); if (!m) { bad.push(tok); return; }
+    const m = tok.match(/^([A-Za-z0-9_-]+|\*|\?)(?:\*(\d+(?:\.\d+)?))?$/); if (!m) { bad.push(tok); return; } if (m[1] === '?') return;
     const w = m[2] ? Math.max(0.01, parseFloat(m[2])) : 1;
     const add = (b) => { const ex = out.find((x) => x.no === b.no); if (ex) ex.w += w; else out.push({ no: b.no, w, boss: b }); };
     if (m[1] === '*') { (BED_.bosses || []).forEach(add); return; }
@@ -5173,14 +5173,20 @@ function beUse_(use) {
   return { list: out, bad };
 }
 // 🆕 圖鑑層的候選清單:「B001*30,B002*70」<-> [{no,w}];用下拉選 BOSS、填機率
-function beUseRows_(use) { return String(use || '').replace(/，|、|\s+/g, ',').split(',').filter(Boolean).map((tok) => { const m = tok.match(/^([A-Za-z0-9_-]+|\*)(?:\*(\d+(?:\.\d+)?))?$/); return m ? { no: m[1] === '*' ? '*' : m[1].toUpperCase(), w: m[2] ? parseFloat(m[2]) : 1 } : { no: tok, w: 1 }; }); }
-function beUseJoin_(rows) { return rows.filter((r) => r.no).map((r) => r.no + (r.w !== 1 ? '*' + r.w : '')).join(','); }
+function beUseRows_(use) { return String(use || '').replace(/，|、|\s+/g, ',').split(',').filter(Boolean).map((tok) => { const m = tok.match(/^([A-Za-z0-9_-]+|\*|\?)(?:\*(\d+(?:\.\d+)?))?$/); return m ? { no: m[1] === '?' ? '' : m[1] === '*' ? '*' : m[1].toUpperCase(), w: m[2] ? parseFloat(m[2]) : 1 } : { no: tok, w: 1 }; }); }
+function beUseJoin_(rows) { return (rows.length === 1 && !rows[0].no) ? '' : rows.map((r) => (r.no || '?') + (r.w !== 1 ? '*' + r.w : '')).join(','); } // 還沒選的候選用「?」佔位,存檔時會提醒
+function beUseFind_(v) { // 打字搜尋:可打編號、名稱(部分即可)或 *
+  v = String(v || '').trim(); if (!v) return ''; if (v === '*' || /整本/.test(v)) return '*';
+  const bs = BED_.bosses || [], up = v.toUpperCase().replace(/[(（].*$/, '').trim();
+  let b = bs.find((x) => String(x.no || '').toUpperCase() === up) || bs.find((x) => (x.name || '') === v) || bs.find((x) => (x.name || '') && v.indexOf(x.name) >= 0) || bs.find((x) => (x.name || '').indexOf(v) >= 0);
+  return b ? String(b.no).toUpperCase() : up;
+}
 function beUseEd_(ti, fi, k, field, val) {
   const f = BED_.tracks[ti].forms[fi], rows = beUseRows_(f.use);
   if (!rows.length && field !== 'add') rows.push({ no: '', w: 1 });
   if (field === 'del') rows.splice(k, 1);
   else if (field === 'add') { const sum = rows.reduce((a, r) => a + r.w, 0), used = new Set(rows.map((r) => r.no)); const nb = (BED_.bosses || []).find((b) => !used.has(String(b.no || '').toUpperCase())); if (rows.length === 1 && rows[0].w === 1) rows[0].w = 50; rows.push({ no: nb ? String(nb.no).toUpperCase() : '', w: rows.length ? (rows.length === 1 && rows[0].w === 50 ? 50 : (100 - sum >= 1 ? Math.round((100 - sum) * 100) / 100 : 10)) : 100 }); }
-  else if (field === 'no') rows[k].no = val;
+  else if (field === 'no') rows[k].no = beUseFind_(val);
   else if (field === 'w') { const x = parseFloat(val); rows[k].w = isFinite(x) && x > 0 ? Math.round(x * 100) / 100 : 1; }
   f.use = beUseJoin_(rows); beMirror_(); if (field !== 'w') beRender_(); else beUseSum_(ti, fi);
 }
@@ -5269,7 +5275,7 @@ function beFormEd_(fp, f, head) {
 function beRender_() {
   const el = document.getElementById('boss-ed'); if (!el) return;
   beFillLists_();
-  let h = '<datalist id="be-boss-list"><option value="*">整本圖鑑隨機</option>' + (BED_.bosses || []).map((b) => '<option value="' + beEsc_(b.no) + '">' + beEsc_(b.name || '') + '</option>').join('') + '</datalist>';
+  let h = '<datalist id="be-boss-list">' + (BED_.bosses || []).map((b) => '<option value="' + beEsc_(String(b.no || '').toUpperCase()) + '">' + beEsc_((b.name || '') + '(血量 ' + b.hp + ')') + '</option>').join('') + '<option value="*">🎲 整本圖鑑(每隻機率一樣)</option></datalist>';
   h += '<details class="be-track"' + (BED_.bosses.length ? '' : ' open') + '><summary class="be-h" style="cursor:pointer">📚 BOSS 圖鑑(' + BED_.bosses.length + ' 隻)<span class="hint" style="font-weight:normal;margin-left:8px">在這裡做好 BOSS、給編號,賽道的每一層再填編號使用(多個編號=隨機出場)。改圖鑑會影響所有用到它的層。</span></summary>';
   BED_.bosses.forEach((b, bi) => {
     const fp = 'bosses.' + bi;
@@ -5302,11 +5308,11 @@ function beRender_() {
       const fp = tp + '.forms.' + fi, tools = '<button class="btn btn-edit" onclick="beDup_(\'' + tp + '.forms\',' + fi + ')">📑 複製</button><button class="btn btn-edit" onclick="beDel_(\'' + tp + '.forms\',' + fi + ')">🗑</button>';
       if (f.use !== undefined) { // 🆕 這一層用圖鑑 BOSS:一隻=固定;多隻=每次出場依機率抽一隻
         const rows = beUseRows_(f.use), u = beUse_(f.use);
-        const opts = (sel) => '<option value=""' + (!sel ? ' selected' : '') + '>(選 BOSS)</option>' + (BED_.bosses || []).map((b) => { const no = String(b.no || '').toUpperCase(); return '<option value="' + beEsc_(no) + '"' + (no === sel ? ' selected' : '') + '>' + beEsc_(no + ' ' + (b.name || '') + '(血量 ' + b.hp + ')') + '</option>'; }).join('') + '<option value="*"' + (sel === '*' ? ' selected' : '') + '>🎲 整本圖鑑(每隻機率一樣)</option>';
         h += '<div class="be-form"><div class="be-h">📚 第 ' + (fi + 1) + ' 層(用圖鑑 BOSS)' + tools + '</div>';
         if (!rows.length) rows.push({ no: '', w: 1 });
         rows.forEach((r, k) => {
-          h += '<div class="be-row">' + (rows.length > 1 ? '🎲 ' : 'BOSS ') + '<select onchange="beUseEd_(' + ti + ',' + fi + ',' + k + ',\'no\',this.value)">' + opts(r.no) + '</select>';
+          const bb_ = (BED_.bosses || []).find((b) => String(b.no || '').toUpperCase() === r.no);
+          h += '<div class="be-row">' + (rows.length > 1 ? '🎲 ' : 'BOSS ') + '<input list="be-boss-list" value="' + beEsc_(r.no) + '" placeholder="打編號或名稱搜尋…" style="width:170px" onfocus="this.select()" onchange="beUseEd_(' + ti + ',' + fi + ',' + k + ',\'no\',this.value)"> ' + (bb_ ? '<b>' + beEsc_(bb_.name || '') + '</b>(血量 ' + beEsc_(bb_.hp) + ')' : r.no === '*' ? '<b>整本圖鑑</b>' : !r.no ? '<span style="color:#faa61a">還沒選</span>' : '');
           if (rows.length > 1) h += ' 機率 <input type="number" min="0.01" step="0.01" value="' + beEsc_(r.w) + '" style="width:80px" oninput="beUseEd_(' + ti + ',' + fi + ',' + k + ',\'w\',this.value)"> %';
           if (rows.length > 1 || r.no) h += ' <button class="btn btn-edit" onclick="beUseEd_(' + ti + ',' + fi + ',' + k + ',\'del\')">✕</button>';
           if (r.no && r.no !== '*' && !(BED_.bosses || []).some((b) => String(b.no || '').toUpperCase() === r.no)) h += ' <span style="color:#f04747">圖鑑裡沒有 ' + beEsc_(r.no) + '</span>';
