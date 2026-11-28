@@ -1088,7 +1088,7 @@
       </div>
     </div>
 
-    <div class="version-tag">系統版本：v5.4.376</div>
+    <div class="version-tag">系統版本：v5.4.377</div>
   </div>
 
   <script>
@@ -5612,7 +5612,7 @@
             '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:' + (t.shared ? '#5865F2' : '#4F545C') + ';color:#fff">' + (t.personal ? '🧑 個人版 BOSS' : t.shared ? '👥 全場共用牌面' : '🧍 個人牌面') + '</span>' + (t.life ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#4a2a2a;color:#FF8A8A">❤️ 生命制 ' + t.life.count + ' 命</span>' : '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#3a3320;color:#F0B232">🎟️ 每回合 ' + bsNum_(t.ticketCost || 1) + ' ' + escapeHtml_(t.ticketCurrency || '') + '</span>') + '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#1e3a2b;color:#57F287">🟢 ' + (t.online || 0) + ' 人在房間</span>' + (t.access === 'test' ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#3b2a4a;color:#C9A0FF">🧪 測試中(只有管理員看得到)</span>' : t.access === 'roles' ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#3b2a4a;color:#C9A0FF">🔒 限定身分組</span>' : '') + '</div>' +
             '<details style="font-size:12px;color:#B9BBBE;margin:4px 0" onclick="event.stopPropagation()"><summary style="cursor:pointer;color:#F0B232">🎁 查看獎勵</summary><div style="line-height:1.7;margin-top:4px">' + bsPrizeHtml_(t.prizes) + '</div></details>' +
             enHtml_ +
-            '<div style="font-size:13px;color:#B9BBBE">BOSS:' + escapeHtml_(t.boss) + '(' + (t.formIdx + 1) + '/' + t.formCount + ')' + (t.end ? ' ・ 到 ' + escapeHtml_(t.end) : '') + '</div>' +
+            '<div style="font-size:13px;color:#B9BBBE">BOSS:' + escapeHtml_(t.boss) + '(' + (t.formIdx + 1) + '/' + (t.endless ? '∞' : t.formCount) + ')' + (t.end ? ' ・ 到 ' + escapeHtml_(t.end) : '') + '</div>' +
             (bsRemain_(t) !== null ? '<div style="font-size:12px;color:#F0B232;margin-top:2px">👹 剩餘 ' + bsRemain_(t) + ' 隻 BOSS' + ((t.maxLoops === 0 || (t.maxLoops || 1) > 1) ? '(第 ' + t.loop + '/' + (t.maxLoops === 0 ? '∞' : t.maxLoops) + ' 輪)' : '') + '</div>' : '') +
             '<div class="bs-hp" style="margin-top:6px"><i style="width:' + pct + '%"></i><span>' + Math.ceil(t.hp) + ' / ' + t.maxHp + '</span></div></div>';
         }).join('') + '</div>';
@@ -5732,7 +5732,7 @@
       if (el) el.textContent = Math.ceil(left); if (bar) bar.style.width = Math.min(100, left * 10) + '%';
     }
     function bsRemain_(t) { // 還剩幾隻 BOSS(含目前這隻):目前輪剩下的型態 + 之後還沒打的輪數 × 每輪型態數;已結束=0
-      if (!t || t.status === 'ended' || t.loop === undefined || t.maxLoops === 0) return null;
+      if (!t || t.status === 'ended' || t.loop === undefined || t.maxLoops === 0 || t.endless) return null; // 無限輪迴:不顯示剩幾隻
       const ml = t.maxLoops || 1, fc = t.formCount || 1; return Math.max(0, (fc - (t.formIdx || 0)) + (ml - (t.loop || 1)) * fc);
     }
     function bsNum_(n) { n = Number(n) || 0; return String(Math.round(n * 100) / 100); }

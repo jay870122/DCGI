@@ -363,7 +363,7 @@ th.sortable .sort-arrow{margin-left:4px;opacity:0.6}
 
 <div id="admin-app" style="display:none">
   <div class="topbar">
-    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.443</span></div>
+    <div class="brand">⚙️ Garbled 管理後台 <span style="font-size:11px;color:#72767D;font-weight:normal">v5.4.444</span></div>
     <div class="user-info">
       <img id="ua-img" src=""><span id="ua-name"></span>
       <span class="badge">管理員</span>
@@ -5198,7 +5198,7 @@ function beUseSum_(ti, fi) { // 只更新「實際機率」文字,不重畫(避�
 }
 function beToLib_(ti, fi) { // 把賽道裡自訂的型態搬進圖鑑,這一層改成用編號
   const t = BED_.tracks[ti], f = t && t.forms[fi]; if (!f || f.use !== undefined) return;
-  const no = beNextNo_(); BED_.bosses.push(Object.assign({ no }, beClone_(f))); t.forms[fi] = { use: no };
+  const no = beNextNo_(), c = beClone_(f), tm = c.times; delete c.times; BED_.bosses.push(Object.assign({ no }, c)); t.forms[fi] = tm === undefined ? { use: no } : { use: no, times: tm };
   beRender_(); toast('已搬進圖鑑,編號 ' + no + '(記得按儲存)');
 }
 function beLibDup_(i) { const c = beClone_(BED_.bosses[i]); c.no = beNextNo_(); c.name = (c.name || 'BOSS') + '(複製)'; BED_.bosses.splice(i + 1, 0, c); beRender_(); }
@@ -5305,11 +5305,15 @@ function beRender_() {
     }
     h += '<div class="be-row">' + beChk_(tp + '.repeat', t.repeat !== false, '打完前一型態後還能繼續打') + beChk_(tp + '.loopBack', t.loopBack, '最後型態倒下後回第一型態重來') + '最多輪數' + beIn_(tp + '.maxLoops', t.maxLoops === undefined ? 1 : t.maxLoops, 50, '1', 'number') + '<span style="color:#949BA4;font-size:12px">(填 0 = 無限重來)</span>' + '</div>';
     h += '<div class="be-row">' + beChk_(tp + '.dcKill', t.dcKill, '📣 BOSS 被打倒時通報 DC(含進化/重新降臨/結束)') + '附傷害排行前' + beIn_(tp + '.dcKillRank', t.dcKillRank || 0, 50, '0', 'number') + '名 <span class="hint">0=不放排行,最多 20;測試模式/測試賽道不公告</span></div>';
+    let lay_ = 1; // 🆕 依「連續幾層」算出每一格實際是第幾層
     (t.forms || []).forEach((f, fi) => {
+      const tv_ = f.times === undefined || f.times === null || String(f.times).trim() === '' ? 1 : parseInt(f.times, 10), inf_ = tv_ === 0, n_ = inf_ ? 1 : Math.max(1, tv_ || 1), lbl_ = inf_ ? lay_ + ' 層起(無限輪迴)' : n_ > 1 ? lay_ + '~' + (lay_ + n_ - 1) + ' 層' : lay_ + ' 層'; lay_ += n_;
+      const isLast_ = fi === (t.forms || []).length - 1;
+      const timesRow_ = '<div class="be-row">🔁 這個設定連續用 <input type="number" min="0" step="1" value="' + beEsc_(inf_ ? 0 : n_) + '" style="width:70px" onchange="beSet_(\'' + tp + '.forms.' + fi + '.times\',this.value);beRender_()"> 層 <span class="hint">(每層各自重新抽 BOSS;' + (isLast_ ? '填 <b>0 = 無限輪迴</b>,打倒後一直出下一隻,賽道不會結束' : '0=無限輪迴只能用在最後一層') + ')</span>' + (inf_ && !isLast_ ? ' <span style="color:#f04747">只有最後一層可以無限輪迴</span>' : '') + '</div>';
       const fp = tp + '.forms.' + fi, tools = '<button class="btn btn-edit" onclick="beDup_(\'' + tp + '.forms\',' + fi + ')">📑 複製</button><button class="btn btn-edit" onclick="beDel_(\'' + tp + '.forms\',' + fi + ')">🗑</button>';
       if (f.use !== undefined) { // 🆕 這一層用圖鑑 BOSS:一隻=固定;多隻=每次出場依機率抽一隻
         const rows = beUseRows_(f.use), u = beUse_(f.use);
-        h += '<div class="be-form"><div class="be-h">📚 第 ' + (fi + 1) + ' 層(用圖鑑 BOSS)' + tools + '</div>';
+        h += '<div class="be-form"><div class="be-h">📚 第 ' + lbl_ + '(用圖鑑 BOSS)' + tools + '</div>' + timesRow_;
         if (!rows.length) rows.push({ no: '', w: 1 });
         rows.forEach((r, k) => {
           const bb_ = (BED_.bosses || []).find((b) => String(b.no || '').toUpperCase() === r.no);
@@ -5325,7 +5329,7 @@ function beRender_() {
         setTimeout(() => beUseSum_(ti, fi), 0);
         return;
       }
-      h += beFormEd_(fp, f, '<div class="be-h">👹 第 ' + (fi + 1) + ' 層(這條賽道自訂)' + tools + '<button class="btn btn-edit" onclick="beToLib_(' + ti + ',' + fi + ')" title="搬進 BOSS 圖鑑給它一個編號,其他賽道/層也能用">📚 搬進圖鑑</button></div>');
+      h += beFormEd_(fp, f, '<div class="be-h">👹 第 ' + lbl_ + '(這條賽道自訂)' + tools + '<button class="btn btn-edit" onclick="beToLib_(' + ti + ',' + fi + ')" title="搬進 BOSS 圖鑑給它一個編號,其他賽道/層也能用">📚 搬進圖鑑</button></div>' + timesRow_);
     });
     h += '<button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',{use:\'\'})">➕ 新增一層(用圖鑑 BOSS / 隨機)</button> <button class="btn btn-edit" onclick="beAdd_(\'' + tp + '.forms\',BE_FORM_)">➕ 新增一層(這條賽道自訂 BOSS)</button> <button class="btn btn-primary" onclick="bossSave_()">💾 儲存</button>';
     h += '<details class="be-form"' + (BE_PROP_OPEN_.has(ti) ? ' open' : '') + ' ontoggle="if(this.open){BE_PROP_OPEN_.add(' + ti + ');beProp_(' + ti + ')}else BE_PROP_OPEN_.delete(' + ti + ')"><summary style="cursor:pointer"><b>📄 活動企劃書版本</b>(依上面設定自動產生,可直接貼進企劃書)</summary><div class="be-row"><button class="btn btn-primary" onclick="beCopyProp_(' + ti + ')">📋 複製</button> <button class="btn btn-edit" onclick="beProp_(' + ti + ')">🔄 重新產生</button></div><textarea id="be-prop-' + ti + '" readonly style="width:100%;min-height:260px;font-family:inherit;font-size:13px;line-height:1.5"></textarea></details></div>';
@@ -5361,7 +5365,8 @@ function beProposal_(t) { // 依賽道設定自動產生「活動企劃書」可
   } else {
     L.push('- 費用制度:每回合(翻 2 張)消耗 ' + num(t.ticketCost === undefined ? 1 : t.ticketCost) + ' 個「' + (t.ticketCurrency || '全域翻牌貨幣') + '」');
   }
-  L.push('- 型態進程:共 ' + forms.length + ' 個型態,依序進化' + (t.repeat === false ? '(打完一個型態後不可再挑戰)' : '') + (t.loopBack ? ';最後型態倒下後回到第一型態重來,' + (t.maxLoops ? '最多 ' + t.maxLoops + ' 輪' : '輪數不限') : ';最後型態倒下即結束'));
+  const totL_ = forms.reduce((a, f) => { const v = f.times === undefined || f.times === null || String(f.times).trim() === '' ? 1 : parseInt(f.times, 10); return v === 0 ? Infinity : a + Math.max(1, v || 1); }, 0);
+  L.push('- 型態進程:' + (totL_ === Infinity ? '無限輪迴(最後一層打倒後一直出下一隻,不會結束)' : '共 ' + totL_ + ' 層,依序進化') + (t.repeat === false ? '(打完一個型態後不可再挑戰)' : '') + (totL_ === Infinity ? '' : t.loopBack ? ';最後型態倒下後回到第一型態重來,' + (t.maxLoops ? '最多 ' + t.maxLoops + ' 輪' : '輪數不限') : ';最後型態倒下即結束'));
   const d = +t.giftDays || 0, h = +t.giftHours || 0, m = +t.giftMins || 0;
   L.push('- 領獎期限:' + (t.giftUntil ? '至 ' + String(t.giftUntil).replace('T', ' ') : (d || h || m) ? '獎品放進禮物箱後 ' + (d ? d + ' 天' : '') + (h ? h + ' 小時' : '') + (m ? m + ' 分鐘' : '') + '內領取' : '不限期'));
   if (t.dcKill) L.push('- Discord 通報:BOSS 被打倒時自動公告' + (t.dcKillRank > 0 ? '(附傷害排行前 ' + t.dcKillRank + ' 名)' : ''));
@@ -5370,14 +5375,16 @@ function beProposal_(t) { // 依賽道設定自動產生「活動企劃書」可
   L.push('1. 玩家每回合翻開 2 張牌:兩張相同即「一對」,觸發該牌效果;不同則蓋回' + ((lf && lf.on) ? ',並扣 1 命。' : '。'));
   L.push('2. 攻擊牌配對成功 → 對 BOSS 造成傷害;獎勵牌配對成功 → 立即獲得獎勵;特殊牌效果詳見各型態。');
   L.push('3. BOSS 血量歸零即擊倒,依貢獻發放擊倒獎勵並進化至下一型態。');
+  let lay_ = 1;
   forms.forEach((f0, i) => {
+    const tv_ = f0.times === undefined || f0.times === null || String(f0.times).trim() === '' ? 1 : parseInt(f0.times, 10), inf_ = tv_ === 0, n_ = inf_ ? 1 : Math.max(1, tv_ || 1), lbl_ = inf_ ? lay_ + ' 層起(無限輪迴,打倒後一直出下一隻)' : n_ > 1 ? lay_ + '~' + (lay_ + n_ - 1) + ' 層(共 ' + n_ + ' 隻,每層各自抽)' : lay_ + ' 層'; lay_ += n_;
     const isU_ = f0.use !== undefined, cands_ = isU_ ? beUse_(f0.use).list : [{ boss: f0, w: 1 }], tot_ = cands_.reduce((a, x) => a + x.w, 0) || 1;
-    if (isU_) { L.push(''); L.push('## ' + (NUM[i] || (i + 3)) + '、第 ' + (i + 1) + ' 層:' + (cands_.length > 1 ? '🎲 隨機出場(每次出場抽一隻:' + cands_.map((x) => (x.boss.name || x.no) + ' ' + Math.round(x.w / tot_ * 1000) / 10 + '%').join('、') + ')' : cands_.length ? (cands_[0].boss.name || cands_[0].no) : '(未選 BOSS)')); }
+    if (isU_) { L.push(''); L.push('## ' + (NUM[i] || (i + 3)) + '、第 ' + lbl_ + ':' + (cands_.length > 1 ? '🎲 隨機出場(每次出場抽一隻:' + cands_.map((x) => (x.boss.name || x.no) + ' ' + Math.round(x.w / tot_ * 1000) / 10 + '%').join('、') + ')' : cands_.length ? (cands_[0].boss.name || cands_[0].no) : '(未選 BOSS)')); }
     cands_.forEach((cd_) => {
     const f = cd_.boss;
     const b = f.board || {}, at = b.attack || [], rw = b.reward || [], tp = b.trap || {}, rs = b.reset || {}, rt = b.rest || {}, R = f.rewards || {};
     L.push('');
-    L.push(isU_ ? '### ' + (f.name || '(未命名)') + '(血量 ' + num(f.hp) + ')' : '## ' + (NUM[i] || (i + 3)) + '、型態 ' + (i + 1) + ':' + (f.name || '(未命名)') + '(血量 ' + num(f.hp) + ')');
+    L.push(isU_ ? '### ' + (f.name || '(未命名)') + '(血量 ' + num(f.hp) + ')' : '## ' + (NUM[i] || (i + 3)) + '、第 ' + lbl_ + ':' + (f.name || '(未命名)') + '(血量 ' + num(f.hp) + ')');
     L.push('**牌盤**:' + (b.rows ? b.rows + ' 列 × ' : '') + (b.cols || 4) + ' 欄');
     if (at.length) { L.push('**⚔️ 攻擊牌**'); at.forEach((a) => L.push('- ' + (a.label || '(圖示)') + ':' + rng(a.pairsSpec, a.pairs) + ' 對,每對傷害 ' + num(a.dmg) + ',出現機率 ' + (a.chance === undefined ? 100 : a.chance) + '%')); }
     if (rw.length) { L.push('**🎁 獎勵牌**'); rw.forEach((r) => L.push('- ' + (r.label || '(圖示)') + ':' + rng(r.pairsSpec, r.pairs) + ' 對,出現機率 ' + (r.chance === undefined ? 100 : r.chance) + '%;每對獎勵:' + rws(r.rewards))); }
